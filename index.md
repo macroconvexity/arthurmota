@@ -1,11 +1,11 @@
 [Home](./) | [Research](research.md) | [CV](cv.pdf)
 
-# Arthur Mota
+# Profile
 
 Economist & Macro Strategist  
 Director at BTG Pactual (Miami, FL)  
 Research, markets, and global macro.
-
+[Download my CV](papers/Professional_CV%20(1).pdf)
 ---
 
 ## 📄 Research
@@ -21,8 +21,6 @@ Research, markets, and global macro.
 [Download PDF](papers/Mota%20(2027)%20-%20Portfolio%20Theory%20without%20a%20Risk-Free%20Asset.pdf)
 
 
-## CV
 
-[Download my CV](papers/Professional_CV%20(1).pdf)
 
 
