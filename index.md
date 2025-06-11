@@ -1,4 +1,5 @@
 [Home](./) | [Research](research.md) | [CV](cv.pdf)
+
 # Arthur Mota
 
 Economist & Macro Strategist  
