@@ -1,6 +1,6 @@
 [Home](./) | [Research](research.md) | [CV](cv.pdf)
 
-# Profile
+## Profile
 
 Economist & Macro Strategist  
 Director at BTG Pactual (Miami, FL)  
