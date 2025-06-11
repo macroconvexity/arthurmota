@@ -23,6 +23,6 @@ Research, markets, and global macro.
 
 ## CV
 
-[Download my CV](cv.pdf)
+[Download my CV](papers/Professional_CV%20(1).pdf)
 
 
