@@ -7,6 +7,7 @@ Director at BTG Pactual (Miami, FL)
 Research, markets, and global macro.
 
 [Download my CV](papers/Professional_CV%20(1).pdf)
+
 ---
 
 ## 📄 Research
