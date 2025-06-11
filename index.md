@@ -12,6 +12,7 @@ Research, markets, and global macro.
 
 ## 📄 Research
 
+
 ### Debt Sustainability Under Endogenous Yields: A heoretical Model of Safe Asset Demand  
 *Mota (2025)*  
 [Download PDF](papers/Mota%20(2025)%20-%20Debt%20Sustainability%20Under%20Endogenous%20Yields%20.pdf)
