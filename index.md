@@ -14,3 +14,5 @@ Research, markets, and global macro.
 ## CV
 
 [Download my CV](cv.pdf)
+
+[Home](./) | [Research](research.md) | [CV](cv.pdf)
