@@ -17,7 +17,7 @@ Research, markets, and global macro.
 ---
 
 ### Portfolio Theory Without a Risk-Free Asset  
-*Mota (2027)*  
+*Mota (2025)*  
 [Download PDF](papers/Mota%20(2027)%20-%20Portfolio%20Theory%20without%20a%20Risk-Free%20Asset.pdf)
 
 
