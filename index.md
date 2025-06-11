@@ -1,6 +1,6 @@
-# Arthur Mota
+# Economist & Macro Strategist
 
-Economist at BTG Pactual.  
+Director at BTG Pactual.  
 This is my academic/personal page.
 
 ## Research  
