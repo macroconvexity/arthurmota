@@ -1,3 +1,4 @@
+[Home](./) | [Research](research.md) | [CV](cv.pdf)
 # Arthur Mota
 
 Economist & Macro Strategist  
@@ -15,4 +16,4 @@ Research, markets, and global macro.
 
 [Download my CV](cv.pdf)
 
-[Home](./) | [Research](research.md) | [CV](cv.pdf)
+
