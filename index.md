@@ -1,11 +1,11 @@
-# Welcome to My Site
+# Arthur Mota
 
-I’m Arthur Mota, an economist at BTG.  
-This is my personal/academic site.
+Economist at BTG Pactual.  
+This is my academic/personal page.
 
 ## Research  
-- [Paper 1](link)
-- [Paper 2](link)
+- [My Paper 1](#)
+- [My Paper 2](#)
 
 ## CV  
-[Download my CV (PDF)](cv.pdf)
+[Download my CV](cv.pdf)
