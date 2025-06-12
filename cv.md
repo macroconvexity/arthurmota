@@ -93,7 +93,7 @@ Asset Allocation Models, Risk Management, Portfolio Optimization, Scenario Analy
 Microsoft Office Suite, Bloomberg Terminal, Refinitiv Eikon
 
 **Languages**
-- **English:** Advanced (writing and reading, communication)
+- **English:** Advanced (writing, reading and communication)
 - **Portuguese:** Native
 - **Spanish:** Intermediate
 
