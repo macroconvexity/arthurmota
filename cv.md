@@ -28,7 +28,7 @@ São Paulo, Brazil
 ## Professional Experience
 
 ### **Economist & Strategist** | *BTG Pactual* | Jun 2020 - Present
-*Global Macro Strategy - Sell-side Research*  
+*Global Macro Strategy - Buy side*  
 São Paulo, Brazil / Miami, Florida
 
 - Economist and strategist covering Global Macro with strong focus on US, Europe, and China
