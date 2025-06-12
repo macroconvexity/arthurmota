@@ -6,7 +6,7 @@ Economist & Macro Strategist
 Director at BTG Pactual (Miami, FL)  
 Research, markets, and global macro.
 
-[Download my CV](papers/Professional_CV%20(1).pdf)
+[Download my CV](papers/Professional_CV%20(3).pdf)
 
 ---
 
@@ -16,6 +16,7 @@ Research, markets, and global macro.
 ### Debt Sustainability Under Endogenous Yields: A heoretical Model of Safe Asset Demand  
 *Mota (2025)*  
 [Download PDF](papers/Mota%20(2025)%20-%20Debt%20Sustainability%20Under%20Endogenous%20Yields%20.pdf)
+[Download Presentation](papers/DEBT___Beamer%20(2).pdf)
 
 ---
 
