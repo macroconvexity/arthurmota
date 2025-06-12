@@ -33,4 +33,6 @@ Mota (2025)*
 *Mota (2025)*  
 [Download PDF](papers/Monetary_Policy_SSRN.pdf)
 
+[Download Presentation](papers/monetarypolicy_beamer.pdf)
+
 
