@@ -11,8 +11,6 @@ Economist and strategist with extensive experience in macroeconomic forecasting,
 ## Contact Information
 
 📍 Miami Beach, FL, United States  
-📱 +1 (786) 835-9064  
-✉️ arthur.lula.mota@gmail.com  
 💼 [LinkedIn: arthurlmota](https://linkedin.com/in/arthurlmota)
 
 ---
