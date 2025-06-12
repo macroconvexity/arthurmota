@@ -25,6 +25,8 @@ Research, markets, and global macro.
 Mota (2025)*  
 [Download PDF](papers/Mota%20(2027)%20-%20Portfolio%20Theory%20without%20a%20Risk-Free%20Asset.pdf)
 
+[Download Presentation](papers/Portfolio_beamer.pdf)
+
 ---
 
 ### Dynamic Inconsistency in Dual-Shock Monetary Policy: A Post-COVID Framework
