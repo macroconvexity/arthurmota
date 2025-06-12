@@ -58,7 +58,7 @@ São Paulo, Brazil
 - Applied neural networks and machine learning techniques to large datasets
 - Specialized in commodity price forecasting and trading signal generation
 
-### **Junior Economist** | *São Paulo Federation of Industries (FIESP)* | Aug 2014 - Dec 2017
+### **Economist** | *São Paulo Federation of Industries (FIESP)* | Aug 2014 - Dec 2017
 *Economic Research & Analysis*  
 São Paulo, Brazil
 
