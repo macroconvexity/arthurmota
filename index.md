@@ -12,6 +12,11 @@ Research, markets, and global macro.
 
 ## 📄 Research
 
+### Dynamical Analysis of Delay Differential Equations in Macroeconomic Models: Bifurcations, Complex Behavior, and Mathematical Structure
+*Mota (2025)*  
+[Download PDF](papers/PhD_Draft_Tone_Down_By_Teacher.pdf)
+
+---
 
 ### Debt Sustainability Under Endogenous Yields: A heoretical Model of Safe Asset Demand  
 *Mota (2025)*  
