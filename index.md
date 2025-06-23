@@ -22,6 +22,14 @@ Research, markets, and global macro.
 
 ---
 
+### Strategic Timing with Learning: A Bayesian Entry/Exit Game in Financial Markets
+*Mota (2025)*  
+[Download PDF](papers/ssrn-5310012.pdf)
+
+[SSRN link](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5310012)
+
+---
+
 ### Debt Sustainability Under Endogenous Yields: A heoretical Model of Safe Asset Demand  
 *Mota (2025)*  
 [Download PDF](papers/Mota%20(2025)%20-%20Debt%20Sustainability%20Under%20Endogenous%20Yields%20.pdf)
