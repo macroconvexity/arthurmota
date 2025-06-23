@@ -16,6 +16,10 @@ Research, markets, and global macro.
 *Mota (2025)*  
 [Download PDF](papers/PhD_Draft_Tone_Down_By_Teacher.pdf)
 
+[Download Presentation](papers/phd_draft_beamer.pdf)
+
+[SSRN link](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5309171)
+
 ---
 
 ### Debt Sustainability Under Endogenous Yields: A heoretical Model of Safe Asset Demand  
@@ -23,6 +27,8 @@ Research, markets, and global macro.
 [Download PDF](papers/Mota%20(2025)%20-%20Debt%20Sustainability%20Under%20Endogenous%20Yields%20.pdf)
 
 [Download Presentation](papers/DEBT___Beamer%20(2).pdf)
+
+[SSRN link](https://papers.ssrn.com/abstract=5287705)
 
 ---
 
@@ -32,6 +38,8 @@ Mota (2025)*
 
 [Download Presentation](papers/Portfolio_beamer.pdf)
 
+[SSRN link](https://papers.ssrn.com/abstract=5285858)
+
 ---
 
 ### Dynamic Inconsistency in Dual-Shock Monetary Policy: A Post-COVID Framework
@@ -40,4 +48,5 @@ Mota (2025)*
 
 [Download Presentation](papers/monetarypolicy_beamer.pdf)
 
+[SSRN link](https://papers.ssrn.com/abstract=5285858)
 
