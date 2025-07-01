@@ -121,8 +121,6 @@ Microsoft Office Suite, Bloomberg Terminal, Refinitiv Eikon
 
 ## Additional Information
 
-**Professional Memberships:** Brazilian Association of Applied Economics (ANPEC)
-
 **Research Focus:** Intersection of macroeconomics, financial markets, and quantitative methods
 
 **Industry Recognition:** Regular contributor to major Brazilian financial media outlets
