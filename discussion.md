@@ -9,7 +9,7 @@ The real debate should distinguish between "Is the theory logically correct?" an
 
 [Read post →](./posts/EMH.md)
 
-# [2025-06-30] The Phillips Curve Evolution: From Flattening to Steepening and the Search for Normalization
+## [2025-06-30] The Phillips Curve Evolution: From Flattening to Steepening and the Search for Normalization
 
 The Phillips Curve underwent a dramatic transformation: from seeming death in the 2010s to resurrection during COVID-19. During the "Great Flattening" (2008-2019), unemployment fell to historic lows while inflation stayed flat, leading many to declare the relationship "dead." Fed Chair Powell called it a "faint heartbeat."
 
