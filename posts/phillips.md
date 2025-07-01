@@ -310,142 +310,225 @@ Their findings suggest relatively modest slopes when properly identified, with c
 
 <cite index="42-1">Smith, Timmermann and Wright (2023) provide international evidence using "sectoral, state, or MSA-level data" with "Bayesian panel methods with breakpoints that allows them to estimate the timing of Phillips curve breaks instead of imposing them."</cite>
 
-Their analysis reveals important heterogeneity: <cite index="42-1">"In the sectoral data, they uncover a marked flattening of the price Phillips curve between a pre-2001 and a post-2001 sample. However, the state-level data indicates that the slope of the wage Phillips curve has been relatively stable over time while the MSA-MSA-level data."</cite>
-Pandemic-Era Nonlinearities
-<cite index="42-1">The pandemic provided compelling evidence of state dependence. Cerrato and Gitti (2022) use "MSA-level data and compare pre-COVID estimates with those obtained on a sample ranging from March 2021 to August 2022: they find that the slope of the Phillips curve has tripled between the former and latter sample."</cite>
-Asymmetric Shock Transmission
-<cite index="35-1">Recent research documents fundamental asymmetries in how shocks affect inflation. Studies show that "asymmetry in the transmission of shocks" means "expansionary shocks are more inflationary because the probability of price increases is higher than the probability of price decreases."</cite>
-This asymmetry helps explain why Phillips Curves may appear steep during inflationary episodes but flat during disinflationary ones, contributing to the apparent instability of estimated relationships.
-Volatility and Curve Steepness
-<cite index="35-1">Another source of nonlinearity comes from volatility effects. Research suggests that "increased volatility, driven by significant shocks that cause greater fluctuations in inflation in both directions" may contribute "to the observed steepening of the Phillips curve."</cite>
-The pandemic period was characterized by unprecedented economic volatility, which may have contributed to the apparent steepening of Phillips Curve relationships through this mechanism.
-Part VII: Sectoral Analysis and Disaggregated Evidence
-Goods vs. Services Phillips Curves
-<cite index="2-1,5-1">One of the most important insights from recent research concerns sectoral differences in Phillips Curve behavior. IMF research documents that "differences in the inflation response across sectors imply the relative price of goods has been pro-cyclical this time around rather than a-cyclical as during previous cycles."</cite>
-The pandemic created an unusual pattern of demand shifts. <cite index="2-1,5-1">Analysis shows that "the shift up and steepening was most prominent in the goods sector, consistent with the price of goods relative to services becoming much more sensitive to the recovery."</cite>
-Two-Sector Model Insights
-<cite index="40-1">Theoretical analysis using a two-sector new-Keynesian model shows that "when we introduce unbalanced recoveries that run against a supply constraint in the goods sectors," several patterns emerge endogenously: "(steepening, shifting, and relative goods price pro-cyclicality)."</cite>
-<cite index="40-1">The model generates quantitatively significant effects: "When recoveries are unbalanced and constrained, the model generates an increase in the slope of the Phillips curve of between 50 and 60 percent, depending on the representation of the Phillips curve (dynamic versus static)."</cite>
-Regional Heterogeneity
-U.S. State-Level Evidence
-<cite index="36-1,38-1">The comprehensive analysis by Hazell et al. (2022) using U.S. state data provides crucial insights. Their work estimates Phillips curves for nontradeable goods, which "is the slope of the regional Phillips for nontradeable goods that is informative of the slope of the aggregate Phillips curve."</cite>
-Their findings suggest relatively modest slopes when properly identified, with careful attention to the distinction between tradeable and non-tradeable sectors.
-Metropolitan Area Analysis
-<cite index="42-1">Studies using Metropolitan Statistical Area (MSA) data provide additional granular evidence. Fitzgerald et al. (2024) estimate "a price Phillips curve with the unemployment rate as the forcing variable using metropolitan statistical areas (MSA) data and find that the slope of the Phillips curve has modestly declined after 2000, although that decline is not statistically significant."</cite>
-Cross-Country Evidence
-<cite index="42-1">Smith, Timmermann and Wright (2023) provide international evidence using "sectoral, state, or MSA-level data" with "Bayesian panel methods with breakpoints that allows them to estimate the timing of Phillips curve breaks instead of imposing them."</cite>
 Their analysis reveals important heterogeneity: <cite index="42-1">"In the sectoral data, they uncover a marked flattening of the price Phillips curve between a pre-2001 and a post-2001 sample. However, the state-level data indicates that the slope of the wage Phillips curve has been relatively stable over time while the MSA-level data shows a similar result for the slope of the price Phillips curve."</cite>
-Industry-Level Dynamics
+
+### Industry-Level Dynamics
+
 <cite index="42-1">Recent firm-level research has provided unprecedented insight into micro-foundations. Gagliardone et al. (2023) use "detailed micro-data for the Belgian manufacturing sector" and find "a relatively high slope for the aggregate marginal cost-based Phillips curve in the range of 0.05 to 0.06."</cite>
+
 <cite index="42-1">Importantly, they find that "the elasticity of marginal cost with respect to the output gap is low, which helps reconcile their results with the low slope estimates usually found in the literature estimating unemployment or output gap-based Phillips curves."</cite>
+
 This distinction between marginal cost-based and output gap-based Phillips curves helps explain much of the apparent inconsistency in the literature.
-Part VIII: Price-Setting Behavior and Micro Evidence
-Frequency of Price Changes
+
+## Part VIII: Price-Setting Behavior and Micro Evidence
+
+### Frequency of Price Changes
+
 One of the most compelling pieces of evidence for structural change comes from detailed analysis of price-setting behavior. <cite index="1">Montag and Villar Vallenas (2023) use "U.S. Consumer Price Index micro-data to examine about 90,000 individual prices each month and determines if there was a change and, if so, was the change an increase or decrease."</cite>
+
 <cite index="1">Their findings are striking: "The monthly price change frequency (the black line) increased from about 10 percent of the sample in 2019 to around 20 percent by the end of 2021 and held around that level in 2022. The increase in price change frequency is primarily driven by firms upwardly adjusting their prices (the red dashed line) during this period."</cite>
-Calvo vs. Menu Cost Models
+
+### Calvo vs. Menu Cost Models
+
 The distinction between time-dependent (Calvo) and state-dependent (menu cost) pricing models becomes crucial for understanding recent dynamics. <cite index="42-1">In the standard New Keynesian model with time-dependent pricing, "an increase in the frequency of price adjustment at the micro level mechanically leads to a higher value of κ."</cite>
+
 <cite index="42-1">However, "the frequency of price changes is an exogenous parameter in the standard New Keynesian model with time-dependent pricing," but "it changes with economic conditions in models with menu costs, thus implying that the slope of the Phillips curve becomes state-dependent."</cite>
-Information Processing and Attention
+
+### Information Processing and Attention
+
 <cite index="42-1">Models of rational inattention provide additional insight into price-setting behavior. In these models, "households and firms have a limited amount of attention that they can dedicate to processing information. It is costly and time consuming to constantly adjust behavior in response to shocks."</cite>
+
 <cite index="42-1">Weber et al. (2024) provide "extensive cross-country evidence showing that both consumers and firms are substantially more informed (and thus able to process information) about the state of the economy in periods when inflation is high than in periods when inflation is low."</cite>
+
 This research suggests that the apparent steepening of Phillips Curves during high inflation periods may reflect increased information processing rather than fundamental structural changes.
-Digital Pricing and Technological Change
+
+### Digital Pricing and Technological Change
+
 <cite index="10-1">The role of digitalization in changing price-setting behavior has received increasing attention. Research using "granular price quote data from the UK indicates that increased digitalization may have raised price flexibility."</cite>
+
 The pandemic accelerated digital adoption across many sectors, potentially making it easier and cheaper for firms to adjust prices frequently. This technological change could represent a permanent shift toward more flexible pricing, implying persistently steeper Phillips Curves.
-Part IX: Global Perspectives and Cross-Country Evidence
-European Union Analysis
+
+## Part IX: Global Perspectives and Cross-Country Evidence
+
+### European Union Analysis
+
 <cite index="4-1,35-1">The European experience provides important comparative evidence. Czech National Bank research documents that recent steepening is "evident in the US and the EU, but also in 28 other OECD economies, including the Czech Republic, Hungary, Poland and Slovakia."</cite>
+
 <cite index="4-1,35-1">Central European countries show particularly interesting patterns: "recent studies point to an increasing importance of the backward-looking component of inflation, especially as inflation persistence increases, particularly in Central and Eastern European countries."</cite>
-Developed vs. Emerging Economy Differences
+
+### Developed vs. Emerging Economy Differences
+
 <cite index="36-1">Research on emerging markets reveals different patterns. Studies examining "price adjustment patterns in Armenia from January 2007 to December 2021" found that "prices in Armenia change more frequently than in advanced economies, with an average price spell of 2.4 months."</cite>
+
 <cite index="36-1">This suggests that the flattening observed in advanced economies during the 2010s may have been less pronounced in emerging markets, where "high inflation volatility and frequent external shocks" maintain more responsive pricing behavior.</cite>
-Japanese Experience
+
+### Japanese Experience
+
 <cite index="36-1">Japan provides a particularly interesting case study given its long experience with low inflation. Recent research examining "Japanese parameters, such as a low output gap response to the real interest rate, discounted IS curve, alternative inflation persistences" provides insights into how Phillips Curve relationships function in persistently low inflation environments.</cite>
-Cross-Country Synthesis
+
+### Cross-Country Synthesis
+
 <cite index="8-1">Comprehensive international analysis by the Chicago Fed documented that Phillips curve steepening "is apparent in figure 1, which shows the Phillips curves of the United States, United Kingdom, and France during two time periods: the seven years (or 28 quarters) before the pandemic (2013:Q1–2019:Q4) and the six quarters of the recovery for which we have data (2021:Q1–2022:Q2)."</cite>
+
 <cite index="8-1">The evidence shows that "These three countries' Phillips curves have steepened significantly during the recovery, in stark contrast with their flat Phillips curves of the pre-pandemic period."</cite>
-Part X: Monetary Policy Implications and Framework Evolution
-Sacrifice Ratio Dynamics
+
+## Part X: Monetary Policy Implications and Framework Evolution
+
+### Sacrifice Ratio Dynamics
+
 The evolution of Phillips Curve slopes has fundamental implications for the sacrifice ratio—the amount of economic output that must be sacrificed to achieve a given reduction in inflation. <cite index="8-1">Recent steepening suggests "a lower sacrifice ratio now than before 2020," meaning that "inflation can be reduced at little cost in terms of economic activity."</cite>
+
 This represents a dramatic change from the post-2008 period when flat Phillips Curves implied high sacrifice ratios and prolonged disinflation processes.
-Average Inflation Targeting
+
+### Average Inflation Targeting
+
 <cite index="34-1,15-1">The changing slope of the Phillips Curve has important implications for optimal monetary policy frameworks. Research on "the optimal targeting window for a central bank conducting an average inflation targeting" framework shows how curve flattening affects policy design.</cite>
+
 <cite index="34-1">Analysis reveals that "a flatter slope also implies an increasing role of inflation variation in determining household welfare," suggesting that "the central bank might want to increase their focus on inflation stabilizations, sacrificing the output-gap stabilizations."</cite>
+
 When the Phillips Curve is steep, as appears to be the case post-pandemic, central banks may have more flexibility in their policy frameworks.
-Communication and Expectations Management
+
+### Communication and Expectations Management
+
 <cite index="1">The role of central bank credibility remains crucial. Waller's analysis emphasizes that "when central bank promises are credible, the Phillips curve should be relatively flat."</cite> The recent steepening may partly reflect temporary questioning of central bank resolve during the initial stages of the inflation surge.
+
 <cite index="1">However, "if unanchored inflation expectations were driving what looks like a shifting Phillips curve, this would be extremely problematic for central bankers because it could require dramatic actions by the FOMC to lower inflation expectations to shift the Phillips curve back down."</cite>
-Forward Guidance and Policy Rules
+
+### Forward Guidance and Policy Rules
+
 The evolution of Phillips Curve relationships affects optimal policy rules. <cite index="21-1">Recent Brookings research suggests that "systematic polices like average inflation targeting could be especially effective in bringing inflation back to 2 percent in the current environment."</cite>
+
 <cite index="21-1">The key insight is that "A flat Phillips Curve requires the monetary authority to work harder to stabilize inflation: Unemployment needs to get lower to bring inflation back to target after a recession."</cite>
-Part XI: Looking Forward: Scenarios and Implications
-Scenario Analysis for Phillips Curve Evolution
+
+## Part XI: Looking Forward: Scenarios and Implications
+
+### Scenario Analysis for Phillips Curve Evolution
+
 Looking ahead, several scenarios emerge for the future evolution of Phillips Curve relationships:
-Scenario 1: Return to Pre-Pandemic Flatness
+
+#### Scenario 1: Return to Pre-Pandemic Flatness
+
 In this scenario, the steepening observed during 2021-2022 represents a temporary response to pandemic-specific shocks. As supply chains normalize and inflation expectations re-anchor, the Phillips Curve would return to its pre-pandemic flat configuration.
-Implications: This would suggest that the 2010s pattern of weak inflation responses to labor market tightness would resume, requiring more aggressive monetary policy to achieve inflation targets.
-Scenario 2: Permanent Steepening
+
+**Implications:** This would suggest that the 2010s pattern of weak inflation responses to labor market tightness would resume, requiring more aggressive monetary policy to achieve inflation targets.
+
+#### Scenario 2: Permanent Steepening
+
 This scenario assumes that structural changes—increased digitalization, reduced globalization, or changed price-setting behavior—have permanently steepened the Phillips Curve.
-Implications: Central banks would face more favorable trade-offs, with the ability to achieve disinflation with less economic disruption.
-Scenario 3: State-Dependent Nonlinearity
+
+**Implications:** Central banks would face more favorable trade-offs, with the ability to achieve disinflation with less economic disruption.
+
+#### Scenario 3: State-Dependent Nonlinearity
+
 This scenario suggests that Phillips Curves are inherently nonlinear, appearing flat in low-inflation environments but steep when inflation is elevated.
-Implications: Policy frameworks would need to account for regime-dependent relationships, with different strategies for different inflation environments.
-Climate Change and Supply Shocks
+
+**Implications:** Policy frameworks would need to account for regime-dependent relationships, with different strategies for different inflation environments.
+
+### Climate Change and Supply Shocks
+
 <cite index="42-1">Future Phillips Curve dynamics will likely be influenced by climate-related supply shocks. As Furlanetto and Lepetit (2024) note in their discussion of future research directions, energy transition and climate-related disruptions may create new sources of inflation volatility.</cite>
+
 These supply-side factors could interact with Phillips Curve relationships in complex ways, potentially creating more frequent episodes of stagflationary pressures.
-Demographic Transitions
+
+### Demographic Transitions
+
 <cite index="42-1">Demographic changes represent another important factor. Research by Ambrocio (2023) examines "Demographic Aging and the New Keynesian Phillips Curve," suggesting that aging populations may affect both labor market dynamics and inflation trends.</cite>
-Technological Evolution
+
+### Technological Evolution
+
 The continued advancement of artificial intelligence, automation, and digital platforms will likely continue to affect price-setting behavior. The question is whether these changes will enhance price flexibility (steepening Phillips Curves) or reduce pricing power through increased competition (flattening curves).
-Geopolitical Fragmentation
+
+### Geopolitical Fragmentation
+
 The trajectory toward economic nationalism and supply chain reshoring may strengthen Phillips Curve relationships by reducing the role of global slack in domestic inflation determination. <cite index="10-1">Research already documents that "higher digitalization and lower trade intensity are shown to be associated with steeper Phillips curves."</cite>
-Part XII: Methodological Lessons and Future Research
-Advances in Identification
+
+## Part XII: Methodological Lessons and Future Research
+
+### Advances in Identification
+
 The Phillips Curve literature has made substantial progress in addressing identification challenges. <cite index="42-1">As Furlanetto and Lepetit (2024) conclude, "While these approaches can and should still be refined, they have brought new robust results, notably that traditional approaches to estimating the Phillips curve using lagged macroeconomic variables as instruments tend to underestimate its slope."</cite>
-Remaining Challenges
+
+### Remaining Challenges
+
 Despite methodological advances, important challenges remain:
-Weak Instruments Problem
+
+#### Weak Instruments Problem
+
 <cite index="42-1">Even sophisticated identification strategies face limitations: "truly exogenous monetary policy shocks are small and constitute weak instruments, thus leading to large weak-IV robust confidence intervals for the parameters."</cite>
-Model Uncertainty
+
+#### Model Uncertainty
+
 <cite index="42-1">Regional approaches face issues when "the underlying inflation dynamics in the data are heterogeneous across regions (different γi,t and κi,t by region): indeed, in that case the error term is correlated with the regressor."</cite>
-Structural Break Dating
+
+#### Structural Break Dating
+
 Many studies impose break dates rather than estimating them endogenously. <cite index="42-1">More sophisticated approaches like those by Smith, Timmermann and Wright (2023) that "estimate the timing of Phillips curve breaks instead of imposing them" provide more reliable evidence.</cite>
-Future Research Directions
+
+### Future Research Directions
+
 Several areas warrant continued investigation:
-Real-Time Analysis
+
+#### Real-Time Analysis
+
 Understanding how Phillips Curve relationships evolve in real-time rather than only in retrospective analysis would enhance policy relevance.
-High-Frequency Data
+
+#### High-Frequency Data
+
 <cite index="1">The use of "about 90,000 individual prices each month" represents the frontier of micro-price analysis, but expansion to higher frequency and broader coverage could provide additional insights.</cite>
-Cross-Country Comparative Studies
+
+#### Cross-Country Comparative Studies
+
 Systematic comparison across countries with different institutional arrangements could help identify the structural factors most important for Phillips Curve stability.
-Integration with Other Structural Relationships
+
+#### Integration with Other Structural Relationships
+
 Future work should better integrate Phillips Curve analysis with other key macroeconomic relationships, including the IS curve and monetary policy reaction functions.
-Conclusion: The Enduring Relevance of the Phillips Curve
+
+## Conclusion: The Enduring Relevance of the Phillips Curve
+
 The Phillips Curve's journey from apparent death to dramatic resurrection during the COVID-19 pandemic illustrates the dynamic nature of macroeconomic relationships. Rather than viewing these changes as evidence of theoretical failure, they represent the normal evolution of economic structures and relationships in response to changing technological, institutional, and policy environments.
-Key Lessons
-Structural vs. Reduced-Form Relationships: The experience demonstrates the importance of understanding the structural foundations of macroeconomic relationships rather than relying solely on reduced-form empirical correlations. <cite index="42-1">As the literature shows, "the overwhelming majority of empirical explorations of the Phillips curve is based on a relationship between inflation and a measure of real economic activity," but "in structural models, microfounded versions of the Phillips curve relate inflation to average real marginal cost."</cite>
-Policy Endogeneity: <cite index="16-1">The fundamental insight that "if monetary policy is set with the goal of minimizing welfare losses subject to a Phillips curve, a central bank will seek to increase inflation when output is below potential," making it "difficult to empirically identify a Phillips curve even when it always holds," has important implications for both research and policy.</cite>
-State Dependence: The evidence for nonlinear, state-dependent Phillips Curves suggests that policy frameworks should account for regime-dependent relationships rather than assuming constant parameters.
-Technological and Structural Change: <cite index="10-1">The role of "increased digitalization" and changing "trade intensity" in affecting Phillips Curve slopes highlights the importance of considering how technological and structural changes affect macroeconomic relationships.</cite>
-Implications for Monetary Policy
+
+### Key Lessons
+
+**Structural vs. Reduced-Form Relationships:** The experience demonstrates the importance of understanding the structural foundations of macroeconomic relationships rather than relying solely on reduced-form empirical correlations. <cite index="42-1">As the literature shows, "the overwhelming majority of empirical explorations of the Phillips curve is based on a relationship between inflation and a measure of real economic activity," but "in structural models, microfounded versions of the Phillips curve relate inflation to average real marginal cost."</cite>
+
+**Policy Endogeneity:** <cite index="16-1">The fundamental insight that "if monetary policy is set with the goal of minimizing welfare losses subject to a Phillips curve, a central bank will seek to increase inflation when output is below potential," making it "difficult to empirically identify a Phillips curve even when it always holds," has important implications for both research and policy.</cite>
+
+**State Dependence:** The evidence for nonlinear, state-dependent Phillips Curves suggests that policy frameworks should account for regime-dependent relationships rather than assuming constant parameters.
+
+**Technological and Structural Change:** <cite index="10-1">The role of "increased digitalization" and changing "trade intensity" in affecting Phillips Curve slopes highlights the importance of considering how technological and structural changes affect macroeconomic relationships.</cite>
+
+### Implications for Monetary Policy
+
 The evolution of Phillips Curve relationships has several implications for monetary policy conduct:
-Framework Flexibility: Central banks need frameworks robust to changes in underlying economic relationships, including the possibility that key parameters may be time-varying or state-dependent.
-Credibility Maintenance: <cite index="1">The central role of expectations in Phillips Curve dynamics reinforces the crucial importance of maintaining central bank credibility, as "when central bank promises are credible, the Phillips curve should be relatively flat."</cite>
-Humility and Adaptation: <cite index="18-1">As the San Francisco Fed research suggests, "A failure to maintain inflation expectations around the target could greatly undermine the Federal Reserve's ability to achieve stable prices—part of its dual mandate—in the future."</cite>
-The Future of Phillips Curve Research
+
+**Framework Flexibility:** Central banks need frameworks robust to changes in underlying economic relationships, including the possibility that key parameters may be time-varying or state-dependent.
+
+**Credibility Maintenance:** <cite index="1">The central role of expectations in Phillips Curve dynamics reinforces the crucial importance of maintaining central bank credibility, as "when central bank promises are credible, the Phillips curve should be relatively flat."</cite>
+
+**Humility and Adaptation:** <cite index="18-1">As the San Francisco Fed research suggests, "A failure to maintain inflation expectations around the target could greatly undermine the Federal Reserve's ability to achieve stable prices—part of its dual mandate—in the future."</cite>
+
+### The Future of Phillips Curve Research
+
 <cite index="42-1">Looking ahead, Furlanetto and Lepetit (2024) note that "At a time when inflation is once again a major policy issue, these methodological advances should form a useful springboard for further research on inflation dynamics."</cite>
+
 The research agenda should focus on:
 
-Understanding when and why Phillips Curve relationships change
-Developing robust policy frameworks that can adapt to evolving relationships
-Integrating micro-foundations with macro-level analysis
-Incorporating technological and structural change into theoretical models
+1. **Understanding when and why Phillips Curve relationships change**
+2. **Developing robust policy frameworks that can adapt to evolving relationships**
+3. **Integrating micro-foundations with macro-level analysis**
+4. **Incorporating technological and structural change into theoretical models**
 
-Final Reflections
+### Final Reflections
+
 The Phillips Curve remains a useful framework for understanding inflation dynamics, but its application requires careful attention to changing economic structures and institutional arrangements. The pandemic experience has demonstrated that structural economic relationships can reassert themselves quickly when conditions change, providing important lessons for both economic theory and policy practice.
+
 Rather than asking whether the Phillips Curve is "alive" or "dead," we should focus on understanding how and when it operates, what factors influence its strength and stability, and how policy frameworks can best adapt to its evolution. The relationship between inflation and economic activity, while fundamentally rooted in economic logic, will continue to manifest differently across different economic environments and institutional arrangements.
+
 The recent experience serves as a powerful reminder that in macroeconomics, relationships that appear stable can change quickly when underlying conditions shift. This underscores the importance of maintaining both theoretical understanding and policy flexibility to navigate an ever-changing economic landscape, while recognizing that the fundamental trade-offs captured by the Phillips Curve remain central to monetary policy analysis and implementation.
+
 The story of the Phillips Curve's evolution is far from over. As economies continue to evolve in response to technological change, demographic shifts, climate challenges, and geopolitical developments, the Phillips Curve will likely continue to adapt. The key for both researchers and policymakers is to remain vigilant to these changes while maintaining the theoretical and empirical tools necessary to understand and respond to them effectively.
 
-This analysis draws from extensive recent research in monetary economics, including contributions from the Federal Reserve System, International Monetary Fund, European Central Bank, and leading academic institutions. The citations provided throughout reflect the current state of knowledge in this rapidly evolving field.
+---
+
+*This analysis draws from extensive recent research in monetary economics, including contributions from the Federal Reserve System, International Monetary Fund, European Central Bank, and leading academic institutions. The citations provided throughout reflect the current state of knowledge in this rapidly evolving field.*
