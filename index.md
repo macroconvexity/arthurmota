@@ -1,4 +1,4 @@
-[Home](./) | [Research](research.md) | [Lecture](lectures.md) | [CV](cv.md) | [Discussions](discussion.md) 
+[Home](./) | [Research](research.md) | [Discussions](discussion.md) | [Lecture](lectures.md) | [CV](cv.md) 
 
 ## Profile
 
