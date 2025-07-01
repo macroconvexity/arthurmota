@@ -1,4 +1,5 @@
 # The Great EMH Confusion: Why Critics and Defenders Keep Missing Each Other
+# Arthur Mota
 
 The debate around the Efficient Market Hypothesis (EMH) has raged for decades, producing thousands of academic papers, countless heated exchanges, and seemingly irreconcilable positions. Yet after observing these debates for years, I've come to a striking realization: most participants are unknowingly arguing about two completely different questions. This fundamental confusion explains why EMH discussions often feel like intellectual ships passing in the night, with both sides seemingly talking past each other in perpetual frustration.
 
