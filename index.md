@@ -1,4 +1,4 @@
-[Home](./) | [Research](research.md) | [Discussions](discussion.md) | [Lecture](lectures.md) | [CV](cv.md) | [Dashboard](dashboard.html) 
+[Home](./) | [Research](research.md) | [Discussions](discussion.md) | [Lecture](lectures.md) | [CV](cv.md) | [Fed Model](dashboard.html) | [Brazil BCB Model](bcb_model.html) 
 
 ## Profile
 
