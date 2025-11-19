@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Options Strategy Playground</title>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --accent: #3b82f6;
+            --border: #e2e8f0;
+            --success: #10b981;
+            --danger: #ef4444;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text-main);
+            padding: 20px;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 24px;
+        }
+
+        header {
+            grid-column: 1 / -1;
+            margin-bottom: 10px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        h1 { font-size: 1.5rem; font-weight: 700; color: var(--text-main); }
+        h2 { font-size: 1.1rem; font-weight: 600; margin-bottom: 15px; }
+        .subtitle { font-size: 0.9rem; color: var(--text-muted); }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        /* Inputs */
+        .control-group { margin-bottom: 15px; }
+        
+        label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        select, input[type="number"] {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.95rem;
+            background: #fff;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            accent-color: var(--accent);
+            cursor: pointer;
+        }
+
+        .val-display {
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        /* Charts & Greeks */
+        .chart-container {
+            height: 400px;
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .greeks-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .greek-card {
+            background: #f1f5f9;
+            padding: 12px;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .greek-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .greek-value { font-size: 1.1rem; font-weight: 700; color: var(--text-main); margin-top: 4px; }
+
+        .pl-positive { color: var(--success); }
+        .pl-negative { color: var(--danger); }
+
+        .hidden { display: none; }
+
+        @media (max-width: 768px) {
+            .container { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>Options Strategy Playground</h1>
+        <div class="subtitle">Black-Scholes Pricing & Payoff Analysis • Underlying S₀ = 100</div>
+    </header>
+
+    <!-- Controls -->
+    <aside>
+        <div class="card">
+            <h2>Configuration</h2>
+
+            <div class="control-group">
+                <label>Strategy</label>
+                <select id="strategySelect">
+                    <option value="longCall">Long Call</option>
+                    <option value="longPut">Long Put</option>
+                    <option value="coveredCall">Covered Call</option>
+                    <option value="bullCallSpread">Bull Call Spread</option>
+                    <option value="bearPutSpread">Bear Put Spread</option>
+                    <option value="longStraddle">Long Straddle</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label>Strike K1 <span id="val-k1" class="val-display">100</span></label>
+                <input type="range" id="input-k1" min="50" max="150" step="1" value="100">
+            </div>
+
+            <div class="control-group" id="group-k2">
+                <label>Strike K2 <span id="val-k2" class="val-display">110</span></label>
+                <input type="range" id="input-k2" min="50" max="150" step="1" value="110">
+            </div>
+
+            <div class="control-group">
+                <label>Maturity (Years) <span id="val-t" class="val-display">0.5</span></label>
+                <input type="range" id="input-t" min="0.01" max="2.0" step="0.01" value="0.5">
+            </div>
+
+            <div class="control-group">
+                <label>Implied Volatility <span id="val-vol" class="val-display">20%</span></label>
+                <input type="range" id="input-vol" min="5" max="100" step="1" value="20">
+            </div>
+
+            <div class="control-group">
+                <label>Risk-Free Rate <span id="val-r" class="val-display">3%</span></label>
+                <input type="range" id="input-r" min="0" max="10" step="0.1" value="3">
+            </div>
+
+            <div class="control-group">
+                <label>Quantity</label>
+                <input type="number" id="input-qty" value="1" min="1">
+            </div>
+            
+            <div style="margin-top: 20px; padding: 10px; background: #e0f2fe; border-radius: 6px; font-size: 0.85rem; color: #0369a1;">
+                <strong>Note:</strong> Charts assume S₀=100. P/L Today calculated via Black-Scholes.
+            </div>
+        </div>
+    </aside>
+
+    <!-- Charts & Output -->
+    <main>
+        <div class="card">
+            <h2>P/L Analysis</h2>
+            <div class="chart-container">
+                <canvas id="payoffChart"></canvas>
+            </div>
+
+            <div class="greeks-grid">
+                <div class="greek-card">
+                    <div class="greek-label">Net Cost (Debit/Credit)</div>
+                    <div class="greek-value" id="out-cost">0.00</div>
+                </div>
+                <div class="greek-card">
+                    <div class="greek-label">Portfolio Delta</div>
+                    <div class="greek-value" id="out-delta">0.00</div>
+                </div>
+                <div class="greek-card">
+                    <div class="greek-label">Portfolio Gamma</div>
+                    <div class="greek-value" id="out-gamma">0.00</div>
+                </div>
+                <div class="greek-card">
+                    <div class="greek-label">Breakeven(s)</div>
+                    <div class="greek-value" id="out-be" style="font-size: 0.9rem;">-</div>
+                </div>
+            </div>
+        </div>
+    </main>
+</div>
+
+<script>
+/**
+ * 1. QUANT MATH ENGINE (Black-Scholes)
+ * ------------------------------------
+ */
+
+// Standard Normal CDF (Cumulative Distribution Function)
+function N(x) {
+    var a1 =  0.254829592;
+    var a2 = -0.284496736;
+    var a3 =  1.421413741;
+    var a4 = -1.453152027;
+    var a5 =  1.061405429;
+    var p  =  0.3275911;
+
+    var sign = 1;
+    if (x < 0) sign = -1;
+    x = Math.abs(x) / Math.sqrt(2.0);
+
+    var t = 1.0 / (1.0 + p * x);
+    var y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+
+    return 0.5 * (1.0 + sign * y);
+}
+
+// Standard Normal PDF (Probability Density Function)
+function n(x) {
+    return (1.0 / Math.sqrt(2 * Math.PI)) * Math.exp(-0.5 * x * x);
+}
+
+/**
+ * Calculate Option Price and Greeks
+ * @param {number} S - Underlying Price
+ * @param {number} K - Strike Price
+ * @param {number} T - Time to Maturity (years)
+ * @param {number} r - Risk-free rate (decimal)
+ * @param {number} sigma - Volatility (decimal)
+ * @param {string} type - 'call' or 'put'
+ */
+function blackScholes(S, K, T, r, sigma, type) {
+    if (T <= 0) {
+        // At expiry intrinsic value
+        let intrinsic = type === 'call' ? Math.max(0, S - K) : Math.max(0, K - S);
+        return { price: intrinsic, delta: 0, gamma: 0 };
+    }
+
+    let d1 = (Math.log(S / K) + (r + 0.5 * sigma * sigma) * T) / (sigma * Math.sqrt(T));
+    let d2 = d1 - sigma * Math.sqrt(T);
+
+    let price = 0;
+    let delta = 0;
+    let gamma = n(d1) / (S * sigma * Math.sqrt(T));
+
+    if (type === 'call') {
+        price = S * N(d1) - K * Math.exp(-r * T) * N(d2);
+        delta = N(d1);
+    } else {
+        price = K * Math.exp(-r * T) * N(-d2) - S * N(-d1);
+        delta = N(d1) - 1;
+    }
+
+    return { price, delta, gamma };
+}
+
+/**
+ * 2. STRATEGY DEFINITIONS
+ * -----------------------
+ * Legs structure: { type: 'call'/'put'/'stock', k: 'k1'/'k2', quantity: 1/-1 }
+ */
+const STRATEGIES = {
+    longCall: {
+        name: "Long Call",
+        legs: [{ type: 'call', strikeRef: 'k1', qty: 1 }],
+        needsK2: false
+    },
+    longPut: {
+        name: "Long Put",
+        legs: [{ type: 'put', strikeRef: 'k1', qty: 1 }],
+        needsK2: false
+    },
+    coveredCall: {
+        name: "Covered Call",
+        legs: [
+            { type: 'stock', qty: 1 }, // Long Stock
+            { type: 'call', strikeRef: 'k1', qty: -1 } // Short Call
+        ],
+        needsK2: false
+    },
+    bullCallSpread: {
+        name: "Bull Call Spread",
+        legs: [
+            { type: 'call', strikeRef: 'k1', qty: 1 }, // Long Lower Strike
+            { type: 'call', strikeRef: 'k2', qty: -1 } // Short Higher Strike
+        ],
+        needsK2: true,
+        note: "Ensure K1 < K2"
+    },
+    bearPutSpread: {
+        name: "Bear Put Spread",
+        legs: [
+            { type: 'put', strikeRef: 'k2', qty: 1 },  // Long Higher Strike
+            { type: 'put', strikeRef: 'k1', qty: -1 }  // Short Lower Strike
+        ],
+        needsK2: true,
+        note: "Ensure K1 < K2"
+    },
+    longStraddle: {
+        name: "Long Straddle",
+        legs: [
+            { type: 'call', strikeRef: 'k1', qty: 1 },
+            { type: 'put', strikeRef: 'k1', qty: 1 }
+        ],
+        needsK2: false
+    }
+};
+
+/**
+ * 3. APP LOGIC
+ * ------------
+ */
+
+// State
+const S0 = 100; // Fixed Underlying Price
+let chartInstance = null;
+
+// DOM Elements
+const elStrat = document.getElementById('strategySelect');
+const elK1 = document.getElementById('input-k1');
+const elK2 = document.getElementById('input-k2');
+const elT = document.getElementById('input-t');
+const elVol = document.getElementById('input-vol');
+const elR = document.getElementById('input-r');
+const elQty = document.getElementById('input-qty');
+
+const elValK1 = document.getElementById('val-k1');
+const elValK2 = document.getElementById('val-k2');
+const elValT = document.getElementById('val-t');
+const elValVol = document.getElementById('val-vol');
+const elValR = document.getElementById('val-r');
+
+const groupK2 = document.getElementById('group-k2');
+
+const outCost = document.getElementById('out-cost');
+const outDelta = document.getElementById('out-delta');
+const outGamma = document.getElementById('out-gamma');
+const outBe = document.getElementById('out-be');
+
+function updateUIState() {
+    const stratKey = elStrat.value;
+    const strat = STRATEGIES[stratKey];
+
+    // Show/Hide K2 slider based on strategy
+    if (strat.needsK2) {
+        groupK2.classList.remove('hidden');
+    } else {
+        groupK2.classList.add('hidden');
+    }
+
+    // Update value displays
+    elValK1.textContent = elK1.value;
+    elValK2.textContent = elK2.value;
+    elValT.textContent = elT.value;
+    elValVol.textContent = elVol.value + '%';
+    elValR.textContent = elR.value + '%';
+}
+
+function calculatePosition() {
+    const stratKey = elStrat.value;
+    const strat = STRATEGIES[stratKey];
+    
+    // Parameters
+    const K1 = parseFloat(elK1.value);
+    const K2 = parseFloat(elK2.value);
+    const T = parseFloat(elT.value);
+    const r = parseFloat(elR.value) / 100;
+    const sigma = parseFloat(elVol.value) / 100;
+    const posQty = parseFloat(elQty.value);
+
+    let totalCost = 0;
+    let netDelta = 0;
+    let netGamma = 0;
+
+    // 1. Calculate Greeks & Cost at S0 (Current Moment)
+    strat.legs.forEach(leg => {
+        const qty = leg.qty * posQty;
+        
+        if (leg.type === 'stock') {
+            totalCost += S0 * qty;
+            netDelta += 1 * qty;
+            // Gamma of stock is 0
+        } else {
+            const K = leg.strikeRef === 'k1' ? K1 : K2;
+            const bs = blackScholes(S0, K, T, r, sigma, leg.type);
+            
+            totalCost += bs.price * qty;
+            netDelta += bs.delta * qty;
+            netGamma += bs.gamma * qty;
+        }
+    });
+
+    // 2. Generate Chart Data (Range 0 to 200)
+    const labels = [];
+    const dataPayoff = []; // At Expiry
+    const dataPLToday = []; // Theoretical Now
+
+    for (let s = 0; s <= S0 * 2; s += 2) {
+        let valExpiry = 0;
+        let valToday = 0;
+
+        strat.legs.forEach(leg => {
+            const qty = leg.qty * posQty;
+            const K = leg.strikeRef === 'k1' ? K1 : K2;
+
+            if (leg.type === 'stock') {
+                valExpiry += s * qty;
+                valToday += s * qty;
+            } else {
+                // Value at Expiry (Intrinsic)
+                const intrinsic = leg.type === 'call' ? Math.max(0, s - K) : Math.max(0, K - s);
+                valExpiry += intrinsic * qty;
+
+                // Value Today (BS Price at price s)
+                const bs = blackScholes(s, K, T, r, sigma, leg.type);
+                valToday += bs.price * qty;
+            }
+        });
+
+        // P/L = Value - Cost
+        labels.push(s);
+        dataPayoff.push(valExpiry - totalCost);
+        dataPLToday.push(valToday - totalCost);
+    }
+
+    // 3. Find Breakevens (Zero Crossing of Payoff Curve)
+    // Simple interpolation scan
+    let breakevens = [];
+    for (let i = 1; i < dataPayoff.length; i++) {
+        if ((dataPayoff[i-1] < 0 && dataPayoff[i] >= 0) || (dataPayoff[i-1] > 0 && dataPayoff[i] <= 0)) {
+            breakevens.push(labels[i]);
+        }
+    }
+
+    return {
+        totalCost,
+        netDelta,
+        netGamma,
+        labels,
+        dataPayoff,
+        dataPLToday,
+        breakevens
+    };
+}
+
+function updateDashboard() {
+    updateUIState();
+    const res = calculatePosition();
+
+    // Update Stats
+    outCost.textContent = res.totalCost.toFixed(2);
+    outCost.className = "greek-value " + (res.totalCost > 0 ? "pl-negative" : "pl-positive"); // Debit is red, Credit is green logic? 
+    // Standard convention: Cost > 0 means you paid money (Debit). Let's stick to value.
+    outCost.style.color = "var(--text-main)";
+
+    outDelta.textContent = res.netDelta.toFixed(2);
+    outGamma.textContent = res.netGamma.toFixed(3);
+    outBe.textContent = res.breakevens.length > 0 ? res.breakevens.join(", ") : "None";
+
+    // Update Chart
+    if (chartInstance) {
+        chartInstance.data.labels = res.labels;
+        chartInstance.data.datasets[0].data = res.dataPayoff;
+        chartInstance.data.datasets[1].data = res.dataPLToday;
+        chartInstance.update();
+    } else {
+        initChart(res);
+    }
+}
+
+function initChart(data) {
+    const ctx = document.getElementById('payoffChart').getContext('2d');
+    chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.labels,
+            datasets: [
+                {
+                    label: 'P/L @ Expiry',
+                    data: data.dataPayoff,
+                    borderColor: '#3b82f6', // Blue
+                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    pointRadius: 0,
+                    tension: 0
+                },
+                {
+                    label: 'P/L Today (Theoretical)',
+                    data: data.dataPLToday,
+                    borderColor: '#f97316', // Orange
+                    borderWidth: 2,
+                    borderDash: [5, 5],
+                    fill: false,
+                    pointRadius: 0,
+                    tension: 0.4
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: {
+                    title: { display: true, text: 'Underlying Price ($)' },
+                    grid: { color: '#e2e8f0' }
+                },
+                y: {
+                    title: { display: true, text: 'Profit / Loss ($)' },
+                    grid: { color: '#e2e8f0' }
+                }
+            },
+            plugins: {
+                tooltip: {
+                    mode: 'index',
+                    intersect: false
+                },
+                annotation: {
+                    annotations: {
+                        line1: {
+                            type: 'line',
+                            yMin: 0,
+                            yMax: 0,
+                            borderColor: '#64748b',
+                            borderWidth: 1,
+                        },
+                        line2: {
+                            type: 'line',
+                            xMin: S0,
+                            xMax: S0,
+                            borderColor: '#ef4444',
+                            borderWidth: 1,
+                            borderDash: [2, 2],
+                            label: {
+                                content: 'Current S0',
+                                enabled: true,
+                                position: 'top'
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Event Listeners
+const inputs = [elStrat, elK1, elK2, elT, elVol, elR, elQty];
+inputs.forEach(el => {
+    el.addEventListener('input', updateDashboard);
+});
+
+// Initialize
+window.addEventListener('DOMContentLoaded', updateDashboard);
+
+</script>
+</body>
+</html>
