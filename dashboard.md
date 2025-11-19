@@ -1,6 +1,6 @@
 # Dashboards
 
-## [Fed Model](dashboard.html) 
+## [Fed Model](fedmodel.html) 
 
 ## [Brazil BCB Model](bcb_model.html) 
 
