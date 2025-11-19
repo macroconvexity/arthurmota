@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Yield Curve Shock Lab</title>
+    
+    <!-- Load Chart.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --accent-color: #2563eb;
+            --accent-hover: #1d4ed8;
+            --border-color: #e5e7eb;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            padding: 20px;
+            line-height: 1.5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 300px 1fr; /* Left sidebar fixed, right content flexible */
+            gap: 20px;
+        }
+
+        /* Header */
+        header {
+            grid-column: 1 / -1;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        h2 {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--text-primary);
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 10px;
+        }
+
+        /* Cards */
+        .card {
+            background: var(--card-bg);
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 20px;
+        }
+
+        /* Controls */
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 5px;
+            color: var(--text-secondary);
+        }
+
+        select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 1rem;
+            background-color: white;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            margin: 8px 0;
+            cursor: pointer;
+        }
+
+        .value-display {
+            float: right;
+            font-weight: 600;
+            color: var(--accent-color);
+            font-size: 0.875rem;
+        }
+
+        button {
+            width: 100%;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .reset-btn {
+            background-color: transparent;
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            margin-top: 10px;
+        }
+
+        .reset-btn:hover {
+            background-color: #f9fafb;
+        }
+
+        /* Charts Area */
+        .charts-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .chart-wrapper {
+            height: 300px;
+            position: relative;
+        }
+
+        /* Heuristics Box */
+        .heuristics-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 10px;
+        }
+
+        .heuristic-item {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid var(--accent-color);
+        }
+
+        .heuristic-title {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+        }
+
+        .heuristic-value {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .heuristic-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 5px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Global Yield Curve Shock Lab</h1>
+            <p style="color: var(--text-secondary); font-size: 0.9rem;">Simulate macro shocks and analyze yield curve dynamics</p>
+        </header>
+
+        <!-- Left Column: Controls -->
+        <aside class="card">
+            <h2>Control Panel</h2>
+
+            <!-- Region Selector -->
+            <div class="control-group">
+                <label for="regionSelect">Region</label>
+                <select id="regionSelect">
+                    <option value="US">United States (Fed)</option>
+                    <option value="Brazil">Brazil (BCB)</option>
+                    <option value="Euro">Euro Area (ECB)</option>
+                </select>
+            </div>
+
+            <!-- Policy Rate Shock -->
+            <div class="control-group">
+                <label>
+                    Policy Rate Shock (bps)
+                    <span id="val-policy" class="value-display">0</span>
+                </label>
+                <input type="range" id="slider-policy" min="-200" max="200" step="10" value="0">
+                <small style="color: #9ca3af; font-size: 0.75rem;">Affects short end most (Curve Flattening/Steepening)</small>
+            </div>
+
+            <!-- Term Premium Shock -->
+            <div class="control-group">
+                <label>
+                    Term Premium Shock (bps)
+                    <span id="val-term" class="value-display">0</span>
+                </label>
+                <input type="range" id="slider-term" min="-100" max="100" step="5" value="0">
+                <small style="color: #9ca3af; font-size: 0.75rem;">Affects long end only (5Y, 10Y)</small>
+            </div>
+
+            <!-- Inflation Expectations -->
+            <div class="control-group">
+                <label>
+                    Inflation Exp. Shock (%)
+                    <span id="val-inflation" class="value-display">0</span>
+                </label>
+                <input type="range" id="slider-inflation" min="-2.0" max="2.0" step="0.1" value="0">
+                <small style="color: #9ca3af; font-size: 0.75rem;">Parallel shift (Fisher Effect)</small>
+            </div>
+
+            <button id="btn-apply">Apply Shock</button>
+            <button id="btn-reset" class="reset-btn">Reset Parameters</button>
+        </aside>
+
+        <!-- Right Column: Charts & Output -->
+        <main class="charts-container">
+            
+            <!-- Main Line Chart -->
+            <div class="card">
+                <h2>Yield Curve Dynamics</h2>
+                <div class="chart-wrapper">
+                    <canvas id="curveChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Delta Bar Chart -->
+            <div class="card">
+                <h2>Yield Change (Delta in bps)</h2>
+                <div class="chart-wrapper" style="height: 150px;">
+                    <canvas id="deltaChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Heuristics/Analysis -->
+            <div class="heuristics-grid">
+                <div class="card heuristic-item" style="border-left-color: #10b981;">
+                    <div class="heuristic-title">Fair Value FX Implication</div>
+                    <div class="heuristic-value" id="fx-outcome">Neutral</div>
+                    <div class="heuristic-desc" id="fx-reason">Based on 2Y differential vs US</div>
+                </div>
+
+                <div class="card heuristic-item" style="border-left-color: #f59e0b;">
+                    <div class="heuristic-title">Equity P/E Implication</div>
+                    <div class="heuristic-value" id="equity-outcome">Neutral</div>
+                    <div class="heuristic-desc" id="equity-reason">Based on 10Y Discount Rate</div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script>
+        /**
+         * GLOBAL CONFIGURATION & DATA
+         */
+        const maturities = ["3M", "1Y", "2Y", "5Y", "10Y"];
+
+        const initialCurves = {
+            US: {
+                name: "United States",
+                currency: "USD",
+                yields: [5.3, 5.1, 4.9, 4.5, 4.4] // Inverted curve typical of tight Fed
+            },
+            Brazil: {
+                name: "Brazil",
+                currency: "BRL",
+                yields: [10.75, 10.5, 10.8, 11.2, 11.5] // High base rate, steepening at long end
+            },
+            Euro: {
+                name: "Euro Area",
+                currency: "EUR",
+                yields: [3.9, 3.5, 3.0, 2.6, 2.5] // Significantly lower than US/Brazil
+            }
+        };
+
+        // State variables
+        let currentRegion = "US";
+        let shocks = {
+            policy: 0,      // basis points
+            term: 0,        // basis points
+            inflation: 0    // percentage points
+        };
+        let calculatedCurve = [];
+        
+        // Chart instances
+        let curveChartInstance = null;
+        let deltaChartInstance = null;
+
+        /**
+         * DOM ELEMENT REFERENCES
+         */
+        const regionSelect = document.getElementById('regionSelect');
+        const sPol = document.getElementById('slider-policy');
+        const sTerm = document.getElementById('slider-term');
+        const sInf = document.getElementById('slider-inflation');
+        
+        const vPol = document.getElementById('val-policy');
+        const vTerm = document.getElementById('val-term');
+        const vInf = document.getElementById('val-inflation');
+
+        const btnApply = document.getElementById('btn-apply');
+        const btnReset = document.getElementById('btn-reset');
+
+        const txtFx = document.getElementById('fx-outcome');
+        const txtFxReason = document.getElementById('fx-reason');
+        const txtEquity = document.getElementById('equity-outcome');
+        const txtEquityReason = document.getElementById('equity-reason');
+
+        /**
+         * LOGIC FUNCTIONS
+         * ------------------------------------------------
+         */
+
+        // 1. Update UI values for sliders (does not trigger calc)
+        function updateSliderDisplays() {
+            vPol.textContent = sPol.value;
+            vTerm.textContent = sTerm.value;
+            vInf.textContent = sInf.value;
+        }
+
+        // 2. Core Calculation Engine
+        function calculateShockedCurve() {
+            const baseYields = initialCurves[currentRegion].yields;
+            
+            // Inputs
+            const shockPol = parseFloat(sPol.value); // bps
+            const shockTerm = parseFloat(sTerm.value); // bps
+            const shockInf = parseFloat(sInf.value); // percent
+
+            // === NEW LOGIC: Transmission Factors ===
+            // 1. Policy Rate Transmission (Decays across curve)
+            // [3M=100%, 1Y=95%, 2Y=85%, 5Y=60%, 10Y=40%]
+            const policyTransmission = [1.0, 0.95, 0.85, 0.60, 0.40];
+
+            // 2. Term Premium Transmission (Increases across curve)
+            // [3M=0%, 1Y=5%, 2Y=15%, 5Y=65%, 10Y=100%]
+            const termTransmission = [0.0, 0.05, 0.15, 0.65, 1.0];
+
+            // Calculate new yields
+            const newYields = baseYields.map((yieldVal, index) => {
+                let finalYield = yieldVal;
+
+                // A: Policy Rate Shock (Weighted)
+                finalYield += (shockPol / 100) * policyTransmission[index];
+
+                // B: Inflation Shock (Parallel - Fisher Effect)
+                finalYield += shockInf;
+
+                // C: Term Premium (Weighted)
+                finalYield += (shockTerm / 100) * termTransmission[index];
+
+                return parseFloat(finalYield.toFixed(2)); // Round to 2 decimals
+            });
+
+            return newYields;
+        }
+
+        // 3. Heuristics Logic (FX & Equity)
+        function updateHeuristics(shockedYields) {
+            const baseYields = initialCurves[currentRegion].yields;
+            const usBase2Y = initialCurves['US'].yields[2]; // 2Y index is 2
+
+            // --- EQUITY LOGIC (Based on 10Y) ---
+            const base10Y = baseYields[4];
+            const shocked10Y = shockedYields[4];
+            const delta10Y = shocked10Y - base10Y;
+
+            if (Math.abs(delta10Y) < 0.05) {
+                txtEquity.textContent = "Neutral";
+                txtEquity.style.color = "#6b7280";
+            } else if (delta10Y > 0) {
+                txtEquity.textContent = "Lower P/E (Bearish)";
+                txtEquity.style.color = "#dc2626"; // Red
+            } else {
+                txtEquity.textContent = "Higher P/E (Bullish)";
+                txtEquity.style.color = "#10b981"; // Green
+            }
+            txtEquityReason.textContent = `10Y Yield moved ${delta10Y > 0 ? '+' : ''}${delta10Y.toFixed(2)}%. Discount rate effect.`;
+
+
+            // --- FX LOGIC (Based on 2Y Differential vs US) ---
+            if (currentRegion === "US") {
+                txtFx.textContent = "N/A (Base Currency)";
+                txtFx.style.color = "#6b7280";
+                txtFxReason.textContent = "Comparing US against itself.";
+                return;
+            }
+
+            const baseSpread = baseYields[2] - usBase2Y;
+            const shockedSpread = shockedYields[2] - usBase2Y;
+            const spreadChange = shockedSpread - baseSpread;
+
+            if (Math.abs(spreadChange) < 0.05) {
+                txtFx.textContent = "Neutral";
+                txtFx.style.color = "#6b7280";
+            } else if (spreadChange > 0) {
+                txtFx.textContent = "Stronger Local FX";
+                txtFx.style.color = "#10b981"; // Green
+            } else {
+                txtFx.textContent = "Weaker Local FX";
+                txtFx.style.color = "#dc2626"; // Red
+            }
+            txtFxReason.textContent = `2Y Spread vs US moved ${spreadChange > 0 ? '+' : ''}${(spreadChange * 100).toFixed(0)} bps.`;
+        }
+
+        /**
+         * CHART JS FUNCTIONS
+         * ------------------------------------------------
+         */
+        function initCharts() {
+            const ctxCurve = document.getElementById('curveChart').getContext('2d');
+            const ctxDelta = document.getElementById('deltaChart').getContext('2d');
+
+            // 1. Main Curve Chart
+            curveChartInstance = new Chart(ctxCurve, {
+                type: 'line',
+                data: {
+                    labels: maturities,
+                    datasets: [
+                        {
+                            label: 'Base Curve',
+                            data: [], // Populated on update
+                            borderColor: '#9ca3af', // Grey
+                            borderWidth: 2,
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Shocked Curve',
+                            data: [], // Populated on update
+                            borderColor: '#2563eb', // Blue
+                            backgroundColor: 'rgba(37, 99, 235, 0.1)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    scales: {
+                        y: {
+                            title: { display: true, text: 'Yield (%)' }
+                        }
+                    }
+                }
+            });
+
+            // 2. Delta Bar Chart
+            deltaChartInstance = new Chart(ctxDelta, {
+                type: 'bar',
+                data: {
+                    labels: maturities,
+                    datasets: [{
+                        label: 'Change (bps)',
+                        data: [],
+                        backgroundColor: (context) => {
+                            const value = context.raw;
+                            return value >= 0 ? '#10b981' : '#dc2626'; // Green if up, Red if down
+                        }
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+        }
+
+        function updateCharts(newYields) {
+            const baseData = initialCurves[currentRegion].yields;
+
+            // Update Line Chart
+            curveChartInstance.data.datasets[0].data = baseData;
+            curveChartInstance.data.datasets[1].data = newYields;
+            curveChartInstance.update();
+
+            // Calculate Deltas in BPS
+            const deltas = newYields.map((y, i) => (y - baseData[i]) * 100);
+
+            // Update Bar Chart
+            deltaChartInstance.data.datasets[0].data = deltas;
+            deltaChartInstance.update();
+        }
+
+        /**
+         * APP INITIALIZATION & EVENTS
+         * ------------------------------------------------
+         */
+        
+        // Apply Logic
+        function runSimulation() {
+            currentRegion = regionSelect.value;
+            const shockedData = calculateShockedCurve();
+            updateCharts(shockedData);
+            updateHeuristics(shockedData);
+        }
+
+        // Reset Logic
+        function resetSimulation() {
+            sPol.value = 0;
+            sTerm.value = 0;
+            sInf.value = 0;
+            updateSliderDisplays();
+            runSimulation();
+        }
+
+        // Event Listeners
+        regionSelect.addEventListener('change', runSimulation);
+        
+        // Sliders only update text, not chart (per requirements for "Apply" button)
+        [sPol, sTerm, sInf].forEach(el => {
+            el.addEventListener('input', updateSliderDisplays);
+        });
+
+        btnApply.addEventListener('click', runSimulation);
+        btnReset.addEventListener('click', resetSimulation);
+
+        // Initialize
+        window.addEventListener('DOMContentLoaded', () => {
+            initCharts();
+            updateSliderDisplays();
+            runSimulation(); // Run once to show initial state
+        });
+
+    </script>
+</body>
+</html>
