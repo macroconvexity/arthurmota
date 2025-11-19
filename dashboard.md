@@ -8,4 +8,4 @@
 
 ## [Options Strategy](options.html) 
 
-## [S&P 500 valuation and price](spxvaluation.html) 
+## [S&P 500 Valuation and Target Price](spxvaluation.html) 
