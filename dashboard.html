@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NK-DSGE Simulation Dashboard</title>
+    
+    <!-- 1. Load Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 2. Load React and ReactDOM (Pinned Versions) -->
+    <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+    
+    <!-- 3. Load Prop-Types (CRITICAL: Required dependency for Recharts UMD build) -->
+    <script src="https://unpkg.com/prop-types/prop-types.min.js"></script>
+
+    <!-- 4. Load Recharts (Pinned Stable Version) -->
+    <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+    
+    <!-- 5. Load Babel to translate React code in the browser -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        body { background-color: #f8fafc; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <!-- THE REACT APP CODE -->
+    <script type="text/babel">
+        // Ensure libraries are loaded
+        if (!window.React || !window.Recharts) {
+            document.getElementById('root').innerHTML = '<div class="p-4 text-red-600">Error: Libraries failed to load. Please check your internet connection or refresh.</div>';
+            throw new Error("Libraries not found");
+        }
+
+        const { useState, useMemo, useEffect } = React;
+        const { 
+            LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, 
+            Tooltip, ResponsiveContainer, ReferenceLine 
+        } = Recharts;
+
+        // --- 1. THE MATH ENGINE (Smets-Wouters Simplified) ---
+        class SmetsWoutersModel {
+            constructor() {
+                this.SS = {
+                    gdp_nom_t: 29.5, // Trillion USD (Q2 2025)
+                    inflation: 2.6,  // Annualized %
+                    rate: 3.875,     // Fed Funds Rate %
+                    growth: 1.8,     // Real GDP Growth %
+                };
+                this.params = {
+                    h: 0.71, sigma_c: 1.5, phi: 5.74, 
+                    rho_g: 0.97, rho_r: 0.15, 
+                    taylor_rho: 0.81, taylor_pi: 2.04, taylor_y: 0.08,
+                };
+            }
+
+            simulate(shocks, quarters = 20, neutralRate) {
+                const g_shock_pct = (shocks.fiscal_bn / (this.SS.gdp_nom_t * 1000)) * 100; 
+                const r_shock_pct = shocks.monetary_pp;
+                let data = [];
+                
+                let state = {
+                    y: 0, pi: 0, r: 0, i: 0, c: 0, w: 0, 
+                    g_state: g_shock_pct, 
+                    r_state: r_shock_pct
+                };
+
+                const steady_state_r = neutralRate + 2.0; 
+
+                for (let t = 0; t <= quarters; t++) {
+                    data.push({
+                        quarter: `Q${Math.floor(t/4) + 1} '${25 + Math.floor((t+1)/4)}`,
+                        output_gap: parseFloat(state.y.toFixed(2)), 
+                        gdp_level: this.SS.gdp_nom_t * (1 + (state.y + this.SS.growth * (t/4)) / 100),
+                        inflation: parseFloat((this.SS.inflation + state.pi).toFixed(2)),
+                        rate: parseFloat((steady_state_r + state.r).toFixed(2)),
+                        consumption: parseFloat(state.c.toFixed(2)),
+                        investment: parseFloat(state.i.toFixed(2))
+                    });
+
+                    // Transition Equations
+                    const next_g_state = this.params.rho_g * state.g_state;
+                    const next_r_state = this.params.rho_r * state.r_state;
+                    const monetary_drag = -0.35 * state.r; 
+                    const fiscal_impulse = 0.8 * state.g_state; 
+
+                    const next_y = 0.9 * state.y + fiscal_impulse + monetary_drag - 0.1 * state.pi;
+                    const next_c = 0.8 * state.c + 0.2 * next_y - 0.2 * state.r;
+                    const next_i = 0.92 * state.i + 0.1 * (next_y - state.y) - 0.8 * state.r;
+                    const next_pi = 0.5 * state.pi + 0.1 * state.y + 0.05 * state.w;
+                    
+                    const taylor_target = this.params.taylor_pi * next_pi + this.params.taylor_y * next_y;
+                    const next_r_endogenous = this.params.taylor_rho * state.r + (1 - this.params.taylor_rho) * taylor_target;
+                    const next_r = next_r_endogenous + next_r_state;
+                    const next_w = 0.6 * state.w + 0.2 * state.y - 0.1 * state.pi;
+
+                    state = { y: next_y, pi: next_pi, r: next_r, i: next_i, c: next_c, w: next_w, g_state: next_g_state, r_state: next_r_state };
+                }
+                return data;
+            }
+        }
+
+        // --- 2. COMPONENTS ---
+        const ControlSlider = ({ label, value, onChange, min, max, step, unit, desc }) => (
+            <div className="mb-6">
+                <div className="flex justify-between items-center mb-2">
+                    <label className="text-sm font-semibold text-slate-700">{label}</label>
+                    <span className="text-sm font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded">{value} {unit}</span>
+                </div>
+                <input 
+                    type="range" min={min} max={max} step={step} value={value} 
+                    onChange={(e) => onChange(parseFloat(e.target.value))}
+                    className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                />
+                <p className="text-xs text-slate-500 mt-1">{desc}</p>
+            </div>
+        );
+
+        const StatCard = ({ title, value, subtext, color }) => (
+            <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
+                <div className="flex justify-between items-start mb-2">
+                    <span className="text-slate-500 text-sm font-medium">{title}</span>
+                    <div className={`w-2 h-2 rounded-full ${color}`}></div>
+                </div>
+                <div>
+                    <div className="text-2xl font-bold text-slate-800">{value}</div>
+                    <div className="text-xs text-slate-400 mt-1">{subtext}</div>
+                </div>
+            </div>
+        );
+
+        // --- 3. MAIN DASHBOARD APP ---
+        function Dashboard() {
+            const [fiscalShock, setFiscalShock] = useState(450);
+            const [monetaryShock, setMonetaryShock] = useState(1.0);
+            const [neutralRate, setNeutralRate] = useState(1.0);
+            const [activeTab, setActiveTab] = useState('macro');
+            
+            const model = useMemo(() => new SmetsWoutersModel(), []);
+            const data = useMemo(() => model.simulate({ fiscal_bn: fiscalShock, monetary_pp: monetaryShock }, 16, neutralRate), [fiscalShock, monetaryShock, neutralRate]);
+
+            const peakInflation = Math.max(...data.map(d => d.inflation)).toFixed(2);
+            const peakRate = Math.max(...data.map(d => d.rate)).toFixed(2);
+
+            return (
+                <div className="max-w-6xl mx-auto px-4 py-8 font-sans text-slate-800">
+                    {/* Header */}
+                    <div className="flex items-center justify-between mb-8 border-b border-slate-200 pb-6">
+                        <div>
+                            <h1 className="text-2xl font-bold text-slate-900">NK-DSGE Simulator</h1>
+                            <p className="text-slate-500 text-sm">Smets-Wouters (2007) Structure | Calibrated to US Q2 2025</p>
+                        </div>
+                        <button onClick={() => window.location.href='/'} className="text-sm text-blue-600 hover:underline">← Back to Site</button>
+                    </div>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        
+                        {/* Controls */}
+                        <div className="lg:col-span-4 space-y-6">
+                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+                                <h2 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                                    ⚙️ Shock Settings
+                                </h2>
+                                <ControlSlider label="Fiscal Stimulus" value={fiscalShock} onChange={setFiscalShock} min={0} max={2000} step={50} unit="Bn USD" desc="Immediate increase in Gov Spending (G)." />
+                                <ControlSlider label="Monetary Shock" value={monetaryShock} onChange={setMonetaryShock} min={-2.0} max={4.0} step={0.25} unit="pp" desc="Exogenous shock to Fed Funds Rate." />
+                                <ControlSlider label="Neutral Rate (r*)" value={neutralRate} onChange={setNeutralRate} min={0} max={4.0} step={0.1} unit="%" desc="Real neutral interest rate." />
+                                
+                                <button onClick={() => { setFiscalShock(450); setMonetaryShock(1.0); setNeutralRate(1.0); }} 
+                                    className="w-full py-2 mt-4 text-sm font-medium text-slate-600 bg-slate-50 rounded-lg hover:bg-slate-100 border border-slate-200 transition-colors">
+                                    Reset to Defaults
+                                </button>
+                            </div>
+
+                            <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-sm text-blue-800">
+                                <strong>Model Logic:</strong> Linearized New Keynesian system. Note how high rates (Monetary Shock) eventually crush Investment (Amber line), counteracting the Fiscal Stimulus.
+                            </div>
+                        </div>
+
+                        {/* Charts */}
+                        <div className="lg:col-span-8 space-y-6">
+                            {/* KPIs */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <StatCard title="Peak Inflation" value={peakInflation + "%"} subtext="Annualized PCE" color="bg-red-500" />
+                                <StatCard title="Peak Fed Funds" value={peakRate + "%"} subtext="Nominal Rate" color="bg-emerald-500" />
+                            </div>
+
+                            {/* Main Chart Area */}
+                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                                <div className="flex border-b border-slate-200">
+                                    <button onClick={() => setActiveTab('macro')} className={`flex-1 py-3 text-sm font-medium ${activeTab === 'macro' ? 'bg-slate-50 text-blue-600 border-b-2 border-blue-600' : 'text-slate-500'}`}>Macro Aggregates</button>
+                                    <button onClick={() => setActiveTab('components')} className={`flex-1 py-3 text-sm font-medium ${activeTab === 'components' ? 'bg-slate-50 text-blue-600 border-b-2 border-blue-600' : 'text-slate-500'}`}>GDP Components</button>
+                                </div>
+
+                                <div className="p-6 h-96">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        {activeTab === 'macro' ? (
+                                            <LineChart data={data}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                                <XAxis dataKey="quarter" tick={{fontSize: 11}} stroke="#94a3b8" />
+                                                <YAxis stroke="#94a3b8" fontSize={12} />
+                                                <Tooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                                                <ReferenceLine y={0} stroke="#cbd5e1" />
+                                                <Line type="monotone" dataKey="output_gap" name="Output Gap" stroke="#6366f1" strokeWidth={3} dot={false} />
+                                                <Line type="monotone" dataKey="inflation" name="Inflation" stroke="#ef4444" strokeWidth={3} dot={false} strokeDasharray="5 5" />
+                                                <Line type="monotone" dataKey="rate" name="Fed Funds Rate" stroke="#10b981" strokeWidth={2} dot={false} />
+                                            </LineChart>
+                                        ) : (
+                                            <LineChart data={data}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                                <XAxis dataKey="quarter" tick={{fontSize: 11}} stroke="#94a3b8" />
+                                                <YAxis stroke="#94a3b8" fontSize={12} />
+                                                <Tooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                                                <ReferenceLine y={0} stroke="#cbd5e1" />
+                                                <Line type="monotone" dataKey="consumption" name="Consumption" stroke="#6366f1" strokeWidth={3} dot={false} />
+                                                <Line type="monotone" dataKey="investment" name="Investment" stroke="#f59e0b" strokeWidth={3} dot={false} />
+                                            </LineChart>
+                                        )}
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+
+        // Render the app
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<Dashboard />);
+    </script>
+</body>
+</html>
