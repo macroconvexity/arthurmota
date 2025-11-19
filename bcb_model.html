@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BCB Small Scale Model Simulation (Brazil)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React and ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Prop Types (Required for Recharts UMD) -->
+    <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+    <!-- Recharts (Pinned Version for Stability) -->
+    <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body { background-color: #f8fafc; }
+        .slider-thumb::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #16a34a; /* Green for Brazil */
+            cursor: pointer;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // --- CONSOLE WARNING SUPPRESSION ---
+        // Recharts v2.12 emits warnings about defaultProps in React 18.
+        // These are harmless for now. We suppress them to keep the console clean.
+        const originalConsoleError = console.error;
+        console.error = (...args) => {
+            if (typeof args[0] === 'string' && args[0].includes('Support for defaultProps will be removed')) {
+                return;
+            }
+            originalConsoleError(...args);
+        };
+
+        const { useState, useEffect, useMemo } = React;
+        
+        // --- ICONS ---
+        const ActivityIcon = (props) => (
+            <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        );
+
+        const SlidersIcon = (props) => (
+            <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="2" x2="6" y1="14" y2="14"/><line x1="10" x2="14" y1="8" y2="8"/><line x1="18" x2="22" y1="16" y2="16"/></svg>
+        );
+
+        // --- MODEL PARAMETERS (Table 1 - Modelo Agregado - Relatório de Inflação) ---
+        // Calibrated to Brazil Q2 2025 estimates (Focus/IBRE)
+        
+        const INITIAL_STATE_BRAZIL_2025 = {
+            inflation: 4.46,      // IPCA (Focus Nov 2025)
+            outputGap: 3.3,       // Positive gap (IBRE/FGV estimates)
+            interestRate: 15.0,   // Selic (Restrictive stance)
+            exchangeRate: 5.40,   // BRL/USD
+            inflationExp: 4.20,   // Focus 2026 expectations
+            neutralRealRate: 5.0, // Real r* (Revised upwards to 5.0% by Copom)
+            targetInflation: 3.0  // CMN Target
+        };
+
+        const App = () => {
+            const Recharts = window.Recharts || {};
+            const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, ReferenceLine, AreaChart, Area } = Recharts;
+
+            // --- STATE ---
+            const [quarters, setQuarters] = useState(20);
+            
+            // Shocks
+            const [monetaryShock, setMonetaryShock] = useState(0); // bps
+            const [fiscalShock, setFiscalShock] = useState(0);     // % of GDP
+            const [supplyShock, setSupplyShock] = useState(0);     // Climate/Cost push
+            const [exchangeShock, setExchangeShock] = useState(0); // Sudden depreciation %
+            
+            // Structural
+            const [neutralRealRate, setNeutralRealRate] = useState(5.0);
+            const [targetInflation, setTargetInflation] = useState(3.0);
+
+            // Coefficients from BCB Paper (Table 1)
+            const [params] = useState({
+                // Phillips Curve (Eq 1)
+                alpha1_L: 0.24,  // Inertia (Free Prices)
+                alpha1_I: 0.38,  // Inertia (Aggregate IPCA)
+                alpha2: 0.023,   // Imported Inflation
+                alpha3: 0.011,   // Exchange Rate Pass-through
+                alpha4: 0.120,   // Output Gap Sensitivity
+                
+                // IS Curve (Eq 2)
+                beta1: 0.85,     // Gap Persistence
+                beta2: 0.44,     // Real Rate Sensitivity (High in Brazil)
+                beta3: 0.030,    // Fiscal Multiplier
+                beta4: 0.054,    // World Gap
+                
+                // Taylor Rule (Eq 3) - Double Smoothing
+                theta1: 1.48,    // Lag 1
+                theta2: -0.58,   // Lag 2
+                theta3: 2.03,    // Inflation Response (Aggressive)
+                
+                // Expectations (Eq 5)
+                phi1: 0.75,      // Inertia
+                phi2: 0.11,      // Model Consistent
+                phi3: 0.021,     // Past Inflation
+                
+                // UIP (Eq 4)
+                delta: 1.90      // Exchange Rate Sensitivity
+            });
+
+            const [data, setData] = useState([]);
+
+            // --- SIMULATION ENGINE ---
+            useEffect(() => {
+                const simData = [];
+                
+                // Initial State Vector
+                let state = {
+                    pi: INITIAL_STATE_BRAZIL_2025.inflation,
+                    pi_prev: INITIAL_STATE_BRAZIL_2025.inflation,
+                    
+                    h: INITIAL_STATE_BRAZIL_2025.outputGap,
+                    h_prev: INITIAL_STATE_BRAZIL_2025.outputGap,
+                    
+                    i: INITIAL_STATE_BRAZIL_2025.interestRate,
+                    i_prev: INITIAL_STATE_BRAZIL_2025.interestRate,
+                    i_prev2: INITIAL_STATE_BRAZIL_2025.interestRate, // Need 2 lags for Brazil rule
+                    
+                    e_nom: INITIAL_STATE_BRAZIL_2025.exchangeRate,
+                    delta_e_prev: 0,
+                    
+                    pi_exp: INITIAL_STATE_BRAZIL_2025.inflationExp,
+                    pi_exp_prev: INITIAL_STATE_BRAZIL_2025.inflationExp,
+                    
+                    // Foreign Variables (USA/Global)
+                    i_star: 4.5,      // Fed Funds
+                    pi_star: 2.0,     // US Inflation
+                    h_star: 0.0       // World Gap
+                };
+
+                for (let t = 0; t <= quarters; t++) {
+                    // 1. Shocks
+                    let s_monetary = (t === 1) ? monetaryShock / 100 : 0;
+                    let s_fiscal = (t >= 1 && t <= 4) ? fiscalShock : 0;
+                    let s_supply = (t === 1) ? supplyShock : 0; // Climate anomaly
+                    let s_exchange = (t === 1) ? exchangeShock : 0; // Sudden risk premium spike
+
+                    // 2. Expectations (Eq 5)
+                    // Brazil uses a hybrid formation: heavily inertial + some model consistency
+                    let pi_model_consistent = state.pi + 0.2 * state.h; // Proxy for forward looking
+                    let pi_exp_t = params.phi1 * state.pi_exp_prev + 
+                                   params.phi2 * pi_model_consistent + 
+                                   params.phi3 * state.pi_prev + 
+                                   (1 - params.phi1 - params.phi2 - params.phi3) * targetInflation;
+
+                    // 3. IS Curve (Eq 2)
+                    // Output Gap depends on lagged gap, real interest gap, fiscal, world
+                    // Real Rate Gap = (i_{t-1} - pi_exp_{t-1}) - (r_neutral_real)
+                    let real_rate_ex_ante = state.i_prev - state.pi_exp_prev;
+                    let real_rate_gap = real_rate_ex_ante - neutralRealRate;
+                    
+                    let h_t = params.beta1 * state.h_prev - 
+                              params.beta2 * (real_rate_gap / 4) + // Annualized rate divided for quarterly impact
+                              params.beta3 * s_fiscal + 
+                              params.beta4 * state.h_star;
+
+                    // 4. Taylor Rule (Eq 3) - BCB Specific
+                    // i_t = theta1*i_{t-1} + theta2*i_{t-2} + (1 - sum)*(r_neutral + pi_target + theta3*(pi_exp - target))
+                    let nominal_neutral = neutralRealRate + targetInflation;
+                    let taylor_term = nominal_neutral + params.theta3 * (pi_exp_t - targetInflation);
+                    
+                    let i_t_rule = params.theta1 * state.i_prev + 
+                                   params.theta2 * state.i_prev2 + 
+                                   (1 - params.theta1 - params.theta2) * taylor_term;
+                                   
+                    let i_t = i_t_rule + s_monetary; // Add exogenous shock
+
+                    // 5. Exchange Rate (UIP - Eq 4)
+                    // Change in E depends on interest differential changes
+                    // i_diff = i_domestic - (i_foreign + risk)
+                    // For simplicity in sim: delta_e = expected_depreciation - delta * (change_in_diff) + shock
+                    let i_diff_curr = i_t - state.i_star;
+                    let i_diff_prev = state.i_prev - state.i_star;
+                    let change_i_diff = i_diff_curr - i_diff_prev;
+                    
+                    let expected_depreciation = (targetInflation - state.pi_star) / 4; // PPC long run
+                    let delta_e = expected_depreciation - params.delta * (change_i_diff/4) + s_exchange;
+                    
+                    let e_nom_t = state.e_nom * (1 + delta_e/100);
+
+                    // 6. Phillips Curve (Eq 1) - Aggregated
+                    // Uses free price inertia, aggregate inertia, imported inflation, exchange, gap
+                    // Note: BCB model separates Free vs Administered. We approximate Aggregate here using the "Free Price" equation structure weighted.
+                    // Imported inflation proxy: World Inflation + Exchange Rate Change
+                    let pi_imported = (state.pi_star + delta_e) - targetInflation; 
+                    
+                    let pi_t = params.alpha1_L * state.pi_prev + 
+                               params.alpha1_I * state.pi_prev + // Using prev agg inflation for both inertia terms in this simplified view
+                               (1 - params.alpha1_L - params.alpha1_I) * pi_exp_t + 
+                               params.alpha2 * pi_imported + 
+                               params.alpha3 * (state.delta_e_prev) + // Lagged exchange effect
+                               params.alpha4 * h_t + 
+                               s_supply;
+
+                    // Data Storage
+                    simData.push({
+                        quarter: `Q${(t % 4) + 1}`,
+                        year: 2025 + Math.floor(t/4),
+                        t: t,
+                        inflation: parseFloat(pi_t.toFixed(2)),
+                        outputGap: parseFloat(h_t.toFixed(2)),
+                        selic: parseFloat(i_t.toFixed(2)),
+                        exchangeRate: parseFloat(e_nom_t.toFixed(2)),
+                        inflationExp: parseFloat(pi_exp_t.toFixed(2)),
+                        target: targetInflation
+                    });
+
+                    // Update State
+                    state = {
+                        pi: pi_t,
+                        pi_prev: pi_t,
+                        h: h_t,
+                        h_prev: h_t,
+                        i: i_t,
+                        i_prev: i_t,
+                        i_prev2: state.i_prev,
+                        e_nom: e_nom_t,
+                        delta_e_prev: delta_e,
+                        pi_exp: pi_exp_t,
+                        pi_exp_prev: pi_exp_t,
+                        i_star: 4.5,
+                        pi_star: 2.0,
+                        h_star: 0.0
+                    };
+                }
+                setData(simData);
+            }, [quarters, monetaryShock, fiscalShock, supplyShock, exchangeShock, neutralRealRate, targetInflation, params]);
+
+            // --- UI COMPONENTS ---
+            if (!window.Recharts) return <div className="flex items-center justify-center h-screen">Loading Model...</div>;
+
+            return (
+                <div className="min-h-screen p-4 md:p-8 max-w-7xl mx-auto font-sans text-slate-800 bg-slate-50">
+                    <header className="mb-8 border-b border-slate-200 pb-4 flex justify-between items-center">
+                        <div>
+                            <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
+                                <ActivityIcon className="w-8 h-8 text-green-600" />
+                                BCB Small Scale Model
+                            </h1>
+                            <p className="text-slate-500 mt-2">
+                                Banco Central do Brasil (Aggregate) • Calibration: Q2 2025
+                            </p>
+                        </div>
+                        <div className="text-right hidden md:block">
+                            <div className="text-sm font-semibold text-slate-600">Inflation Target</div>
+                            <div className="text-2xl font-bold text-green-600">{targetInflation.toFixed(1)}%</div>
+                        </div>
+                    </header>
+
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        
+                        {/* LEFT: CONTROLS */}
+                        <div className="lg:col-span-4 space-y-6">
+                            
+                            {/* Structural Settings */}
+                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4 flex items-center gap-2">
+                                    <SlidersIcon className="w-4 h-4" /> Structural Parameters
+                                </h3>
+                                
+                                <div className="space-y-5">
+                                    <div>
+                                        <label className="flex justify-between text-sm font-medium mb-2">
+                                            Neutral Real Rate (r*)
+                                            <span className="text-green-700 font-bold">{neutralRealRate}%</span>
+                                        </label>
+                                        <input 
+                                            type="range" min="3.0" max="8.0" step="0.25"
+                                            value={neutralRealRate}
+                                            onChange={(e) => setNeutralRealRate(parseFloat(e.target.value))}
+                                            className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-green-600"
+                                        />
+                                        <p className="text-xs text-slate-400 mt-1">Copom estimate (~5.0%). Defines equilibrium Selic.</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Shocks */}
+                            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Scenario Shocks (Q1 Impulse)</h3>
+                                
+                                <div className="space-y-6">
+                                    <div>
+                                        <label className="flex justify-between text-sm font-medium mb-2">
+                                            Monetary Shock (Selic)
+                                            <span className={monetaryShock > 0 ? "text-red-600 font-bold" : "text-green-600 font-bold"}>
+                                                {monetaryShock > 0 ? "+" : ""}{monetaryShock} bps
+                                            </span>
+                                        </label>
+                                        <input 
+                                            type="range" min="-200" max="200" step="25"
+                                            value={monetaryShock}
+                                            onChange={(e) => setMonetaryShock(parseFloat(e.target.value))}
+                                            className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-green-600"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="flex justify-between text-sm font-medium mb-2">
+                                            Fiscal Stimulus (% GDP)
+                                            <span className="text-blue-600 font-bold">{fiscalShock}%</span>
+                                        </label>
+                                        <input 
+                                            type="range" min="-2.0" max="2.0" step="0.1"
+                                            value={fiscalShock}
+                                            onChange={(e) => setFiscalShock(parseFloat(e.target.value))}
+                                            className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-green-600"
+                                        />
+                                        <p className="text-xs text-slate-400 mt-1">Affects Output Gap (IS Curve).</p>
+                                    </div>
+
+                                    <div>
+                                        <label className="flex justify-between text-sm font-medium mb-2">
+                                            Exchange Rate Shock
+                                            <span className="text-purple-600 font-bold">{exchangeShock}%</span>
+                                        </label>
+                                        <input 
+                                            type="range" min="-10" max="10" step="1"
+                                            value={exchangeShock}
+                                            onChange={(e) => setExchangeShock(parseFloat(e.target.value))}
+                                            className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-green-600"
+                                        />
+                                        <p className="text-xs text-slate-400 mt-1">Sudden depreciation/appreciation.</p>
+                                    </div>
+
+                                    <div>
+                                        <label className="flex justify-between text-sm font-medium mb-2">
+                                            Supply Shock (Climate)
+                                            <span className="text-red-600 font-bold">{supplyShock}%</span>
+                                        </label>
+                                        <input 
+                                            type="range" min="-2.0" max="5.0" step="0.25"
+                                            value={supplyShock}
+                                            onChange={(e) => setSupplyShock(parseFloat(e.target.value))}
+                                            className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-green-600"
+                                        />
+                                        <p className="text-xs text-slate-400 mt-1">El Niño / Food Price Shock.</p>
+                                    </div>
+                                </div>
+
+                                <button 
+                                    onClick={() => {
+                                        setMonetaryShock(0);
+                                        setFiscalShock(0);
+                                        setSupplyShock(0);
+                                        setExchangeShock(0);
+                                        setNeutralRealRate(5.0);
+                                    }}
+                                    className="mt-6 w-full py-2 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-sm font-medium transition-colors"
+                                >
+                                    Reset to Baseline
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* RIGHT: CHARTS */}
+                        <div className="lg:col-span-8 space-y-6">
+                            
+                            {/* IPCA & EXPECTATIONS */}
+                            <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                                <h3 className="text-sm font-bold text-slate-500 uppercase mb-4">IPCA Inflation Forecast</h3>
+                                <div className="h-72">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={data} margin={{top: 5, right: 20, bottom: 5, left: 0}}>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                            <XAxis dataKey="quarter" hide={false} tick={{fontSize: 10}} interval={3} />
+                                            <YAxis domain={['auto', 'auto']} />
+                                            <Tooltip contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'}} />
+                                            <Legend verticalAlign="top" height={36}/>
+                                            <ReferenceLine y={targetInflation} stroke="#16a34a" strokeDasharray="3 3" label="Meta" />
+                                            <ReferenceLine y={targetInflation + 1.5} stroke="#86efac" strokeDasharray="3 3" label="Teto" />
+                                            <Line type="monotone" dataKey="inflation" name="IPCA (%)" stroke="#dc2626" strokeWidth={2} dot={false} />
+                                            <Line type="monotone" dataKey="inflationExp" name="Expectativa Focus" stroke="#fca5a5" strokeDasharray="5 5" strokeWidth={2} dot={false} />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+
+                            {/* SELIC & GAP */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                                    <h3 className="text-sm font-bold text-slate-500 uppercase mb-4">Selic Rate (Policy)</h3>
+                                    <div className="h-56">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <LineChart data={data}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                                <XAxis dataKey="quarter" hide={true} />
+                                                <YAxis domain={['auto', 'auto']} />
+                                                <Tooltip />
+                                                <ReferenceLine y={neutralRealRate + targetInflation} stroke="#94a3b8" strokeDasharray="3 3" label="Nominal Neutro" />
+                                                <Line type="stepAfter" dataKey="selic" name="Selic (%)" stroke="#16a34a" strokeWidth={2} dot={false} />
+                                            </LineChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+
+                                <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                                    <h3 className="text-sm font-bold text-slate-500 uppercase mb-4">Output Gap (Hiato)</h3>
+                                    <div className="h-56">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <AreaChart data={data}>
+                                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                                <XAxis dataKey="quarter" hide={true} />
+                                                <YAxis />
+                                                <Tooltip />
+                                                <ReferenceLine y={0} stroke="#000" />
+                                                <Area type="monotone" dataKey="outputGap" name="Hiato (%)" stroke="#2563eb" fill="#dbeafe" strokeWidth={2} />
+                                            </AreaChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* EXCHANGE RATE */}
+                            <div className="bg-white p-5 rounded-xl shadow-sm border border-slate-200">
+                                <h3 className="text-sm font-bold text-slate-500 uppercase mb-4">Exchange Rate (BRL/USD)</h3>
+                                <div className="h-56">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={data}>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                            <XAxis dataKey="quarter" tick={{fontSize: 10}} interval={3} />
+                                            <YAxis domain={['auto', 'auto']} />
+                                            <Tooltip />
+                                            <Line type="monotone" dataKey="exchangeRate" name="USD/BRL" stroke="#7c3aed" strokeWidth={2} dot={false} />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
