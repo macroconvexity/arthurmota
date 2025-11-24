@@ -9,3 +9,5 @@
 ## [Options Strategy](options.html) 
 
 ## [S&P 500 Valuation and Target Price](spxvaluation.html) 
+
+## [Black-Scholes & Partial Differential Equation (PDE) Lab](PDEblackscholes.html) 
