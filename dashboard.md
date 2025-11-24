@@ -11,3 +11,5 @@
 ## [S&P 500 Valuation and Target Price](spxvaluation.html) 
 
 ## [Black-Scholes & Partial Differential Equation (PDE) Lab](PDEblackscholes.html) 
+
+## [Black–Litterman Bayesian Portfolio Lab](blacklitterman.html)
