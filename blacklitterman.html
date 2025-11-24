@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Black-Litterman Bayesian Portfolio Lab</title>
+
+    <!-- Plotly.js -->
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+    <!-- Math.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/11.8.0/math.js"></script>
+    <!-- MathJax -->
+    <script>
+    MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']]
+      }
+    };
+    </script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+    <style>
+        :root {
+            --primary: #2563eb;
+            --secondary: #475569;
+            --bg: #f8fafc;
+            --panel-bg: #ffffff;
+            --border: #e2e8f0;
+            --text: #1e293b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            gap: 20px;
+            height: 100vh;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        /* Layout */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+
+        .sidebar {
+            width: 350px;
+            background: var(--panel-bg);
+            border-left: 1px solid var(--border);
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        h2, h3, h4 { margin-top: 0; color: var(--secondary); }
+        h2 { font-size: 1.2rem; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+        h3 { font-size: 1rem; font-weight: 600; }
+
+        /* Controls & Inputs */
+        label { display: block; font-size: 0.85rem; margin-bottom: 4px; color: var(--secondary); }
+        input[type="number"], input[type="text"] {
+            width: 100%;
+            padding: 6px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-family: monospace;
+        }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; margin-bottom: 10px; }
+        th, td { border: 1px solid var(--border); padding: 6px; text-align: center; }
+        th { background: #f1f5f9; font-weight: 600; }
+        
+        .input-group { margin-bottom: 10px; }
+        .row { display: flex; gap: 15px; }
+        .col { flex: 1; }
+
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        button:hover { opacity: 0.9; }
+        button.danger { background: #ef4444; }
+        button.secondary { background: var(--secondary); }
+
+        /* Visualization Area */
+        .charts-container {
+            display: flex;
+            gap: 15px;
+            height: 350px;
+            min-height: 350px; /* Force height */
+        }
+        .chart-box {
+            flex: 1;
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            overflow: hidden;
+            position: relative; /* For Plotly absolute positioning if needed */
+        }
+
+        /* Tables specific */
+        .matrix-input { width: 60px; text-align: right; }
+        
+        /* Math Blocks */
+        .math-block {
+            background: #f8fafc;
+            padding: 10px;
+            border-radius: 4px;
+            border: 1px solid var(--border);
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+            overflow-x: auto;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+    </style>
+</head>
+<body>
+
+    <div class="main-content">
+        <!-- TOP PANEL: Inputs -->
+        <div class="panel">
+            <h2>1. Inputs & Parameters</h2>
+            <div class="row">
+                <div class="col" style="flex: 2;">
+                    <h3>Assets & Market Data</h3>
+                    <table id="assetTable">
+                        <thead>
+                            <tr>
+                                <th>Asset</th>
+                                <th>Mkt Weight (%)</th>
+                                <th>Vol (%)</th>
+                                <th>Correlation Matrix (Upper Triangle)</th>
+                            </tr>
+                        </thead>
+                        <tbody><!-- JS Generates this --></tbody>
+                    </table>
+                </div>
+                <div class="col" style="flex: 1; min-width: 200px;">
+                    <h3>Hyperparameters</h3>
+                    <div class="input-group">
+                        <label>Risk Aversion ($\lambda$)</label>
+                        <input type="number" id="lambda" value="2.5" step="0.1" onchange="recalc()">
+                    </div>
+                    <div class="input-group">
+                        <label>Tau ($\tau$, Prior Uncertainty)</label>
+                        <input type="number" id="tau" value="0.05" step="0.01" onchange="recalc()">
+                        <small style="color: #64748b; display:block; margin-top:2px;">Scales $\Sigma$ for prior confidence.</small>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 15px; border-top: 1px solid var(--border); padding-top: 15px;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h3>Active Views ($P, q, \Omega$)</h3>
+                    <button onclick="addView()" class="secondary">+ Add View</button>
+                </div>
+                <table id="viewsTable">
+                    <thead>
+                        <tr>
+                            <th>View Logic (Matrix P)</th>
+                            <th width="120">Expected Return ($q$) %</th>
+                            <th width="120">Uncertainty ($\omega$) %</th> <!-- We take std dev, square it for Omega -->
+                            <th width="50"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="viewsBody">
+                        <!-- Views go here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- MIDDLE PANEL: Outputs -->
+        <div class="panel">
+            <h2>2. Core Model Outputs</h2>
+            <div class="row">
+                <div class="col">
+                    <table id="resultsTable">
+                        <thead>
+                            <tr>
+                                <th>Asset</th>
+                                <th style="background:#e0f2fe">Implied $\mu^*$ (%)</th>
+                                <th style="background:#dcfce7">Posterior $\mu_{BL}$ (%)</th>
+                                <th style="border-left: 2px solid #ccc">Mkt Wgt</th>
+                                <th>Optimal Eq $w_{eq}$</th>
+                                <th style="background:#dcfce7; font-weight:bold;">Optimal BL $w_{BL}$</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- BOTTOM PANEL: Charts -->
+        <div class="charts-container">
+            <div class="chart-box" id="chartFrontier"></div>
+            <div class="chart-box" id="chartWeights"></div>
+            <div class="chart-box" id="chartReturns"></div>
+        </div>
+    </div>
+
+    <!-- SIDEBAR: Math & Explanation -->
+    <div class="sidebar">
+        <h2>Black-Litterman Math</h2>
+        
+        <p>The model combines a market equilibrium prior with investor views.</p>
+
+        <div class="math-block">
+            <strong>1. Prior (Equilibrium)</strong><br>
+            Derived from Reverse Optimization:
+            $$ \mu^* = \lambda \Sigma w_{mkt} $$
+            <small>We assume the market is efficient and prices inputs perfectly.</small>
+        </div>
+
+        <div class="math-block">
+            <strong>2. Views (Likelihood)</strong><br>
+            Views are expressed as:
+            $$ P \mu \sim N(q, \Omega) $$
+            <small>$P$: Pick matrix (assets involved)<br>$q$: View return<br>$\Omega$: Uncertainty (diagonal)</small>
+        </div>
+
+        <div class="math-block">
+            <strong>3. Posterior (The Result)</strong><br>
+            The Bayesian Update formula:
+            $$ \mu^{BL} = [(\tau\Sigma)^{-1} + P'\Omega^{-1}P]^{-1} \times $$
+            $$ [(\tau\Sigma)^{-1}\mu^* + P'\Omega^{-1}q] $$
+        </div>
+
+        <div class="math-block">
+            <strong>Weight Optimization</strong><br>
+            $$ w_{BL} = \frac{\Sigma^{-1} \mu^{BL}}{1^T \Sigma^{-1} \mu^{BL}} $$
+            <small>(Unconstrained, normalized to sum to 100%)</small>
+        </div>
+
+        <h3>Impact Analysis</h3>
+        <p style="font-size:0.85rem; color:#64748b;">
+            The chart below shows the scalar $K$ equivalent intuition. The posterior is a weighted average of $\mu^*$ and views $q$, weighted by uncertainty matrices $\tau\Sigma$ and $\Omega$.
+            <br><br>
+            <strong>Note on $\tau$:</strong> A high $\tau$ means we are unsure about the equilibrium (Prior), so views have more impact. A low $\Omega$ means we are sure about our views.
+        </p>
+    </div>
+
+<script>
+    // --- Initial Data ---
+    const assets = ['US', 'Europe', 'Japan', 'EM', 'Bonds'];
+    const defaultMktWeights = [0.45, 0.20, 0.10, 0.10, 0.15];
+    const defaultVols = [0.15, 0.18, 0.17, 0.25, 0.08]; // Annualized
+    
+    // Correlation Matrix (Initialize Identity)
+    let correlationMatrix = math.identity(5).toArray();
+    // Default correlations
+    const pairs = [
+        [0,1, 0.8], [0,2, 0.6], [0,3, 0.7], [0,4, 0.1],
+        [1,2, 0.6], [1,3, 0.75], [1,4, 0.2],
+        [2,3, 0.65], [2,4, 0.15],
+        [3,4, 0.25]
+    ];
+    pairs.forEach(p => {
+        correlationMatrix[p[0]][p[1]] = p[2];
+        correlationMatrix[p[1]][p[0]] = p[2];
+    });
+
+    // View State
+    // P is constructed dynamically. 
+    // Format: { id: int, weights: {assetIdx: weight}, q: float, omega_std: float }
+    let views = [
+        { 
+            id: 1, 
+            weights: {0: 1}, // US
+            q: 0.08, // 8% return view
+            omega_std: 0.05 // 5% uncertainty
+        }
+    ];
+
+    // --- DOM Initialization ---
+    function init() {
+        renderAssetTable();
+        renderViewsTable();
+        recalc();
+    }
+
+    function renderAssetTable() {
+        const tbody = document.querySelector('#assetTable tbody');
+        tbody.innerHTML = '';
+
+        assets.forEach((asset, i) => {
+            let row = `<tr>
+                <td><strong>${asset}</strong></td>
+                <td><input type="number" class="mkt-w input-sm" data-idx="${i}" value="${(defaultMktWeights[i]*100).toFixed(1)}" step="1"></td>
+                <td><input type="number" class="vol input-sm" data-idx="${i}" value="${(defaultVols[i]*100).toFixed(1)}" step="0.5"></td>
+                <td style="text-align:left; font-size:0.8rem;">`;
+            
+            // Render Correlation inputs (Upper triangle only)
+            for(let j=0; j<assets.length; j++) {
+                if(j > i) {
+                   row += `<span style="display:inline-block; margin-right:5px;">${assets[j]}: <input type="number" class="corr input-xs" data-i="${i}" data-j="${j}" value="${correlationMatrix[i][j].toFixed(2)}" step="0.05" style="width:40px;"></span>`;
+                }
+            }
+            row += `</td></tr>`;
+            tbody.innerHTML += row;
+        });
+
+        // Bind events
+        document.querySelectorAll('.mkt-w, .vol, .corr').forEach(el => {
+            el.addEventListener('change', recalc);
+        });
+    }
+
+    function renderViewsTable() {
+        const tbody = document.getElementById('viewsBody');
+        tbody.innerHTML = '';
+
+        views.forEach((v, vIdx) => {
+            let pInputs = `<div style="display:grid; grid-template-columns: repeat(3, 1fr); gap:4px;">`;
+            assets.forEach((asset, aIdx) => {
+                const w = v.weights[aIdx] || 0;
+                pInputs += `<div style="font-size:0.75rem;">
+                    ${asset}: <input type="number" value="${w}" step="0.1" 
+                    onchange="updateViewWeight(${vIdx}, ${aIdx}, this.value)" 
+                    style="width:40px; padding:2px;">
+                </div>`;
+            });
+            pInputs += `</div>`;
+
+            let row = `<tr>
+                <td>${pInputs}</td>
+                <td><input type="number" value="${(v.q*100).toFixed(2)}" step="0.1" onchange="updateViewProp(${vIdx}, 'q', this.value)"></td>
+                <td><input type="number" value="${(v.omega_std*100).toFixed(2)}" step="0.1" onchange="updateViewProp(${vIdx}, 'omega_std', this.value)"></td>
+                <td><button class="danger" onclick="removeView(${vIdx})" style="padding:4px 8px;">&times;</button></td>
+            </tr>`;
+            tbody.innerHTML += row;
+        });
+    }
+
+    // --- View Logic ---
+    window.addView = () => {
+        views.push({
+            id: Date.now(),
+            weights: {0: 1}, 
+            q: 0.05,
+            omega_std: 0.02
+        });
+        renderViewsTable();
+        recalc();
+    };
+
+    window.removeView = (idx) => {
+        views.splice(idx, 1);
+        renderViewsTable();
+        recalc();
+    };
+
+    window.updateViewWeight = (vIdx, aIdx, val) => {
+        views[vIdx].weights[aIdx] = parseFloat(val);
+        recalc();
+    };
+
+    window.updateViewProp = (vIdx, prop, val) => {
+        if(prop === 'q') views[vIdx].q = parseFloat(val)/100;
+        if(prop === 'omega_std') views[vIdx].omega_std = parseFloat(val)/100;
+        recalc();
+    };
+
+
+    // --- Core Math Engine ---
+
+    function getInputs() {
+        const n = assets.length;
+        
+        // 1. Market Weights
+        let w_mkt = [];
+        document.querySelectorAll('.mkt-w').forEach(i => w_mkt.push(parseFloat(i.value)/100));
+        
+        // Normalize w_mkt just in case
+        const wSum = math.sum(w_mkt);
+        w_mkt = w_mkt.map(w => w / wSum);
+
+        // 2. Vols
+        let vols = [];
+        document.querySelectorAll('.vol').forEach(i => vols.push(parseFloat(i.value)/100));
+
+        // 3. Correlation & Covariance (Sigma)
+        let corr = math.identity(n).toArray();
+        document.querySelectorAll('.corr').forEach(el => {
+            let i = parseInt(el.dataset.i);
+            let j = parseInt(el.dataset.j);
+            let val = parseFloat(el.value);
+            corr[i][j] = val;
+            corr[j][i] = val;
+        });
+
+        // Sigma_ij = rho_ij * vol_i * vol_j
+        let Sigma = math.zeros(n, n).toArray();
+        for(let i=0; i<n; i++){
+            for(let j=0; j<n; j++){
+                Sigma[i][j] = corr[i][j] * vols[i] * vols[j];
+            }
+        }
+
+        // 4. Params
+        const lam = parseFloat(document.getElementById('lambda').value);
+        const tau = parseFloat(document.getElementById('tau').value);
+
+        return { n, w_mkt, Sigma, lam, tau };
+    }
+
+    function recalc() {
+        try {
+            const { n, w_mkt, Sigma, lam, tau } = getInputs();
+
+            // --- 1. Reverse Optimization (Prior) ---
+            // mu_star = lambda * Sigma * w_mkt
+            const SigmaMat = math.matrix(Sigma);
+            
+            // Fix: Explicitly reshape w_mkt to column vector [n, 1] to prevent dimension ambiguity
+            const w_mktVec = math.matrix(w_mkt).reshape([n, 1]);
+            
+            // Prior Mean
+            const mu_star = math.multiply(math.multiply(SigmaMat, w_mktVec), lam);
+            
+            // Prior Covariance Confidence
+            const SigmaPrior = math.multiply(SigmaMat, tau);
+
+            // --- 2. Build View Matrices (P, q, Omega) ---
+            let mu_BL, Sigma_BL_est;
+
+            if (views.length === 0) {
+                mu_BL = mu_star;
+                Sigma_BL_est = SigmaMat; // No views, no update
+            } else {
+                const k = views.length;
+                let P = math.zeros(k, n).toArray();
+                let q = math.zeros(k, 1).toArray();
+                let Omega = math.zeros(k, k).toArray();
+
+                views.forEach((v, i) => {
+                    // Fill P row
+                    for(let j=0; j<n; j++) {
+                        P[i][j] = v.weights[j] || 0;
+                    }
+                    // Fill q
+                    q[i][0] = v.q;
+                    // Fill Omega (diagonal)
+                    Omega[i][i] = v.omega_std * v.omega_std;
+                });
+
+                P = math.matrix(P);
+                q = math.matrix(q);
+                Omega = math.matrix(Omega);
+
+                // --- 3. Black-Litterman Posterior Calculation ---
+                // Formula: mu_BL = [inv(tau*Sigma) + P' inv(Omega) P]^-1 * [inv(tau*Sigma) mu* + P' inv(Omega) q]
+                
+                const tauSigmaInv = math.inv(SigmaPrior);
+                const OmegaInv = math.inv(Omega);
+                const P_T = math.transpose(P);
+
+                // Term 1 (Precision Matrix): [inv(tau*Sigma) + P' inv(Omega) P]
+                const term1 = math.add(tauSigmaInv, math.multiply(math.multiply(P_T, OmegaInv), P));
+                const term1Inv = math.inv(term1); // Posterior Covariance of the Mean (M)
+
+                // Term 2: [inv(tau*Sigma) mu* + P' inv(Omega) q]
+                const partA = math.multiply(tauSigmaInv, mu_star);
+                const partB = math.multiply(math.multiply(P_T, OmegaInv), q);
+                const term2 = math.add(partA, partB);
+
+                mu_BL = math.multiply(term1Inv, term2);
+                
+                // Posterior Covariance (for distribution of returns) = Sigma + M
+                // Often simplified in charts, but technically Sigma + term1Inv
+                Sigma_BL_est = math.add(SigmaMat, term1Inv); // Approximation for plotting
+            }
+
+            // --- 4. Optimal Weights ---
+            // w = (lambda * Sigma)^-1 * mu
+            // Eq Weights
+            const SigmaInv = math.inv(SigmaMat);
+            let w_eq_raw = math.multiply(SigmaInv, mu_star);
+            w_eq_raw = math.multiply(w_eq_raw, 1/lam);
+            // Normalize Eq
+            const sum_weq = math.sum(w_eq_raw);
+            const w_eq = w_eq_raw.map(val => val / sum_weq);
+
+            // BL Weights (Using Posterior Mean, and original Sigma usually, or Posterior Sigma)
+            // Standard BL uses original Sigma for optimization often, or Sigma_BL. Let's use Sigma.
+            let w_BL_raw = math.multiply(SigmaInv, mu_BL);
+            w_BL_raw = math.multiply(w_BL_raw, 1/lam);
+            // Normalize BL
+            const sum_wbl = math.sum(w_BL_raw);
+            const w_BL = w_BL_raw.map(val => val / sum_wbl);
+
+
+            // --- Update UI Tables ---
+            updateResultsTable(mu_star, mu_BL, w_mkt, w_eq, w_BL);
+            
+            // --- Update Charts ---
+            plotCharts(mu_star, mu_BL, SigmaMat, Sigma_BL_est, w_mkt, w_eq, w_BL);
+
+        } catch (err) {
+            console.error("Calculation Error:", err);
+        }
+    }
+
+    function updateResultsTable(mu_star, mu_BL, w_mkt, w_eq, w_BL) {
+        const tbody = document.querySelector('#resultsTable tbody');
+        tbody.innerHTML = '';
+        
+        // Robust helper to extract value from matrix (which might be 1D, 2D col, or Array)
+        const getVal = (m, i) => {
+            if (Array.isArray(m)) return m[i];
+            // If it's a matrix, flatten it to a simple array first
+            return math.flatten(m).toArray()[i];
+        };
+
+        assets.forEach((asset, i) => {
+            const m_s = getVal(mu_star, i);
+            const m_bl = getVal(mu_BL, i);
+            const w_m = w_mkt[i];
+            const w_e = getVal(w_eq, i);
+            const w_b = getVal(w_BL, i);
+
+            tbody.innerHTML += `<tr>
+                <td style="text-align:left;">${asset}</td>
+                <td style="background:#f0f9ff">${(m_s*100).toFixed(2)}%</td>
+                <td style="background:#f0fdf4; font-weight:bold;">${(m_bl*100).toFixed(2)}%</td>
+                <td style="border-left: 2px solid #e2e8f0; color:#64748b;">${(w_m*100).toFixed(1)}%</td>
+                <td style="color:#64748b;">${(w_e*100).toFixed(1)}%</td>
+                <td style="background:#f0fdf4; font-weight:bold;">${(w_b*100).toFixed(1)}%</td>
+            </tr>`;
+        });
+    }
+
+    // --- Visualization Logic ---
+    function plotCharts(mu_star, mu_BL, Sigma, Sigma_BL, w_mkt, w_eq, w_BL) {
+        
+        const n = assets.length;
+        // Robust data flattening
+        const mu_s_arr = math.flatten(mu_star).toArray();
+        const mu_bl_arr = math.flatten(mu_BL).toArray();
+        const w_bl_arr = math.flatten(w_BL).toArray();
+
+        // 1. Weight Shifts (Bar Chart)
+        const traceMkt = { x: assets, y: w_mkt.map(x=>x*100), type: 'bar', name: 'Market Cap', marker: {color: '#94a3b8'} };
+        const traceBL = { x: assets, y: w_bl_arr.map(x=>x*100), type: 'bar', name: 'Black-Litterman', marker: {color: '#2563eb'} };
+        
+        Plotly.newPlot('chartWeights', [traceMkt, traceBL], {
+            title: 'Portfolio Weights (%)',
+            barmode: 'group',
+            margin: { t: 40, b: 30, l: 40, r: 20 },
+            legend: {orientation: 'h', y: -0.1}
+        }, {responsive: true});
+
+        // 2. Returns Comparison
+        const traceRetPrior = { x: assets, y: mu_s_arr.map(x=>x*100), type: 'bar', name: 'Prior (Eq)', marker: {color: '#94a3b8'} };
+        const traceRetPost = { x: assets, y: mu_bl_arr.map(x=>x*100), type: 'bar', name: 'Posterior (BL)', marker: {color: '#10b981'} };
+        
+        Plotly.newPlot('chartReturns', [traceRetPrior, traceRetPost], {
+            title: 'Expected Returns: Prior vs Posterior (%)',
+            barmode: 'group',
+            margin: { t: 40, b: 30, l: 40, r: 20 },
+            legend: {orientation: 'h', y: -0.1}
+        }, {responsive: true});
+
+        // 3. Efficient Frontiers
+        // We generate points for the hyperbola: sigma^2 = (A*mu^2 - 2*B*mu + C) / Delta
+        
+        const frontierPoints = (meanVec, covMatInput, steps=50) => {
+            // Ensure input is a Matrix for operations
+            const covMat = math.matrix(Array.isArray(covMatInput) ? covMatInput : covMatInput.toArray());
+            const S_inv = math.inv(covMat);
+            
+            const ones = math.ones(n, 1);
+            const mu = math.matrix(meanVec).reshape([n, 1]);
+            
+            // Helper for scalar result from matrix multiplication
+            const getScalar = (mat) => math.flatten(mat).toArray()[0];
+
+            // A = 1' S^-1 1
+            const A_val = getScalar(math.multiply(math.multiply(math.transpose(ones), S_inv), ones));
+            // B = 1' S^-1 mu
+            const B_val = getScalar(math.multiply(math.multiply(math.transpose(ones), S_inv), mu));
+            // C = mu' S^-1 mu
+            const C_val = getScalar(math.multiply(math.multiply(math.transpose(mu), S_inv), mu));
+            
+            const delta = A_val * C_val - B_val * B_val;
+
+            let x_sd = [];
+            let y_ret = [];
+            
+            // Range of returns for plotting
+            const minRet = Math.min(...meanVec) * 0.8;
+            const maxRet = Math.max(...meanVec) * 1.5;
+            
+            for(let r = minRet; r <= maxRet; r += (maxRet-minRet)/steps) {
+                // Min Variance for return r: sigma^2 = (A*r^2 - 2B*r + C) / delta
+                const sigmaSq = (A_val * r*r - 2*B_val * r + C_val) / delta;
+                
+                if(sigmaSq > 0) {
+                    x_sd.push(Math.sqrt(sigmaSq));
+                    y_ret.push(r);
+                }
+            }
+            return { x: x_sd, y: y_ret };
+        };
+
+        const frontPrior = frontierPoints(mu_s_arr, Sigma);
+        const frontPost = frontierPoints(mu_bl_arr, Sigma_BL);
+
+        // Current Portfolio Points
+        const getPortRiskRet = (w, mu, cov) => {
+             // Safe conversion
+             const w_arr = Array.isArray(w) ? w : math.flatten(w).toArray();
+             const mu_arr = Array.isArray(mu) ? mu : math.flatten(mu).toArray();
+             const cov_mat = math.matrix(Array.isArray(cov) ? cov : cov.toArray());
+
+             const w_mat = math.matrix(w_arr).reshape([n,1]);
+             const w_T = math.transpose(w_mat);
+             
+             // Return = w' mu
+             const ret = math.multiply(w_T, math.matrix(mu_arr).reshape([n,1])).get([0,0]);
+             // Var = w' Sigma w
+             const var_val = math.multiply(math.multiply(w_T, cov_mat), w_mat).get([0,0]);
+             
+             return { x: Math.sqrt(var_val), y: ret };
+        };
+
+        const ptMkt = getPortRiskRet(w_mkt, mu_s_arr, Sigma);
+        const ptBL = getPortRiskRet(w_bl_arr, mu_bl_arr, Sigma_BL); // Evaluate BL weights on BL parameters
+
+        Plotly.newPlot('chartFrontier', [
+            { x: frontPrior.x.map(x=>x*100), y: frontPrior.y.map(x=>x*100), mode: 'lines', name: 'Prior Frontier', line: {color: '#94a3b8', dash:'dot'} },
+            { x: frontPost.x.map(x=>x*100), y: frontPost.y.map(x=>x*100), mode: 'lines', name: 'Posterior Frontier', line: {color: '#10b981'} },
+            { x: [ptMkt.x*100], y: [ptMkt.y*100], mode: 'markers', name: 'Market Eq', marker: {size: 10, color: 'black'} },
+            { x: [ptBL.x*100], y: [ptBL.y*100], mode: 'markers', name: 'BL Optimal', marker: {size: 12, color: '#2563eb', symbol:'star'} }
+        ], {
+            title: 'Efficient Frontier (Risk vs Return)',
+            xaxis: { title: 'Volatility (%)' },
+            yaxis: { title: 'Exp Return (%)' },
+            margin: { t: 40, b: 40, l: 50, r: 20 },
+            showlegend: true,
+            legend: {x: 0.05, y: 1}
+        }, {responsive: true});
+    }
+
+    // Run
+    init();
+
+</script>
+</body>
+</html>
