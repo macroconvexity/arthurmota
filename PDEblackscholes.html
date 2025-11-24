@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Black-Scholes PDE Lab</title>
+    
+    <!-- External Libraries -->
+    <!-- Plotly.js for charting -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <!-- MathJax for rendering equations -->
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']]
+            },
+            svg: {
+                fontCache: 'global'
+            }
+        };
+    </script>
+    <script type="text/javascript" id="MathJax-script" async
+        src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js">
+    </script>
+
+    <style>
+        :root {
+            --bg-color: #f4f6f8;
+            --panel-bg: #ffffff;
+            --primary-color: #2c3e50;
+            --accent-color: #3498db;
+            --text-color: #333;
+            --border-color: #ddd;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 0.5rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 50px;
+        }
+
+        h1 { margin: 0; font-size: 1.2rem; }
+        h2 { font-size: 1rem; margin-top: 0; color: var(--primary-color); border-bottom: 2px solid var(--accent-color); padding-bottom: 5px;}
+        h3 { font-size: 0.9rem; margin: 10px 0 5px 0; color: #666; }
+
+        /* Main Layout */
+        .container {
+            display: flex;
+            flex: 1;
+            height: calc(100vh - 50px);
+            overflow: hidden;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border-right: 1px solid var(--border-color);
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Left Panel: Controls */
+        #left-panel {
+            width: 280px;
+            flex-shrink: 0;
+            background-color: #fcfcfc;
+        }
+
+        /* Center Panel: Graphs */
+        #center-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background-color: var(--bg-color);
+            padding: 10px;
+        }
+
+        /* Right Panel: Theory */
+        #right-panel {
+            width: 350px;
+            flex-shrink: 0;
+            border-left: 1px solid var(--border-color);
+        }
+
+        /* Controls Styling */
+        .control-group {
+            margin-bottom: 15px;
+            border: 1px solid #eee;
+            padding: 10px;
+            border-radius: 5px;
+            background: white;
+        }
+        
+        .input-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        label { font-size: 0.85rem; font-weight: 600; }
+        
+        input[type="number"], select {
+            width: 80px;
+            padding: 4px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button.primary-btn {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 10px;
+            width: 100%;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+
+        button.primary-btn:hover { background-color: #2980b9; }
+
+        /* Chart Containers */
+        .chart-box {
+            background: white;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 10px;
+            position: relative;
+        }
+
+        #chart-3d { flex: 3; min-height: 0; }
+        .bottom-charts {
+            flex: 2;
+            display: flex;
+            gap: 10px;
+            min-height: 0;
+        }
+        #chart-greeks, #chart-residual { flex: 1; }
+
+        /* Educational Section Styling */
+        details {
+            margin-bottom: 10px;
+            border: 1px solid #eee;
+            border-radius: 4px;
+        }
+        summary {
+            padding: 10px;
+            cursor: pointer;
+            background-color: #fafafa;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        details[open] summary {
+            border-bottom: 1px solid #eee;
+            color: var(--accent-color);
+        }
+        .math-content {
+            padding: 10px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        .formula-box {
+            background: #f8f9fa;
+            border-left: 4px solid var(--accent-color);
+            padding: 10px;
+            margin: 10px 0;
+            font-family: 'Times New Roman', Times, serif;
+        }
+        .note {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+            font-style: italic;
+        }
+
+        /* Spinner */
+        .spinner {
+            display: none;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--accent-color);
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            margin-left: 10px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    </style>
+</head>
+<body>
+
+<header>
+    <div style="display:flex; align-items:center">
+        <span>Black-Scholes PDE Lab</span>
+        <div class="spinner" id="loading-spinner"></div>
+    </div>
+    <div style="font-size: 0.8rem;">Finite Difference Solver Visualization</div>
+</header>
+
+<div class="container">
+    <!-- LEFT PANEL: Controls -->
+    <aside id="left-panel" class="panel">
+        <h2>Parameters</h2>
+        
+        <div class="control-group">
+            <h3>Market / Option</h3>
+            <div class="input-row">
+                <label title="Current Asset Price">Spot ($S_0$)</label>
+                <input type="number" id="inp-S0" value="100" step="1">
+            </div>
+            <div class="input-row">
+                <label title="Strike Price">Strike ($K$)</label>
+                <input type="number" id="inp-K" value="100" step="1">
+            </div>
+            <div class="input-row">
+                <label title="Time to Maturity (Years)">Time ($T$)</label>
+                <input type="number" id="inp-T" value="1.0" step="0.1">
+            </div>
+            <div class="input-row">
+                <label title="Volatility">Vol ($\sigma$)</label>
+                <input type="number" id="inp-sigma" value="0.2" step="0.01">
+            </div>
+            <div class="input-row">
+                <label title="Risk-free Rate">Rate ($r$)</label>
+                <input type="number" id="inp-r" value="0.05" step="0.01">
+            </div>
+            <div class="input-row">
+                <label title="Dividend Yield">Div ($q$)</label>
+                <input type="number" id="inp-q" value="0.0" step="0.01">
+            </div>
+            <div class="input-row">
+                <label>Type</label>
+                <select id="inp-type">
+                    <option value="call">Call</option>
+                    <option value="put">Put</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="control-group">
+            <h3>Numerical Grid</h3>
+            <div class="input-row">
+                <label title="Method">Scheme</label>
+                <select id="inp-scheme">
+                    <option value="CN" selected>Crank-Nicolson</option>
+                    <option value="Implicit">Fully Implicit</option>
+                    <option value="Explicit">Explicit</option>
+                </select>
+            </div>
+            <div class="input-row">
+                <label title="Number of Spot Steps">Steps ($N_S$)</label>
+                <input type="number" id="inp-NS" value="100" min="10" max="500">
+            </div>
+            <div class="input-row">
+                <label title="Number of Time Steps">Steps ($N_t$)</label>
+                <input type="number" id="inp-Nt" value="100" min="10" max="2000">
+            </div>
+            <div class="input-row">
+                <label title="Maximum Spot Price on Grid">Max $S$</label>
+                <input type="number" id="inp-Smax" value="300">
+            </div>
+        </div>
+
+        <button class="primary-btn" id="btn-compute">Recompute PDE Solution</button>
+        
+        <div style="margin-top: 20px; font-size: 0.85rem;">
+            <p><strong>Status:</strong> <span id="status-text" style="color: green">Ready</span></p>
+            <p class="note">Warning: Explicit scheme is unstable if $\Delta t$ is too large relative to $\Delta S^2$.</p>
+        </div>
+    </aside>
+
+    <!-- CENTER PANEL: Graphs -->
+    <main id="center-panel">
+        <div id="chart-3d" class="chart-box">
+            <!-- Plotly 3D Surface will go here -->
+        </div>
+        
+        <div class="bottom-charts">
+            <div id="chart-greeks" class="chart-box">
+                <div style="display:flex; justify-content:space-between; margin-bottom: 5px;">
+                    <label>Greek Profile ($t=0$)</label>
+                    <select id="sel-greek" style="width: auto; height: 25px; padding: 0;">
+                        <option value="Delta">Delta ($\Delta$)</option>
+                        <option value="Gamma">Gamma ($\Gamma$)</option>
+                        <option value="Theta">Theta ($\Theta$)</option>
+                        <option value="Vega">Vega ($\nu$)</option>
+                        <option value="Rho">Rho ($\rho$)</option>
+                    </select>
+                </div>
+                <!-- Plotly Line Chart -->
+            </div>
+            <div id="chart-residual" class="chart-box">
+                <div style="margin-bottom: 5px; font-weight: bold; font-size: 0.85rem;">PDE Residual (Error)</div>
+                <!-- Plotly Line Chart -->
+            </div>
+        </div>
+    </main>
+
+    <!-- RIGHT PANEL: Theory -->
+    <aside id="right-panel" class="panel">
+        <h2>Derivation & Theory</h2>
+
+        <details>
+            <summary>1. The Setup (SDE)</summary>
+            <div class="math-content">
+                <p>We assume the underlying asset $S$ follows a Geometric Brownian Motion (GBM):</p>
+                $$dS_t = \mu S_t dt + \sigma S_t dW_t$$
+                <p>where $\mu$ is drift, $\sigma$ is volatility, and $W_t$ is a Wiener process.</p>
+                <p>We seek the value of an option $V(S, t)$.</p>
+            </div>
+        </details>
+
+        <details>
+            <summary>2. Itô's Lemma</summary>
+            <div class="math-content">
+                <p>Since $V$ is a function of stochastic $S$ and time $t$, Itô's Lemma gives the differential $dV$:</p>
+                $$dV = \frac{\partial V}{\partial t}dt + \frac{\partial V}{\partial S}dS + \frac{1}{2}\sigma^2 S^2 \frac{\partial^2 V}{\partial S^2}dt$$
+                <p>Expanding $dS$ allows us to group deterministic ($dt$) and stochastic ($dW$) terms.</p>
+            </div>
+        </details>
+
+        <details>
+            <summary>3. Delta Hedging</summary>
+            <div class="math-content">
+                <p>Construct a portfolio $\Pi$ with one option $V$ and $-\Delta$ shares of stock:</p>
+                $$\Pi = V - \Delta S$$
+                <p>The change in value is:</p>
+                $$d\Pi = dV - \Delta dS$$
+                <p>To remove randomness ($dW_t$), we choose:</p>
+                $$\Delta = \frac{\partial V}{\partial S}$$
+                <p>This makes the portfolio risk-free locally.</p>
+            </div>
+        </details>
+
+        <details open>
+            <summary>4. The PDE</summary>
+            <div class="math-content">
+                <p>By No-Arbitrage, the risk-free portfolio must earn the risk-free rate $r$. If the stock pays dividend $q$:</p>
+                $$d\Pi = r\Pi dt$$
+                <p>Equating terms leads to the Black-Scholes PDE:</p>
+                <div class="formula-box">
+                    $$V_t + \frac{1}{2}\sigma^2 S^2 V_{SS} + (r-q)SV_S - rV = 0$$
+                </div>
+                <p><strong>Final Condition ($t=T$):</strong><br> $V(S,T) = \max(S-K, 0)$ for a Call.</p>
+            </div>
+        </details>
+
+        <details>
+            <summary>Analytical Formula</summary>
+            <div class="math-content">
+                <p>For a European Call, the closed-form solution is:</p>
+                $$C = S e^{-qT} N(d_1) - K e^{-rT} N(d_2)$$
+                <p>where</p>
+                $$d_1 = \frac{\ln(S/K) + (r - q + \frac{\sigma^2}{2})T}{\sigma\sqrt{T}}$$
+                $$d_2 = d_1 - \sigma\sqrt{T}$$
+            </div>
+        </details>
+
+        <details>
+            <summary>Numerical Scheme</summary>
+            <div class="math-content">
+                <p>We solve using Finite Differences in transformed time $\tau = T - t$.</p>
+                <p><strong>Crank-Nicolson:</strong> Uses an average of Explicit and Implicit steps, resulting in a tridiagonal system:</p>
+                $$-\frac{a_i}{2} V_{i-1}^{n+1} + (1 - \frac{b_i}{2}) V_i^{n+1} - \frac{c_i}{2} V_{i+1}^{n+1} = \dots$$
+                <p>Solved via Thomas Algorithm.</p>
+            </div>
+        </details>
+    </aside>
+</div>
+
+<script>
+    // --- UTILITY: MATH & ALGORITHMS ---
+
+    // Cumulative Normal Distribution (for analytical check)
+    function N(x) {
+        var a1 =  0.254829592, a2 = -0.284496736, a3 =  1.421413741;
+        var a4 = -1.453152027, a5 =  1.061405429, p  =  0.3275911;
+        var sign = 1;
+        if (x < 0) { sign = -1; x = Math.abs(x); }
+        var t = 1.0/(1.0 + p*x);
+        var y = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t*Math.exp(-x*x);
+        return 0.5*(1.0 + sign*y);
+    }
+
+    // Standard Normal PDF
+    function n(x) {
+        return Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
+    }
+
+    // Tridiagonal Matrix Solver (Thomas Algorithm)
+    // Solves Ax = d where A is tridiagonal with diag b, lower a, upper c
+    // Note: arrays are 0-indexed. equations are from i=1 to n-2 (internal nodes)
+    function thomasSolve(a, b, c, d) {
+        let n = d.length;
+        let c_prime = new Float64Array(n);
+        let d_prime = new Float64Array(n);
+        let x = new Float64Array(n);
+
+        // Forward elimination
+        c_prime[0] = c[0] / b[0];
+        d_prime[0] = d[0] / b[0];
+
+        for (let i = 1; i < n; i++) {
+            let temp = b[i] - a[i] * c_prime[i - 1];
+            if (i < n - 1) c_prime[i] = c[i] / temp;
+            d_prime[i] = (d[i] - a[i] * d_prime[i - 1]) / temp;
+        }
+
+        // Backward substitution
+        x[n - 1] = d_prime[n - 1];
+        for (let i = n - 2; i >= 0; i--) {
+            x[i] = d_prime[i] - c_prime[i] * x[i + 1];
+        }
+        return x;
+    }
+
+    // --- ANALYTICAL ENGINE (For Greeks & Validation) ---
+    function blackScholesAnalytical(S, K, T, r, q, sigma, type) {
+        if (T <= 0) {
+            if (type === 'call') return Math.max(S - K, 0);
+            return Math.max(K - S, 0);
+        }
+        let d1 = (Math.log(S / K) + (r - q + 0.5 * sigma * sigma) * T) / (sigma * Math.sqrt(T));
+        let d2 = d1 - sigma * Math.sqrt(T);
+        
+        if (type === 'call') {
+            return S * Math.exp(-q * T) * N(d1) - K * Math.exp(-r * T) * N(d2);
+        } else {
+            return K * Math.exp(-r * T) * N(-d2) - S * Math.exp(-q * T) * N(-d1);
+        }
+    }
+
+    function getAnalyticalGreeks(S, K, T, r, q, sigma, type) {
+        if (T <= 0) return { delta: 0, gamma: 0, theta: 0, vega: 0, rho: 0 };
+        
+        let sqrtT = Math.sqrt(T);
+        let d1 = (Math.log(S / K) + (r - q + 0.5 * sigma * sigma) * T) / (sigma * sqrtT);
+        let d2 = d1 - sigma * sqrtT;
+        let nd1 = n(d1);
+        let Nd1 = N(d1);
+        let Nd2 = N(d2);
+        let Nmd1 = N(-d1);
+        let Nmd2 = N(-d2);
+        let eqt = Math.exp(-q*T);
+        let ert = Math.exp(-r*T);
+
+        let delta, gamma, theta, vega, rho;
+
+        // Vega (Same for Call/Put)
+        vega = S * eqt * nd1 * sqrtT * 0.01; // Scaled for 1% vol change usually, but here raw
+
+        // Gamma (Same for Call/Put)
+        gamma = (eqt * nd1) / (S * sigma * sqrtT);
+
+        if (type === 'call') {
+            delta = eqt * Nd1;
+            rho = K * T * ert * Nd2 * 0.01; // Scaled
+            theta = (- (S * sigma * eqt * nd1) / (2 * sqrtT) 
+                     - r * K * ert * Nd2 
+                     + q * S * eqt * Nd1) / 365.0; // Daily theta usually
+        } else {
+            delta = -eqt * Nmd1;
+            rho = -K * T * ert * Nmd2 * 0.01;
+            theta = (- (S * sigma * eqt * nd1) / (2 * sqrtT) 
+                     + r * K * ert * Nmd2 
+                     - q * S * eqt * Nmd1) / 365.0;
+        }
+
+        // Unscale theta/rho/vega for the chart to raw mathematical values if preferred, 
+        // but standard convention is typically per unit. 
+        // Let's stick to raw math derivatives for the "Residual" context, 
+        // but for display, the user expects standard Greeks. 
+        // Reverting scale for pure math visualization:
+        vega = S * eqt * nd1 * sqrtT; 
+        rho = (type === 'call') ? K * T * ert * Nd2 : -K * T * ert * Nmd2;
+        theta = (type === 'call') 
+            ? (- (S * sigma * eqt * nd1) / (2 * sqrtT) - r * K * ert * Nd2 + q * S * eqt * Nd1)
+            : (- (S * sigma * eqt * nd1) / (2 * sqrtT) + r * K * ert * Nmd2 - q * S * eqt * Nmd1);
+
+        return { delta, gamma, theta, vega, rho };
+    }
+
+
+    // --- NUMERICAL ENGINE (Finite Difference) ---
+
+    class PDESolver {
+        constructor(params) {
+            this.S0 = params.S0;
+            this.K = params.K;
+            this.T = params.T;
+            this.sigma = params.sigma;
+            this.r = params.r;
+            this.q = params.q;
+            this.type = params.type;
+            
+            this.Ns = params.Ns;
+            this.Nt = params.Nt;
+            this.Smax = params.Smax;
+            this.scheme = params.scheme;
+
+            this.dS = this.Smax / this.Ns;
+            this.dt = this.T / this.Nt;
+            
+            this.gridS = [];
+            this.gridT = [];
+            for (let i = 0; i <= this.Ns; i++) this.gridS.push(i * this.dS);
+            for (let n = 0; n <= this.Nt; n++) this.gridT.push(n * this.dt);
+            
+            // Solution Matrix V[time_step][spot_step]
+            // Note: Stored as V[n][i], where n is time index (0 to Nt), i is space.
+            // Solving backwards, so n=0 represents Expiry (t=T), n=Nt represents Now (t=0).
+            this.V = []; 
+        }
+
+        solve() {
+            // Initialize Grid
+            let currentV = new Float64Array(this.Ns + 1);
+            
+            // 1. Initial Condition (Payoff at Maturity, Tau=0)
+            for (let i = 0; i <= this.Ns; i++) {
+                let S = this.gridS[i];
+                if (this.type === 'call') currentV[i] = Math.max(S - this.K, 0);
+                else currentV[i] = Math.max(this.K - S, 0);
+            }
+
+            // Store result (Time index 0 = Maturity)
+            this.V.push(Float64Array.from(currentV));
+
+            // Coefficients that don't change
+            let sigma2 = this.sigma * this.sigma;
+            let r = this.r;
+            let q = this.q;
+            let dt = this.dt;
+            let dS = this.dS;
+            let dS2 = dS * dS;
+
+            // Pre-calculate alpha, beta, gamma coeff functions for standard discretized form
+            // PDE: V_tau = 0.5*sigma^2*S^2*V_SS + (r-q)S*V_S - rV
+            // Discrete i: alpha_i * V_{i-1} + beta_i * V_i + gamma_i * V_{i+1}
+            
+            let alpha = (i) => 0.5 * dt * (sigma2 * i * i - (r - q) * i);
+            let beta  = (i) => -dt * (sigma2 * i * i + r);
+            let gamma = (i) => 0.5 * dt * (sigma2 * i * i + (r - q) * i);
+
+            // Matrix arrays for Implicit/CN
+            let A_diag = new Float64Array(this.Ns + 1);
+            let A_low  = new Float64Array(this.Ns + 1);
+            let A_up   = new Float64Array(this.Ns + 1);
+            let RHS    = new Float64Array(this.Ns + 1);
+
+            // Time Stepping (Tau 0 -> T)
+            for (let n = 0; n < this.Nt; n++) {
+                let nextV = new Float64Array(this.Ns + 1);
+                let tau_next = (n + 1) * dt;
+
+                // Boundary Conditions
+                // S=0
+                nextV[0] = (this.type === 'call') ? 0 : this.K * Math.exp(-r * tau_next);
+                // S=Smax
+                nextV[this.Ns] = (this.type === 'call') 
+                    ? (this.Smax * Math.exp(-q * tau_next) - this.K * Math.exp(-r * tau_next))
+                    : 0;
+
+                if (this.scheme === 'Explicit') {
+                    for (let i = 1; i < this.Ns; i++) {
+                        let a = alpha(i);
+                        let b = beta(i); // Note: explicit usually written as V^{n+1} = V^n + dt*Operator
+                        let g = gamma(i);
+                        // Explicit form: V_new = V_old + (alpha*V_{i-1} + beta*V_i + gamma*V_{i+1})
+                        // Wait, alpha/beta/gamma defined above include dt.
+                        // So: V_new = V_i + alpha*V_{i-1} + beta*V_i + gamma*V_{i+1}
+                        //           = alpha*V_{i-1} + (1+beta)*V_i + gamma*V_{i+1}
+                        nextV[i] = alpha(i)*currentV[i-1] + (1 + beta(i))*currentV[i] + gamma(i)*currentV[i+1];
+                    }
+                } 
+                else if (this.scheme === 'Implicit') {
+                    // System: (I - A) V^{n+1} = V^n
+                    // -alpha V_{i-1} + (1 - beta) V_i - gamma V_{i+1} = V_i^n
+                    
+                    // Build Matrix
+                    let low = [], diag = [], up = [], d = [];
+                    // i ranges 1 to Ns-1
+                    for(let i=1; i<this.Ns; i++) {
+                        low.push( -alpha(i) );
+                        diag.push( 1 - beta(i) );
+                        up.push( -gamma(i) );
+                        d.push( currentV[i] );
+                    }
+                    
+                    // Adjust for Boundary conditions in d vector
+                    // i=1 eq: -alpha(1)V_0 + ... -> add alpha(1)V_0 to d[0]
+                    d[0] += alpha(1) * nextV[0];
+                    // i=Ns-1 eq: ... - gamma(Ns-1)V_Ns -> add gamma(Ns-1)V_Ns to d[end]
+                    d[d.length-1] += gamma(this.Ns-1) * nextV[this.Ns];
+
+                    let sol = thomasSolve(low, diag, up, d);
+                    for(let i=1; i<this.Ns; i++) nextV[i] = sol[i-1];
+                }
+                else { 
+                    // Crank-Nicolson
+                    // (I - 0.5 A) V^{n+1} = (I + 0.5 A) V^n
+                    // -0.5 alpha V_{i-1} + (1 - 0.5 beta) V_i - 0.5 gamma V_{i+1} 
+                    //    = 0.5 alpha V_{i-1}^n + (1 + 0.5 beta) V_i^n + 0.5 gamma V_{i+1}^n
+
+                    let low = [], diag = [], up = [], d = [];
+                    
+                    for(let i=1; i<this.Ns; i++) {
+                        let a = alpha(i), b = beta(i), g = gamma(i);
+                        
+                        // LHS Matrix coefficients
+                        low.push( -0.5 * a );
+                        diag.push( 1 - 0.5 * b );
+                        up.push( -0.5 * g );
+
+                        // RHS vector
+                        let val = 0.5*a*currentV[i-1] + (1 + 0.5*b)*currentV[i] + 0.5*g*currentV[i+1];
+                        d.push(val);
+                    }
+
+                    // Adjust BCs
+                    d[0] += 0.5 * alpha(1) * nextV[0]; // From LHS boundary term
+                    // Note: RHS also has V_0^n term, but V_0 is boundary. 
+                    // Actually, CN is subtle with BCs. 
+                    // Standard CN: 0.5(L_new + L_old).
+                    // LHS (Unknowns): -0.5*a*V_{i-1}^{n+1} ...
+                    // RHS (Knowns): ... + 0.5*a*V_{i-1}^n
+                    // Boundary terms move to RHS.
+                    // For i=1: LHS has -0.5*a*V_0^{n+1}. Move to RHS => +0.5*a*V_0^{n+1}.
+                    //          RHS already has 0.5*a*V_0^n.
+                    // So total added to d[0] is 0.5*a*(V_0^{n+1} + V_0^n).
+                    d[0] += 0.5 * alpha(1) * nextV[0]; 
+                    d[0] += 0.5 * alpha(1) * currentV[0]; // Previous BC (already in loop calc? No, currentV index includes boundary)
+                    // Wait, currentV loop in RHS calc used currentV[0]. So RHS part is handled.
+                    // Only need to move the LHS unknown boundary term to RHS.
+                    // Yes, logic: The RHS calculation loop `0.5*a*currentV[i-1]` USES V[0] (known old BC).
+                    // The LHS system solves for internal nodes. The term `-0.5*a*V_0^{n+1}` is constant. Move to RHS.
+                    // So we only add `0.5 * alpha(1) * nextV[0]`.
+                    
+                    d[d.length-1] += 0.5 * gamma(this.Ns-1) * nextV[this.Ns];
+
+                    let sol = thomasSolve(low, diag, up, d);
+                    for(let i=1; i<this.Ns; i++) nextV[i] = sol[i-1];
+                }
+
+                currentV = nextV;
+                this.V.push(Float64Array.from(currentV));
+            }
+            
+            // this.V is now [Maturity, ..., Now].
+            // Reverse it so index 0 is Time 0 (Now) and Index Nt is Maturity (T).
+            // This maps better to visualization where t=0 is the start axis.
+            this.V.reverse();
+        }
+
+        getGreeksAtNow() {
+            // Greeks at t=0 (Index 0 in reversed array)
+            let V0 = this.V[0];
+            let V1 = this.V[1]; // Next time step for Theta
+            let dS = this.dS;
+            let dt = this.dt;
+
+            let delta = [], gamma = [], theta = [], S_arr = [];
+            
+            // Compute for internal nodes
+            for(let i=1; i<this.Ns; i++) {
+                S_arr.push(this.gridS[i]);
+                
+                // Central Diff for Delta
+                let d = (V0[i+1] - V0[i-1]) / (2*dS);
+                delta.push(d);
+
+                // Central Diff for Gamma
+                let g = (V0[i+1] - 2*V0[i] + V0[i-1]) / (dS*dS);
+                gamma.push(g);
+
+                // Forward/Backward Diff for Theta (V_t)
+                // Note: our grid stored V at t=0 and t=dt.
+                // V_t approx (V(t+dt) - V(t)) / dt
+                let th = (V1[i] - V0[i]) / dt;
+                theta.push(th);
+            }
+            return { S: S_arr, delta, gamma, theta };
+        }
+
+        computeResidualsAtNow() {
+            // R = V_t + 0.5*sigma^2*S^2*V_SS + (r-q)SV_S - rV
+            // Ideally should be 0.
+            let res = [];
+            let S_arr = [];
+            let V0 = this.V[0];
+            let V1 = this.V[1];
+            let dS = this.dS;
+            let dt = this.dt;
+            
+            for(let i=1; i<this.Ns; i++) {
+                let S = this.gridS[i];
+                S_arr.push(S);
+
+                let Vt = (V1[i] - V0[i]) / dt; // Forward time diff
+                let Vs = (V0[i+1] - V0[i-1]) / (2*dS);
+                let Vss = (V0[i+1] - 2*V0[i] + V0[i-1]) / (dS*dS);
+
+                let val = Vt + 0.5*this.sigma**2 * S**2 * Vss + (this.r - this.q)*S*Vs - this.r*V0[i];
+                res.push(val);
+            }
+            return { S: S_arr, residual: res };
+        }
+    }
+
+
+    // --- UI & PLOTTING ---
+
+    const state = {
+        solver: null
+    };
+
+    function updateParams() {
+        return {
+            S0: parseFloat(document.getElementById('inp-S0').value),
+            K: parseFloat(document.getElementById('inp-K').value),
+            T: parseFloat(document.getElementById('inp-T').value),
+            sigma: parseFloat(document.getElementById('inp-sigma').value),
+            r: parseFloat(document.getElementById('inp-r').value),
+            q: parseFloat(document.getElementById('inp-q').value),
+            type: document.getElementById('inp-type').value,
+            Ns: parseInt(document.getElementById('inp-NS').value),
+            Nt: parseInt(document.getElementById('inp-Nt').value),
+            Smax: parseFloat(document.getElementById('inp-Smax').value),
+            scheme: document.getElementById('inp-scheme').value
+        };
+    }
+
+    function runSimulation() {
+        const btn = document.getElementById('btn-compute');
+        const spinner = document.getElementById('loading-spinner');
+        const status = document.getElementById('status-text');
+
+        btn.disabled = true;
+        spinner.style.display = 'block';
+        status.innerText = "Computing...";
+        status.style.color = "orange";
+
+        // Give UI a moment to update before blocking with math
+        setTimeout(() => {
+            const params = updateParams();
+            
+            try {
+                // Instantiate and Solve
+                const solver = new PDESolver(params);
+                solver.solve();
+                state.solver = solver;
+
+                plotSurface();
+                plotGreeks();
+                plotResiduals();
+
+                status.innerText = "Converged";
+                status.style.color = "green";
+            } catch (e) {
+                console.error(e);
+                status.innerText = "Error";
+                status.style.color = "red";
+                alert("Calculation error: " + e.message);
+            } finally {
+                btn.disabled = false;
+                spinner.style.display = 'none';
+            }
+        }, 50);
+    }
+
+    function plotSurface() {
+        if (!state.solver) return;
+        const solver = state.solver;
+
+        // Data for Plotly Surface
+        // z must be an array of arrays of values
+        // x: time, y: spot
+        
+        // Downsample for performance if grid is huge
+        const strideS = Math.ceil(solver.Ns / 50); 
+        const strideT = Math.ceil(solver.Nt / 50);
+
+        let z_data = [];
+        let x_data = []; // Time
+        let y_data = []; // Spot
+
+        // Fill Spot axis (Y)
+        for(let i=0; i<=solver.Ns; i+=strideS) y_data.push(solver.gridS[i]);
+        
+        // Fill Time axis (X)
+        for(let n=0; n<=solver.Nt; n+=strideT) x_data.push(solver.gridT[n]);
+
+        // Fill Z (Price) - needs to be [Spot][Time] or [Time][Spot]? 
+        // Plotly surface: z[m][n] maps to y[m] and x[n].
+        // So rows correspond to Y (Spot), cols to X (Time).
+        
+        for(let i=0; i<=solver.Ns; i+=strideS) {
+            let row = [];
+            for(let n=0; n<=solver.Nt; n+=strideT) {
+                // solver.V is [Time][Spot]
+                row.push(solver.V[n][i]);
+            }
+            z_data.push(row);
+        }
+
+        const data = [{
+            z: z_data,
+            x: x_data,
+            y: y_data,
+            type: 'surface',
+            colorscale: 'Viridis',
+            showscale: false,
+            contours: {
+                z: { show: true, usecolormap: true, highlightcolor: "#42f462", project: { z: true } }
+            }
+        }];
+
+        const layout = {
+            title: `Option Price Surface $V(S,t)$`,
+            autosize: true,
+            margin: { l: 0, r: 0, b: 0, t: 30 },
+            scene: {
+                xaxis: { title: 'Time (t)' },
+                yaxis: { title: 'Spot (S)' },
+                zaxis: { title: 'Price (V)' },
+                camera: { eye: { x: 1.5, y: 1.5, z: 0.5 } }
+            }
+        };
+
+        Plotly.newPlot('chart-3d', data, layout, {responsive: true, displayModeBar: false});
+    }
+
+    function plotGreeks() {
+        if (!state.solver) return;
+        const solver = state.solver;
+        const greekType = document.getElementById('sel-greek').value;
+
+        // Get Grid Greeks (S, delta, gamma, theta)
+        const gridData = solver.getGreeksAtNow();
+        
+        // Get Analytical Greeks for comparison (Vega/Rho must be analytical/FD perturbed)
+        const params = updateParams();
+        
+        let xVals = gridData.S;
+        let yVals = [];
+        let yAnalytical = [];
+
+        // Determine what to plot
+        if (['Delta', 'Gamma', 'Theta'].includes(greekType)) {
+            // Use Grid Data
+            if (greekType === 'Delta') yVals = gridData.delta;
+            if (greekType === 'Gamma') yVals = gridData.gamma;
+            if (greekType === 'Theta') yVals = gridData.theta;
+        } else {
+            // For Vega/Rho, Grid doesn't have it natively without multi-pass. 
+            // We plot 0s or handle differently? 
+            // Better: Compute Analytical for ALL to show "True" vs "Grid".
+        }
+
+        // Generate Analytical Curve for comparison
+        xVals.forEach((s, idx) => {
+            const g = getAnalyticalGreeks(s, params.K, params.T, params.r, params.q, params.sigma, params.type);
+            let val = 0;
+            if (greekType === 'Delta') val = g.delta;
+            if (greekType === 'Gamma') val = g.gamma;
+            if (greekType === 'Theta') val = g.theta;
+            if (greekType === 'Vega') val = g.vega;
+            if (greekType === 'Rho') val = g.rho;
+            yAnalytical.push(val);
+        });
+
+        // Use Analytical for Vega/Rho as primary, Grid for others
+        const isGridAvail = ['Delta', 'Gamma', 'Theta'].includes(greekType);
+
+        let traces = [];
+        
+        if (isGridAvail) {
+            traces.push({
+                x: xVals,
+                y: yVals,
+                type: 'scatter',
+                mode: 'lines',
+                name: 'FDM Grid',
+                line: { color: '#e74c3c', width: 3 }
+            });
+        }
+
+        traces.push({
+            x: xVals,
+            y: yAnalytical,
+            type: 'scatter',
+            mode: 'lines',
+            name: 'Exact (Formula)',
+            line: { color: '#3498db', dash: 'dot', width: 2 }
+        });
+
+        const layout = {
+            margin: { l: 40, r: 10, b: 30, t: 10 },
+            showlegend: true,
+            legend: { x: 0, y: 1 },
+            xaxis: { title: 'Spot Price (S)' },
+            yaxis: { title: greekType }
+        };
+
+        Plotly.newPlot('chart-greeks', traces, layout, {responsive: true, displayModeBar: false});
+    }
+
+    function plotResiduals() {
+        if (!state.solver) return;
+        const resData = state.solver.computeResidualsAtNow();
+
+        const trace = {
+            x: resData.S,
+            y: resData.residual,
+            type: 'scatter',
+            mode: 'lines',
+            line: { color: '#8e44ad', width: 2 },
+            fill: 'tozeroy'
+        };
+
+        const layout = {
+            margin: { l: 50, r: 10, b: 30, t: 10 },
+            xaxis: { title: 'Spot Price (S)' },
+            yaxis: { title: 'Residual Error', tickformat: '.2e' }
+        };
+
+        Plotly.newPlot('chart-residual', [trace], layout, {responsive: true, displayModeBar: false});
+    }
+
+    // --- EVENT LISTENERS ---
+    document.getElementById('btn-compute').addEventListener('click', runSimulation);
+    document.getElementById('sel-greek').addEventListener('change', plotGreeks);
+    
+    // Add enter key support
+    document.querySelectorAll('input').forEach(input => {
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') runSimulation();
+        });
+    });
+
+    // Initial Run
+    window.onload = function() {
+        runSimulation();
+        // Force MathJax Typeset in case dynamic content loaded
+        setTimeout(() => {
+            if (window.MathJax) MathJax.typesetPromise();
+        }, 500);
+    };
+
+    // Resize Handler
+    window.onresize = function() {
+        Plotly.Plots.resize('chart-3d');
+        Plotly.Plots.resize('chart-greeks');
+        Plotly.Plots.resize('chart-residual');
+    };
+
+</script>
+
+</body>
+</html>
