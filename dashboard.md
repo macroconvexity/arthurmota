@@ -13,3 +13,5 @@
 ## [Black-Scholes & Partial Differential Equation (PDE) Lab](PDEblackscholes.html) 
 
 ## [Black–Litterman Bayesian Portfolio Lab](blacklitterman.html)
+
+## [The Spreadsheet of Life](Spreadsheet.html)
