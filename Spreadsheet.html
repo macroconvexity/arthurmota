@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Spreadsheet of Life | Modelagem Patrimonial</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Dependências Globais -->
+    <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+    <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: #f8fafc; }
+        .chart-container { width: 100%; height: 350px; }
+        .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .table-row-selected { background-color: #eff6ff !important; border-left: 4px solid #3b82f6; }
+        .table-row-event { background-color: #f0fdf4; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel" data-presets="env,react">
+        const { useState, useMemo, useEffect, useRef } = React;
+        const { createRoot } = ReactDOM;
+        const RechartsObj = window.Recharts || {};
+        const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, ComposedChart, Bar } = RechartsObj;
+        
+        // --- Ícones SVG Inline ---
+        const Icons = {
+            TrendingUp: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>,
+            Wallet: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"/><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"/></svg>,
+            Plus: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>,
+            Trash2: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>,
+            Calendar: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>,
+            Settings: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+            Edit: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+            X: (p) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...p}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        };
+
+        const formatBRL = (val) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0, notation: Math.abs(val) > 10000000 ? 'compact' : 'standard' }).format(val);
+        const Icon = ({ name, className }) => { const C = Icons[name]; return C ? <C className={className} /> : null; };
+
+        const App = () => {
+            // --- STATE ---
+            const [params, setParams] = useState({
+                currentAge: 30,
+                endAge: 85,
+                initialNetWorth: 500000,
+                initialSalaryYearly: 200000,
+                initialBonus: 50000,
+                initialFixedCosts: 100000,
+                initialFlexCosts: 30000,
+                inflationRate: 4.5,
+                salaryGrowthRate: 2.0,
+                investmentReturn: 8.0,
+                bonusGrowthRate: 2.0
+            });
+
+            const [events, setEvents] = useState([
+                { id: 1, age: 35, type: 'expense_oneoff', description: 'Compra de Imóvel', value: 400000 },
+            ]);
+
+            const [selectedAge, setSelectedAge] = useState(null); // Age currently being edited
+            const [quickEdit, setQuickEdit] = useState({ description: '', value: '', type: 'expense_oneoff' });
+
+            // --- PROJECTION ENGINE ---
+            const projection = useMemo(() => {
+                let data = [];
+                let currentYear = new Date().getFullYear();
+                
+                let nw = params.initialNetWorth;
+                let salary = params.initialSalaryYearly;
+                let bonus = params.initialBonus;
+                let fixedCosts = params.initialFixedCosts;
+                let flexCosts = params.initialFlexCosts;
+                let yieldRate = params.investmentReturn / 100;
+                let cpi = 1.0; 
+
+                for (let age = params.currentAge; age <= params.endAge; age++) {
+                    const year = currentYear + (age - params.currentAge);
+                    const yearEvents = events.filter(e => e.age === age);
+                    
+                    let oneOffExpense = 0;
+                    let oneOffIncome = 0;
+                    let hasEvent = yearEvents.length > 0;
+
+                    // Apply Overrides & Accumulate One-offs
+                    yearEvents.forEach(ev => {
+                        if (ev.type === 'expense_oneoff') oneOffExpense += parseFloat(ev.value);
+                        if (ev.type === 'income_oneoff') oneOffIncome += parseFloat(ev.value);
+                        if (ev.type === 'salary_update') salary = parseFloat(ev.value);
+                        if (ev.type === 'fixed_cost_update') fixedCosts = parseFloat(ev.value);
+                        if (ev.type === 'yield_update') yieldRate = parseFloat(ev.value) / 100;
+                    });
+
+                    // Growth Logic (applied if not the first year)
+                    if (age > params.currentAge) {
+                        const infl = params.inflationRate / 100;
+                        const salGrowth = params.salaryGrowthRate / 100;
+                        
+                        // Only grow if NOT updated this year by an event (structural update resets the base)
+                        const salaryUpdated = yearEvents.some(e => e.type === 'salary_update');
+                        const fixedCostsUpdated = yearEvents.some(e => e.type === 'fixed_cost_update');
+
+                        if (!salaryUpdated) salary = salary * (1 + infl + salGrowth); 
+                        bonus = bonus * (1 + infl + (params.bonusGrowthRate / 100));
+                        if (!fixedCostsUpdated) fixedCosts = fixedCosts * (1 + infl);
+                        flexCosts = flexCosts * (1 + infl);
+                        cpi = cpi * (1 + infl);
+                    }
+
+                    const investmentIncome = nw * yieldRate;
+                    const totalIncome = salary + bonus + investmentIncome + oneOffIncome;
+                    const totalExpenses = fixedCosts + flexCosts + oneOffExpense;
+                    const netFlow = totalIncome - totalExpenses;
+
+                    nw = nw + netFlow;
+                    const realNW = nw / cpi;
+
+                    data.push({
+                        age, year, hasEvent,
+                        nominalNW: Math.round(nw),
+                        realNW: Math.round(realNW),
+                        salary: Math.round(salary),
+                        fixedCosts: Math.round(fixedCosts),
+                        oneOffExpense: Math.round(oneOffExpense),
+                        oneOffIncome: Math.round(oneOffIncome),
+                        netFlow: Math.round(netFlow),
+                    });
+                }
+                return data;
+            }, [params, events]);
+
+            // --- HANDLERS ---
+            const handleParam = (e) => setParams({...params, [e.target.name]: parseFloat(e.target.value)});
+            
+            const handleRowClick = (age) => {
+                setSelectedAge(age === selectedAge ? null : age);
+                setQuickEdit({ description: '', value: '', type: 'expense_oneoff' }); // Reset form
+            };
+
+            const addQuickEvent = () => {
+                if (!quickEdit.value || !selectedAge) return;
+                setEvents([...events, { 
+                    id: Date.now(), 
+                    age: selectedAge, 
+                    ...quickEdit, 
+                    value: parseFloat(quickEdit.value) 
+                }]);
+                setQuickEdit({ ...quickEdit, description: '', value: '' });
+            };
+
+            const deleteEvent = (id) => {
+                setEvents(events.filter(e => e.id !== id));
+            };
+
+            const finalData = projection[projection.length - 1];
+
+            // --- SUB-COMPONENTS ---
+            
+            // Editor Panel (Floating or Inline)
+            const YearEditor = () => {
+                if (!selectedAge) return null;
+                const yearData = projection.find(p => p.age === selectedAge);
+                const currentEvents = events.filter(e => e.age === selectedAge);
+
+                return (
+                    <div className="fixed bottom-0 left-0 right-0 md:relative md:bottom-auto md:left-auto md:right-auto bg-white border-t-4 border-blue-500 shadow-2xl md:shadow-lg md:rounded-lg p-4 z-50 animate-in slide-in-from-bottom duration-300 md:mb-6">
+                        <div className="flex justify-between items-start mb-4">
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                    <Icon name="Edit" className="w-5 h-5 text-blue-500" />
+                                    Editando: {selectedAge} Anos ({yearData?.year})
+                                </h3>
+                                <p className="text-sm text-slate-500">Adicione eventos pontuais ou mude as premissas a partir deste ano.</p>
+                            </div>
+                            <button onClick={() => setSelectedAge(null)} className="p-1 hover:bg-slate-100 rounded text-slate-400"><Icon name="X" className="w-6 h-6" /></button>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Form de Adição */}
+                            <div className="space-y-3 bg-slate-50 p-3 rounded border border-slate-200">
+                                <label className="text-xs font-bold text-slate-500 uppercase">Adicionar Novo Item</label>
+                                <div className="grid grid-cols-1 gap-2">
+                                    <select 
+                                        className="border rounded p-2 text-sm w-full bg-white"
+                                        value={quickEdit.type}
+                                        onChange={(e) => setQuickEdit({...quickEdit, type: e.target.value})}
+                                    >
+                                        <option value="expense_oneoff">💸 Gasto Pontual (Viagem, Carro, Casa)</option>
+                                        <option value="income_oneoff">💰 Ganho Pontual (Bônus Extra, Venda)</option>
+                                        <option disabled>──────────</option>
+                                        <option value="salary_update">📈 Novo Salário Anual (Base)</option>
+                                        <option value="fixed_cost_update">📉 Novo Custo Fixo Anual (Base)</option>
+                                        <option value="yield_update">📊 Novo Retorno de Investimento (%)</option>
+                                    </select>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Descrição (ex: Troca de Carro)" 
+                                        className="border rounded p-2 text-sm w-full"
+                                        value={quickEdit.description}
+                                        onChange={(e) => setQuickEdit({...quickEdit, description: e.target.value})}
+                                    />
+                                    <div className="flex gap-2">
+                                        <input 
+                                            type="number" 
+                                            placeholder="Valor" 
+                                            className="border rounded p-2 text-sm w-full"
+                                            value={quickEdit.value}
+                                            onChange={(e) => setQuickEdit({...quickEdit, value: e.target.value})}
+                                        />
+                                        <button 
+                                            onClick={addQuickEvent}
+                                            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm font-medium transition-colors"
+                                        >
+                                            Adicionar
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Lista de Eventos Existentes no Ano */}
+                            <div>
+                                <label className="text-xs font-bold text-slate-500 uppercase mb-2 block">Eventos Ativos neste Ano</label>
+                                {currentEvents.length === 0 ? (
+                                    <div className="text-sm text-slate-400 italic py-2">Nenhum evento customizado para este ano. Segue o padrão.</div>
+                                ) : (
+                                    <div className="space-y-2">
+                                        {currentEvents.map(ev => (
+                                            <div key={ev.id} className="flex justify-between items-center bg-white border border-slate-200 p-2 rounded text-sm shadow-sm">
+                                                <div>
+                                                    <span className={`text-xs font-bold uppercase mr-2 px-1.5 py-0.5 rounded ${ev.type.includes('income') || ev.type.includes('salary') ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                                                        {ev.type.includes('oneoff') ? 'Pontual' : 'Fixo'}
+                                                    </span>
+                                                    <span className="text-slate-700">{ev.description}</span>
+                                                    <div className="text-slate-500 text-xs font-mono">{ev.type.includes('yield') ? ev.value + '%' : formatBRL(ev.value)}</div>
+                                                </div>
+                                                <button onClick={() => deleteEvent(ev.id)} className="text-red-400 hover:text-red-600 p-1"><Icon name="Trash2" className="w-4 h-4" /></button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            };
+
+            return (
+                <div className="min-h-screen pb-20 bg-slate-50/50">
+                    <header className="bg-slate-900 text-white p-6 shadow-md sticky top-0 z-40">
+                        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center">
+                            <div>
+                                <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+                                    <Icon name="TrendingUp" className="text-emerald-400 w-8 h-8" /> The Spreadsheet of Life
+                                </h1>
+                                <p className="text-slate-400 text-sm font-light mt-1 ml-11 lowercase">by arthur mota</p>
+                            </div>
+                            <div className="flex gap-8 mt-4 md:mt-0 text-right">
+                                <div><p className="text-[10px] text-slate-400 uppercase">Patrimônio (Nominal)</p><p className="text-lg font-mono text-emerald-400">{formatBRL(finalData?.nominalNW || 0)}</p></div>
+                                <div><p className="text-[10px] text-slate-400 uppercase">Patrimônio (Real)</p><p className="text-lg font-mono text-blue-400">{formatBRL(finalData?.realNW || 0)}</p></div>
+                            </div>
+                        </div>
+                    </header>
+
+                    <main className="max-w-7xl mx-auto p-4 md:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+                        
+                        {/* Coluna 1: Parâmetros Globais (Compacto) */}
+                        <div className="lg:col-span-3 space-y-4">
+                            <div className="bg-white rounded shadow-sm border border-slate-200 p-4">
+                                <h2 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2"><Icon name="Settings" className="w-4 h-4" /> Configuração Inicial</h2>
+                                <div className="space-y-2 text-sm">
+                                    <div className="grid grid-cols-2 gap-2"><label className="text-slate-500 text-xs">Idade Inicial</label><input name="currentAge" type="number" value={params.currentAge} onChange={handleParam} className="border rounded px-2 py-1 text-right bg-slate-50"/></div>
+                                    <div className="grid grid-cols-2 gap-2"><label className="text-slate-500 text-xs">Idade Final</label><input name="endAge" type="number" value={params.endAge} onChange={handleParam} className="border rounded px-2 py-1 text-right bg-slate-50"/></div>
+                                    <div className="h-px bg-slate-100 my-2"></div>
+                                    <div className="grid grid-cols-1 gap-1"><label className="text-slate-500 text-xs">Patrimônio Inicial</label><input name="initialNetWorth" type="number" value={params.initialNetWorth} onChange={handleParam} className="border rounded px-2 py-1 text-right w-full"/></div>
+                                    <div className="grid grid-cols-1 gap-1"><label className="text-slate-500 text-xs">Salário Líquido (Ano)</label><input name="initialSalaryYearly" type="number" value={params.initialSalaryYearly} onChange={handleParam} className="border rounded px-2 py-1 text-right w-full"/></div>
+                                    <div className="grid grid-cols-1 gap-1"><label className="text-slate-500 text-xs">Custo Fixo (Ano)</label><input name="initialFixedCosts" type="number" value={params.initialFixedCosts} onChange={handleParam} className="border rounded px-2 py-1 text-right w-full text-red-600"/></div>
+                                    <div className="h-px bg-slate-100 my-2"></div>
+                                    <div className="grid grid-cols-2 gap-2 items-center"><label className="text-slate-500 text-xs">IPCA (%)</label><input name="inflationRate" type="number" step="0.1" value={params.inflationRate} onChange={handleParam} className="border rounded px-2 py-1 text-right w-full"/></div>
+                                    <div className="grid grid-cols-2 gap-2 items-center"><label className="text-slate-500 text-xs">Retorno (%)</label><input name="investmentReturn" type="number" step="0.1" value={params.investmentReturn} onChange={handleParam} className="border rounded px-2 py-1 text-right w-full"/></div>
+                                    <div className="grid grid-cols-2 gap-2 items-center"><label className="text-slate-500 text-xs">Cresc. Salário (%)</label><input name="salaryGrowthRate" type="number" step="0.1" value={params.salaryGrowthRate} onChange={handleParam} className="border rounded px-2 py-1 text-right w-full"/></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Coluna 2: Dados e Interação */}
+                        <div className="lg:col-span-9 space-y-6">
+                            
+                            {/* Gráfico */}
+                            <div className="bg-white p-4 rounded shadow-sm border border-slate-200">
+                                <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Visão Gráfica</h3>
+                                <div className="chart-container">
+                                    {RechartsObj.ComposedChart ? (
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <ComposedChart data={projection} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                                            <defs>
+                                                <linearGradient id="colorNet" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/><stop offset="95%" stopColor="#10b981" stopOpacity={0}/></linearGradient>
+                                            </defs>
+                                            <XAxis dataKey="age" tick={{fontSize: 12}} />
+                                            <YAxis tickFormatter={(v) => (v/1000000).toFixed(1)+'M'} tick={{fontSize: 12}} />
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                                            <Tooltip formatter={(v) => formatBRL(v)} labelFormatter={(l) => `Idade: ${l}`} contentStyle={{borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'}} />
+                                            <Area type="monotone" dataKey="nominalNW" name="Patrimônio" stroke="#10b981" fill="url(#colorNet)" strokeWidth={2} />
+                                            <Bar dataKey="oneOffExpense" name="Gasto Pontual" fill="#ef4444" barSize={10} />
+                                        </ComposedChart>
+                                    </ResponsiveContainer>
+                                    ) : <div>Carregando...</div>}
+                                </div>
+                            </div>
+
+                            {/* Editor Dinâmico */}
+                            <YearEditor />
+
+                            {/* Tabela Interativa */}
+                            <div className="bg-white rounded shadow-sm border border-slate-200 overflow-hidden">
+                                <div className="p-3 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                                    <h3 className="text-sm font-bold text-slate-700 flex items-center gap-2"><Icon name="Calendar" className="w-4 h-4" /> Fluxo Caixa a Caixa</h3>
+                                    <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded border border-blue-100">Clique na linha para editar o ano</span>
+                                </div>
+                                <div className="overflow-x-auto max-h-[600px] custom-scroll">
+                                    <table className="w-full text-sm text-right border-collapse">
+                                        <thead className="bg-slate-50 text-slate-500 font-medium text-xs uppercase sticky top-0 shadow-sm z-10">
+                                            <tr>
+                                                <th className="p-3 text-center w-16">Idade</th>
+                                                <th className="p-3 w-16">Ano</th>
+                                                <th className="p-3 text-emerald-600">Salário (Ano)</th>
+                                                <th className="p-3 text-red-500">Custo Fixo</th>
+                                                <th className="p-3 text-red-600 font-bold border-l border-slate-100">Evt. Pontual</th>
+                                                <th className="p-3 font-bold">Fluxo Líquido</th>
+                                                <th className="p-3 bg-slate-50/50 text-slate-800 font-bold">Patrimônio</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100">
+                                            {projection.map((row) => (
+                                                <tr 
+                                                    key={row.age} 
+                                                    onClick={() => handleRowClick(row.age)}
+                                                    className={`cursor-pointer transition-all hover:bg-blue-50/50 ${selectedAge === row.age ? 'table-row-selected' : ''} ${row.hasEvent ? 'table-row-event' : ''}`}
+                                                >
+                                                    <td className="p-3 text-center font-mono text-slate-400 relative">
+                                                        {row.age}
+                                                        {row.hasEvent && <span className="absolute top-1/2 left-1 w-1.5 h-1.5 bg-blue-500 rounded-full -translate-y-1/2"></span>}
+                                                    </td>
+                                                    <td className="p-3 text-slate-400">{row.year}</td>
+                                                    <td className="p-3">{formatBRL(row.salary)}</td>
+                                                    <td className="p-3 text-slate-500">-{formatBRL(row.fixedCosts)}</td>
+                                                    <td className="p-3 border-l border-slate-50 font-medium">
+                                                        {row.oneOffExpense > 0 && <span className="text-red-600 block text-xs">-{formatBRL(row.oneOffExpense)}</span>}
+                                                        {row.oneOffIncome > 0 && <span className="text-emerald-600 block text-xs">+{formatBRL(row.oneOffIncome)}</span>}
+                                                        {!row.oneOffExpense && !row.oneOffIncome && <span className="text-slate-200">-</span>}
+                                                    </td>
+                                                    <td className={`p-3 font-medium ${row.netFlow >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatBRL(row.netFlow)}</td>
+                                                    <td className="p-3 bg-slate-50/30 font-bold text-slate-700">{formatBRL(row.nominalNW)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </main>
+                </div>
+            );
+        };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
