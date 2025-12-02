@@ -1,0 +1,719 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, 
+  AreaChart, Area, BarChart, Bar, ScatterChart, Scatter, ZAxis, ComposedChart, Cell, ErrorBar
+} from 'recharts';
+import { 
+  PieChart as LucidePieChart, 
+  TrendingUp, 
+  Settings, 
+  Activity, 
+  DollarSign, 
+  Percent,
+  Menu,
+  ShieldAlert,
+  Sliders,
+  Maximize2,
+  Columns,
+  Info
+} from 'lucide-react';
+
+// --- CONSTANTS & INITIAL DATA ---
+
+const COLORS = {
+  'dev_sov': '#94a3b8',   // slate-400
+  'global_ig': '#64748b', // slate-500
+  'global_hy': '#475569', // slate-600
+  'em_debt': '#334155',   // slate-700
+  'us_eq': '#3b82f6',     // blue-500
+  'dm_eq': '#6366f1',     // indigo-500
+  'em_eq': '#8b5cf6',     // violet-500
+  'alts': '#ec4899',      // pink-500
+  'cash': '#cbd5e1'       // slate-300
+};
+
+const ASSET_LABELS = {
+  'dev_sov': 'Dev. Sovereign (US)',
+  'global_ig': 'Global Inv. Grade',
+  'global_hy': 'Global High Yield',
+  'em_debt': 'EM Debt',
+  'us_eq': 'US Equities',
+  'dm_eq': 'DM (ex-US) Eq.',
+  'em_eq': 'EM Equities',
+  'alts': 'Alternatives',
+  'cash': 'Cash'
+};
+
+const INITIAL_RETURNS = {
+  'dev_sov': 4.2, 'global_ig': 5.0, 'global_hy': 6.6, 'em_debt': 5.3,
+  'us_eq': 7.8, 'dm_eq': 6.8, 'em_eq': 8.4,
+  'alts': 7.0, 'cash': 3.0
+};
+
+// Data extracted from user upload for comparison
+const INDUSTRY_MEDIANS = {
+  'dev_sov': 4.4, 'global_ig': 5.0, 'global_hy': 6.1, 'em_debt': 6.2,
+  'us_eq': 6.4,   'dm_eq': 7.2,   'em_eq': 7.6,
+  'alts': 7.0,    'cash': 2.5 
+};
+
+const INITIAL_VOLATILITY = {
+  'dev_sov': 5.0, 'global_ig': 6.5, 'global_hy': 10.0, 'em_debt': 12.0,
+  'us_eq': 16.0, 'dm_eq': 17.0, 'em_eq': 22.0,
+  'alts': 12.0, 'cash': 0.5
+};
+
+const INITIAL_PROFILES = {
+  'Fixed Income': {
+    'dev_sov': 16.3, 'global_ig': 47.8, 'global_hy': 14.3, 'em_debt': 19.1,
+    'us_eq': 0, 'dm_eq': 0, 'em_eq': 0, 'alts': 0, 'cash': 2.5
+  },
+  'Conservative': {
+    'dev_sov': 11.7, 'global_ig': 34.3, 'global_hy': 10.3, 'em_debt': 13.7,
+    'us_eq': 13.7, 'dm_eq': 3.8, 'em_eq': 2.5, 'alts': 7.5, 'cash': 2.5
+  },
+  'Balanced': {
+    'dev_sov': 8.5, 'global_ig': 25.0, 'global_hy': 7.5, 'em_debt': 10.0,
+    'us_eq': 27.5, 'dm_eq': 7.5, 'em_eq': 5.0, 'alts': 7.5, 'cash': 1.5
+  },
+  'Growth': {
+    'dev_sov': 4.8, 'global_ig': 14.2, 'global_hy': 4.3, 'em_debt': 5.7,
+    'us_eq': 41.0, 'dm_eq': 11.0, 'em_eq': 8.0, 'alts': 10.0, 'cash': 1.0
+  },
+  'Equities': {
+    'dev_sov': 0, 'global_ig': 0, 'global_hy': 0, 'em_debt': 0,
+    'us_eq': 68.0, 'dm_eq': 19.0, 'em_eq': 12.0, 'alts': 0, 'cash': 1.0
+  }
+};
+
+const INITIAL_CORRELATIONS = {
+  'us_eq': { 'us_eq': 1.0, 'dev_sov': -0.1, 'global_ig': 0.2, 'global_hy': 0.6, 'em_debt': 0.4, 'dm_eq': 0.85, 'em_eq': 0.75, 'alts': 0.5, 'cash': 0.0 },
+  'dev_sov': { 'us_eq': -0.1, 'dev_sov': 1.0, 'global_ig': 0.8, 'global_hy': 0.1, 'em_debt': 0.2, 'dm_eq': -0.05, 'em_eq': -0.05, 'alts': 0.1, 'cash': 0.0 },
+};
+
+// --- HELPER COMPONENTS ---
+
+const Card = ({ children, className = "" }) => (
+  <div className={`bg-white rounded-xl shadow-sm border border-slate-200 ${className}`}>
+    {children}
+  </div>
+);
+
+const MetricBox = ({ label, value, subtext, icon: Icon, colorClass = "text-blue-600" }) => (
+  <Card className="p-4 flex items-start space-x-4">
+    <div className={`p-3 rounded-lg bg-slate-50 ${colorClass}`}>
+      <Icon size={24} />
+    </div>
+    <div>
+      <p className="text-sm font-medium text-slate-500">{label}</p>
+      <h3 className="text-2xl font-bold text-slate-800">{value}</h3>
+      {subtext && <p className="text-xs text-slate-400 mt-1">{subtext}</p>}
+    </div>
+  </Card>
+);
+
+const TabButton = ({ active, onClick, children, icon: Icon }) => (
+  <button
+    onClick={onClick}
+    className={`flex items-center space-x-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+      active 
+        ? 'border-blue-600 text-blue-600' 
+        : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+    }`}
+  >
+    {Icon && <Icon size={16} />}
+    <span>{children}</span>
+  </button>
+);
+
+const SliderControl = ({ label, value, onChange, min, max, unit = "%" }) => (
+  <div className="mb-4">
+    <div className="flex justify-between text-xs font-semibold text-slate-600 mb-1">
+      <span>{label}</span>
+      <span>{value}{unit}</span>
+    </div>
+    <input 
+      type="range" min={min} max={max} value={value} 
+      onChange={(e) => onChange(Number(e.target.value))}
+      className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+    />
+  </div>
+);
+
+// --- MAIN APPLICATION ---
+
+export default function GlobalAssetSimulator() {
+  // --- STATE ---
+  const [activeTab, setActiveTab] = useState('dashboard');
+  
+  // Model Inputs
+  const [userReturns, setUserReturns] = useState(INITIAL_RETURNS);
+  const [userVolatility, setUserVolatility] = useState(INITIAL_VOLATILITY);
+  const [correlations, setCorrelations] = useState(INITIAL_CORRELATIONS); // New State for Matrix
+  
+  // Profiles (Now fully editable state)
+  const [profileWeights, setProfileWeights] = useState(INITIAL_PROFILES);
+  const [currentProfileName, setCurrentProfileName] = useState('Balanced');
+  
+  // Simulation Params
+  const [investmentAmount, setInvestmentAmount] = useState(1000000);
+  const [bullScenarioPct, setBullScenarioPct] = useState(130);
+  const [bearScenarioPct, setBearScenarioPct] = useState(70);
+  
+  // --- HANDLERS ---
+
+  const handleCashChange = (newCashVal) => {
+    const val = parseFloat(newCashVal);
+    if (isNaN(val)) return;
+    const delta = val - userReturns['cash'];
+    const newReturns = { ...userReturns };
+    Object.keys(newReturns).forEach(key => {
+      newReturns[key] = parseFloat((newReturns[key] + delta).toFixed(2));
+    });
+    setUserReturns(newReturns);
+  };
+
+  const handleReturnChange = (asset, val) => {
+    setUserReturns(prev => ({ ...prev, [asset]: parseFloat(val) }));
+  };
+
+  const handleProfileWeightChange = (profileName, asset, val) => {
+    const numVal = parseFloat(val) || 0;
+    setProfileWeights(prev => ({
+      ...prev,
+      [profileName]: {
+        ...prev[profileName],
+        [asset]: numVal
+      }
+    }));
+  };
+
+  const handleCorrelationChange = (rowKey, colKey, val) => {
+    const numVal = parseFloat(val);
+    if (isNaN(numVal) || numVal < -1 || numVal > 1) return;
+    
+    setCorrelations(prev => ({
+      ...prev,
+      [rowKey]: {
+        ...(prev[rowKey] || {}),
+        [colKey]: numVal
+      }
+    }));
+  };
+
+  const formatCurrency = (val) => {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
+  };
+
+  // --- CALCS ---
+
+  const calculateMetrics = (weights) => {
+    let ret = 0;
+    let varSum = 0;
+    const assets = Object.keys(weights);
+    
+    // Return
+    assets.forEach(a => ret += (weights[a]/100) * userReturns[a]);
+    
+    // Volatility
+    for (let i = 0; i < assets.length; i++) {
+      for (let j = 0; j < assets.length; j++) {
+        const wA = weights[assets[i]]/100;
+        const wB = weights[assets[j]]/100;
+        const vA = userVolatility[assets[i]]/100;
+        const vB = userVolatility[assets[j]]/100;
+        
+        // Get Correlation from State or defaults
+        let corr = 0.3; // Default default
+        if (assets[i] === assets[j]) {
+          corr = 1.0;
+        } else {
+            // Check both directions in state map
+            if (correlations[assets[i]]?.[assets[j]] !== undefined) {
+                corr = correlations[assets[i]][assets[j]];
+            } else if (correlations[assets[j]]?.[assets[i]] !== undefined) {
+                corr = correlations[assets[j]][assets[i]];
+            }
+        }
+        
+        varSum += wA * wB * vA * vB * corr;
+      }
+    }
+    const vol = Math.sqrt(varSum) * 100;
+    const rf = userReturns['cash'];
+    const sharpe = vol === 0 ? 0 : (ret - rf) / vol;
+
+    return { ret, vol, sharpe };
+  };
+
+  const currentMetrics = calculateMetrics(profileWeights[currentProfileName]);
+
+  // Simulation Data
+  const simulationData = useMemo(() => {
+    const data = [];
+    const baseR = currentMetrics.ret / 100;
+    const bullR = baseR * (bullScenarioPct / 100);
+    const bearR = baseR * (bearScenarioPct / 100);
+    
+    let vals = { base: investmentAmount, bull: investmentAmount, bear: investmentAmount };
+
+    for (let i = 0; i <= 10; i++) {
+      data.push({
+        year: i,
+        Base: Math.round(vals.base),
+        Bullish: Math.round(vals.bull),
+        Bearish: Math.round(vals.bear),
+      });
+      vals.base *= (1 + baseR);
+      vals.bull *= (1 + bullR);
+      vals.bear *= (1 + bearR);
+    }
+    return data;
+  }, [currentMetrics, investmentAmount, bullScenarioPct, bearScenarioPct]);
+
+  // Composition Data
+  const compositionData = useMemo(() => {
+    return Object.keys(profileWeights).map(pName => {
+      const w = profileWeights[pName];
+      const metrics = calculateMetrics(w);
+      const item = { name: pName, totalRet: metrics.ret };
+      Object.keys(w).forEach(asset => {
+        item[asset] = (w[asset]/100) * userReturns[asset];
+      });
+      return item;
+    });
+  }, [profileWeights, userReturns, correlations]); // Recalc on correlation change (affects nothing here but good practice)
+
+  // Lollipop / Range Chart Data
+  const rangeChartData = useMemo(() => {
+    return Object.keys(userReturns).map(asset => {
+      const base = userReturns[asset];
+      const bear = base * (bearScenarioPct/100);
+      const bull = base * (bullScenarioPct/100);
+      return {
+        asset: ASSET_LABELS[asset],
+        min: bear,
+        max: bull,
+        base: base,
+        range: [bear, bull]
+      };
+    });
+  }, [userReturns, bearScenarioPct, bullScenarioPct]);
+
+
+  // --- RENDERERS ---
+
+  const renderDashboard = () => (
+    <div className="space-y-8">
+      
+      {/* 0. SUMMARY METRICS (RESTORED) */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <MetricBox 
+          label="Exp. Annual Return" 
+          value={`${currentMetrics.ret.toFixed(2)}%`} 
+          subtext="Base Case Scenario"
+          icon={TrendingUp}
+          colorClass="text-green-600"
+        />
+        <MetricBox 
+          label="Portfolio Volatility" 
+          value={`${currentMetrics.vol.toFixed(2)}%`} 
+          subtext="Annualized Std Dev"
+          icon={Activity}
+          colorClass="text-purple-600"
+        />
+        <MetricBox 
+          label="Sharpe Ratio" 
+          value={currentMetrics.sharpe.toFixed(2)} 
+          subtext={`Risk Free: ${userReturns['cash']}%`}
+          icon={ShieldAlert}
+          colorClass="text-indigo-600"
+        />
+        <MetricBox 
+          label="10Y Value Projection" 
+          value={formatCurrency(simulationData[simulationData.length-1].Base)} 
+          subtext={`Gain: ${formatCurrency(simulationData[simulationData.length-1].Base - investmentAmount)}`}
+          icon={DollarSign}
+          colorClass="text-blue-600"
+        />
+      </div>
+
+      {/* 1. SCENARIO & METRICS PANEL */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        {/* Left: Controls */}
+        <div className="lg:col-span-4 space-y-6">
+          <Card className="p-5 bg-slate-900 text-white">
+            <h3 className="flex items-center space-x-2 font-bold text-lg mb-6">
+              <Sliders size={20} /> <span>Scenario Flexibility</span>
+            </h3>
+            
+            <div className="space-y-6">
+              <SliderControl 
+                label="Bearish Scenario (% of Base Return)" 
+                value={bearScenarioPct} 
+                onChange={setBearScenarioPct} 
+                min={0} max={100} 
+              />
+              <SliderControl 
+                label="Bullish Scenario (% of Base Return)" 
+                value={bullScenarioPct} 
+                onChange={setBullScenarioPct} 
+                min={100} max={200} 
+              />
+            </div>
+          </Card>
+
+          <Card className="p-0 overflow-hidden">
+             <div className="bg-slate-50 p-4 border-b font-bold text-slate-700 flex justify-between">
+                <span>Current Profile Metrics</span>
+                <span className="text-blue-600">{currentProfileName}</span>
+             </div>
+             <table className="w-full text-sm">
+               <thead className="bg-slate-50 text-slate-500">
+                 <tr>
+                   <th className="p-3 text-left">Scenario</th>
+                   <th className="p-3 text-right">Return</th>
+                   <th className="p-3 text-right">Sharpe</th>
+                 </tr>
+               </thead>
+               <tbody className="divide-y">
+                  <tr>
+                    <td className="p-3 font-medium text-red-600">Bearish</td>
+                    <td className="p-3 text-right">{(currentMetrics.ret * (bearScenarioPct/100)).toFixed(2)}%</td>
+                    <td className="p-3 text-right opacity-50">-</td>
+                  </tr>
+                  <tr className="bg-blue-50">
+                    <td className="p-3 font-medium text-blue-600">Base Case</td>
+                    <td className="p-3 text-right font-bold">{currentMetrics.ret.toFixed(2)}%</td>
+                    <td className="p-3 text-right font-bold">{currentMetrics.sharpe.toFixed(2)}</td>
+                  </tr>
+                  <tr>
+                    <td className="p-3 font-medium text-green-600">Bullish</td>
+                    <td className="p-3 text-right">{(currentMetrics.ret * (bullScenarioPct/100)).toFixed(2)}%</td>
+                    <td className="p-3 text-right opacity-50">-</td>
+                  </tr>
+               </tbody>
+             </table>
+          </Card>
+        </div>
+
+        {/* Right: Main Simulation Chart */}
+        <div className="lg:col-span-8">
+          <Card className="h-full p-6 flex flex-col">
+            <h3 className="font-bold text-slate-800 text-lg mb-2">Wealth Projection (10 Years)</h3>
+            <div className="flex-grow min-h-[300px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={simulationData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="colorBull" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorBase" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorBear" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.2}/>
+                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="year" />
+                  <YAxis tickFormatter={(val) => `$${(val/1000000).toFixed(1)}m`} domain={['auto', 'auto']} />
+                  <RechartsTooltip formatter={(val) => `$${val.toLocaleString()}`} />
+                  <Legend />
+                  <Area type="monotone" dataKey="Bullish" stroke="#10b981" fill="url(#colorBull)" strokeDasharray="3 3" />
+                  <Area type="monotone" dataKey="Base" stroke="#3b82f6" strokeWidth={3} fill="url(#colorBase)" />
+                  <Area type="monotone" dataKey="Bearish" stroke="#ef4444" fill="url(#colorBear)" strokeDasharray="3 3" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </div>
+      </div>
+
+      {/* 2. MASTER ALLOCATION MATRIX */}
+      <Card className="p-6 overflow-hidden">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h3 className="text-lg font-bold text-slate-800">Global Allocation Matrix (Editable)</h3>
+            <p className="text-sm text-slate-500">Edit weights directly to adjust standard profiles. Click a column header to select active profile.</p>
+          </div>
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr>
+                <th className="p-3 border-b-2 border-slate-200 text-left bg-slate-50 text-slate-600 sticky left-0 z-10">Asset Class</th>
+                {Object.keys(profileWeights).map(p => (
+                  <th key={p} 
+                      onClick={() => setCurrentProfileName(p)}
+                      className={`p-3 border-b-2 border-slate-200 text-center min-w-[100px] cursor-pointer hover:bg-slate-100 ${p === currentProfileName ? 'bg-blue-50 text-blue-700 border-blue-300' : ''}`}>
+                    {p}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {Object.keys(INITIAL_RETURNS).map(asset => (
+                <tr key={asset} className="hover:bg-slate-50 transition-colors">
+                  <td className="p-3 border-b border-slate-100 font-medium text-slate-700 sticky left-0 bg-white z-10 flex items-center">
+                    <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: COLORS[asset] }}></div>
+                    {ASSET_LABELS[asset]}
+                  </td>
+                  {Object.keys(profileWeights).map(p => {
+                     const isCurrent = p === currentProfileName;
+                     const weight = profileWeights[p][asset];
+                     return (
+                       <td key={p} 
+                           className={`p-1 border-b border-slate-100 text-center ${isCurrent ? 'bg-blue-50' : ''}`}
+                       >
+                         <input 
+                           type="number" 
+                           className={`w-14 text-center bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-500 outline-none ${isCurrent ? 'font-bold text-blue-700' : 'text-slate-500'}`}
+                           value={weight}
+                           onChange={(e) => handleProfileWeightChange(p, asset, e.target.value)}
+                         />
+                       </td>
+                     );
+                  })}
+                </tr>
+              ))}
+              {/* Total Row */}
+              <tr className="bg-slate-100 font-bold text-xs">
+                 <td className="p-3 sticky left-0 bg-slate-100">TOTAL</td>
+                 {Object.keys(profileWeights).map(p => {
+                    const total = Object.values(profileWeights[p]).reduce((a,b)=>a+b,0);
+                    return (
+                       <td key={p} className={`text-center p-2 ${total.toFixed(1) !== '100.0' ? 'text-red-500' : 'text-green-600'}`}>
+                         {total.toFixed(1)}%
+                       </td>
+                    )
+                 })}
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {/* 3. CMA RANGE ANALYSIS */}
+      <Card className="p-6">
+         <h3 className="text-lg font-bold text-slate-800 mb-2">CMA Range Analysis</h3>
+         <p className="text-sm text-slate-500 mb-6">Expected Returns with Bearish/Bullish sensitivity intervals (Simulated Lollipop).</p>
+         <div className="h-96 w-full">
+           <ResponsiveContainer width="100%" height="100%">
+             <ComposedChart data={rangeChartData} layout="vertical" margin={{ top: 20, right: 20, bottom: 20, left: 100 }}>
+                <CartesianGrid stroke="#f1f5f9" horizontal={true} vertical={true} />
+                <XAxis type="number" domain={[0, 'auto']} unit="%" />
+                <YAxis dataKey="asset" type="category" width={120} tick={{fontSize: 12}} />
+                <RechartsTooltip />
+                <Legend />
+                <Bar dataKey="range" name="Bear-Bull Range" barSize={8} fill="#94a3b8" radius={[4,4,4,4]} opacity={0.4} />
+                <Scatter name="Base Case" dataKey="base" fill="#2563eb" shape="circle" size={100} zAxisId={0} />
+             </ComposedChart>
+           </ResponsiveContainer>
+         </div>
+       </Card>
+
+      {/* 4. RETURN DECOMPOSITION */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="p-6">
+          <h3 className="text-lg font-bold text-slate-800 mb-4">Return Composition</h3>
+          <div className="h-80 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={compositionData} layout="vertical" margin={{ left: 40 }}>
+                <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                <XAxis type="number" unit="%" />
+                <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 11}} />
+                <RechartsTooltip cursor={{fill: 'transparent'}} formatter={(val) => val.toFixed(2) + '%'} />
+                <Legend />
+                {Object.keys(INITIAL_RETURNS).map((asset) => (
+                  <Bar key={asset} dataKey={asset} stackId="a" fill={COLORS[asset]} name={ASSET_LABELS[asset]} />
+                ))}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+
+        <Card className="p-6">
+           <h3 className="text-lg font-bold text-slate-800 mb-4">Risk Efficiency (Frontier)</h3>
+           <div className="h-80 w-full">
+             <ResponsiveContainer width="100%" height="100%">
+               <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
+                 <CartesianGrid />
+                 <XAxis type="number" dataKey="vol" name="Volatility" unit="%" label={{ value: 'Risk (Vol)', position: 'bottom' }} />
+                 <YAxis type="number" dataKey="ret" name="Return" unit="%" label={{ value: 'Return', angle: -90, position: 'insideLeft' }} />
+                 <RechartsTooltip cursor={{ strokeDasharray: '3 3' }} />
+                 <Legend />
+                 {Object.keys(profileWeights).map((p, idx) => {
+                    const m = calculateMetrics(profileWeights[p]);
+                    return (
+                      <Scatter 
+                        key={p} 
+                        name={p} 
+                        data={[{ vol: m.vol, ret: m.ret }]} 
+                        fill={p === currentProfileName ? '#ef4444' : '#3b82f6'} 
+                        s={p === currentProfileName ? 200 : 100}
+                      />
+                    )
+                 })}
+               </ScatterChart>
+             </ResponsiveContainer>
+           </div>
+        </Card>
+      </div>
+
+    </div>
+  );
+
+  const renderAssumptions = () => (
+    <div className="space-y-6">
+       
+       <Card className="p-6">
+        <h3 className="text-lg font-bold text-slate-800 mb-4">Capital Market Assumptions</h3>
+        <p className="text-sm text-slate-500 mb-2">
+          Note: Returns are sensitive to Cash Rate changes to maintain Risk Premia.
+        </p>
+        <div className="flex items-center space-x-2 text-xs text-amber-600 bg-amber-50 p-2 rounded mb-6 w-fit">
+          <Info size={16} />
+          <span>Changing "Cash" updates all other assets by the same delta.</span>
+        </div>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {[
+              Object.keys(userReturns).slice(0, 5),
+              Object.keys(userReturns).slice(5)
+            ].map((group, idx) => (
+              <div key={idx}>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-slate-400">
+                      <th className="text-left py-2">Asset Class</th>
+                      <th className="text-right py-2 w-32">Your Est. Return</th>
+                      <th className="text-right py-2 bg-slate-50 text-slate-500">Ind. Median</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {group.map(key => (
+                      <tr key={key} className="border-b border-slate-100 last:border-0">
+                         <td className="py-3 font-medium flex items-center">
+                            <div className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: COLORS[key] }}></div>
+                            {ASSET_LABELS[key]}
+                         </td>
+                         <td className="py-3 text-right">
+                           {key === 'cash' ? (
+                             <div className="flex items-center justify-end space-x-1">
+                               <span className="text-xs text-slate-400">Rate:</span>
+                               <input 
+                                 type="number" step="0.1"
+                                 className="w-16 text-right bg-blue-50 border border-blue-200 rounded p-1 font-bold text-blue-700"
+                                 value={userReturns[key]}
+                                 onChange={(e) => handleCashChange(e.target.value)}
+                               />
+                               <span>%</span>
+                             </div>
+                           ) : (
+                             <div className="flex items-center justify-end space-x-1">
+                               <input 
+                                 type="number" step="0.1"
+                                 className="w-16 text-right bg-slate-50 border rounded p-1"
+                                 value={userReturns[key]}
+                                 onChange={(e) => handleReturnChange(key, e.target.value)}
+                               />
+                               <span>%</span>
+                             </div>
+                           )}
+                         </td>
+                         <td className="py-3 text-right bg-slate-50 text-slate-500 font-medium border-l border-slate-100">
+                           {INDUSTRY_MEDIANS[key] ? `${INDUSTRY_MEDIANS[key]}%` : '-'}
+                         </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+        </div>
+       </Card>
+
+       {/* CORRELATION MATRIX (RESTORED) */}
+       <Card className="p-6 overflow-x-auto">
+        <h3 className="text-lg font-bold text-slate-800 mb-4">Correlation Matrix (Editable)</h3>
+        <p className="text-xs text-slate-500 mb-4">Edit key correlations (X vs Y). Values range from -1.0 to 1.0. Updates portfolio risk instantly.</p>
+        <table className="w-full text-xs border-collapse">
+          <thead>
+            <tr>
+              <th className="p-2 border bg-slate-50">Matrix</th>
+              {Object.keys(userReturns).map(k => (
+                 <th key={k} className="p-2 border bg-slate-50 text-slate-600 font-normal">{k.toUpperCase().substring(0,4)}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {Object.keys(userReturns).map(rowKey => (
+              <tr key={rowKey}>
+                <td className="p-2 border font-bold bg-slate-50 text-slate-600">{rowKey.toUpperCase().substring(0,4)}</td>
+                {Object.keys(userReturns).map(colKey => {
+                   let val = 0.3;
+                   // Logic: Check self, then check state map (both directions)
+                   if (rowKey === colKey) val = 1.0;
+                   else if (correlations[rowKey]?.[colKey] !== undefined) val = correlations[rowKey][colKey];
+                   else if (correlations[colKey]?.[rowKey] !== undefined) val = correlations[colKey][rowKey];
+                   else if (INITIAL_CORRELATIONS[rowKey]?.[colKey] !== undefined) val = INITIAL_CORRELATIONS[rowKey][colKey];
+                   else if (INITIAL_CORRELATIONS[colKey]?.[rowKey] !== undefined) val = INITIAL_CORRELATIONS[colKey][rowKey];
+                   
+                   return (
+                     <td key={colKey} className={`p-2 border text-center ${val === 1 ? 'bg-slate-100 text-slate-300' : ''}`}>
+                       {val === 1 ? '1.0' : (
+                         <input 
+                            type="number" step="0.1" max="1" min="-1"
+                            className="w-full text-center bg-transparent outline-none focus:font-bold focus:text-blue-600" 
+                            value={val}
+                            onChange={(e) => handleCorrelationChange(rowKey, colKey, e.target.value)}
+                         />
+                       )}
+                     </td>
+                   )
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </Card>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-20">
+      <header className="bg-white border-b border-slate-200 sticky top-0 z-20 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-3">
+              <div className="bg-blue-600 p-2 rounded-lg text-white">
+                <Maximize2 size={20} />
+              </div>
+              <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600">
+                Global Asset Strategy Simulator
+              </h1>
+            </div>
+          </div>
+          <div className="flex space-x-1">
+            <TabButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={Columns}>
+              Dashboard & Matrix
+            </TabButton>
+            <TabButton active={activeTab === 'assumptions'} onClick={() => setActiveTab('assumptions')} icon={Settings}>
+              Assumptions & Analysis
+            </TabButton>
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {activeTab === 'dashboard' && renderDashboard()}
+        {activeTab === 'assumptions' && renderAssumptions()}
+      </main>
+    </div>
+  );
+}
