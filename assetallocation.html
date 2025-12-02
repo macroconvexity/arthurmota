@@ -1,3 +1,15 @@
+/**
+ * GLOBAL ASSET STRATEGY SIMULATOR
+ * * INSTRUÇÕES DE DEPLOY (GITHUB PAGES / VITE / CRA):
+ * 1. Certifique-se de ter as dependências instaladas no seu projeto:
+ * npm install recharts lucide-react
+ * (Tailwind CSS deve estar configurado no projeto)
+ * * 2. Importe este componente no seu App.jsx ou página principal.
+ * * 3. Para GitHub Pages, como este simulador usa navegação interna (State),
+ * não é necessário configurar rotas complexas ou arquivos 404.html.
+ * O build estático padrão funcionará perfeitamente.
+ */
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, Legend, ResponsiveContainer, 
