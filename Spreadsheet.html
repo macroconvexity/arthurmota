@@ -133,6 +133,8 @@
                         nominalNW: Math.round(nw),
                         realNW: Math.round(realNW),
                         salary: Math.round(salary),
+                        bonus: Math.round(bonus),
+                        passiveIncome: Math.round(investmentIncome),
                         fixedCosts: Math.round(fixedCosts),
                         oneOffExpense: Math.round(oneOffExpense),
                         oneOffIncome: Math.round(oneOffIncome),
@@ -333,13 +335,15 @@
                                     <table className="w-full text-sm text-right border-collapse">
                                         <thead className="bg-slate-50 text-slate-500 font-medium text-xs uppercase sticky top-0 shadow-sm z-10">
                                             <tr>
-                                                <th className="p-3 text-center w-16">Idade</th>
+                                                <th className="p-3 text-center w-12">Idade</th>
                                                 <th className="p-3 w-16">Ano</th>
-                                                <th className="p-3 text-emerald-600">Salário (Ano)</th>
+                                                <th className="p-3 text-emerald-700 bg-emerald-50/50">Salário</th>
+                                                <th className="p-3 text-emerald-700 bg-emerald-50/50">Bônus</th>
+                                                <th className="p-3 text-blue-700 bg-blue-50/50">Rend. Inv.</th>
                                                 <th className="p-3 text-red-500">Custo Fixo</th>
                                                 <th className="p-3 text-red-600 font-bold border-l border-slate-100">Evt. Pontual</th>
-                                                <th className="p-3 font-bold">Fluxo Líquido</th>
-                                                <th className="p-3 bg-slate-50/50 text-slate-800 font-bold">Patrimônio</th>
+                                                <th className="p-3 font-bold bg-slate-50">Fluxo Líq</th>
+                                                <th className="p-3 font-bold text-slate-800">Patrimônio</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-100">
@@ -354,15 +358,17 @@
                                                         {row.hasEvent && <span className="absolute top-1/2 left-1 w-1.5 h-1.5 bg-blue-500 rounded-full -translate-y-1/2"></span>}
                                                     </td>
                                                     <td className="p-3 text-slate-400">{row.year}</td>
-                                                    <td className="p-3">{formatBRL(row.salary)}</td>
+                                                    <td className="p-3 bg-emerald-50/10 text-emerald-700">{formatBRL(row.salary)}</td>
+                                                    <td className="p-3 bg-emerald-50/10 text-emerald-700">{formatBRL(row.bonus)}</td>
+                                                    <td className="p-3 bg-blue-50/10 text-blue-600">{formatBRL(row.passiveIncome)}</td>
                                                     <td className="p-3 text-slate-500">-{formatBRL(row.fixedCosts)}</td>
                                                     <td className="p-3 border-l border-slate-50 font-medium">
                                                         {row.oneOffExpense > 0 && <span className="text-red-600 block text-xs">-{formatBRL(row.oneOffExpense)}</span>}
                                                         {row.oneOffIncome > 0 && <span className="text-emerald-600 block text-xs">+{formatBRL(row.oneOffIncome)}</span>}
                                                         {!row.oneOffExpense && !row.oneOffIncome && <span className="text-slate-200">-</span>}
                                                     </td>
-                                                    <td className={`p-3 font-medium ${row.netFlow >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatBRL(row.netFlow)}</td>
-                                                    <td className="p-3 bg-slate-50/30 font-bold text-slate-700">{formatBRL(row.nominalNW)}</td>
+                                                    <td className={`p-3 font-medium bg-slate-50/30 ${row.netFlow >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>{formatBRL(row.netFlow)}</td>
+                                                    <td className="p-3 font-bold text-slate-700">{formatBRL(row.nominalNW)}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
