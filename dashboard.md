@@ -15,3 +15,5 @@
 ## [Black–Litterman Bayesian Portfolio Lab](blacklitterman.html)
 
 ## [The Spreadsheet of Life](Spreadsheet.html)
+
+## [Global Asset Strategy Simulator](assetallocation.html)
