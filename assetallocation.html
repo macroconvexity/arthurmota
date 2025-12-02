@@ -41,7 +41,7 @@
 
         const LucidePieChart = (p) => <IconWrapper {...p}><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></IconWrapper>;
         const TrendingUp = (p) => <IconWrapper {...p}><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></IconWrapper>;
-        const Settings = (p) => <IconWrapper {...p}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></IconWrapper>;
+        const Settings = (p) => <IconWrapper {...p}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0 2.73-.73l.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></IconWrapper>;
         const Activity = (p) => <IconWrapper {...p}><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></IconWrapper>;
         const DollarSign = (p) => <IconWrapper {...p}><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></IconWrapper>;
         const Percent = (p) => <IconWrapper {...p}><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></IconWrapper>;
@@ -52,6 +52,7 @@
         const Columns = (p) => <IconWrapper {...p}><path d="M12 3h7a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-7m0-18H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7m0-18v18"/></IconWrapper>;
         const Info = (p) => <IconWrapper {...p}><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></IconWrapper>;
         const Calculator = (p) => <IconWrapper {...p}><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="16" y1="14" x2="16" y2="14"/><line x1="12" y1="14" x2="12" y2="14"/><line x1="8" y1="14" x2="8" y2="14"/><line x1="16" y1="18" x2="16" y2="18"/><line x1="12" y1="18" x2="12" y2="18"/><line x1="8" y1="18" x2="8" y2="18"/></IconWrapper>;
+        const TrendingDown = (p) => <IconWrapper {...p}><polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/></IconWrapper>;
 
         // --- CONSTANTS & INITIAL DATA ---
 
@@ -285,7 +286,19 @@
                 const vol = Math.sqrt(varSum) * 100;
                 const rf = userReturns['cash'];
                 const sharpe = vol === 0 ? 0 : (ret - rf) / vol;
-                return { ret, vol, sharpe };
+                
+                // --- Risk Metrics (Parametric) ---
+                // VaR 95% (Annual) = 1.645 * Volatility
+                // Note: This is a simplified "Relative VaR" ignoring drift for conservatism in long-term views, 
+                // or we can use (1.645 * Vol - ExpectedReturn). Let's use simple volatility scaling for visual risk.
+                const var95 = 1.645 * vol; 
+                
+                // Estimated Max Drawdown (Proxy)
+                // Often approximated as 2 sigmas or specific Monte Carlo extreme. 
+                // Using 2 * Volatility as a robust proxy for "Normal Market Crisis".
+                const estDrawdown = 2 * vol;
+
+                return { ret, vol, sharpe, var95, estDrawdown };
             };
 
             const currentMetrics = calculateMetrics(profileWeights[currentProfileName]);
@@ -344,8 +357,8 @@
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                         <MetricBox label="Exp. Annual Return" value={`${currentMetrics.ret.toFixed(2)}%`} subtext="Base Case Scenario" icon={TrendingUp} colorClass="text-green-600" />
                         <MetricBox label="Portfolio Volatility" value={`${currentMetrics.vol.toFixed(2)}%`} subtext="Annualized Std Dev" icon={Activity} colorClass="text-purple-600" />
-                        <MetricBox label="Sharpe Ratio" value={currentMetrics.sharpe.toFixed(2)} subtext={`Risk Free: ${userReturns['cash']}%`} icon={ShieldAlert} colorClass="text-indigo-600" />
-                        <MetricBox label="10Y Value Projection" value={formatCurrency(simulationData[simulationData.length-1].Base)} subtext={`Gain: ${formatCurrency(simulationData[simulationData.length-1].Base - investmentAmount)}`} icon={DollarSign} colorClass="text-blue-600" />
+                        <MetricBox label="VaR (95% Conf.)" value={`-${currentMetrics.var95.toFixed(2)}%`} subtext="1-Year Value at Risk" icon={TrendingDown} colorClass="text-red-600" />
+                        <MetricBox label="Est. Max Drawdown" value={`-${currentMetrics.estDrawdown.toFixed(2)}%`} subtext="Projected Stress Event (2σ)" icon={ShieldAlert} colorClass="text-orange-600" />
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
