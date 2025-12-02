@@ -27,7 +27,8 @@ import {
   Sliders,
   Maximize2,
   Columns,
-  Info
+  Info,
+  Calculator
 } from 'lucide-react';
 
 // --- CONSTANTS & INITIAL DATA ---
@@ -56,10 +57,24 @@ const ASSET_LABELS = {
   'cash': 'Cash'
 };
 
-const INITIAL_RETURNS = {
-  'dev_sov': 4.2, 'global_ig': 5.0, 'global_hy': 6.6, 'em_debt': 5.3,
-  'us_eq': 7.8, 'dm_eq': 6.8, 'em_eq': 8.4,
-  'alts': 7.0, 'cash': 3.0
+// Initial Decomposition Data (From Images)
+const INITIAL_FI_DECOMPOSITION = {
+  'dev_sov': { rf: 3.9, spread: 0.0, roll: 0.5, val_rf: -0.2, val_spr: 0.0, def: 0.0 },
+  'global_ig': { rf: 3.9, spread: 0.85, roll: 0.8, val_rf: -0.2, val_spr: -0.3, def: 0.0 },
+  'global_hy': { rf: 3.7, spread: 3.05, roll: 0.7, val_rf: -0.1, val_spr: -0.5, def: -0.3 },
+  'em_debt': { rf: 3.7, spread: 2.50, roll: 0.5, val_rf: -0.1, val_spr: -0.4, def: -0.2 }
+};
+
+const INITIAL_EQ_DECOMPOSITION = {
+  'us_eq': { div: 1.5, earnings: 6.0, inflation: 2.5, val: -2.2, fx: 0.0 },
+  'dm_eq': { div: 3.25, earnings: 3.0, inflation: 2.0, val: -1.4, fx: 0.0 },
+  'em_eq': { div: 2.75, earnings: 6.0, inflation: 3.0, val: -3.3, fx: 0.0 }
+};
+
+// Fallback for assets without decomposition (Alts, Cash)
+const BASE_RETURNS_OTHER = {
+  'alts': 7.0, 
+  'cash': 3.0
 };
 
 // Data extracted from user upload for comparison
@@ -86,15 +101,18 @@ const INITIAL_PROFILES = {
   },
   'Balanced': {
     'dev_sov': 8.5, 'global_ig': 25.0, 'global_hy': 7.5, 'em_debt': 10.0,
-    'us_eq': 27.5, 'dm_eq': 7.5, 'em_eq': 5.0, 'alts': 7.5, 'cash': 1.5
+    'us_eq': 27.5, 'dm_eq': 7.5, 'em_eq': 5.0,
+    'alts': 7.5, 'cash': 1.5
   },
   'Growth': {
     'dev_sov': 4.8, 'global_ig': 14.2, 'global_hy': 4.3, 'em_debt': 5.7,
-    'us_eq': 41.0, 'dm_eq': 11.0, 'em_eq': 8.0, 'alts': 10.0, 'cash': 1.0
+    'us_eq': 41.0, 'dm_eq': 11.0, 'em_eq': 8.0,
+    'alts': 10.0, 'cash': 1.0
   },
   'Equities': {
     'dev_sov': 0, 'global_ig': 0, 'global_hy': 0, 'em_debt': 0,
-    'us_eq': 68.0, 'dm_eq': 19.0, 'em_eq': 12.0, 'alts': 0, 'cash': 1.0
+    'us_eq': 68.0, 'dm_eq': 19.0, 'em_eq': 12.0,
+    'alts': 0, 'cash': 1.0
   }
 };
 
@@ -158,12 +176,15 @@ export default function GlobalAssetSimulator() {
   // --- STATE ---
   const [activeTab, setActiveTab] = useState('dashboard');
   
-  // Model Inputs
-  const [userReturns, setUserReturns] = useState(INITIAL_RETURNS);
+  // Model Inputs - Decomposition
+  const [fiDecomposition, setFiDecomposition] = useState(INITIAL_FI_DECOMPOSITION);
+  const [eqDecomposition, setEqDecomposition] = useState(INITIAL_EQ_DECOMPOSITION);
+  const [otherReturns, setOtherReturns] = useState(BASE_RETURNS_OTHER);
+
   const [userVolatility, setUserVolatility] = useState(INITIAL_VOLATILITY);
-  const [correlations, setCorrelations] = useState(INITIAL_CORRELATIONS); // New State for Matrix
+  const [correlations, setCorrelations] = useState(INITIAL_CORRELATIONS);
   
-  // Profiles (Now fully editable state)
+  // Profiles
   const [profileWeights, setProfileWeights] = useState(INITIAL_PROFILES);
   const [currentProfileName, setCurrentProfileName] = useState('Balanced');
   
@@ -172,21 +193,66 @@ export default function GlobalAssetSimulator() {
   const [bullScenarioPct, setBullScenarioPct] = useState(130);
   const [bearScenarioPct, setBearScenarioPct] = useState(70);
   
+  // --- DERIVED STATE (Total Returns from Components) ---
+  const userReturns = useMemo(() => {
+    const returns = { ...otherReturns };
+    
+    // Calculate FI Returns
+    Object.keys(fiDecomposition).forEach(key => {
+      const c = fiDecomposition[key];
+      returns[key] = parseFloat((c.rf + c.spread + c.roll + c.val_rf + c.val_spr + c.def).toFixed(2));
+    });
+
+    // Calculate Eq Returns
+    Object.keys(eqDecomposition).forEach(key => {
+      const c = eqDecomposition[key];
+      returns[key] = parseFloat((c.div + c.earnings + c.inflation + c.val + c.fx).toFixed(2));
+    });
+
+    return returns;
+  }, [fiDecomposition, eqDecomposition, otherReturns]);
+
+
   // --- HANDLERS ---
 
+  // Handle Cash Change: Updates Cash AND Risk Free components in FI
   const handleCashChange = (newCashVal) => {
     const val = parseFloat(newCashVal);
     if (isNaN(val)) return;
-    const delta = val - userReturns['cash'];
-    const newReturns = { ...userReturns };
-    Object.keys(newReturns).forEach(key => {
-      newReturns[key] = parseFloat((newReturns[key] + delta).toFixed(2));
+    
+    const delta = val - otherReturns['cash'];
+    
+    // Update Cash
+    setOtherReturns(prev => ({ ...prev, 'cash': val }));
+
+    // Update FI Risk Free Components by the same delta
+    const newFi = { ...fiDecomposition };
+    Object.keys(newFi).forEach(key => {
+      newFi[key] = { ...newFi[key], rf: parseFloat((newFi[key].rf + delta).toFixed(2)) };
     });
-    setUserReturns(newReturns);
+    setFiDecomposition(newFi);
   };
 
   const handleReturnChange = (asset, val) => {
-    setUserReturns(prev => ({ ...prev, [asset]: parseFloat(val) }));
+    // This only applies to Alts now, as others are derived
+    if (asset === 'alts') {
+      setOtherReturns(prev => ({ ...prev, [asset]: parseFloat(val) }));
+    }
+  };
+
+  const handleComponentChange = (type, asset, field, val) => {
+    const numVal = parseFloat(val) || 0;
+    if (type === 'fi') {
+      setFiDecomposition(prev => ({
+        ...prev,
+        [asset]: { ...prev[asset], [field]: numVal }
+      }));
+    } else {
+      setEqDecomposition(prev => ({
+        ...prev,
+        [asset]: { ...prev[asset], [field]: numVal }
+      }));
+    }
   };
 
   const handleProfileWeightChange = (profileName, asset, val) => {
@@ -235,12 +301,10 @@ export default function GlobalAssetSimulator() {
         const vA = userVolatility[assets[i]]/100;
         const vB = userVolatility[assets[j]]/100;
         
-        // Get Correlation from State or defaults
-        let corr = 0.3; // Default default
+        let corr = 0.3;
         if (assets[i] === assets[j]) {
           corr = 1.0;
         } else {
-            // Check both directions in state map
             if (correlations[assets[i]]?.[assets[j]] !== undefined) {
                 corr = correlations[assets[i]][assets[j]];
             } else if (correlations[assets[j]]?.[assets[i]] !== undefined) {
@@ -294,7 +358,7 @@ export default function GlobalAssetSimulator() {
       });
       return item;
     });
-  }, [profileWeights, userReturns, correlations]); // Recalc on correlation change (affects nothing here but good practice)
+  }, [profileWeights, userReturns, correlations]); 
 
   // Lollipop / Range Chart Data
   const rangeChartData = useMemo(() => {
@@ -318,7 +382,7 @@ export default function GlobalAssetSimulator() {
   const renderDashboard = () => (
     <div className="space-y-8">
       
-      {/* 0. SUMMARY METRICS (RESTORED) */}
+      {/* 0. SUMMARY METRICS */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <MetricBox 
           label="Exp. Annual Return" 
@@ -469,7 +533,7 @@ export default function GlobalAssetSimulator() {
               </tr>
             </thead>
             <tbody>
-              {Object.keys(INITIAL_RETURNS).map(asset => (
+              {Object.keys(userReturns).map(asset => (
                 <tr key={asset} className="hover:bg-slate-50 transition-colors">
                   <td className="p-3 border-b border-slate-100 font-medium text-slate-700 sticky left-0 bg-white z-10 flex items-center">
                     <div className="w-3 h-3 rounded-full mr-2" style={{ backgroundColor: COLORS[asset] }}></div>
@@ -541,7 +605,7 @@ export default function GlobalAssetSimulator() {
                 <YAxis dataKey="name" type="category" width={100} tick={{fontSize: 11}} />
                 <RechartsTooltip cursor={{fill: 'transparent'}} formatter={(val) => val.toFixed(2) + '%'} />
                 <Legend />
-                {Object.keys(INITIAL_RETURNS).map((asset) => (
+                {Object.keys(userReturns).map((asset) => (
                   <Bar key={asset} dataKey={asset} stackId="a" fill={COLORS[asset]} name={ASSET_LABELS[asset]} />
                 ))}
               </BarChart>
@@ -583,15 +647,12 @@ export default function GlobalAssetSimulator() {
   const renderAssumptions = () => (
     <div className="space-y-6">
        
+       {/* SUMMARY TABLE (READ-ONLY FOR DERIVED) */}
        <Card className="p-6">
-        <h3 className="text-lg font-bold text-slate-800 mb-4">Capital Market Assumptions</h3>
+        <h3 className="text-lg font-bold text-slate-800 mb-4">Capital Market Assumptions (Summary)</h3>
         <p className="text-sm text-slate-500 mb-2">
-          Note: Returns are sensitive to Cash Rate changes to maintain Risk Premia.
+          Note: Returns for FI and Equity are derived from the decomposition tables below. Changing "Cash" updates the risk-free component of Fixed Income assets.
         </p>
-        <div className="flex items-center space-x-2 text-xs text-amber-600 bg-amber-50 p-2 rounded mb-6 w-fit">
-          <Info size={16} />
-          <span>Changing "Cash" updates all other assets by the same delta.</span>
-        </div>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {[
@@ -603,46 +664,56 @@ export default function GlobalAssetSimulator() {
                   <thead>
                     <tr className="border-b text-slate-400">
                       <th className="text-left py-2">Asset Class</th>
-                      <th className="text-right py-2 w-32">Your Est. Return</th>
+                      <th className="text-right py-2 w-32">Total Exp. Return</th>
                       <th className="text-right py-2 bg-slate-50 text-slate-500">Ind. Median</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {group.map(key => (
-                      <tr key={key} className="border-b border-slate-100 last:border-0">
-                         <td className="py-3 font-medium flex items-center">
-                            <div className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: COLORS[key] }}></div>
-                            {ASSET_LABELS[key]}
-                         </td>
-                         <td className="py-3 text-right">
-                           {key === 'cash' ? (
-                             <div className="flex items-center justify-end space-x-1">
-                               <span className="text-xs text-slate-400">Rate:</span>
-                               <input 
-                                 type="number" step="0.1"
-                                 className="w-16 text-right bg-blue-50 border border-blue-200 rounded p-1 font-bold text-blue-700"
-                                 value={userReturns[key]}
-                                 onChange={(e) => handleCashChange(e.target.value)}
-                               />
-                               <span>%</span>
-                             </div>
-                           ) : (
-                             <div className="flex items-center justify-end space-x-1">
-                               <input 
-                                 type="number" step="0.1"
-                                 className="w-16 text-right bg-slate-50 border rounded p-1"
-                                 value={userReturns[key]}
-                                 onChange={(e) => handleReturnChange(key, e.target.value)}
-                               />
-                               <span>%</span>
-                             </div>
-                           )}
-                         </td>
-                         <td className="py-3 text-right bg-slate-50 text-slate-500 font-medium border-l border-slate-100">
-                           {INDUSTRY_MEDIANS[key] ? `${INDUSTRY_MEDIANS[key]}%` : '-'}
-                         </td>
-                      </tr>
-                    ))}
+                    {group.map(key => {
+                      // Check if derived
+                      const isDerived = fiDecomposition[key] || eqDecomposition[key];
+                      const isCash = key === 'cash';
+                      return (
+                        <tr key={key} className="border-b border-slate-100 last:border-0">
+                           <td className="py-3 font-medium flex items-center">
+                              <div className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: COLORS[key] }}></div>
+                              {ASSET_LABELS[key]}
+                           </td>
+                           <td className="py-3 text-right">
+                             {isCash ? (
+                               <div className="flex items-center justify-end space-x-1">
+                                 <span className="text-xs text-slate-400">Rate:</span>
+                                 <input 
+                                   type="number" step="0.1"
+                                   className="w-16 text-right bg-blue-50 border border-blue-200 rounded p-1 font-bold text-blue-700"
+                                   value={userReturns[key]}
+                                   onChange={(e) => handleCashChange(e.target.value)}
+                                 />
+                                 <span>%</span>
+                               </div>
+                             ) : isDerived ? (
+                               <div className="flex items-center justify-end space-x-1">
+                                 <span className="text-xs text-slate-400 mr-2">(Calculated)</span>
+                                 <span className="font-bold text-slate-700">{userReturns[key].toFixed(2)}%</span>
+                               </div>
+                             ) : (
+                               <div className="flex items-center justify-end space-x-1">
+                                 <input 
+                                   type="number" step="0.1"
+                                   className="w-16 text-right bg-slate-50 border rounded p-1"
+                                   value={userReturns[key]}
+                                   onChange={(e) => handleReturnChange(key, e.target.value)}
+                                 />
+                                 <span>%</span>
+                               </div>
+                             )}
+                           </td>
+                           <td className="py-3 text-right bg-slate-50 text-slate-500 font-medium border-l border-slate-100">
+                             {INDUSTRY_MEDIANS[key] ? `${INDUSTRY_MEDIANS[key]}%` : '-'}
+                           </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -650,7 +721,104 @@ export default function GlobalAssetSimulator() {
         </div>
        </Card>
 
-       {/* CORRELATION MATRIX (RESTORED) */}
+       {/* DECOMPOSITION TABLES (NEW) */}
+       <Card className="p-6">
+         <div className="flex items-center space-x-2 mb-4">
+           <Calculator className="text-blue-600" size={20}/>
+           <h3 className="text-lg font-bold text-slate-800">Return Attribution & Building Blocks</h3>
+         </div>
+         <p className="text-sm text-slate-500 mb-6">Detailed breakdown of return components. Editing these values updates the total expected return above.</p>
+         
+         <div className="space-y-8">
+           {/* Fixed Income Decomposition */}
+           <div>
+             <h4 className="text-sm font-bold text-slate-700 mb-3 border-b pb-2">Fixed Income: Yield + Roll + Valuation</h4>
+             <div className="overflow-x-auto">
+               <table className="w-full text-xs">
+                 <thead className="bg-slate-50 text-slate-500">
+                   <tr>
+                     <th className="p-2 text-left">Asset Class</th>
+                     <th className="p-2 text-right">Risk Free</th>
+                     <th className="p-2 text-right">Spread</th>
+                     <th className="p-2 text-right">Roll Return</th>
+                     <th className="p-2 text-right">Val (RF)</th>
+                     <th className="p-2 text-right">Val (Spr)</th>
+                     <th className="p-2 text-right">Default</th>
+                     <th className="p-2 text-right font-bold text-slate-800">TOTAL</th>
+                   </tr>
+                 </thead>
+                 <tbody>
+                   {Object.keys(fiDecomposition).map(key => {
+                     const d = fiDecomposition[key];
+                     const total = d.rf + d.spread + d.roll + d.val_rf + d.val_spr + d.def;
+                     return (
+                       <tr key={key} className="border-b border-slate-100">
+                         <td className="p-2 font-medium text-slate-700">{ASSET_LABELS[key]}</td>
+                         <td className="p-2 text-right text-blue-600">{d.rf.toFixed(2)}%</td> {/* Linked to Cash, Read-onlyish visually but reflects cash */}
+                         {['spread', 'roll', 'val_rf', 'val_spr', 'def'].map(field => (
+                           <td key={field} className="p-2 text-right">
+                             <input 
+                               type="number" step="0.05"
+                               className="w-12 text-right bg-transparent hover:bg-slate-50 focus:bg-white border-b border-transparent focus:border-blue-500 outline-none"
+                               value={d[field]}
+                               onChange={(e) => handleComponentChange('fi', key, field, e.target.value)}
+                             />
+                           </td>
+                         ))}
+                         <td className="p-2 text-right font-bold text-slate-800 bg-slate-50">{total.toFixed(2)}%</td>
+                       </tr>
+                     );
+                   })}
+                 </tbody>
+               </table>
+             </div>
+           </div>
+
+           {/* Equity Decomposition */}
+           <div>
+             <h4 className="text-sm font-bold text-slate-700 mb-3 border-b pb-2">Equities: Income + Growth + Valuation</h4>
+             <div className="overflow-x-auto">
+               <table className="w-full text-xs">
+                 <thead className="bg-slate-50 text-slate-500">
+                   <tr>
+                     <th className="p-2 text-left">Asset Class</th>
+                     <th className="p-2 text-right">Div. Yield</th>
+                     <th className="p-2 text-right">Real Earnings</th>
+                     <th className="p-2 text-right">Inflation</th>
+                     <th className="p-2 text-right">Valuation</th>
+                     <th className="p-2 text-right">FX</th>
+                     <th className="p-2 text-right font-bold text-slate-800">TOTAL</th>
+                   </tr>
+                 </thead>
+                 <tbody>
+                   {Object.keys(eqDecomposition).map(key => {
+                     const d = eqDecomposition[key];
+                     const total = d.div + d.earnings + d.inflation + d.val + d.fx;
+                     return (
+                       <tr key={key} className="border-b border-slate-100">
+                         <td className="p-2 font-medium text-slate-700">{ASSET_LABELS[key]}</td>
+                         {['div', 'earnings', 'inflation', 'val', 'fx'].map(field => (
+                           <td key={field} className="p-2 text-right">
+                             <input 
+                               type="number" step="0.05"
+                               className="w-12 text-right bg-transparent hover:bg-slate-50 focus:bg-white border-b border-transparent focus:border-blue-500 outline-none"
+                               value={d[field]}
+                               onChange={(e) => handleComponentChange('eq', key, field, e.target.value)}
+                             />
+                           </td>
+                         ))}
+                         <td className="p-2 text-right font-bold text-slate-800 bg-slate-50">{total.toFixed(2)}%</td>
+                       </tr>
+                     );
+                   })}
+                 </tbody>
+               </table>
+             </div>
+           </div>
+         </div>
+       </Card>
+
+       {/* CORRELATION MATRIX */}
        <Card className="p-6 overflow-x-auto">
         <h3 className="text-lg font-bold text-slate-800 mb-4">Correlation Matrix (Editable)</h3>
         <p className="text-xs text-slate-500 mb-4">Edit key correlations (X vs Y). Values range from -1.0 to 1.0. Updates portfolio risk instantly.</p>
@@ -669,12 +837,19 @@ export default function GlobalAssetSimulator() {
                 <td className="p-2 border font-bold bg-slate-50 text-slate-600">{rowKey.toUpperCase().substring(0,4)}</td>
                 {Object.keys(userReturns).map(colKey => {
                    let val = 0.3;
-                   // Logic: Check self, then check state map (both directions)
-                   if (rowKey === colKey) val = 1.0;
-                   else if (correlations[rowKey]?.[colKey] !== undefined) val = correlations[rowKey][colKey];
-                   else if (correlations[colKey]?.[rowKey] !== undefined) val = correlations[colKey][rowKey];
-                   else if (INITIAL_CORRELATIONS[rowKey]?.[colKey] !== undefined) val = INITIAL_CORRELATIONS[rowKey][colKey];
-                   else if (INITIAL_CORRELATIONS[colKey]?.[rowKey] !== undefined) val = INITIAL_CORRELATIONS[colKey][rowKey];
+                   if (rowKey === colKey) {
+                     val = 1.0;
+                   } else {
+                       if (correlations[rowKey]?.[colKey] !== undefined) {
+                           val = correlations[rowKey][colKey];
+                       } else if (correlations[colKey]?.[rowKey] !== undefined) {
+                           val = correlations[colKey][rowKey];
+                       } else if (INITIAL_CORRELATIONS[rowKey]?.[colKey] !== undefined) {
+                           val = INITIAL_CORRELATIONS[rowKey][colKey];
+                       } else if (INITIAL_CORRELATIONS[colKey]?.[rowKey] !== undefined) {
+                           val = INITIAL_CORRELATIONS[colKey][rowKey];
+                       }
+                   }
                    
                    return (
                      <td key={colKey} className={`p-2 border text-center ${val === 1 ? 'bg-slate-100 text-slate-300' : ''}`}>
