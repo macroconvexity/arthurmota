@@ -31,7 +31,7 @@
 ---
 
 ### Portfolio Theory Without a Risk-Free Asset: Safety as a Fragmented and Endogenous Concept in a Multipolar World
-Mota (2025)*  
+*Mota (2025)*  
 [Download PDF](papers/Mota%20(2027)%20-%20Portfolio%20Theory%20without%20a%20Risk-Free%20Asset.pdf)
 
 [Download Presentation](papers/Portfolio_beamer.pdf)
@@ -47,3 +47,7 @@ Mota (2025)*
 [Download Presentation](papers/monetarypolicy_beamer.pdf)
 
 [SSRN link](https://papers.ssrn.com/abstract=5285858)
+
+### A Valuation Framework for Sealed Products in Collectible Card Markets: Expected Value, No-Arbitrage Pricing, and the SealedOpened Spread
+*Mota (2025)* 
+[Download PDF](papers/Mota (2026) - TCG price model.pdf)
