@@ -50,7 +50,7 @@
 
 ---
 
-### A Valuation Framework for Sealed Products in Collectible Card Markets: Expected Value, No-Arbitrage Pricing, and the SealedOpened Spread
+### A Valuation Framework for Sealed Products in Collectible Card Markets: Expected Value, No-Arbitrage Pricing, and the Sealed-Opened Spread
 *Mota (2026)* 
 [Download PDF](papers/Mota%20(2026)%20-%20TCG%20price%20model.pdf)
 
