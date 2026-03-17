@@ -58,4 +58,4 @@
 
 ### A Probabilistic Framework for Combo Assembly in Constructed Card Games: Hypergeometric Models, Deck Composition, and Two-Player Race Dynamics
 *Mota (2026)* 
-[Download PDF](Mota%20(2026)%20-%20Combo%20MTG.pdf)
+[Download PDF](papers/Mota%20(2026)%20-%20Combo%20MTG.pdf)
