@@ -48,9 +48,13 @@
 
 [SSRN link](https://papers.ssrn.com/abstract=5285858)
 
+---
+
 ### A Valuation Framework for Sealed Products in Collectible Card Markets: Expected Value, No-Arbitrage Pricing, and the SealedOpened Spread
 *Mota (2026)* 
 [Download PDF](papers/Mota%20(2026)%20-%20TCG%20price%20model.pdf)
+
+---
 
 ### A Probabilistic Framework for Combo Assembly in Constructed Card Games: Hypergeometric Models, Deck Composition, and Two-Player Race Dynamics
 *Mota (2026)* 
