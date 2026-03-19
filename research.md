@@ -59,3 +59,9 @@
 ### A Probabilistic Framework for Combo Assembly in Constructed Card Games: Hypergeometric Models, Deck Composition, and Two-Player Race Dynamics
 *Mota (2026)* 
 [Download PDF](papers/Mota%20(2026)%20-%20Combo%20MTG.pdf)
+
+---
+
+### Fundamental Determinants of Secondary Market Card Prices: A Fama–MacBeth Cross-Sectional Analysis of the Magic: The Gathering Market
+*Mota (2026)* 
+[Download PDF](papers/Mota%20(2026)%20-%20FM%20card%20price%20model.pdf)
