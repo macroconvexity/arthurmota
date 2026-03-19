@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BTG Pactual US - Macro Trading Desk</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['Roboto Mono', 'monospace'],
+                    },
+                    colors: {
+                        btgBlue: '#0052CC',
+                        btgDark: '#021124',
+                        btgPanel: '#0A1C3A',
+                        btgBorder: '#1E3A68',
+                        bull: '#2ABB6D',
+                        bear: '#E74C3C',
+                        neutral: '#8898AA'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #021124;
+            color: #F8FAFC;
+        }
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #021124;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1E3A68;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #0052CC;
+        }
+        .glass-panel {
+            background: rgba(10, 28, 58, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid #1E3A68;
+        }
+        .tab-active {
+            border-bottom: 2px solid #0052CC;
+            color: #ffffff;
+        }
+        .tab-inactive {
+            color: #8898AA;
+        }
+        .tab-inactive:hover {
+            color: #CBD5E1;
+        }
+    </style>
+</head>
+<body class="h-screen flex overflow-hidden font-sans text-sm">
+
+    <!-- Sidebar -->
+    <aside class="w-64 glass-panel border-r border-btgBorder flex flex-col z-10">
+        <div class="h-16 flex items-center px-6 border-b border-btgBorder">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-full border-2 border-white flex items-center justify-center relative">
+                    <span class="text-xs font-bold">btg</span>
+                </div>
+                <span class="text-lg font-semibold tracking-wide">pactual</span>
+            </div>
+        </div>
+        
+        <nav class="flex-1 py-6 px-4 space-y-2">
+            <button onclick="switchView('dashboard')" id="nav-dashboard" class="w-full flex items-center gap-3 px-4 py-2 rounded bg-btgBlue text-white text-left transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
+                Dashboard
+            </button>
+            <button onclick="switchView('builder')" id="nav-builder" class="w-full flex items-center gap-3 px-4 py-2 rounded hover:bg-btgBorder text-gray-300 text-left transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                Trade Builder
+            </button>
+            <button onclick="switchView('research')" id="nav-research" class="w-full flex items-center gap-3 px-4 py-2 rounded hover:bg-btgBorder text-gray-300 text-left transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                Research Hub
+            </button>
+        </nav>
+
+        <div class="p-4 border-t border-btgBorder">
+            <div class="text-xs text-gray-400 font-mono">
+                System: Online<br>
+                Model: MacroQuant v2.4<br>
+                Data: Real-time (Active)
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 flex flex-col relative overflow-hidden">
+        <!-- Header -->
+        <header class="h-16 glass-panel border-b border-btgBorder flex items-center justify-between px-8 z-10">
+            <h1 id="page-title" class="text-xl font-semibold">Macro Dashboard</h1>
+            <div class="flex items-center gap-4">
+                <div class="text-right">
+                    <div class="text-xs text-gray-400">Portfolio VaR (99%)</div>
+                    <div class="font-mono text-bear">$1.24M</div>
+                </div>
+                <div class="h-8 w-px bg-btgBorder"></div>
+                <div class="text-right">
+                    <div class="text-xs text-gray-400">SPX Volatility</div>
+                    <div class="font-mono text-bull">14.2 (-0.4)</div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Views Container -->
+        <div class="flex-1 overflow-y-auto p-6 relative" id="main-container">
+            
+            <!-- Dashboard View -->
+            <div id="view-dashboard" class="space-y-6 block">
+                <div class="grid grid-cols-4 gap-4">
+                    <div class="glass-panel p-4 rounded-lg">
+                        <div class="text-gray-400 mb-1">US 10Y Yield</div>
+                        <div class="text-2xl font-mono">4.28%</div>
+                        <div class="text-bull text-xs mt-1">+2.4 bps</div>
+                    </div>
+                    <div class="glass-panel p-4 rounded-lg">
+                        <div class="text-gray-400 mb-1">EUR/USD</div>
+                        <div class="text-2xl font-mono">1.0845</div>
+                        <div class="text-bear text-xs mt-1">-0.0012</div>
+                    </div>
+                    <div class="glass-panel p-4 rounded-lg">
+                        <div class="text-gray-400 mb-1">WTI Crude</div>
+                        <div class="text-2xl font-mono">$81.30</div>
+                        <div class="text-bull text-xs mt-1">+1.2%</div>
+                    </div>
+                    <div class="glass-panel p-4 rounded-lg">
+                        <div class="text-gray-400 mb-1">CDX IG Spread</div>
+                        <div class="text-2xl font-mono">54 bps</div>
+                        <div class="text-neutral text-xs mt-1">Unch</div>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-6 rounded-lg">
+                    <h2 class="text-lg font-semibold mb-4 border-b border-btgBorder pb-2">Active Macro Convictions</h2>
+                    <table class="w-full text-left font-mono text-sm">
+                        <thead>
+                            <tr class="text-gray-400 border-b border-btgBorder">
+                                <th class="pb-2">Theme</th>
+                                <th class="pb-2">Direction</th>
+                                <th class="pb-2">Instrument</th>
+                                <th class="pb-2 text-right">Target</th>
+                                <th class="pb-2 text-right">Stop</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b border-btgBorder/50 hover:bg-btgBorder/30">
+                                <td class="py-3">Monetary Policy</td>
+                                <td class="py-3 text-bear">Short Duration</td>
+                                <td class="py-3">US 10Y Treasury</td>
+                                <td class="py-3 text-right">4.50%</td>
+                                <td class="py-3 text-right">4.10%</td>
+                            </tr>
+                            <tr class="border-b border-btgBorder/50 hover:bg-btgBorder/30">
+                                <td class="py-3">Commodities</td>
+                                <td class="py-3 text-bull">Long Struct. Deficit</td>
+                                <td class="py-3">Copper (HG1)</td>
+                                <td class="py-3 text-right">$9,500</td>
+                                <td class="py-3 text-right">$8,200</td>
+                            </tr>
+                            <tr class="hover:bg-btgBorder/30">
+                                <td class="py-3">FX</td>
+                                <td class="py-3 text-bull">Long Carry</td>
+                                <td class="py-3">BRL/USD</td>
+                                <td class="py-3 text-right">4.80</td>
+                                <td class="py-3 text-right">5.15</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Trade Builder View -->
+            <div id="view-builder" class="hidden h-full flex flex-col xl:flex-row gap-6">
+                <!-- Left: Inputs -->
+                <div class="w-full xl:w-1/3 flex flex-col gap-6">
+                    <!-- Macro Topic -->
+                    <div class="glass-panel p-5 rounded-lg border-t-4 border-t-btgBlue">
+                        <h3 class="font-semibold mb-4 uppercase tracking-wider text-xs text-gray-400">1. Macro Narrative</h3>
+                        <select id="topic-select" class="w-full bg-btgDark border border-btgBorder rounded p-2 text-white mb-4 focus:outline-none focus:border-btgBlue" onchange="updateThesis()">
+                            <option value="monetary">Monetary Policy</option>
+                            <option value="inflation">Inflation</option>
+                            <option value="rates">Interest Rates & Yield Curve</option>
+                            <option value="growth">Growth</option>
+                        </select>
+                        <div class="bg-btgDark/50 p-3 rounded text-sm text-gray-300 leading-relaxed font-serif" id="thesis-text">
+                            Fed signals prolonged pause; terminal rate priced at 5.25–5.50%. Inflation stickiness in services vs. goods disinflation. Consensus expects 150–175bps cuts by 2027; BTG forecasts 50–75bps. Front end (2Y) will underperform long end (10Y+) if cuts delayed. Credit spreads tight, vulnerable to disappointment.
+                        </div>
+                    </div>
+
+                    <!-- Structure -->
+                    <div class="glass-panel p-5 rounded-lg flex-1">
+                        <h3 class="font-semibold mb-4 uppercase tracking-wider text-xs text-gray-400">2. Trade Structure</h3>
+                        
+                        <div class="mb-4">
+                            <label class="block text-xs mb-2 text-gray-400">Directional Bias</label>
+                            <div class="flex gap-2" id="bias-buttons">
+                                <button onclick="setBias('long')" class="bias-btn flex-1 py-1.5 border border-btgBorder rounded text-gray-300 hover:bg-bull hover:text-white transition-colors">Long</button>
+                                <button onclick="setBias('short')" class="bias-btn flex-1 py-1.5 border border-btgBorder rounded bg-bear text-white font-medium transition-colors">Short</button>
+                                <button onclick="setBias('neutral')" class="bias-btn flex-1 py-1.5 border border-btgBorder rounded text-gray-300 hover:bg-neutral hover:text-white transition-colors">Neutral</button>
+                                <button onclick="setBias('vol')" class="bias-btn flex-1 py-1.5 border border-btgBorder rounded text-gray-300 hover:bg-btgBlue hover:text-white transition-colors">Vol</button>
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="block text-xs mb-2 text-gray-400">Instrument</label>
+                            <select id="instrument-select" class="w-full bg-btgDark border border-btgBorder rounded p-2 text-white focus:outline-none focus:border-btgBlue">
+                                <option>Fixed Income: Curve Flattener (2s10s)</option>
+                                <option>Fixed Income: Outright Short Duration</option>
+                                <option>FX: USD Long vs G10</option>
+                                <option>Equities: Short QQQ</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="block text-xs mb-2 text-gray-400 flex justify-between">
+                                <span>Notional Exposure</span>
+                                <span id="notional-val">15%</span>
+                            </label>
+                            <input type="range" min="1" max="50" value="15" class="w-full accent-btgBlue" oninput="document.getElementById('notional-val').innerText = this.value + '%'">
+                        </div>
+
+                        <div class="mb-6">
+                            <label class="block text-xs mb-2 text-gray-400">Leverage Multiplier</label>
+                            <select class="w-full bg-btgDark border border-btgBorder rounded p-2 text-white focus:outline-none focus:border-btgBlue">
+                                <option>1x (Unlevered)</option>
+                                <option>1.5x - 2x</option>
+                                <option selected>2x - 3x</option>
+                                <option>3x+</option>
+                            </select>
+                        </div>
+
+                        <button onclick="generatePayoff()" class="w-full bg-btgBlue hover:bg-blue-600 text-white font-medium py-2 rounded transition-colors shadow-[0_0_10px_rgba(0,82,204,0.5)]">
+                            Generate Analytics
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right: Analytics -->
+                <div class="w-full xl:w-2/3 flex flex-col gap-4">
+                    <!-- Chart -->
+                    <div class="glass-panel p-5 rounded-lg flex-1 min-h-[300px] flex flex-col">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="font-semibold uppercase tracking-wider text-xs text-gray-400">Payoff Visualization</h3>
+                            <div class="flex gap-2">
+                                <button class="px-2 py-1 text-xs bg-btgBorder rounded">2D Chart</button>
+                                <button class="px-2 py-1 text-xs text-gray-400 hover:bg-btgBorder rounded">Heat Map</button>
+                            </div>
+                        </div>
+                        <div class="flex-1 relative w-full">
+                            <canvas id="payoffChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Metrics Grid -->
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="glass-panel p-4 rounded-lg">
+                            <div class="text-xs text-gray-400 mb-1">Delta / DV01</div>
+                            <div class="font-mono text-lg text-bear">-$14,500</div>
+                        </div>
+                        <div class="glass-panel p-4 rounded-lg">
+                            <div class="text-xs text-gray-400 mb-1">10-Day VaR (99%)</div>
+                            <div class="font-mono text-lg text-white">$215,000</div>
+                        </div>
+                        <div class="glass-panel p-4 rounded-lg">
+                            <div class="text-xs text-gray-400 mb-1">Expected Sharpe</div>
+                            <div class="font-mono text-lg text-bull">1.45</div>
+                        </div>
+                        <div class="glass-panel p-4 rounded-lg">
+                            <div class="text-xs text-gray-400 mb-1">Max Drawdown</div>
+                            <div class="font-mono text-lg text-bear">-4.2%</div>
+                        </div>
+                    </div>
+
+                    <!-- Scenarios Table -->
+                    <div class="glass-panel p-4 rounded-lg">
+                        <h3 class="font-semibold uppercase tracking-wider text-xs text-gray-400 mb-3">Scenario Analysis</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left font-mono text-xs">
+                                <thead>
+                                    <tr class="text-gray-400 border-b border-btgBorder">
+                                        <th class="pb-2">Scenario</th>
+                                        <th class="pb-2 text-right">Shock Magnitude</th>
+                                        <th class="pb-2 text-right">P&L ($)</th>
+                                        <th class="pb-2 text-right">P&L (%)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr class="border-b border-btgBorder/30">
+                                        <td class="py-2">Fed Hike Surprise</td>
+                                        <td class="py-2 text-right">+50 bps</td>
+                                        <td class="py-2 text-right text-bull">+$450,000</td>
+                                        <td class="py-2 text-right text-bull">+8.5%</td>
+                                    </tr>
+                                    <tr class="border-b border-btgBorder/30">
+                                        <td class="py-2">Recession Pricing</td>
+                                        <td class="py-2 text-right">-100 bps</td>
+                                        <td class="py-2 text-right text-bear">-$850,000</td>
+                                        <td class="py-2 text-right text-bear">-16.0%</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-2">Inflation Re-acceleration</td>
+                                        <td class="py-2 text-right">CPI +0.5% MoM</td>
+                                        <td class="py-2 text-right text-bull">+$280,000</td>
+                                        <td class="py-2 text-right text-bull">+5.2%</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Research Hub View -->
+            <div id="view-research" class="hidden space-y-6">
+                <div class="flex gap-4 border-b border-btgBorder">
+                    <button class="px-4 py-2 tab-active font-medium">Reports</button>
+                    <button class="px-4 py-2 tab-inactive font-medium">Trade Gallery</button>
+                    <button class="px-4 py-2 tab-inactive font-medium">Market Intel</button>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass-panel p-5 rounded-lg border-l-4 border-l-btgBlue cursor-pointer hover:bg-btgBorder/20 transition-colors">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs text-btgBlue font-bold bg-btgBlue/10 px-2 py-1 rounded">Weekly Strategy</span>
+                            <span class="text-xs text-gray-400 font-mono">Published: Today</span>
+                        </div>
+                        <h3 class="text-lg font-semibold mb-2">The Terminal Rate Mirage</h3>
+                        <p class="text-sm text-gray-300 font-serif line-clamp-3">
+                            Market pricing continues to reflect an optimistic disinflationary glide path. We analyze underlying wage pressures and structural labor market rigidities to construct a case for prolonged restrictive policy. Execution focuses on curve positioning rather than outright directional bets.
+                        </p>
+                    </div>
+
+                    <div class="glass-panel p-5 rounded-lg border-l-4 border-l-neutral cursor-pointer hover:bg-btgBorder/20 transition-colors">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-xs text-neutral font-bold bg-neutral/10 px-2 py-1 rounded">Deep Dive</span>
+                            <span class="text-xs text-gray-400 font-mono">Published: T-2</span>
+                        </div>
+                        <h3 class="text-lg font-semibold mb-2">Commodity Supercycle: Redux</h3>
+                        <p class="text-sm text-gray-300 font-serif line-clamp-3">
+                            Evaluating the intersection of secular underinvestment in extraction capacity and green transition demand mandates. We identify mispricings in the base metals complex, specifically highlighting structural deficits in copper and aluminum supply pipelines.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- Floating AI Chat -->
+    <div id="chat-container" class="fixed bottom-6 right-6 w-96 glass-panel rounded-lg shadow-2xl border border-btgBorder flex flex-col transform transition-transform duration-300 translate-y-0" style="height: 500px;">
+        <div class="h-12 border-b border-btgBorder flex items-center justify-between px-4 bg-btgDark rounded-t-lg cursor-pointer" onclick="toggleChat()">
+            <div class="flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-bull"></div>
+                <span class="font-semibold text-sm">AI Macro Strategist</span>
+            </div>
+            <button class="text-gray-400 hover:text-white">
+                <svg id="chat-chevron" class="w-5 h-5 transform rotate-0 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </button>
+        </div>
+        
+        <div id="chat-messages" class="flex-1 overflow-y-auto p-4 space-y-4 text-sm font-serif">
+            <div class="bg-btgBorder/30 p-3 rounded-lg rounded-tl-none border border-btgBorder max-w-[85%]">
+                Current regime data initialized. Provide macroeconomic queries or request structural trade parameters. I execute direct analysis, no conditional hedging.
+            </div>
+        </div>
+        
+        <div class="p-3 border-t border-btgBorder bg-btgDark rounded-b-lg flex gap-2">
+            <input type="text" id="chat-input" class="flex-1 bg-btgPanel border border-btgBorder rounded px-3 py-2 text-sm focus:outline-none focus:border-btgBlue text-white font-sans" placeholder="e.g., Should I go long duration?" onkeypress="if(event.key === 'Enter') handleChat()">
+            <button onclick="handleChat()" class="bg-btgBlue hover:bg-blue-600 px-3 py-2 rounded transition-colors">
+                <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        // Data Configuration
+        const theses = {
+            monetary: "Fed signals prolonged pause; terminal rate priced at 5.25–5.50%. Inflation stickiness in services vs. goods disinflation. Consensus expects 150–175bps cuts by 2027; BTG forecasts 50–75bps. Front end (2Y) will underperform long end (10Y+) if cuts delayed. Credit spreads tight, vulnerable to disappointment.",
+            inflation: "Core PCE remains sticky above the Fed's target. Service sector wage growth persists despite goods disinflation. The market underprices the probability of a higher-for-longer regime, presenting opportunities in short-duration and inflation-linked assets.",
+            rates: "Yield curve remains deeply inverted. Current pricing reflects recessionary insurance rather than fundamental rate path expectations. Mean reversion trades via curve steepeners offer asymmetric risk/reward characteristics.",
+            growth: "Economic deceleration evident in high-frequency data, yet absolute contraction remains absent. Consumer balance sheets are deteriorating at the lower quintiles. Positioning favors defensive quality and short beta exposure."
+        };
+
+        let currentBias = 'short';
+        let chartInstance = null;
+
+        // Initialization
+        window.onload = () => {
+            initChart();
+            generatePayoff(); // Initial load
+        };
+
+        // Navigation Logic
+        function switchView(viewId) {
+            ['dashboard', 'builder', 'research'].forEach(id => {
+                document.getElementById('view-' + id).classList.add('hidden');
+                document.getElementById('nav-' + id).classList.remove('bg-btgBlue', 'text-white');
+                document.getElementById('nav-' + id).classList.add('hover:bg-btgBorder', 'text-gray-300');
+            });
+
+            document.getElementById('view-' + viewId).classList.remove('hidden');
+            document.getElementById('nav-' + viewId).classList.remove('hover:bg-btgBorder', 'text-gray-300');
+            document.getElementById('nav-' + viewId).classList.add('bg-btgBlue', 'text-white');
+
+            const titles = {
+                'dashboard': 'Macro Dashboard',
+                'builder': 'Trade Builder & Analytics',
+                'research': 'Institutional Research Hub'
+            };
+            document.getElementById('page-title').innerText = titles[viewId];
+        }
+
+        // Builder Logic
+        function updateThesis() {
+            const topic = document.getElementById('topic-select').value;
+            document.getElementById('thesis-text').innerText = theses[topic];
+        }
+
+        function setBias(bias) {
+            currentBias = bias;
+            const buttons = document.querySelectorAll('.bias-btn');
+            buttons.forEach(btn => {
+                btn.className = 'bias-btn flex-1 py-1.5 border border-btgBorder rounded text-gray-300 hover:bg-btgBorder transition-colors';
+            });
+            
+            const selectedBtn = event.target;
+            if(bias === 'long') selectedBtn.classList.add('bg-bull', 'text-white', 'border-bull');
+            if(bias === 'short') selectedBtn.classList.add('bg-bear', 'text-white', 'border-bear');
+            if(bias === 'neutral') selectedBtn.classList.add('bg-neutral', 'text-white', 'border-neutral');
+            if(bias === 'vol') selectedBtn.classList.add('bg-btgBlue', 'text-white', 'border-btgBlue');
+        }
+
+        // Chart Logic
+        function initChart() {
+            const ctx = document.getElementById('payoffChart').getContext('2d');
+            Chart.defaults.color = '#8898AA';
+            Chart.defaults.font.family = "'Roboto Mono', monospace";
+            
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['-100bp', '-50bp', '0', '+50bp', '+100bp'],
+                    datasets: [{
+                        label: 'P&L Output ($)',
+                        data: [0, 0, 0, 0, 0],
+                        borderColor: '#0052CC',
+                        backgroundColor: 'rgba(0, 82, 204, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: '#0A1C3A',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            borderColor: '#1E3A68',
+                            borderWidth: 1
+                        }
+                    },
+                    scales: {
+                        y: {
+                            grid: { color: 'rgba(30, 58, 104, 0.5)' },
+                            ticks: { callback: function(value) { return '$' + value/1000 + 'k'; } }
+                        },
+                        x: {
+                            grid: { color: 'rgba(30, 58, 104, 0.5)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function generatePayoff() {
+            if (!chartInstance) return;
+            
+            let data = [];
+            let color = '';
+            
+            // Simulate payoff curves based on bias
+            if (currentBias === 'long') {
+                data = [-150000, -75000, 0, 75000, 150000];
+                color = '#2ABB6D';
+            } else if (currentBias === 'short') {
+                data = [150000, 75000, 0, -75000, -150000];
+                color = '#E74C3C';
+            } else if (currentBias === 'vol') {
+                data = [100000, 25000, -20000, 25000, 100000];
+                color = '#0052CC';
+            } else {
+                data = [-50000, 20000, 40000, 20000, -50000];
+                color = '#8898AA';
+            }
+
+            chartInstance.data.datasets[0].data = data;
+            chartInstance.data.datasets[0].borderColor = color;
+            chartInstance.data.datasets[0].backgroundColor = color + '20'; // append hex alpha
+            chartInstance.update();
+        }
+
+        // Chat Logic
+        let isChatOpen = true;
+        function toggleChat() {
+            const container = document.getElementById('chat-container');
+            const chevron = document.getElementById('chat-chevron');
+            isChatOpen = !isChatOpen;
+            
+            if (isChatOpen) {
+                container.style.transform = 'translateY(0)';
+                chevron.classList.remove('rotate-180');
+            } else {
+                // Height is 500px, header is 48px. Move down by 500 - 48 = 452px
+                container.style.transform = 'translateY(452px)';
+                chevron.classList.add('rotate-180');
+            }
+        }
+
+        function handleChat() {
+            const input = document.getElementById('chat-input');
+            const msg = input.value.trim();
+            if(!msg) return;
+
+            // Append user message
+            appendMessage(msg, 'user');
+            input.value = '';
+
+            // Simulate macro strategist response
+            setTimeout(() => {
+                let response = "";
+                if (msg.toLowerCase().includes('duration') || msg.toLowerCase().includes('long')) {
+                    response = "Real rates are at –75bps on 10Y TIPS; Fed is in prolonged pause. Market prices 150bps of cuts by 2027; we forecast only 50bps. You're fighting 2.5% negative carry if neither reprices. Recommendation: Short duration or stay neutral. Buy 20Y+ for more tail optionality. Size as hedge allocation, not core conviction. Entry on 2Y rally or 30Y weakness.";
+                } else {
+                    response = "Data parameters analyzed. The structural mispricing in current implied volatility commands a delta-neutral, short-gamma overlay. We forecast a localized spike in risk premiums. Recommendation: Execute short-dated calendar spreads. Define downside limits at -5% notional.";
+                }
+                appendMessage(response, 'ai');
+            }, 600);
+        }
+
+        function appendMessage(text, sender) {
+            const container = document.getElementById('chat-messages');
+            const div = document.createElement('div');
+            
+            if (sender === 'user') {
+                div.className = 'bg-btgBlue p-3 rounded-lg rounded-tr-none ml-auto text-white max-w-[85%] font-sans';
+            } else {
+                div.className = 'bg-btgBorder/30 border border-btgBorder p-3 rounded-lg rounded-tl-none mr-auto text-gray-200 max-w-[85%]';
+            }
+            
+            div.innerText = text;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+    </script>
+</body>
+</html>
