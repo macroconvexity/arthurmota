@@ -65,3 +65,9 @@
 ### Fundamental Determinants of Secondary Market Card Prices: A Fama–MacBeth Cross-Sectional Analysis of the Magic: The Gathering Market
 *Mota (2026)* 
 [Download PDF](papers/Mota%20(2026)%20-%20FM%20card%20price%20model.pdf)
+
+---
+
+### Reprint Supply Shocks and Secondary Market Price Discovery in Magic: The Gathering
+*Mota (2026)* 
+[Download PDF](papers/Mota%20(2026)%20-%20Reprint%20Supply%20Shocks.pdf)
