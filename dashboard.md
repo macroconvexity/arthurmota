@@ -19,3 +19,5 @@
 ## [Global Asset Strategy Simulator](assetallocation.html)
 
 ## [Trade Desk](tradedesk.html)
+
+## [Soso & lella](soso_lella_tracker.html)
