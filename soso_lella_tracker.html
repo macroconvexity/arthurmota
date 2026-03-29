@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Soso & Lella">
+<title>Soso &amp; Lella</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+  :root {
+    --soso: #D4537E;
+    --lella: #1D9E75;
+    --blue: #378ADD;
+    --bg: #F9F8F6;
+    --card: #FFFFFF;
+    --border: rgba(0,0,0,0.08);
+    --text: #1a1a1a;
+    --muted: #6B7280;
+    --light: #F3F4F6;
+    --radius: 14px;
+    --radius-sm: 8px;
+    --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 90px; }
+
+  /* NAV */
+  nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255,255,255,0.95); backdrop-filter: blur(12px); border-top: 0.5px solid var(--border); display: flex; z-index: 100; padding-bottom: env(safe-area-inset-bottom); }
+  nav button { flex: 1; padding: 12px 4px 10px; background: none; border: none; font-family: var(--font); font-size: 10px; color: var(--muted); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: color 0.15s; }
+  nav button.active { color: var(--blue); }
+  nav button svg { width: 22px; height: 22px; }
+
+  /* PAGES */
+  .page { display: none; padding: 0; }
+  .page.active { display: block; }
+
+  /* HEADER */
+  .header { padding: 56px 20px 16px; }
+  .header h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
+  .header p { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+  /* CARDS */
+  .card { background: var(--card); border-radius: var(--radius); padding: 16px; margin: 0 16px 12px; border: 0.5px solid var(--border); }
+  .card-title { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px; }
+
+  /* TWIN SUMMARY CARDS */
+  .twins-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 16px; margin-bottom: 12px; }
+  .twin-card { background: var(--card); border-radius: var(--radius); padding: 14px; border: 0.5px solid var(--border); }
+  .twin-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+  .twin-stat { font-size: 20px; font-weight: 700; margin-bottom: 2px; }
+  .twin-sub { font-size: 11px; color: var(--muted); }
+  .twin-pct { font-size: 12px; margin-top: 6px; padding: 4px 8px; border-radius: 20px; display: inline-block; font-weight: 500; }
+
+  /* FORM */
+  .form-section { padding: 8px 0; }
+  .form-row { display: grid; gap: 10px; margin-bottom: 12px; }
+  .form-row.two { grid-template-columns: 1fr 1fr; }
+  .form-row.one { grid-template-columns: 1fr; }
+  label { font-size: 12px; font-weight: 600; color: var(--muted); display: block; margin-bottom: 5px; }
+  input[type=number], input[type=text] { width: 100%; padding: 13px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 16px; font-family: var(--font); background: var(--light); color: var(--text); outline: none; appearance: none; -webkit-appearance: none; transition: border-color 0.15s; }
+  input:focus { border-color: var(--blue); background: white; }
+  .section-label { font-size: 13px; font-weight: 700; padding: 4px 0 8px; display: flex; align-items: center; gap: 6px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+  /* BUTTONS */
+  .btn { width: 100%; padding: 15px; border: none; border-radius: var(--radius-sm); font-size: 16px; font-weight: 600; font-family: var(--font); cursor: pointer; transition: opacity 0.15s, transform 0.1s; }
+  .btn:active { transform: scale(0.98); opacity: 0.85; }
+  .btn-primary { background: var(--blue); color: white; }
+  .btn-sm { padding: 8px 14px; font-size: 13px; font-weight: 500; border-radius: var(--radius-sm); border: none; cursor: pointer; font-family: var(--font); }
+
+  /* SEGMENT CONTROL */
+  .segment { display: flex; background: var(--light); border-radius: var(--radius-sm); padding: 3px; margin-bottom: 14px; }
+  .segment button { flex: 1; padding: 8px 4px; border: none; background: none; border-radius: 6px; font-size: 13px; font-weight: 500; font-family: var(--font); color: var(--muted); cursor: pointer; transition: all 0.15s; }
+  .segment button.active { background: white; color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+
+  /* CHART */
+  .chart-wrap { position: relative; width: 100%; height: 280px; }
+
+  /* HISTORY TABLE */
+  .history-row { display: grid; grid-template-columns: 40px 1fr 1fr 1fr 1fr 32px; gap: 4px; align-items: center; padding: 10px 0; border-bottom: 0.5px solid var(--border); font-size: 13px; }
+  .history-row.header { font-size: 11px; font-weight: 600; color: var(--muted); padding: 6px 0; }
+  .del-btn { background: none; border: none; color: #E24B4A; font-size: 16px; cursor: pointer; padding: 4px; }
+
+  /* SETUP */
+  .setup-wrap { padding: 20px 16px; }
+  .setup-step { background: var(--card); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; border: 0.5px solid var(--border); }
+  .setup-step h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+  .setup-step p { font-size: 14px; color: var(--muted); line-height: 1.5; margin-bottom: 8px; }
+  .setup-step code { display: block; background: var(--light); border-radius: 6px; padding: 10px 12px; font-size: 12px; font-family: "SF Mono", Menlo, monospace; word-break: break-all; color: var(--text); margin-top: 6px; user-select: all; -webkit-user-select: all; }
+  .url-input { width: 100%; padding: 13px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; font-family: var(--font); background: var(--light); color: var(--text); outline: none; }
+  .url-input:focus { border-color: var(--blue); background: white; }
+
+  /* STATUS */
+  .toast { position: fixed; top: 60px; left: 50%; transform: translateX(-50%); background: #1a1a1a; color: white; padding: 10px 20px; border-radius: 20px; font-size: 14px; font-weight: 500; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 200; white-space: nowrap; }
+  .toast.show { opacity: 1; }
+
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .status-bar { padding: 8px 16px; font-size: 12px; color: var(--muted); text-align: center; }
+  .empty { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 14px; }
+</style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- PAGE: HOME -->
+<div class="page active" id="page-home">
+  <div class="header">
+    <h1>Soso &amp; Lella</h1>
+    <p id="home-subtitle">Born Feb 12 2026 · 33w2d</p>
+  </div>
+  <div class="twins-row">
+    <div class="twin-card">
+      <div class="twin-name" style="color:var(--soso)">Soso</div>
+      <div class="twin-stat" id="soso-weight-disp">— g</div>
+      <div class="twin-sub" id="soso-week-disp">no data yet</div>
+      <div class="twin-pct" id="soso-pct" style="background:#FCE7EF;color:#993556">—</div>
+    </div>
+    <div class="twin-card">
+      <div class="twin-name" style="color:var(--lella)">Lella</div>
+      <div class="twin-stat" id="lella-weight-disp">— g</div>
+      <div class="twin-sub" id="lella-week-disp">no data yet</div>
+      <div class="twin-pct" id="lella-pct" style="background:#D8F3EC;color:#0F6E56">—</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Feeding guide · latest weight</div>
+    <div id="feeding-content"><p style="color:var(--muted);font-size:13px">Add a measurement first.</p></div>
+  </div>
+</div>
+
+<!-- PAGE: CHART -->
+<div class="page" id="page-chart">
+  <div class="header">
+    <h1>Growth chart</h1>
+    <p>Fenton 2013 · preterm girls</p>
+  </div>
+  <div class="card">
+    <div class="segment" id="seg-baby">
+      <button class="active" onclick="setBaby('soso')">Soso</button>
+      <button onclick="setBaby('lella')">Lella</button>
+    </div>
+    <div class="segment" id="seg-metric">
+      <button class="active" onclick="setMetric('weight')">Weight (g)</button>
+      <button onclick="setMetric('length')">Length (cm)</button>
+    </div>
+    <div class="chart-wrap"><canvas id="growthChart"></canvas></div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:11px;color:var(--muted)">
+      <span><span style="display:inline-block;width:8px;height:8px;background:#B5D4F4;border-radius:2px;margin-right:4px"></span>97th / 3rd</span>
+      <span><span style="display:inline-block;width:8px;height:8px;background:#85B7EB;border-radius:2px;margin-right:4px"></span>90th / 10th</span>
+      <span><span style="display:inline-block;width:8px;height:8px;background:#378ADD;border-radius:2px;margin-right:4px"></span>50th</span>
+      <span id="baby-legend-item"><span id="baby-legend-dot" style="display:inline-block;width:8px;height:8px;background:var(--soso);border-radius:50%;margin-right:4px"></span><span id="baby-legend-name">Soso</span></span>
+    </div>
+  </div>
+</div>
+
+<!-- PAGE: ADD -->
+<div class="page" id="page-add">
+  <div class="header">
+    <h1>Add measurement</h1>
+    <p>Week of life + weight & length</p>
+  </div>
+  <div class="card">
+    <div class="form-row one">
+      <div>
+        <label>Week of life (1, 2, 3 ...)</label>
+        <input type="number" id="inp-week" min="0" max="60" step="1" placeholder="e.g. 4">
+      </div>
+    </div>
+    <div class="section-label"><span class="dot" style="background:var(--soso)"></span>Soso</div>
+    <div class="form-row two">
+      <div>
+        <label>Weight (grams)</label>
+        <input type="number" id="inp-soso-w" min="200" max="8000" step="10" placeholder="e.g. 2150">
+      </div>
+      <div>
+        <label>Length (cm)</label>
+        <input type="number" id="inp-soso-l" min="20" max="80" step="0.1" placeholder="e.g. 43.5">
+      </div>
+    </div>
+    <div class="section-label"><span class="dot" style="background:var(--lella)"></span>Lella</div>
+    <div class="form-row two">
+      <div>
+        <label>Weight (grams)</label>
+        <input type="number" id="inp-lella-w" min="200" max="8000" step="10" placeholder="e.g. 2080">
+      </div>
+      <div>
+        <label>Length (cm)</label>
+        <input type="number" id="inp-lella-l" min="20" max="80" step="0.1" placeholder="e.g. 43.0">
+      </div>
+    </div>
+    <button class="btn btn-primary" id="btn-save" onclick="saveEntry()">Save</button>
+  </div>
+</div>
+
+<!-- PAGE: HISTORY -->
+<div class="page" id="page-history">
+  <div class="header">
+    <h1>History</h1>
+    <p id="history-subtitle">All measurements</p>
+  </div>
+  <div class="card" style="padding:0 16px">
+    <div id="history-list"><div class="empty">No measurements yet.</div></div>
+  </div>
+</div>
+
+<!-- PAGE: SETUP -->
+<div class="page" id="page-setup">
+  <div class="header">
+    <h1>Setup</h1>
+    <p>Connect to Google Sheets</p>
+  </div>
+  <div class="setup-wrap">
+
+    <div class="setup-step">
+      <h3>Step 1 — Create a Google Sheet</h3>
+      <p>Go to <strong>sheets.new</strong> in any browser. You don't need to do anything else to the sheet itself.</p>
+    </div>
+
+    <div class="setup-step">
+      <h3>Step 2 — Open Apps Script</h3>
+      <p>In your new Sheet, tap the menu <strong>Extensions → Apps Script</strong>. Delete whatever code is there.</p>
+    </div>
+
+    <div class="setup-step">
+      <h3>Step 3 — Paste the backend code</h3>
+      <p>Copy the entire contents of the file <strong>apps_script.js</strong> (provided alongside this app) and paste it into the Apps Script editor. Then tap <strong>Save</strong>.</p>
+    </div>
+
+    <div class="setup-step">
+      <h3>Step 4 — Deploy as Web App</h3>
+      <p>Tap <strong>Deploy → New deployment</strong>. Select type <strong>Web app</strong>. Set <em>Execute as</em> to <strong>Me</strong> and <em>Who has access</em> to <strong>Anyone</strong>. Tap <strong>Deploy</strong> and authorize it. Copy the Web App URL.</p>
+    </div>
+
+    <div class="setup-step">
+      <h3>Step 5 — Paste the URL below</h3>
+      <p>Paste your Web App URL here and tap Save. Share the same URL with your girlfriend — she opens this same HTML file and does the same step.</p>
+      <input class="url-input" type="text" id="sheets-url" placeholder="https://script.google.com/macros/s/..." oninput="urlChanged()">
+      <button class="btn btn-primary" style="margin-top:10px" onclick="saveUrl()">Save URL &amp; connect</button>
+    </div>
+
+    <div class="setup-step" id="connection-status-card" style="display:none">
+      <h3>Connection status</h3>
+      <p id="conn-status-text" style="color:var(--muted)">Not tested yet.</p>
+      <button class="btn-sm" style="background:var(--light);color:var(--text);margin-top:8px" onclick="testConnection()">Test connection</button>
+    </div>
+
+    <div class="setup-step">
+      <h3>Add to iPhone home screen</h3>
+      <p>Open this file in Safari. Tap the <strong>Share</strong> button (box with arrow), then <strong>Add to Home Screen</strong>. Both you and your girlfriend do this — the app icon will appear on your home screen like a real app.</p>
+    </div>
+
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav>
+  <button class="active" onclick="showPage('home',this)" id="nav-home">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    Home
+  </button>
+  <button onclick="showPage('chart',this)" id="nav-chart">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    Chart
+  </button>
+  <button onclick="showPage('add',this)" id="nav-add">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+    Add
+  </button>
+  <button onclick="showPage('history',this)" id="nav-history">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+    History
+  </button>
+  <button onclick="showPage('setup',this)" id="nav-setup">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    Setup
+  </button>
+</nav>
+
+<script>
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+const BIRTH_DATE = new Date("2026-02-12");
+const BIRTH_GA = 33 + 2/7;
+
+// ─── FENTON 2013 GIRLS ────────────────────────────────────────────────────────
+// [pma_weeks, p3, p10, p50, p90, p97]
+const FW = [ // weight (g)
+  [24,490,560,690,870,980],[25,580,660,820,1030,1160],[26,680,780,970,1220,1370],
+  [27,800,920,1140,1430,1610],[28,930,1070,1330,1670,1880],[29,1080,1240,1540,1930,2180],
+  [30,1240,1430,1770,2210,2490],[31,1410,1630,2010,2510,2830],[32,1600,1840,2270,2830,3190],
+  [33,1790,2060,2530,3150,3540],[34,2000,2290,2800,3470,3890],[35,2200,2520,3060,3780,4230],
+  [36,2400,2740,3310,4070,4550],[37,2590,2950,3540,4330,4830],[38,2770,3150,3760,4570,5090],
+  [39,2940,3340,3960,4790,5320],[40,3090,3500,4140,4980,5530],[41,3220,3640,4290,5150,5710],
+  [42,3330,3760,4430,5300,5870],[43,3420,3860,4540,5430,6010],[44,3500,3940,4640,5540,6130],
+  [45,3570,4010,4720,5640,6240],[46,3620,4070,4790,5710,6330],[47,3660,4120,4840,5780,6400],
+  [48,3700,4160,4890,5830,6460],[49,3730,4190,4930,5880,6510],[50,3750,4210,4960,5920,6550],
+];
+const FL = [ // length (cm)
+  [24,28.5,29.5,31.5,33.5,34.8],[25,30.0,31.0,33.0,35.3,36.6],[26,31.5,32.6,34.7,37.0,38.4],
+  [27,33.0,34.2,36.4,38.8,40.2],[28,34.5,35.8,38.1,40.5,42.0],[29,36.0,37.3,39.7,42.2,43.7],
+  [30,37.4,38.8,41.3,43.8,45.3],[31,38.8,40.2,42.8,45.4,46.9],[32,40.2,41.6,44.2,46.8,48.3],
+  [33,41.5,43.0,45.6,48.2,49.7],[34,42.8,44.3,46.9,49.5,51.0],[35,44.0,45.5,48.1,50.7,52.2],
+  [36,45.2,46.7,49.3,51.9,53.3],[37,46.3,47.8,50.4,53.0,54.4],[38,47.3,48.8,51.4,54.0,55.4],
+  [39,48.2,49.7,52.3,54.9,56.3],[40,49.0,50.5,53.1,55.7,57.1],[41,49.7,51.2,53.8,56.4,57.8],
+  [42,50.3,51.8,54.4,57.0,58.4],[43,50.9,52.4,55.0,57.6,59.0],[44,51.4,52.9,55.5,58.1,59.5],
+  [45,51.8,53.3,55.9,58.5,59.9],[46,52.2,53.7,56.3,58.9,60.3],[47,52.5,54.0,56.6,59.2,60.6],
+  [48,52.8,54.3,56.9,59.5,60.9],[49,53.0,54.5,57.1,59.7,61.1],[50,53.2,54.7,57.3,59.9,61.3],
+];
+
+// ─── FEEDING FORMULAS ─────────────────────────────────────────────────────────
+const FORMULAS = {
+  breastmilk:  { name:"Breast milk",              kcal:67,  note:"~67 kcal/100ml average" },
+  kendamil:    { name:"Kendamil Stage 1",          kcal:66,  note:"Standard term formula — not a catch-up" },
+  enfacare:    { name:"Enfamil NeuroPro EnfaCare", kcal:74,  note:"Preterm catch-up · 22 kcal/fl oz" },
+};
+
+// ─── STATE ────────────────────────────────────────────────────────────────────
+let entries = [];
+let sheetUrl = localStorage.getItem("sheetUrl") || "";
+let currentBaby = "soso";
+let currentMetric = "weight";
+let growthChart = null;
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function pma(week) { return +(BIRTH_GA + parseFloat(week)).toFixed(2); }
+
+function interpolate(table, pmaNow) {
+  if (pmaNow <= table[0][0]) return table[0].slice(1);
+  if (pmaNow >= table[table.length-1][0]) return table[table.length-1].slice(1);
+  for (let i=0;i<table.length-1;i++) {
+    if (table[i][0] <= pmaNow && table[i+1][0] > pmaNow) {
+      const t=(pmaNow-table[i][0])/(table[i+1][0]-table[i][0]);
+      return table[i].slice(1).map((v,j)=>+(v+t*(table[i+1][j+1]-v)).toFixed(1));
+    }
+  }
+  return table[0].slice(1);
+}
+
+function pctLabel(val, p3, p10, p50, p90, p97) {
+  if (val===null) return "—";
+  if (val < p3)  return "< 3rd";
+  if (val < p10) return "3rd–10th";
+  if (val < p50) return "10th–50th";
+  if (val < p90) return "50th–90th";
+  if (val < p97) return "90th–97th";
+  return "> 97th";
+}
+
+function calcAge() {
+  const now = new Date();
+  const diffMs = now - BIRTH_DATE;
+  const weeks = Math.floor(diffMs / (7*24*60*60*1000));
+  return weeks;
+}
+
+function toast(msg, duration=2000) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  setTimeout(()=>el.classList.remove("show"), duration);
+}
+
+// ─── GOOGLE SHEETS API ────────────────────────────────────────────────────────
+async function apiGet(params) {
+  if (!sheetUrl) throw new Error("No URL configured");
+  const url = sheetUrl + "?" + new URLSearchParams(params);
+  const r = await fetch(url);
+  return r.json();
+}
+
+async function apiPost(data) {
+  if (!sheetUrl) throw new Error("No URL configured");
+  const r = await fetch(sheetUrl, {
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body: JSON.stringify(data)
+  });
+  return r.json();
+}
+
+async function loadEntries() {
+  if (!sheetUrl) {
+    entries = JSON.parse(localStorage.getItem("entries_local")||"[]");
+    renderAll();
+    return;
+  }
+  try {
+    const d = await apiGet({action:"list"});
+    entries = (d.entries||[]).map(e=>({
+      ...e,
+      week: parseFloat(e.week),
+      soso_weight: e.soso_weight ? parseFloat(e.soso_weight) : null,
+      soso_length: e.soso_length ? parseFloat(e.soso_length) : null,
+      lella_weight: e.lella_weight ? parseFloat(e.lella_weight) : null,
+      lella_length: e.lella_length ? parseFloat(e.lella_length) : null,
+    })).sort((a,b)=>a.week-b.week);
+    localStorage.setItem("entries_local", JSON.stringify(entries));
+    renderAll();
+  } catch(e) {
+    entries = JSON.parse(localStorage.getItem("entries_local")||"[]");
+    renderAll();
+    toast("Offline — showing cached data");
+  }
+}
+
+async function saveEntry() {
+  const week = document.getElementById("inp-week").value;
+  if (!week) { toast("Enter week of life first"); return; }
+  const entry = {
+    id: Date.now().toString(),
+    week: parseFloat(week),
+    date: new Date().toLocaleDateString("en-US"),
+    soso_weight: document.getElementById("inp-soso-w").value ? parseFloat(document.getElementById("inp-soso-w").value) : null,
+    soso_length: document.getElementById("inp-soso-l").value ? parseFloat(document.getElementById("inp-soso-l").value) : null,
+    lella_weight: document.getElementById("inp-lella-w").value ? parseFloat(document.getElementById("inp-lella-w").value) : null,
+    lella_length: document.getElementById("inp-lella-l").value ? parseFloat(document.getElementById("inp-lella-l").value) : null,
+  };
+
+  const btn = document.getElementById("btn-save");
+  btn.innerHTML = '<span class="spinner"></span>Saving…';
+  btn.disabled = true;
+
+  try {
+    if (sheetUrl) {
+      await apiPost(entry);
+    } else {
+      const local = JSON.parse(localStorage.getItem("entries_local")||"[]").filter(e=>e.week!==entry.week);
+      local.push(entry);
+      local.sort((a,b)=>a.week-b.week);
+      localStorage.setItem("entries_local", JSON.stringify(local));
+    }
+    document.getElementById("inp-week").value="";
+    document.getElementById("inp-soso-w").value="";
+    document.getElementById("inp-soso-l").value="";
+    document.getElementById("inp-lella-w").value="";
+    document.getElementById("inp-lella-l").value="";
+    await loadEntries();
+    toast("Saved!");
+    showPage("home", document.getElementById("nav-home"));
+  } catch(e) {
+    toast("Save failed — check connection");
+  } finally {
+    btn.innerHTML="Save";
+    btn.disabled=false;
+  }
+}
+
+async function deleteEntry(id) {
+  if (!confirm("Delete this entry?")) return;
+  try {
+    if (sheetUrl) {
+      await apiGet({action:"delete", id});
+    } else {
+      const local = JSON.parse(localStorage.getItem("entries_local")||"[]").filter(e=>e.id!=id);
+      localStorage.setItem("entries_local", JSON.stringify(local));
+    }
+    await loadEntries();
+    toast("Deleted");
+  } catch(e) { toast("Delete failed"); }
+}
+
+// ─── RENDER ───────────────────────────────────────────────────────────────────
+function renderAll() {
+  renderHome();
+  renderHistory();
+  renderChart();
+}
+
+function latestFor(babyKey) {
+  return [...entries].reverse().find(e=>e[babyKey+"_weight"]!=null);
+}
+
+function renderHome() {
+  const ageWeeks = calcAge();
+  document.getElementById("home-subtitle").textContent =
+    `Born Feb 12 2026 · 33w2d · Age ~${ageWeeks}w`;
+
+  ["soso","lella"].forEach(b=>{
+    const last = latestFor(b);
+    const col = b==="soso"?"var(--soso)":"var(--lella)";
+    if (last) {
+      const pmaNow = pma(last.week);
+      const [p3,p10,p50,p90,p97] = interpolate(FW, pmaNow);
+      const pct = pctLabel(last[b+"_weight"], p3,p10,p50,p90,p97);
+      document.getElementById(b+"-weight-disp").textContent = last[b+"_weight"]+"g";
+      document.getElementById(b+"-week-disp").textContent = `Week ${last.week} · PMA ${pmaNow.toFixed(1)}w`;
+      document.getElementById(b+"-pct").textContent = "Weight: "+pct;
+    } else {
+      document.getElementById(b+"-weight-disp").textContent = "— g";
+      document.getElementById(b+"-week-disp").textContent = "no data yet";
+      document.getElementById(b+"-pct").textContent = "—";
+    }
+  });
+
+  // Feeding
+  const feedDiv = document.getElementById("feeding-content");
+  const lastSoso = latestFor("soso");
+  const lastLella = latestFor("lella");
+  if (!lastSoso && !lastLella) { feedDiv.innerHTML='<p style="color:var(--muted);font-size:13px">Add a measurement first.</p>'; return; }
+
+  let html = "";
+  [[lastSoso,"soso","var(--soso)","Soso"],[lastLella,"lella","var(--lella)","Lella"]].forEach(([last,key,col,name])=>{
+    if (!last) return;
+    const kg = last[key+"_weight"]/1000;
+    html += `<p style="font-size:13px;font-weight:700;color:${col};margin-bottom:8px">${name} — ${last[key+"_weight"]}g (${kg.toFixed(3)} kg)</p>`;
+    html += `<div style="overflow-x:auto;margin-bottom:14px"><table style="width:100%;border-collapse:collapse;font-size:12px">`;
+    html += `<tr style="border-bottom:0.5px solid var(--border)"><th style="text-align:left;padding:4px 6px;color:var(--muted);font-weight:500">Formula</th><th style="text-align:right;padding:4px 6px;color:var(--muted);font-weight:500">ml/day</th><th style="text-align:right;padding:4px 6px;color:var(--muted);font-weight:500">per feed (8x)</th><th style="text-align:right;padding:4px 6px;color:var(--muted);font-weight:500">per feed (10x)</th></tr>`;
+    Object.entries(FORMULAS).forEach(([k,f])=>{
+      const mlLo = Math.round((110*kg)/(f.kcal/100));
+      const mlHi = Math.round((130*kg)/(f.kcal/100));
+      const f8lo = Math.round(mlLo/8), f8hi = Math.round(mlHi/8);
+      const f10lo = Math.round(mlLo/10), f10hi = Math.round(mlHi/10);
+      const bold = k==="enfacare" ? "font-weight:600" : "";
+      html += `<tr style="border-bottom:0.5px solid var(--border)">
+        <td style="padding:7px 6px;${bold}">${f.name}</td>
+        <td style="padding:7px 6px;text-align:right">${mlLo}–${mlHi}</td>
+        <td style="padding:7px 6px;text-align:right">${f8lo}–${f8hi} ml</td>
+        <td style="padding:7px 6px;text-align:right">${f10lo}–${f10hi} ml</td>
+      </tr>`;
+    });
+    html += `</table></div>`;
+    html += `<p style="font-size:11px;color:var(--muted);margin-bottom:8px">Target: 110–130 kcal/kg/day · ESPGHAN 2023 post-discharge preterm</p>`;
+  });
+  feedDiv.innerHTML = html;
+}
+
+function renderHistory() {
+  const div = document.getElementById("history-list");
+  document.getElementById("history-subtitle").textContent = entries.length + " measurement" + (entries.length!==1?"s":"");
+  if (!entries.length) { div.innerHTML='<div class="empty">No measurements yet.</div>'; return; }
+
+  let html = `<div class="history-row header">
+    <span>Wk</span><span>PMA</span>
+    <span style="color:var(--soso)">Soso</span>
+    <span style="color:var(--soso)">cm</span>
+    <span style="color:var(--lella)">Lella</span>
+    <span style="color:var(--lella)">cm</span>
+  </div>`;
+
+  [...entries].reverse().forEach(e=>{
+    html += `<div class="history-row">
+      <span>${e.week}</span>
+      <span style="color:var(--muted)">${pma(e.week).toFixed(1)}</span>
+      <span style="color:var(--soso)">${e.soso_weight??'—'}</span>
+      <span style="color:var(--soso)">${e.soso_length??'—'}</span>
+      <span style="color:var(--lella)">${e.lella_weight??'—'}</span>
+      <span style="color:var(--lella)">${e.lella_length??'—'}</span>
+      <button class="del-btn" onclick="deleteEntry('${e.id}')">×</button>
+    </div>`;
+  });
+  div.innerHTML = html;
+}
+
+function renderChart() {
+  const table = currentMetric==="weight" ? FW : FL;
+  const unit = currentMetric==="weight" ? "g" : "cm";
+  const babyColor = currentBaby==="soso" ? "#D4537E" : "#1D9E75";
+
+  const labels = table.map(r=>r[0]);
+  const p3  = table.map(r=>r[1]);
+  const p10 = table.map(r=>r[2]);
+  const p50 = table.map(r=>r[3]);
+  const p90 = table.map(r=>r[4]);
+  const p97 = table.map(r=>r[5]);
+
+  // Baby data points — map to nearest PMA
+  const babyPoints = table.map(row=>{
+    const pmaNow = row[0];
+    const match = entries.find(e=>Math.abs(pma(e.week)-pmaNow)<0.55);
+    if (!match) return null;
+    const val = match[currentBaby+"_"+(currentMetric==="weight"?"weight":"length")];
+    return val != null ? val : null;
+  });
+
+  const datasets = [
+    { label:"97th", data:p97, borderColor:"#B5D4F4", borderWidth:1, borderDash:[4,3], pointRadius:0, fill:false },
+    { label:"90th", data:p90, borderColor:"#85B7EB", borderWidth:1, borderDash:[3,2], pointRadius:0, fill:false },
+    { label:"50th", data:p50, borderColor:"#378ADD", borderWidth:2, pointRadius:0, fill:false },
+    { label:"10th", data:p10, borderColor:"#85B7EB", borderWidth:1, borderDash:[3,2], pointRadius:0, fill:false },
+    { label:"3rd",  data:p3,  borderColor:"#B5D4F4", borderWidth:1, borderDash:[4,3], pointRadius:0, fill:false },
+    {
+      label: currentBaby==="soso"?"Soso":"Lella",
+      data: babyPoints,
+      borderColor: babyColor,
+      backgroundColor: babyColor,
+      borderWidth: 0,
+      pointRadius: babyPoints.map(v=>v!=null?7:0),
+      pointHoverRadius: 9,
+      pointBorderColor:"#fff",
+      pointBorderWidth:2,
+      spanGaps: false,
+      fill: false,
+    }
+  ];
+
+  const ctx = document.getElementById("growthChart").getContext("2d");
+  if (growthChart) growthChart.destroy();
+  growthChart = new Chart(ctx, {
+    type:"line",
+    data:{ labels, datasets },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      animation:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          callbacks:{
+            title: items=>"PMA "+items[0].label+"w",
+            label: item=>{
+              if (item.datasetIndex===5 && item.raw!==null) return `${item.dataset.label}: ${item.raw}${unit}`;
+              if (item.datasetIndex<5) return `${item.dataset.label}: ${item.raw}${unit}`;
+              return null;
+            }
+          }
+        }
+      },
+      scales:{
+        x:{ title:{display:true,text:"PMA (weeks)",font:{size:11}}, ticks:{font:{size:10}, maxRotation:0} },
+        y:{ title:{display:true,text:unit,font:{size:11}}, ticks:{font:{size:10}} }
+      }
+    }
+  });
+
+  // Update legend
+  document.getElementById("baby-legend-dot").style.background = babyColor;
+  document.getElementById("baby-legend-name").textContent = currentBaby==="soso"?"Soso":"Lella";
+}
+
+// ─── NAV + TABS ───────────────────────────────────────────────────────────────
+function showPage(id, btn) {
+  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
+  document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));
+  document.getElementById("page-"+id).classList.add("active");
+  btn.classList.add("active");
+  if (id==="chart") setTimeout(renderChart, 50);
+}
+
+function setBaby(b) {
+  currentBaby = b;
+  document.querySelectorAll("#seg-baby button").forEach((btn,i)=>btn.classList.toggle("active",i===(b==="soso"?0:1)));
+  renderChart();
+}
+function setMetric(m) {
+  currentMetric = m;
+  document.querySelectorAll("#seg-metric button").forEach((btn,i)=>btn.classList.toggle("active",i===(m==="weight"?0:1)));
+  renderChart();
+}
+
+// ─── SETUP ────────────────────────────────────────────────────────────────────
+function urlChanged() {
+  const url = document.getElementById("sheets-url").value.trim();
+  document.getElementById("connection-status-card").style.display = url ? "block" : "none";
+}
+
+function saveUrl() {
+  const url = document.getElementById("sheets-url").value.trim();
+  if (!url || !url.includes("script.google.com")) { toast("Paste a valid Apps Script URL"); return; }
+  sheetUrl = url;
+  localStorage.setItem("sheetUrl", url);
+  document.getElementById("connection-status-card").style.display = "block";
+  toast("URL saved — testing connection…");
+  testConnection();
+}
+
+async function testConnection() {
+  const el = document.getElementById("conn-status-text");
+  el.textContent = "Connecting…";
+  try {
+    const d = await apiGet({action:"list"});
+    el.textContent = "Connected. " + (d.entries||[]).length + " entries in sheet.";
+    el.style.color = "var(--lella)";
+    await loadEntries();
+  } catch(e) {
+    el.textContent = "Failed: " + e.message;
+    el.style.color = "#E24B4A";
+  }
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+window.addEventListener("load", ()=>{
+  if (sheetUrl) {
+    document.getElementById("sheets-url").value = sheetUrl;
+    document.getElementById("connection-status-card").style.display = "block";
+  }
+  loadEntries();
+});
+</script>
+</body>
+</html>
