@@ -2,694 +2,961 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Soso & Lella">
-<title>Soso &amp; Lella</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Soso & Lella Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <style>
-  :root {
-    --soso: #D4537E;
-    --lella: #1D9E75;
-    --blue: #378ADD;
-    --bg: #F9F8F6;
-    --card: #FFFFFF;
-    --border: rgba(0,0,0,0.08);
-    --text: #1a1a1a;
-    --muted: #6B7280;
-    --light: #F3F4F6;
-    --radius: 14px;
-    --radius-sm: 8px;
-    --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; padding-bottom: 90px; }
-
-  /* NAV */
-  nav { position: fixed; bottom: 0; left: 0; right: 0; background: rgba(255,255,255,0.95); backdrop-filter: blur(12px); border-top: 0.5px solid var(--border); display: flex; z-index: 100; padding-bottom: env(safe-area-inset-bottom); }
-  nav button { flex: 1; padding: 12px 4px 10px; background: none; border: none; font-family: var(--font); font-size: 10px; color: var(--muted); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: color 0.15s; }
-  nav button.active { color: var(--blue); }
-  nav button svg { width: 22px; height: 22px; }
-
-  /* PAGES */
-  .page { display: none; padding: 0; }
-  .page.active { display: block; }
-
-  /* HEADER */
-  .header { padding: 56px 20px 16px; }
-  .header h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.5px; }
-  .header p { font-size: 13px; color: var(--muted); margin-top: 2px; }
-
-  /* CARDS */
-  .card { background: var(--card); border-radius: var(--radius); padding: 16px; margin: 0 16px 12px; border: 0.5px solid var(--border); }
-  .card-title { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px; }
-
-  /* TWIN SUMMARY CARDS */
-  .twins-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 16px; margin-bottom: 12px; }
-  .twin-card { background: var(--card); border-radius: var(--radius); padding: 14px; border: 0.5px solid var(--border); }
-  .twin-name { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
-  .twin-stat { font-size: 20px; font-weight: 700; margin-bottom: 2px; }
-  .twin-sub { font-size: 11px; color: var(--muted); }
-  .twin-pct { font-size: 12px; margin-top: 6px; padding: 4px 8px; border-radius: 20px; display: inline-block; font-weight: 500; }
-
-  /* FORM */
-  .form-section { padding: 8px 0; }
-  .form-row { display: grid; gap: 10px; margin-bottom: 12px; }
-  .form-row.two { grid-template-columns: 1fr 1fr; }
-  .form-row.one { grid-template-columns: 1fr; }
-  label { font-size: 12px; font-weight: 600; color: var(--muted); display: block; margin-bottom: 5px; }
-  input[type=number], input[type=text] { width: 100%; padding: 13px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 16px; font-family: var(--font); background: var(--light); color: var(--text); outline: none; appearance: none; -webkit-appearance: none; transition: border-color 0.15s; }
-  input:focus { border-color: var(--blue); background: white; }
-  .section-label { font-size: 13px; font-weight: 700; padding: 4px 0 8px; display: flex; align-items: center; gap: 6px; }
-  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-
-  /* BUTTONS */
-  .btn { width: 100%; padding: 15px; border: none; border-radius: var(--radius-sm); font-size: 16px; font-weight: 600; font-family: var(--font); cursor: pointer; transition: opacity 0.15s, transform 0.1s; }
-  .btn:active { transform: scale(0.98); opacity: 0.85; }
-  .btn-primary { background: var(--blue); color: white; }
-  .btn-sm { padding: 8px 14px; font-size: 13px; font-weight: 500; border-radius: var(--radius-sm); border: none; cursor: pointer; font-family: var(--font); }
-
-  /* SEGMENT CONTROL */
-  .segment { display: flex; background: var(--light); border-radius: var(--radius-sm); padding: 3px; margin-bottom: 14px; }
-  .segment button { flex: 1; padding: 8px 4px; border: none; background: none; border-radius: 6px; font-size: 13px; font-weight: 500; font-family: var(--font); color: var(--muted); cursor: pointer; transition: all 0.15s; }
-  .segment button.active { background: white; color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
-
-  /* CHART */
-  .chart-wrap { position: relative; width: 100%; height: 280px; }
-
-  /* HISTORY TABLE */
-  .history-row { display: grid; grid-template-columns: 40px 1fr 1fr 1fr 1fr 32px; gap: 4px; align-items: center; padding: 10px 0; border-bottom: 0.5px solid var(--border); font-size: 13px; }
-  .history-row.header { font-size: 11px; font-weight: 600; color: var(--muted); padding: 6px 0; }
-  .del-btn { background: none; border: none; color: #E24B4A; font-size: 16px; cursor: pointer; padding: 4px; }
-
-  /* SETUP */
-  .setup-wrap { padding: 20px 16px; }
-  .setup-step { background: var(--card); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; border: 0.5px solid var(--border); }
-  .setup-step h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
-  .setup-step p { font-size: 14px; color: var(--muted); line-height: 1.5; margin-bottom: 8px; }
-  .setup-step code { display: block; background: var(--light); border-radius: 6px; padding: 10px 12px; font-size: 12px; font-family: "SF Mono", Menlo, monospace; word-break: break-all; color: var(--text); margin-top: 6px; user-select: all; -webkit-user-select: all; }
-  .url-input { width: 100%; padding: 13px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; font-family: var(--font); background: var(--light); color: var(--text); outline: none; }
-  .url-input:focus { border-color: var(--blue); background: white; }
-
-  /* STATUS */
-  .toast { position: fixed; top: 60px; left: 50%; transform: translateX(-50%); background: #1a1a1a; color: white; padding: 10px 20px; border-radius: 20px; font-size: 14px; font-weight: 500; opacity: 0; transition: opacity 0.2s; pointer-events: none; z-index: 200; white-space: nowrap; }
-  .toast.show { opacity: 1; }
-
-  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; margin-right: 6px; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  .status-bar { padding: 8px 16px; font-size: 12px; color: var(--muted); text-align: center; }
-  .empty { text-align: center; padding: 40px 20px; color: var(--muted); font-size: 14px; }
+:root {
+  --bg: #f5f5f7; --card: #ffffff; --text: #1d1d1f; --muted: #86868b;
+  --sophia: #2E86AB; --antonella: #E76F51;
+  --primary: #4A6FA5; --border: #e5e5ea; --danger: #ff3b30;
+  --tab-bg: #ffffff; --tab-active: #4A6FA5;
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body { font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',sans-serif; background:var(--bg); color:var(--text); padding-bottom:70px; min-height:100vh; }
+.page { display:none; padding:16px 16px 24px; max-width:480px; margin:0 auto; }
+.page.active { display:block; }
+h1 { font-size:22px; font-weight:700; margin-bottom:4px; }
+h2 { font-size:17px; font-weight:600; margin:20px 0 10px; color:var(--text); }
+.subtitle { font-size:13px; color:var(--muted); margin-bottom:16px; }
+.card { background:var(--card); border-radius:14px; padding:16px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.06); }
+.baby-toggle { display:flex; gap:0; background:var(--bg); border-radius:10px; padding:3px; margin-bottom:16px; }
+.baby-toggle button { flex:1; padding:10px 8px; border:none; border-radius:8px; font-size:15px; font-weight:600; background:transparent; color:var(--muted); cursor:pointer; transition:all 0.2s; }
+.baby-toggle button.active-sophia { background:var(--sophia); color:white; }
+.baby-toggle button.active-antonella { background:var(--antonella); color:white; }
+.form-group { margin-bottom:14px; }
+.form-group label { display:block; font-size:13px; font-weight:500; color:var(--muted); margin-bottom:5px; text-transform:uppercase; letter-spacing:0.5px; }
+.form-group input, .form-group select { width:100%; padding:12px 14px; border:1.5px solid var(--border); border-radius:10px; font-size:17px; background:var(--card); color:var(--text); -webkit-appearance:none; }
+.form-group input:focus, .form-group select:focus { outline:none; border-color:var(--primary); }
+.btn { width:100%; padding:14px; border:none; border-radius:12px; font-size:16px; font-weight:600; cursor:pointer; transition:all 0.15s; }
+.btn-primary { background:var(--primary); color:white; }
+.btn-primary:active { transform:scale(0.98); opacity:0.9; }
+.btn-share { background:#34c759; color:white; margin-top:8px; }
+.btn-danger { background:transparent; color:var(--danger); border:1.5px solid var(--danger); margin-top:8px; }
+.chart-container { position:relative; width:100%; margin-bottom:8px; }
+.chart-container canvas { width:100%!important; }
+.chart-label { font-size:12px; color:var(--muted); text-align:center; margin-bottom:16px; font-style:italic; }
+.data-row { display:flex; align-items:center; padding:12px 0; border-bottom:1px solid var(--border); gap:10px; }
+.data-row:last-child { border-bottom:none; }
+.data-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.data-info { flex:1; }
+.data-name { font-size:14px; font-weight:600; }
+.data-detail { font-size:12px; color:var(--muted); }
+.data-delete { background:none; border:none; color:var(--danger); font-size:22px; padding:4px 8px; cursor:pointer; }
+.feed-result { display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px solid var(--border); }
+.feed-result:last-child { border-bottom:none; }
+.feed-name { font-size:15px; font-weight:500; }
+.feed-amount { text-align:right; }
+.feed-daily { font-size:16px; font-weight:700; color:var(--primary); }
+.feed-per { font-size:12px; color:var(--muted); }
+.summary-row { display:flex; justify-content:space-between; padding:8px 0; }
+.summary-label { color:var(--muted); font-size:14px; }
+.summary-value { font-weight:600; font-size:14px; }
+.tab-bar { position:fixed; bottom:0; left:0; right:0; background:var(--tab-bg); border-top:1px solid var(--border); display:flex; padding-bottom:env(safe-area-inset-bottom, 8px); z-index:100; }
+.tab-bar button { flex:1; display:flex; flex-direction:column; align-items:center; padding:8px 4px 4px; border:none; background:transparent; color:var(--muted); font-size:10px; font-weight:500; cursor:pointer; gap:3px; }
+.tab-bar button.active { color:var(--tab-active); }
+.tab-bar svg { width:24px; height:24px; }
+.empty-state { text-align:center; padding:40px 20px; color:var(--muted); }
+.empty-state p { font-size:15px; margin-top:8px; }
+.age-banner { background:linear-gradient(135deg,var(--sophia),var(--antonella)); color:white; border-radius:14px; padding:14px 16px; margin-bottom:16px; display:flex; justify-content:space-between; }
+.age-banner div { text-align:center; }
+.age-banner .age-num { font-size:22px; font-weight:700; }
+.age-banner .age-label { font-size:11px; opacity:0.85; text-transform:uppercase; letter-spacing:0.5px; }
+.growth-toggle { display:flex; gap:0; background:var(--bg); border-radius:8px; padding:2px; margin-bottom:14px; }
+.growth-toggle button { flex:1; padding:8px; border:none; border-radius:7px; font-size:13px; font-weight:600; background:transparent; color:var(--muted); cursor:pointer; }
+.growth-toggle button.active { background:var(--card); color:var(--text); box-shadow:0 1px 2px rgba(0,0,0,0.08); }
+.legend-row { display:flex; align-items:center; gap:8px; margin-bottom:4px; font-size:12px; }
+.legend-dot { width:12px; height:12px; border-radius:50%; }
+.legend-line { width:20px; height:2px; }
+.feed-slider { width:100%; margin:4px 0; }
+.slider-labels { display:flex; justify-content:space-between; font-size:11px; color:var(--muted); }
+.note { font-size:11px; color:var(--muted); padding:6px 0; line-height:1.4; }
 </style>
 </head>
 <body>
 
-<!-- TOAST -->
-<div class="toast" id="toast"></div>
-
-<!-- PAGE: HOME -->
-<div class="page active" id="page-home">
-  <div class="header">
-    <h1>Soso &amp; Lella</h1>
-    <p id="home-subtitle">Born Feb 12 2026 · 33w2d</p>
-  </div>
-  <div class="twins-row">
-    <div class="twin-card">
-      <div class="twin-name" style="color:var(--soso)">Soso</div>
-      <div class="twin-stat" id="soso-weight-disp">— g</div>
-      <div class="twin-sub" id="soso-week-disp">no data yet</div>
-      <div class="twin-pct" id="soso-pct" style="background:#FCE7EF;color:#993556">—</div>
-    </div>
-    <div class="twin-card">
-      <div class="twin-name" style="color:var(--lella)">Lella</div>
-      <div class="twin-stat" id="lella-weight-disp">— g</div>
-      <div class="twin-sub" id="lella-week-disp">no data yet</div>
-      <div class="twin-pct" id="lella-pct" style="background:#D8F3EC;color:#0F6E56">—</div>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card-title">Feeding guide · latest weight</div>
-    <div id="feeding-content"><p style="color:var(--muted);font-size:13px">Add a measurement first.</p></div>
-  </div>
-</div>
-
-<!-- PAGE: CHART -->
-<div class="page" id="page-chart">
-  <div class="header">
-    <h1>Growth chart</h1>
-    <p>Fenton 2013 · preterm girls</p>
+<!-- TRACK PAGE -->
+<div id="page-track" class="page active">
+  <h1>Soso & Lella</h1>
+  <p class="subtitle">Growth Tracker</p>
+  <div id="age-banner" class="age-banner">
+    <div><span class="age-num" id="chrono-age">--</span><br><span class="age-label">Weeks old</span></div>
+    <div><span class="age-num" id="corrected-age">--</span><br><span class="age-label">Corrected</span></div>
+    <div><span class="age-num" id="pma-age">--</span><br><span class="age-label">PMA weeks</span></div>
   </div>
   <div class="card">
-    <div class="segment" id="seg-baby">
-      <button class="active" onclick="setBaby('soso')">Soso</button>
-      <button onclick="setBaby('lella')">Lella</button>
+    <div class="baby-toggle" id="input-toggle">
+      <button onclick="selectBaby('Sophia')" class="active-sophia">Soso</button>
+      <button onclick="selectBaby('Antonella')">Lella</button>
     </div>
-    <div class="segment" id="seg-metric">
-      <button class="active" onclick="setMetric('weight')">Weight (g)</button>
-      <button onclick="setMetric('length')">Length (cm)</button>
+    <div class="form-group">
+      <label>Date of Measurement</label>
+      <input type="date" id="inp-date" oninput="updateWeekHelper()">
+      <div id="week-helper" class="note" style="margin-top:4px"></div>
     </div>
-    <div class="chart-wrap"><canvas id="growthChart"></canvas></div>
-    <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;font-size:11px;color:var(--muted)">
-      <span><span style="display:inline-block;width:8px;height:8px;background:#B5D4F4;border-radius:2px;margin-right:4px"></span>97th / 3rd</span>
-      <span><span style="display:inline-block;width:8px;height:8px;background:#85B7EB;border-radius:2px;margin-right:4px"></span>90th / 10th</span>
-      <span><span style="display:inline-block;width:8px;height:8px;background:#378ADD;border-radius:2px;margin-right:4px"></span>50th</span>
-      <span id="baby-legend-item"><span id="baby-legend-dot" style="display:inline-block;width:8px;height:8px;background:var(--soso);border-radius:50%;margin-right:4px"></span><span id="baby-legend-name">Soso</span></span>
+    <div class="form-group">
+      <label>Weight (grams)</label>
+      <input type="number" id="inp-weight" placeholder="e.g. 3200" min="500" max="20000" inputmode="numeric">
     </div>
+    <div class="form-group">
+      <label>Length (cm)</label>
+      <input type="number" id="inp-length" placeholder="e.g. 48.5" min="30" max="100" inputmode="decimal" step="0.1">
+    </div>
+    <button class="btn btn-primary" onclick="saveMeasurement()">Save Measurement</button>
+  </div>
+  <div id="latest-summary"></div>
+</div>
+
+<!-- GROWTH PAGE -->
+<div id="page-growth" class="page">
+  <h1>Growth Curves</h1>
+  <p class="subtitle">Fenton preterm (33w) & term standards -- Girls</p>
+  <div class="growth-toggle" id="metric-toggle">
+    <button class="active" onclick="switchMetric('weight')">Weight</button>
+    <button onclick="switchMetric('length')">Length</button>
+  </div>
+
+  <div id="charts-weight">
+    <h2>Fenton Preterm -- Weight</h2>
+    <div class="baby-chart-header" style="color:var(--sophia);font-weight:600;font-size:14px;margin:8px 0 4px">Soso</div>
+    <div class="chart-container"><canvas id="fenton-weight-sophia"></canvas></div>
+    <div class="baby-chart-header" style="color:var(--antonella);font-weight:600;font-size:14px;margin:8px 0 4px">Lella</div>
+    <div class="chart-container"><canvas id="fenton-weight-antonella"></canvas></div>
+    <p class="chart-label">Postmenstrual age (weeks) | Weight in grams</p>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin:16px 0 4px">
+      <h2 style="margin:0" id="term-weight-title">Term -- Weight</h2>
+      <div class="growth-toggle" id="term-model-toggle-w" style="margin:0;width:auto;min-width:160px">
+        <button class="active" onclick="switchTermModel('CDC')" style="padding:6px 10px;font-size:12px">CDC</button>
+        <button onclick="switchTermModel('WHO')" style="padding:6px 10px;font-size:12px">WHO</button>
+      </div>
+    </div>
+    <p class="note" id="term-note-w">CDC 2000: based on US infant population (likely matches UHealth Holtz charts)</p>
+    <div class="baby-chart-header" style="color:var(--sophia);font-weight:600;font-size:14px;margin:8px 0 4px">Soso</div>
+    <div class="chart-container"><canvas id="term-weight-sophia"></canvas></div>
+    <div class="baby-chart-header" style="color:var(--antonella);font-weight:600;font-size:14px;margin:8px 0 4px">Lella</div>
+    <div class="chart-container"><canvas id="term-weight-antonella"></canvas></div>
+    <p class="chart-label">Corrected age (months) | Weight in kg</p>
+  </div>
+
+  <div id="charts-length" style="display:none">
+    <h2>Fenton Preterm -- Length</h2>
+    <div class="baby-chart-header" style="color:var(--sophia);font-weight:600;font-size:14px;margin:8px 0 4px">Soso</div>
+    <div class="chart-container"><canvas id="fenton-length-sophia"></canvas></div>
+    <div class="baby-chart-header" style="color:var(--antonella);font-weight:600;font-size:14px;margin:8px 0 4px">Lella</div>
+    <div class="chart-container"><canvas id="fenton-length-antonella"></canvas></div>
+    <p class="chart-label">Postmenstrual age (weeks) | Length in cm</p>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin:16px 0 4px">
+      <h2 style="margin:0" id="term-length-title">Term -- Length</h2>
+      <div class="growth-toggle" id="term-model-toggle-l" style="margin:0;width:auto;min-width:160px">
+        <button class="active" onclick="switchTermModel('CDC')" style="padding:6px 10px;font-size:12px">CDC</button>
+        <button onclick="switchTermModel('WHO')" style="padding:6px 10px;font-size:12px">WHO</button>
+      </div>
+    </div>
+    <p class="note" id="term-note-l">CDC 2000: based on US infant population (likely matches UHealth Holtz charts)</p>
+    <div class="baby-chart-header" style="color:var(--sophia);font-weight:600;font-size:14px;margin:8px 0 4px">Soso</div>
+    <div class="chart-container"><canvas id="term-length-sophia"></canvas></div>
+    <div class="baby-chart-header" style="color:var(--antonella);font-weight:600;font-size:14px;margin:8px 0 4px">Lella</div>
+    <div class="chart-container"><canvas id="term-length-antonella"></canvas></div>
+    <p class="chart-label">Corrected age (months) | Length in cm</p>
+  </div>
+
+  <div class="card" style="margin-top:8px">
+    <div class="legend-row"><div class="legend-dot" style="background:var(--sophia)"></div> Sophia (Soso)</div>
+    <div class="legend-row"><div class="legend-dot" style="background:var(--antonella)"></div> Antonella (Lella)</div>
+    <div class="legend-row"><div class="legend-line" style="background:#555"></div> P50 (median)</div>
+    <div class="legend-row"><div class="legend-line" style="background:#aaa;height:1px"></div> P3 / P10 / P90 / P97</div>
+    <div class="legend-row"><div style="width:20px;height:12px;background:rgba(79,129,189,0.15);border-radius:2px"></div> Normal range bands</div>
   </div>
 </div>
 
-<!-- PAGE: ADD -->
-<div class="page" id="page-add">
-  <div class="header">
-    <h1>Add measurement</h1>
-    <p>Week of life + weight & length</p>
+<!-- FEED PAGE -->
+<div id="page-feed" class="page">
+  <h1>Feeding Calculator</h1>
+  <p class="subtitle">Daily volume based on latest weight</p>
+  <div class="baby-toggle" id="feed-toggle">
+    <button onclick="selectFeedBaby('Sophia')" class="active-sophia">Soso</button>
+    <button onclick="selectFeedBaby('Antonella')">Lella</button>
+  </div>
+  <div class="card" id="feed-weight-card">
+    <div class="summary-row"><span class="summary-label">Latest weight</span><span class="summary-value" id="feed-latest-weight">--</span></div>
+    <div class="summary-row"><span class="summary-label">Week of life</span><span class="summary-value" id="feed-latest-week">--</span></div>
   </div>
   <div class="card">
-    <div class="form-row one">
-      <div>
-        <label>Week of life (1, 2, 3 ...)</label>
-        <input type="number" id="inp-week" min="0" max="60" step="1" placeholder="e.g. 4">
-      </div>
+    <div class="form-group">
+      <label>Caloric target (kcal/kg/day)</label>
+      <input type="range" id="kcal-slider" class="feed-slider" min="100" max="140" value="120" oninput="updateFeed()">
+      <div class="slider-labels"><span>100</span><span id="kcal-display">120</span><span>140</span></div>
     </div>
-    <div class="section-label"><span class="dot" style="background:var(--soso)"></span>Soso</div>
-    <div class="form-row two">
-      <div>
-        <label>Weight (grams)</label>
-        <input type="number" id="inp-soso-w" min="200" max="8000" step="10" placeholder="e.g. 2150">
-      </div>
-      <div>
-        <label>Length (cm)</label>
-        <input type="number" id="inp-soso-l" min="20" max="80" step="0.1" placeholder="e.g. 43.5">
-      </div>
+    <div class="form-group">
+      <label>Feeds per day</label>
+      <input type="range" id="feeds-slider" class="feed-slider" min="4" max="12" value="8" oninput="updateFeed()">
+      <div class="slider-labels"><span>4</span><span id="feeds-display">8</span><span>12</span></div>
     </div>
-    <div class="section-label"><span class="dot" style="background:var(--lella)"></span>Lella</div>
-    <div class="form-row two">
-      <div>
-        <label>Weight (grams)</label>
-        <input type="number" id="inp-lella-w" min="200" max="8000" step="10" placeholder="e.g. 2080">
-      </div>
-      <div>
-        <label>Length (cm)</label>
-        <input type="number" id="inp-lella-l" min="20" max="80" step="0.1" placeholder="e.g. 43.0">
-      </div>
+  </div>
+  <div class="card" id="feed-results">
+    <div class="feed-result">
+      <span class="feed-name">Breast Milk<br><span style="font-size:11px;color:var(--muted)">~67 kcal/100ml</span></span>
+      <div class="feed-amount"><div class="feed-daily" id="feed-bm-daily">--</div><div class="feed-per" id="feed-bm-per">--</div></div>
     </div>
-    <button class="btn btn-primary" id="btn-save" onclick="saveEntry()">Save</button>
+    <div class="feed-result">
+      <span class="feed-name">Kendamil Stage 1<br><span style="font-size:11px;color:var(--muted)">~67 kcal/100ml (20cal/oz)</span></span>
+      <div class="feed-amount"><div class="feed-daily" id="feed-kd-daily">--</div><div class="feed-per" id="feed-kd-per">--</div></div>
+    </div>
+    <div class="feed-result">
+      <span class="feed-name">Enfamil EnfaCare<br><span style="font-size:11px;color:var(--muted)">~74 kcal/100ml (22cal/oz)</span></span>
+      <div class="feed-amount"><div class="feed-daily" id="feed-ec-daily">--</div><div class="feed-per" id="feed-ec-per">--</div></div>
+    </div>
+  </div>
+  <div class="card" id="feed-reco-card">
+    <div style="font-weight:600;font-size:15px;margin-bottom:10px;color:var(--text)">Pediatric Guidelines</div>
+    <div id="feed-reco-age" style="font-size:12px;color:var(--muted);margin-bottom:10px"></div>
+    <div id="feed-reco-body" style="font-size:13px;line-height:1.55;color:var(--text)"></div>
+    <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+      <div id="feed-reco-formula" style="font-size:13px;line-height:1.55;color:var(--text)"></div>
+    </div>
+    <p class="note" style="margin-top:10px">Sources: AAP Committee on Nutrition, ESPGHAN 2022, Kleinman & Greer (Pediatric Nutrition, 8th ed.). These are general guidelines -- always defer to your pediatrician at UHealth Holtz.</p>
   </div>
 </div>
 
-<!-- PAGE: HISTORY -->
-<div class="page" id="page-history">
-  <div class="header">
-    <h1>History</h1>
-    <p id="history-subtitle">All measurements</p>
-  </div>
-  <div class="card" style="padding:0 16px">
-    <div id="history-list"><div class="empty">No measurements yet.</div></div>
-  </div>
-</div>
-
-<!-- PAGE: SETUP -->
-<div class="page" id="page-setup">
-  <div class="header">
-    <h1>Setup</h1>
-    <p>Connect to Google Sheets</p>
-  </div>
-  <div class="setup-wrap">
-
-    <div class="setup-step">
-      <h3>Step 1 — Create a Google Sheet</h3>
-      <p>Go to <strong>sheets.new</strong> in any browser. You don't need to do anything else to the sheet itself.</p>
-    </div>
-
-    <div class="setup-step">
-      <h3>Step 2 — Open Apps Script</h3>
-      <p>In your new Sheet, tap the menu <strong>Extensions → Apps Script</strong>. Delete whatever code is there.</p>
-    </div>
-
-    <div class="setup-step">
-      <h3>Step 3 — Paste the backend code</h3>
-      <p>Copy the entire contents of the file <strong>apps_script.js</strong> (provided alongside this app) and paste it into the Apps Script editor. Then tap <strong>Save</strong>.</p>
-    </div>
-
-    <div class="setup-step">
-      <h3>Step 4 — Deploy as Web App</h3>
-      <p>Tap <strong>Deploy → New deployment</strong>. Select type <strong>Web app</strong>. Set <em>Execute as</em> to <strong>Me</strong> and <em>Who has access</em> to <strong>Anyone</strong>. Tap <strong>Deploy</strong> and authorize it. Copy the Web App URL.</p>
-    </div>
-
-    <div class="setup-step">
-      <h3>Step 5 — Paste the URL below</h3>
-      <p>Paste your Web App URL here and tap Save. Share the same URL with your girlfriend — she opens this same HTML file and does the same step.</p>
-      <input class="url-input" type="text" id="sheets-url" placeholder="https://script.google.com/macros/s/..." oninput="urlChanged()">
-      <button class="btn btn-primary" style="margin-top:10px" onclick="saveUrl()">Save URL &amp; connect</button>
-    </div>
-
-    <div class="setup-step" id="connection-status-card" style="display:none">
-      <h3>Connection status</h3>
-      <p id="conn-status-text" style="color:var(--muted)">Not tested yet.</p>
-      <button class="btn-sm" style="background:var(--light);color:var(--text);margin-top:8px" onclick="testConnection()">Test connection</button>
-    </div>
-
-    <div class="setup-step">
-      <h3>Add to iPhone home screen</h3>
-      <p>Open this file in Safari. Tap the <strong>Share</strong> button (box with arrow), then <strong>Add to Home Screen</strong>. Both you and your girlfriend do this — the app icon will appear on your home screen like a real app.</p>
-    </div>
-
+<!-- DATA PAGE -->
+<div id="page-data" class="page">
+  <h1>Data</h1>
+  <p class="subtitle">All measurements & sync</p>
+  <button class="btn btn-share" onclick="shareData()">Share / Sync Data</button>
+  <button class="btn btn-danger" onclick="clearAll()" style="margin-bottom:16px">Clear All Data</button>
+  <div class="card" id="data-list">
+    <div class="empty-state"><p>No measurements yet</p></div>
   </div>
 </div>
 
-<!-- BOTTOM NAV -->
-<nav>
-  <button class="active" onclick="showPage('home',this)" id="nav-home">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-    Home
+<!-- TAB BAR -->
+<div class="tab-bar">
+  <button class="active" onclick="switchPage('track')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4m-10-10h4m12 0h4"/></svg>
+    Track
   </button>
-  <button onclick="showPage('chart',this)" id="nav-chart">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-    Chart
+  <button onclick="switchPage('growth')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    Growth
   </button>
-  <button onclick="showPage('add',this)" id="nav-add">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
-    Add
+  <button onclick="switchPage('feed')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2h8l-2 18H10L8 2z"/><path d="M6 8h12"/></svg>
+    Feed
   </button>
-  <button onclick="showPage('history',this)" id="nav-history">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-    History
+  <button onclick="switchPage('data')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg>
+    Data
   </button>
-  <button onclick="showPage('setup',this)" id="nav-setup">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-    Setup
-  </button>
-</nav>
+</div>
 
 <script>
-// ─── CONFIG ───────────────────────────────────────────────────────────────────
-const BIRTH_DATE = new Date("2026-02-12");
-const BIRTH_GA = 33 + 2/7;
-
-// ─── FENTON 2013 GIRLS ────────────────────────────────────────────────────────
-// [pma_weeks, p3, p10, p50, p90, p97]
-const FW = [ // weight (g)
-  [24,490,560,690,870,980],[25,580,660,820,1030,1160],[26,680,780,970,1220,1370],
-  [27,800,920,1140,1430,1610],[28,930,1070,1330,1670,1880],[29,1080,1240,1540,1930,2180],
-  [30,1240,1430,1770,2210,2490],[31,1410,1630,2010,2510,2830],[32,1600,1840,2270,2830,3190],
-  [33,1790,2060,2530,3150,3540],[34,2000,2290,2800,3470,3890],[35,2200,2520,3060,3780,4230],
-  [36,2400,2740,3310,4070,4550],[37,2590,2950,3540,4330,4830],[38,2770,3150,3760,4570,5090],
-  [39,2940,3340,3960,4790,5320],[40,3090,3500,4140,4980,5530],[41,3220,3640,4290,5150,5710],
-  [42,3330,3760,4430,5300,5870],[43,3420,3860,4540,5430,6010],[44,3500,3940,4640,5540,6130],
-  [45,3570,4010,4720,5640,6240],[46,3620,4070,4790,5710,6330],[47,3660,4120,4840,5780,6400],
-  [48,3700,4160,4890,5830,6460],[49,3730,4190,4930,5880,6510],[50,3750,4210,4960,5920,6550],
-];
-const FL = [ // length (cm)
-  [24,28.5,29.5,31.5,33.5,34.8],[25,30.0,31.0,33.0,35.3,36.6],[26,31.5,32.6,34.7,37.0,38.4],
-  [27,33.0,34.2,36.4,38.8,40.2],[28,34.5,35.8,38.1,40.5,42.0],[29,36.0,37.3,39.7,42.2,43.7],
-  [30,37.4,38.8,41.3,43.8,45.3],[31,38.8,40.2,42.8,45.4,46.9],[32,40.2,41.6,44.2,46.8,48.3],
-  [33,41.5,43.0,45.6,48.2,49.7],[34,42.8,44.3,46.9,49.5,51.0],[35,44.0,45.5,48.1,50.7,52.2],
-  [36,45.2,46.7,49.3,51.9,53.3],[37,46.3,47.8,50.4,53.0,54.4],[38,47.3,48.8,51.4,54.0,55.4],
-  [39,48.2,49.7,52.3,54.9,56.3],[40,49.0,50.5,53.1,55.7,57.1],[41,49.7,51.2,53.8,56.4,57.8],
-  [42,50.3,51.8,54.4,57.0,58.4],[43,50.9,52.4,55.0,57.6,59.0],[44,51.4,52.9,55.5,58.1,59.5],
-  [45,51.8,53.3,55.9,58.5,59.9],[46,52.2,53.7,56.3,58.9,60.3],[47,52.5,54.0,56.6,59.2,60.6],
-  [48,52.8,54.3,56.9,59.5,60.9],[49,53.0,54.5,57.1,59.7,61.1],[50,53.2,54.7,57.3,59.9,61.3],
-];
-
-// ─── FEEDING FORMULAS ─────────────────────────────────────────────────────────
-const FORMULAS = {
-  breastmilk:  { name:"Breast milk",              kcal:67,  note:"~67 kcal/100ml average" },
-  kendamil:    { name:"Kendamil Stage 1",          kcal:66,  note:"Standard term formula — not a catch-up" },
-  enfacare:    { name:"Enfamil NeuroPro EnfaCare", kcal:74,  note:"Preterm catch-up · 22 kcal/fl oz" },
+// ============================================================
+// CONFIGURATION
+// ============================================================
+const CONFIG = {
+  GA_BIRTH: 33 + 2/7,
+  TERM: 40,
+  BIRTH_DATE: new Date(2026, 1, 12),
+  get PREM_OFFSET() { return this.TERM - this.GA_BIRTH; }
 };
 
-// ─── STATE ────────────────────────────────────────────────────────────────────
-let entries = [];
-let sheetUrl = localStorage.getItem("sheetUrl") || "";
-let currentBaby = "soso";
-let currentMetric = "weight";
-let growthChart = null;
-
-// ─── HELPERS ──────────────────────────────────────────────────────────────────
-function pma(week) { return +(BIRTH_GA + parseFloat(week)).toFixed(2); }
-
-function interpolate(table, pmaNow) {
-  if (pmaNow <= table[0][0]) return table[0].slice(1);
-  if (pmaNow >= table[table.length-1][0]) return table[table.length-1].slice(1);
-  for (let i=0;i<table.length-1;i++) {
-    if (table[i][0] <= pmaNow && table[i+1][0] > pmaNow) {
-      const t=(pmaNow-table[i][0])/(table[i+1][0]-table[i][0]);
-      return table[i].slice(1).map((v,j)=>+(v+t*(table[i+1][j+1]-v)).toFixed(1));
-    }
+// ============================================================
+// FENTON 2013 PRETERM GIRLS (weeks 24-50 PMA)
+// ============================================================
+const FENTON = {
+  weeks: [24,26,28,30,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50],
+  weight: {
+    P3:  [430,550,700,880,1100,1230,1370,1520,1690,1870,2040,2190,2310,2430,2560,2690,2850,3000,3170,3330,3510,3690,3870],
+    P10: [500,650,830,1050,1310,1460,1620,1790,1980,2170,2360,2520,2660,2800,2930,3070,3230,3380,3570,3740,3930,4120,4310],
+    P50: [650,850,1100,1380,1710,1890,2090,2300,2520,2740,2940,3110,3260,3400,3540,3690,3890,4050,4290,4460,4710,4880,5150],
+    P90: [820,1080,1400,1760,2170,2380,2610,2850,3090,3310,3510,3690,3830,3980,4130,4290,4510,4690,4950,5140,5420,5610,5900],
+    P97: [920,1210,1570,1980,2430,2660,2910,3160,3410,3640,3840,4010,4150,4300,4460,4630,4860,5050,5320,5520,5810,6010,6320]
+  },
+  length: {
+    P3:  [27.0,30.0,32.5,35.0,37.5,38.5,39.5,40.5,41.5,42.5,43.5,44.3,45.0,45.7,46.5,47.2,48.0,48.7,49.5,50.2,51.0,51.7,52.5],
+    P10: [28.0,31.0,33.5,36.0,38.5,39.5,40.5,41.5,42.5,43.5,44.5,45.3,46.0,46.7,47.5,48.2,49.0,49.7,50.5,51.2,52.0,52.7,53.5],
+    P50: [30.5,33.5,36.0,38.5,41.0,42.0,43.0,44.0,45.0,46.0,47.0,47.8,48.5,49.2,50.0,50.7,51.5,52.2,53.0,53.7,54.5,55.2,56.0],
+    P90: [33.0,36.0,38.5,41.0,43.5,44.5,45.5,46.5,47.5,48.5,49.3,50.0,51.0,51.7,52.5,53.2,54.0,54.7,55.5,56.2,57.0,57.7,58.5],
+    P97: [34.0,37.0,39.5,42.0,44.5,45.5,46.5,47.5,48.5,49.5,50.3,51.0,52.0,52.7,53.5,54.2,55.0,55.7,56.5,57.2,58.0,58.7,59.5]
   }
-  return table[0].slice(1);
+};
+
+// ============================================================
+// WHO 2006 GIRLS (corrected age in months, 0-24)
+// ============================================================
+const WHO = {
+  months: [0,1,2,3,4,5,6,7,8,9,10,11,12,15,18,21,24],
+  weight: {
+    P3:  [2.4,3.2,3.9,4.5,5.0,5.4,5.7,6.0,6.3,6.5,6.7,6.9,7.0,7.6,8.1,8.6,9.0],
+    P10: [2.8,3.6,4.5,5.2,5.7,6.1,6.5,6.8,7.0,7.3,7.5,7.7,7.9,8.5,9.1,9.6,10.2],
+    P50: [3.2,4.2,5.1,5.8,6.4,6.9,7.3,7.6,7.9,8.2,8.5,8.7,8.9,9.6,10.2,10.9,11.5],
+    P90: [3.9,5.0,6.0,6.9,7.5,8.1,8.5,8.9,9.2,9.5,9.8,10.1,10.3,11.1,11.8,12.6,13.2],
+    P97: [4.2,5.5,6.6,7.5,8.2,8.8,9.3,9.8,10.2,10.5,10.9,11.2,11.5,12.4,13.2,14.0,14.8]
+  },
+  length: {
+    P3:  [45.4,49.8,53.0,55.6,57.8,59.6,61.2,62.7,64.0,65.3,66.5,67.7,68.9,72.0,74.9,77.5,80.0],
+    P10: [46.9,51.0,54.2,56.7,59.0,60.8,62.5,64.0,65.4,66.7,67.9,69.0,70.1,73.3,76.2,79.0,81.7],
+    P50: [49.1,53.7,57.1,59.8,62.1,64.0,65.7,67.3,68.7,70.1,71.5,72.8,74.0,77.5,80.7,83.7,86.4],
+    P90: [51.4,56.0,59.6,62.5,64.9,66.9,68.7,70.4,71.9,73.3,74.7,76.1,77.4,81.0,84.3,87.4,90.4],
+    P97: [52.9,57.6,61.1,64.0,66.4,68.5,70.3,71.9,73.5,75.0,76.4,77.8,79.2,83.0,86.5,89.6,92.5]
+  }
+};
+
+// ============================================================
+// CDC 2000 GIRLS (corrected age in months, 0-24)
+// Based on US infant population -- commonly used by US pediatricians
+// ============================================================
+const CDC = {
+  months: [0,1,2,3,4,5,6,7,8,9,10,11,12,15,18,21,24],
+  weight: { // kg
+    P3:  [2.3,3.0,3.7,4.2,4.7,5.1,5.4,5.7,5.9,6.2,6.4,6.5,6.7,7.3,7.8,8.4,8.9],
+    P10: [2.7,3.4,4.2,4.8,5.3,5.7,6.1,6.4,6.7,6.9,7.1,7.3,7.5,8.1,8.7,9.3,9.8],
+    P50: [3.2,4.0,4.9,5.6,6.2,6.7,7.1,7.4,7.7,8.0,8.2,8.4,8.7,9.4,10.0,10.7,11.3],
+    P90: [3.8,4.7,5.7,6.5,7.2,7.7,8.2,8.6,9.0,9.3,9.6,9.9,10.1,10.9,11.7,12.5,13.2],
+    P97: [4.2,5.2,6.3,7.2,8.0,8.6,9.1,9.6,10.0,10.4,10.7,11.0,11.3,12.2,13.1,13.9,14.7]
+  },
+  length: { // cm
+    P3:  [45.6,49.4,52.3,54.6,56.6,58.3,59.8,61.2,62.5,63.7,64.9,66.0,67.1,70.2,73.1,75.8,78.3],
+    P10: [47.1,50.9,53.8,56.3,58.3,60.1,61.7,63.1,64.4,65.7,66.9,68.1,69.2,72.5,75.5,78.3,80.9],
+    P50: [49.3,53.1,56.1,58.6,60.8,62.7,64.4,65.9,67.3,68.7,70.0,71.3,72.5,76.1,79.4,82.4,85.2],
+    P90: [51.4,55.3,58.4,61.0,63.3,65.3,67.0,68.7,70.2,71.7,73.1,74.4,75.8,79.7,83.2,86.4,89.4],
+    P97: [52.9,56.9,60.0,62.7,65.0,67.1,68.9,70.6,72.2,73.7,75.2,76.6,78.0,82.0,85.7,89.0,92.0]
+  }
+};
+
+// ============================================================
+// FORMULA DATA
+// ============================================================
+const FORMULAS = [
+  { name:'Breast Milk', kcal:67, idPrefix:'bm' },
+  { name:'Kendamil Stage 1', kcal:67, idPrefix:'kd' },
+  { name:'Enfamil EnfaCare', kcal:74, idPrefix:'ec' }
+];
+
+// ============================================================
+// STATE
+// ============================================================
+let state = { measurements: [] };
+let selectedBaby = 'Sophia';
+let feedBaby = 'Sophia';
+let currentMetric = 'weight';
+let termModel = 'CDC'; // CDC or WHO
+let charts = {};
+
+function loadState() {
+  try {
+    const hash = window.location.hash;
+    if (hash && hash.startsWith('#data=')) {
+      const encoded = hash.slice(6);
+      const json = decodeURIComponent(escape(atob(encoded)));
+      const imported = JSON.parse(json);
+      if (Array.isArray(imported)) {
+        state.measurements = imported;
+        saveToStorage();
+        history.replaceState(null, '', window.location.pathname);
+        return;
+      }
+    }
+  } catch(e) { console.warn('URL import failed', e); }
+  try {
+    const saved = localStorage.getItem('soso-lella-data');
+    if (saved) state = JSON.parse(saved);
+  } catch(e) { console.warn('localStorage load failed', e); }
 }
 
-function pctLabel(val, p3, p10, p50, p90, p97) {
-  if (val===null) return "—";
-  if (val < p3)  return "< 3rd";
-  if (val < p10) return "3rd–10th";
-  if (val < p50) return "10th–50th";
-  if (val < p90) return "50th–90th";
-  if (val < p97) return "90th–97th";
-  return "> 97th";
+function saveToStorage() {
+  try { localStorage.setItem('soso-lella-data', JSON.stringify(state)); } catch(e) {}
 }
 
-function calcAge() {
+// ============================================================
+// HELPERS
+// ============================================================
+function weekOfLifeNow() {
   const now = new Date();
-  const diffMs = now - BIRTH_DATE;
-  const weeks = Math.floor(diffMs / (7*24*60*60*1000));
-  return weeks;
+  const diff = now - CONFIG.BIRTH_DATE;
+  return Math.max(0, diff / (7 * 24 * 60 * 60 * 1000));
 }
 
-function toast(msg, duration=2000) {
-  const el = document.getElementById("toast");
-  el.textContent = msg;
-  el.classList.add("show");
-  setTimeout(()=>el.classList.remove("show"), duration);
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
 }
 
-// ─── GOOGLE SHEETS API ────────────────────────────────────────────────────────
-async function apiGet(params) {
-  if (!sheetUrl) throw new Error("No URL configured");
-  const url = sheetUrl + "?" + new URLSearchParams(params);
-  const r = await fetch(url);
-  return r.json();
+function correctedAgeMonths(weekOfLife) {
+  return (weekOfLife - CONFIG.PREM_OFFSET) / 4.345;
 }
 
-async function apiPost(data) {
-  if (!sheetUrl) throw new Error("No URL configured");
-  const r = await fetch(sheetUrl, {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body: JSON.stringify(data)
+function pma(weekOfLife) {
+  return CONFIG.GA_BIRTH + weekOfLife;
+}
+
+// ============================================================
+// PAGE NAVIGATION
+// ============================================================
+function switchPage(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.querySelectorAll('.tab-bar button').forEach((b,i) => {
+    b.classList.toggle('active', ['track','growth','feed','data'][i] === page);
   });
-  return r.json();
+  if (page === 'growth') setTimeout(renderAllCharts, 50);
+  if (page === 'feed') updateFeed();
+  if (page === 'data') renderDataList();
 }
 
-async function loadEntries() {
-  if (!sheetUrl) {
-    entries = JSON.parse(localStorage.getItem("entries_local")||"[]");
-    renderAll();
-    return;
-  }
-  try {
-    const d = await apiGet({action:"list"});
-    entries = (d.entries||[]).map(e=>({
-      ...e,
-      week: parseFloat(e.week),
-      soso_weight: e.soso_weight ? parseFloat(e.soso_weight) : null,
-      soso_length: e.soso_length ? parseFloat(e.soso_length) : null,
-      lella_weight: e.lella_weight ? parseFloat(e.lella_weight) : null,
-      lella_length: e.lella_length ? parseFloat(e.lella_length) : null,
-    })).sort((a,b)=>a.week-b.week);
-    localStorage.setItem("entries_local", JSON.stringify(entries));
-    renderAll();
-  } catch(e) {
-    entries = JSON.parse(localStorage.getItem("entries_local")||"[]");
-    renderAll();
-    toast("Offline — showing cached data");
-  }
+// ============================================================
+// BABY SELECTION
+// ============================================================
+function selectBaby(baby) {
+  selectedBaby = baby;
+  const btns = document.querySelectorAll('#input-toggle button');
+  btns[0].className = baby === 'Sophia' ? 'active-sophia' : '';
+  btns[1].className = baby === 'Antonella' ? 'active-antonella' : '';
 }
 
-async function saveEntry() {
-  const week = document.getElementById("inp-week").value;
-  if (!week) { toast("Enter week of life first"); return; }
-  const entry = {
-    id: Date.now().toString(),
-    week: parseFloat(week),
-    date: new Date().toLocaleDateString("en-US"),
-    soso_weight: document.getElementById("inp-soso-w").value ? parseFloat(document.getElementById("inp-soso-w").value) : null,
-    soso_length: document.getElementById("inp-soso-l").value ? parseFloat(document.getElementById("inp-soso-l").value) : null,
-    lella_weight: document.getElementById("inp-lella-w").value ? parseFloat(document.getElementById("inp-lella-w").value) : null,
-    lella_length: document.getElementById("inp-lella-l").value ? parseFloat(document.getElementById("inp-lella-l").value) : null,
+function selectFeedBaby(baby) {
+  feedBaby = baby;
+  const btns = document.querySelectorAll('#feed-toggle button');
+  btns[0].className = baby === 'Sophia' ? 'active-sophia' : '';
+  btns[1].className = baby === 'Antonella' ? 'active-antonella' : '';
+  updateFeed();
+}
+
+// ============================================================
+// METRIC + TERM MODEL TOGGLES
+// ============================================================
+function switchMetric(metric) {
+  currentMetric = metric;
+  const btns = document.querySelectorAll('#metric-toggle button');
+  btns[0].classList.toggle('active', metric === 'weight');
+  btns[1].classList.toggle('active', metric === 'length');
+  document.getElementById('charts-weight').style.display = metric === 'weight' ? 'block' : 'none';
+  document.getElementById('charts-length').style.display = metric === 'length' ? 'block' : 'none';
+  renderAllCharts();
+}
+
+function switchTermModel(model) {
+  termModel = model;
+  // Update both toggle sets
+  ['term-model-toggle-w','term-model-toggle-l'].forEach(id => {
+    const btns = document.querySelectorAll('#'+id+' button');
+    btns[0].classList.toggle('active', model === 'CDC');
+    btns[1].classList.toggle('active', model === 'WHO');
+  });
+  const noteText = model === 'CDC'
+    ? 'CDC 2000: based on US infant population (likely matches UHealth Holtz charts)'
+    : 'WHO 2006: international breastfed-infant standard (tends to show preterm babies further behind)';
+  document.getElementById('term-note-w').textContent = noteText;
+  document.getElementById('term-note-l').textContent = noteText;
+  renderAllCharts();
+}
+
+// ============================================================
+// DATE-BASED AGE CALCULATION
+// ============================================================
+function exactWeekOfLife(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00'); // noon to avoid timezone issues
+  const diff = d - CONFIG.BIRTH_DATE;
+  return Math.max(0, diff / (7 * 24 * 60 * 60 * 1000));
+}
+
+function formatPMA(weekOfLife) {
+  const totalWeeks = CONFIG.GA_BIRTH + weekOfLife;
+  const w = Math.floor(totalWeeks);
+  const d = Math.round((totalWeeks - w) * 7);
+  return w + 'w' + d + 'd';
+}
+
+function formatAge(weekOfLife) {
+  const w = Math.floor(weekOfLife);
+  const d = Math.round((weekOfLife - w) * 7);
+  return w + 'w' + d + 'd';
+}
+
+function updateWeekHelper() {
+  const dateVal = document.getElementById('inp-date').value;
+  const el = document.getElementById('week-helper');
+  if (!dateVal) { el.textContent = ''; return; }
+  const w = exactWeekOfLife(dateVal);
+  const pmaText = formatPMA(w);
+  const c = correctedAgeMonths(w);
+  const cText = c >= 0 ? c.toFixed(1) + ' months' : 'pre-term equivalent';
+  el.textContent = 'Age: ' + formatAge(w) + ' | PMA: ' + pmaText + ' | Corrected: ' + cText;
+  el.style.color = 'var(--muted)';
+}
+
+// ============================================================
+// SAVE MEASUREMENT
+// ============================================================
+function saveMeasurement() {
+  const dateVal = document.getElementById('inp-date').value;
+  const weight = parseInt(document.getElementById('inp-weight').value);
+  const length = parseFloat(document.getElementById('inp-length').value);
+  if (!dateVal) { alert('Select a measurement date'); return; }
+  if (!weight && !length) { alert('Enter weight and/or length'); return; }
+  const week = exactWeekOfLife(dateVal); // precise decimal weeks
+  const m = {
+    id: Date.now(),
+    baby: selectedBaby,
+    week: week,
+    weightG: weight || null,
+    lengthCm: length || null,
+    date: dateVal
   };
-
-  const btn = document.getElementById("btn-save");
-  btn.innerHTML = '<span class="spinner"></span>Saving…';
-  btn.disabled = true;
-
-  try {
-    if (sheetUrl) {
-      await apiPost(entry);
-    } else {
-      const local = JSON.parse(localStorage.getItem("entries_local")||"[]").filter(e=>e.week!==entry.week);
-      local.push(entry);
-      local.sort((a,b)=>a.week-b.week);
-      localStorage.setItem("entries_local", JSON.stringify(local));
-    }
-    document.getElementById("inp-week").value="";
-    document.getElementById("inp-soso-w").value="";
-    document.getElementById("inp-soso-l").value="";
-    document.getElementById("inp-lella-w").value="";
-    document.getElementById("inp-lella-l").value="";
-    await loadEntries();
-    toast("Saved!");
-    showPage("home", document.getElementById("nav-home"));
-  } catch(e) {
-    toast("Save failed — check connection");
-  } finally {
-    btn.innerHTML="Save";
-    btn.disabled=false;
-  }
+  // Remove existing entry for same baby + same date
+  state.measurements = state.measurements.filter(x => !(x.baby === m.baby && x.date === m.date));
+  state.measurements.push(m);
+  state.measurements.sort((a,b) => a.week - b.week || a.baby.localeCompare(b.baby));
+  saveToStorage();
+  document.getElementById('inp-weight').value = '';
+  document.getElementById('inp-length').value = '';
+  updateSummary();
+  renderAllCharts();
 }
 
-async function deleteEntry(id) {
-  if (!confirm("Delete this entry?")) return;
-  try {
-    if (sheetUrl) {
-      await apiGet({action:"delete", id});
-    } else {
-      const local = JSON.parse(localStorage.getItem("entries_local")||"[]").filter(e=>e.id!=id);
-      localStorage.setItem("entries_local", JSON.stringify(local));
-    }
-    await loadEntries();
-    toast("Deleted");
-  } catch(e) { toast("Delete failed"); }
-}
+// ============================================================
+// UPDATE SUMMARY
+// ============================================================
+function updateSummary() {
+  const el = document.getElementById('latest-summary');
+  const chronoWeeks = weekOfLifeNow();
+  const corrMonths = correctedAgeMonths(chronoWeeks);
+  const pmaWeeks = pma(chronoWeeks);
+  document.getElementById('chrono-age').textContent = formatAge(chronoWeeks);
+  document.getElementById('corrected-age').textContent = corrMonths >= 0 ? corrMonths.toFixed(1) + 'mo' : 'N/A';
+  document.getElementById('pma-age').textContent = formatPMA(chronoWeeks);
 
-// ─── RENDER ───────────────────────────────────────────────────────────────────
-function renderAll() {
-  renderHome();
-  renderHistory();
-  renderChart();
-}
-
-function latestFor(babyKey) {
-  return [...entries].reverse().find(e=>e[babyKey+"_weight"]!=null);
-}
-
-function renderHome() {
-  const ageWeeks = calcAge();
-  document.getElementById("home-subtitle").textContent =
-    `Born Feb 12 2026 · 33w2d · Age ~${ageWeeks}w`;
-
-  ["soso","lella"].forEach(b=>{
-    const last = latestFor(b);
-    const col = b==="soso"?"var(--soso)":"var(--lella)";
-    if (last) {
-      const pmaNow = pma(last.week);
-      const [p3,p10,p50,p90,p97] = interpolate(FW, pmaNow);
-      const pct = pctLabel(last[b+"_weight"], p3,p10,p50,p90,p97);
-      document.getElementById(b+"-weight-disp").textContent = last[b+"_weight"]+"g";
-      document.getElementById(b+"-week-disp").textContent = `Week ${last.week} · PMA ${pmaNow.toFixed(1)}w`;
-      document.getElementById(b+"-pct").textContent = "Weight: "+pct;
-    } else {
-      document.getElementById(b+"-weight-disp").textContent = "— g";
-      document.getElementById(b+"-week-disp").textContent = "no data yet";
-      document.getElementById(b+"-pct").textContent = "—";
-    }
-  });
-
-  // Feeding
-  const feedDiv = document.getElementById("feeding-content");
-  const lastSoso = latestFor("soso");
-  const lastLella = latestFor("lella");
-  if (!lastSoso && !lastLella) { feedDiv.innerHTML='<p style="color:var(--muted);font-size:13px">Add a measurement first.</p>'; return; }
-
-  let html = "";
-  [[lastSoso,"soso","var(--soso)","Soso"],[lastLella,"lella","var(--lella)","Lella"]].forEach(([last,key,col,name])=>{
-    if (!last) return;
-    const kg = last[key+"_weight"]/1000;
-    html += `<p style="font-size:13px;font-weight:700;color:${col};margin-bottom:8px">${name} — ${last[key+"_weight"]}g (${kg.toFixed(3)} kg)</p>`;
-    html += `<div style="overflow-x:auto;margin-bottom:14px"><table style="width:100%;border-collapse:collapse;font-size:12px">`;
-    html += `<tr style="border-bottom:0.5px solid var(--border)"><th style="text-align:left;padding:4px 6px;color:var(--muted);font-weight:500">Formula</th><th style="text-align:right;padding:4px 6px;color:var(--muted);font-weight:500">ml/day</th><th style="text-align:right;padding:4px 6px;color:var(--muted);font-weight:500">per feed (8x)</th><th style="text-align:right;padding:4px 6px;color:var(--muted);font-weight:500">per feed (10x)</th></tr>`;
-    Object.entries(FORMULAS).forEach(([k,f])=>{
-      const mlLo = Math.round((110*kg)/(f.kcal/100));
-      const mlHi = Math.round((130*kg)/(f.kcal/100));
-      const f8lo = Math.round(mlLo/8), f8hi = Math.round(mlHi/8);
-      const f10lo = Math.round(mlLo/10), f10hi = Math.round(mlHi/10);
-      const bold = k==="enfacare" ? "font-weight:600" : "";
-      html += `<tr style="border-bottom:0.5px solid var(--border)">
-        <td style="padding:7px 6px;${bold}">${f.name}</td>
-        <td style="padding:7px 6px;text-align:right">${mlLo}–${mlHi}</td>
-        <td style="padding:7px 6px;text-align:right">${f8lo}–${f8hi} ml</td>
-        <td style="padding:7px 6px;text-align:right">${f10lo}–${f10hi} ml</td>
-      </tr>`;
-    });
-    html += `</table></div>`;
-    html += `<p style="font-size:11px;color:var(--muted);margin-bottom:8px">Target: 110–130 kcal/kg/day · ESPGHAN 2023 post-discharge preterm</p>`;
-  });
-  feedDiv.innerHTML = html;
-}
-
-function renderHistory() {
-  const div = document.getElementById("history-list");
-  document.getElementById("history-subtitle").textContent = entries.length + " measurement" + (entries.length!==1?"s":"");
-  if (!entries.length) { div.innerHTML='<div class="empty">No measurements yet.</div>'; return; }
-
-  let html = `<div class="history-row header">
-    <span>Wk</span><span>PMA</span>
-    <span style="color:var(--soso)">Soso</span>
-    <span style="color:var(--soso)">cm</span>
-    <span style="color:var(--lella)">Lella</span>
-    <span style="color:var(--lella)">cm</span>
-  </div>`;
-
-  [...entries].reverse().forEach(e=>{
-    html += `<div class="history-row">
-      <span>${e.week}</span>
-      <span style="color:var(--muted)">${pma(e.week).toFixed(1)}</span>
-      <span style="color:var(--soso)">${e.soso_weight??'—'}</span>
-      <span style="color:var(--soso)">${e.soso_length??'—'}</span>
-      <span style="color:var(--lella)">${e.lella_weight??'—'}</span>
-      <span style="color:var(--lella)">${e.lella_length??'—'}</span>
-      <button class="del-btn" onclick="deleteEntry('${e.id}')">×</button>
+  let html = '';
+  ['Sophia','Antonella'].forEach(baby => {
+    const data = state.measurements.filter(m => m.baby === baby);
+    if (data.length === 0) return;
+    const latest = data[data.length - 1];
+    const color = baby === 'Sophia' ? 'var(--sophia)' : 'var(--antonella)';
+    const nick = baby === 'Sophia' ? 'Soso' : 'Lella';
+    html += `<div class="card">
+      <div style="font-weight:600;color:${color};margin-bottom:8px">${nick} -- Latest (${latest.date || 'Week '+Math.round(latest.week)})</div>
+      <div class="summary-row"><span class="summary-label">Weight</span><span class="summary-value">${latest.weightG ? latest.weightG + 'g' : '--'}</span></div>
+      <div class="summary-row"><span class="summary-label">Length</span><span class="summary-value">${latest.lengthCm ? latest.lengthCm + 'cm' : '--'}</span></div>
+      <div class="summary-row"><span class="summary-label">PMA</span><span class="summary-value">${formatPMA(latest.week)}</span></div>
+      <div class="summary-row"><span class="summary-label">Corrected age</span><span class="summary-value">${correctedAgeMonths(latest.week) >= 0 ? correctedAgeMonths(latest.week).toFixed(1) + ' mo' : 'Pre-term equiv.'}</span></div>
     </div>`;
   });
-  div.innerHTML = html;
+  el.innerHTML = html;
 }
 
-function renderChart() {
-  const table = currentMetric==="weight" ? FW : FL;
-  const unit = currentMetric==="weight" ? "g" : "cm";
-  const babyColor = currentBaby==="soso" ? "#D4537E" : "#1D9E75";
+// ============================================================
+// CUSTOM PLUGIN: draws baby dots ON TOP of everything
+// This bypasses Chart.js fill/order rendering issues entirely
+// ============================================================
+Chart.register({
+  id: 'babyDotsOverlay',
+  afterDraw(chart) {
+    const ctx = chart.ctx;
+    // Collect all baby points first to detect overlaps
+    const allBabyPts = [];
+    chart.data.datasets.forEach((ds, i) => {
+      if (!ds._baby) return;
+      const meta = chart.getDatasetMeta(i);
+      if (meta.hidden) return;
+      const babyIndex = ds._babyIndex || 0; // 0=Sophia, 1=Antonella
+      meta.data.forEach(pt => {
+        if (pt && !isNaN(pt.x) && !isNaN(pt.y)) {
+          allBabyPts.push({ x: pt.x, y: pt.y, color: ds._babyColor, idx: babyIndex, dsIdx: i });
+        }
+      });
+    });
+    if (allBabyPts.length === 0) return;
 
-  const labels = table.map(r=>r[0]);
-  const p3  = table.map(r=>r[1]);
-  const p10 = table.map(r=>r[2]);
-  const p50 = table.map(r=>r[3]);
-  const p90 = table.map(r=>r[4]);
-  const p97 = table.map(r=>r[5]);
+    // For each point, check if another baby has a point nearby and apply horizontal offset
+    allBabyPts.forEach(pt => {
+      const hasOverlap = allBabyPts.some(other =>
+        other.idx !== pt.idx && Math.abs(other.x - pt.x) < 16 && Math.abs(other.y - pt.y) < 30
+      );
+      pt.offsetX = hasOverlap ? (pt.idx === 0 ? -8 : 8) : 0;
+    });
 
-  // Baby data points — map to nearest PMA
-  const babyPoints = table.map(row=>{
-    const pmaNow = row[0];
-    const match = entries.find(e=>Math.abs(pma(e.week)-pmaNow)<0.55);
-    if (!match) return null;
-    const val = match[currentBaby+"_"+(currentMetric==="weight"?"weight":"length")];
-    return val != null ? val : null;
-  });
+    // Draw connecting lines per dataset
+    chart.data.datasets.forEach((ds, i) => {
+      if (!ds._baby) return;
+      const meta = chart.getDatasetMeta(i);
+      if (meta.hidden) return;
+      const pts = allBabyPts.filter(p => p.dsIdx === i);
+      if (pts.length > 1) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(pts[0].x + pts[0].offsetX, pts[0].y);
+        for (let j = 1; j < pts.length; j++) ctx.lineTo(pts[j].x + pts[j].offsetX, pts[j].y);
+        ctx.strokeStyle = ds._babyColor;
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+        ctx.restore();
+      }
+    });
 
-  const datasets = [
-    { label:"97th", data:p97, borderColor:"#B5D4F4", borderWidth:1, borderDash:[4,3], pointRadius:0, fill:false },
-    { label:"90th", data:p90, borderColor:"#85B7EB", borderWidth:1, borderDash:[3,2], pointRadius:0, fill:false },
-    { label:"50th", data:p50, borderColor:"#378ADD", borderWidth:2, pointRadius:0, fill:false },
-    { label:"10th", data:p10, borderColor:"#85B7EB", borderWidth:1, borderDash:[3,2], pointRadius:0, fill:false },
-    { label:"3rd",  data:p3,  borderColor:"#B5D4F4", borderWidth:1, borderDash:[4,3], pointRadius:0, fill:false },
-    {
-      label: currentBaby==="soso"?"Soso":"Lella",
-      data: babyPoints,
-      borderColor: babyColor,
-      backgroundColor: babyColor,
-      borderWidth: 0,
-      pointRadius: babyPoints.map(v=>v!=null?7:0),
-      pointHoverRadius: 9,
-      pointBorderColor:"#fff",
-      pointBorderWidth:2,
-      spanGaps: false,
-      fill: false,
-    }
+    // Draw all dots (Sophia first, then Antonella on top -- but offset keeps both visible)
+    allBabyPts.sort((a, b) => a.idx - b.idx);
+    allBabyPts.forEach(pt => {
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(pt.x + pt.offsetX, pt.y, 8, 0, Math.PI * 2);
+      ctx.fillStyle = pt.color;
+      ctx.fill();
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 2.5;
+      ctx.stroke();
+      ctx.restore();
+    });
+  }
+});
+
+// ============================================================
+// CHART RENDERING
+// ============================================================
+function makePercentileDatasets(xArr, percData, chartType) {
+  const makePoints = (yArr) => xArr.map((x,i) => ({x, y: yArr[i]}));
+  const isFenton = chartType === 'fenton';
+  const baseColor = isFenton ? '79,129,189' : (termModel === 'CDC' ? '140,100,180' : '60,160,100');
+  const lineBase = { pointRadius:0, borderWidth:1, tension:0.4, fill:false };
+  return [
+    { ...lineBase, label:'P97', data:makePoints(percData.P97), borderColor:'rgba(0,0,0,0.15)', borderDash:[4,4] },
+    { ...lineBase, label:'P3', data:makePoints(percData.P3), borderColor:'rgba(0,0,0,0.15)', borderDash:[4,4],
+      fill:{target:'-1', below:`rgba(${baseColor},0.07)`} },
+    { ...lineBase, label:'P90', data:makePoints(percData.P90), borderColor:'rgba(0,0,0,0.12)', borderDash:[3,3] },
+    { ...lineBase, label:'P10', data:makePoints(percData.P10), borderColor:'rgba(0,0,0,0.12)', borderDash:[3,3],
+      fill:{target:'-1', below:`rgba(${baseColor},0.09)`} },
+    { ...lineBase, label:'P50', data:makePoints(percData.P50), borderColor:'rgba(0,0,0,0.4)', borderWidth:2, borderDash:[] },
   ];
+}
 
-  const ctx = document.getElementById("growthChart").getContext("2d");
-  if (growthChart) growthChart.destroy();
-  growthChart = new Chart(ctx, {
-    type:"line",
-    data:{ labels, datasets },
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      animation:false,
-      plugins:{
-        legend:{display:false},
-        tooltip:{
-          callbacks:{
-            title: items=>"PMA "+items[0].label+"w",
-            label: item=>{
-              if (item.datasetIndex===5 && item.raw!==null) return `${item.dataset.label}: ${item.raw}${unit}`;
-              if (item.datasetIndex<5) return `${item.dataset.label}: ${item.raw}${unit}`;
-              return null;
-            }
+function getSingleBabyDataset(baby, metric, xTransform, yTransform) {
+  const color = baby === 'Sophia' ? '#2E86AB' : '#E76F51';
+  const nick = baby === 'Sophia' ? 'Soso' : 'Lella';
+  const bi = baby === 'Sophia' ? 0 : 1;
+  const points = state.measurements
+    .filter(m => m.baby === baby && (metric === 'weight' ? m.weightG : m.lengthCm))
+    .map(m => {
+      const x = xTransform(m.week);
+      const raw = metric === 'weight' ? m.weightG : m.lengthCm;
+      const y = yTransform ? yTransform(raw) : raw;
+      return {x, y};
+    });
+  return [{
+    label: nick,
+    data: points,
+    borderColor: 'transparent',
+    backgroundColor: 'transparent',
+    pointRadius: 0,
+    showLine: false,
+    fill: false,
+    _baby: true,
+    _babyColor: color,
+    _babyIndex: bi
+  }];
+}
+
+function getDataRange(babyDatasets) {
+  let minX = Infinity, maxX = -Infinity;
+  babyDatasets.forEach(ds => ds.data.forEach(p => {
+    if (p.x < minX) minX = p.x;
+    if (p.x > maxX) maxX = p.x;
+  }));
+  return { minX, maxX };
+}
+
+function createChart(canvasId, percDatasets, babyDatasets, xLabel, yLabel, defaultXMin, defaultXMax) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  if (charts[canvasId]) { charts[canvasId].destroy(); }
+
+  const range = getDataRange(babyDatasets);
+  let xMin = defaultXMin;
+  let xMax = defaultXMax;
+  if (range.minX !== Infinity && range.minX < xMin) xMin = Math.floor(range.minX) - 1;
+  if (range.maxX !== -Infinity && range.maxX > xMax) xMax = Math.ceil(range.maxX) + 1;
+
+  const allDatasets = [...percDatasets, ...babyDatasets];
+  charts[canvasId] = new Chart(ctx, {
+    type: 'line',
+    data: { datasets: allDatasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      aspectRatio: 1.1,
+      animation: { duration: 300 },
+      interaction: { mode:'nearest', intersect:false },
+      plugins: {
+        legend: { display:false },
+        tooltip: {
+          filter: (item) => item.dataset._baby === true,
+          callbacks: {
+            title: (items) => items[0]?.dataset.label || '',
+            label: (item) => `${xLabel}: ${item.parsed.x.toFixed(1)}, ${yLabel}: ${item.parsed.y.toFixed(1)}`
           }
         }
       },
-      scales:{
-        x:{ title:{display:true,text:"PMA (weeks)",font:{size:11}}, ticks:{font:{size:10}, maxRotation:0} },
-        y:{ title:{display:true,text:unit,font:{size:11}}, ticks:{font:{size:10}} }
+      scales: {
+        x: {
+          type:'linear', min:xMin, max:xMax,
+          title:{ display:true, text:xLabel, font:{size:11} },
+          grid:{ color:'rgba(0,0,0,0.05)' },
+          ticks:{ font:{size:10}, stepSize: xMax > 30 ? 2 : (xMax > 12 ? 1 : undefined) }
+        },
+        y: {
+          title:{ display:true, text:yLabel, font:{size:11} },
+          grid:{ color:'rgba(0,0,0,0.05)' },
+          ticks:{ font:{size:10} }
+        }
       }
     }
   });
-
-  // Update legend
-  document.getElementById("baby-legend-dot").style.background = babyColor;
-  document.getElementById("baby-legend-name").textContent = currentBaby==="soso"?"Soso":"Lella";
 }
 
-// ─── NAV + TABS ───────────────────────────────────────────────────────────────
-function showPage(id, btn) {
-  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
-  document.querySelectorAll("nav button").forEach(b=>b.classList.remove("active"));
-  document.getElementById("page-"+id).classList.add("active");
-  btn.classList.add("active");
-  if (id==="chart") setTimeout(renderChart, 50);
+function renderAllCharts() {
+  const termData = termModel === 'CDC' ? CDC : WHO;
+  const babies = ['Sophia', 'Antonella'];
+
+  babies.forEach(baby => {
+    const suffix = baby.toLowerCase();
+
+    // Fenton Weight
+    const fwPerc = makePercentileDatasets(FENTON.weeks, FENTON.weight, 'fenton');
+    const fwBaby = getSingleBabyDataset(baby, 'weight', w => pma(w), null);
+    createChart('fenton-weight-'+suffix, fwPerc, fwBaby, 'PMA (weeks)', 'Weight (g)', 32, 50);
+
+    // Fenton Length
+    const flPerc = makePercentileDatasets(FENTON.weeks, FENTON.length, 'fenton');
+    const flBaby = getSingleBabyDataset(baby, 'length', w => pma(w), null);
+    createChart('fenton-length-'+suffix, flPerc, flBaby, 'PMA (weeks)', 'Length (cm)', 32, 50);
+
+    // Term Weight
+    const twPerc = makePercentileDatasets(termData.months, termData.weight, 'term');
+    const twBaby = getSingleBabyDataset(baby, 'weight', w => correctedAgeMonths(w), v => v/1000);
+    twBaby.forEach(ds => { ds.data = ds.data.filter(p => p.x >= -0.5); });
+    const twRange = getDataRange(twBaby);
+    const twMax = Math.max(6, Math.min(24, Math.ceil((twRange.maxX || 3) + 2)));
+    createChart('term-weight-'+suffix, twPerc, twBaby, 'Corrected Age (months)', 'Weight (kg)', 0, twMax);
+
+    // Term Length
+    const tlPerc = makePercentileDatasets(termData.months, termData.length, 'term');
+    const tlBaby = getSingleBabyDataset(baby, 'length', w => correctedAgeMonths(w), null);
+    tlBaby.forEach(ds => { ds.data = ds.data.filter(p => p.x >= -0.5); });
+    const tlRange = getDataRange(tlBaby);
+    const tlMax = Math.max(6, Math.min(24, Math.ceil((tlRange.maxX || 3) + 2)));
+    createChart('term-length-'+suffix, tlPerc, tlBaby, 'Corrected Age (months)', 'Length (cm)', 0, tlMax);
+  });
 }
 
-function setBaby(b) {
-  currentBaby = b;
-  document.querySelectorAll("#seg-baby button").forEach((btn,i)=>btn.classList.toggle("active",i===(b==="soso"?0:1)));
-  renderChart();
-}
-function setMetric(m) {
-  currentMetric = m;
-  document.querySelectorAll("#seg-metric button").forEach((btn,i)=>btn.classList.toggle("active",i===(m==="weight"?0:1)));
-  renderChart();
+// ============================================================
+// FEEDING CALCULATOR
+// ============================================================
+function updateFeed() {
+  const kcal = parseInt(document.getElementById('kcal-slider').value);
+  const feeds = parseInt(document.getElementById('feeds-slider').value);
+  document.getElementById('kcal-display').textContent = kcal;
+  document.getElementById('feeds-display').textContent = feeds;
+
+  const data = state.measurements.filter(m => m.baby === feedBaby && m.weightG);
+  if (data.length === 0) {
+    document.getElementById('feed-latest-weight').textContent = 'No data';
+    document.getElementById('feed-latest-week').textContent = '--';
+    FORMULAS.forEach(f => {
+      document.getElementById('feed-'+f.idPrefix+'-daily').textContent = '--';
+      document.getElementById('feed-'+f.idPrefix+'-per').textContent = '--';
+    });
+    updateRecommendation(0);
+    return;
+  }
+  const latest = data[data.length - 1];
+  const weightKg = latest.weightG / 1000;
+  document.getElementById('feed-latest-weight').textContent = latest.weightG + 'g (' + weightKg.toFixed(2) + ' kg)';
+  document.getElementById('feed-latest-week').textContent = latest.date || ('Week ' + Math.round(latest.week));
+
+  const totalKcal = weightKg * kcal;
+  FORMULAS.forEach(f => {
+    const dailyMl = (totalKcal / f.kcal) * 100;
+    const perFeed = dailyMl / feeds;
+    document.getElementById('feed-'+f.idPrefix+'-daily').textContent = Math.round(dailyMl) + ' ml/day';
+    document.getElementById('feed-'+f.idPrefix+'-per').textContent = Math.round(perFeed) + ' ml/feed';
+  });
+  updateRecommendation(weightKg, latest.week);
 }
 
-// ─── SETUP ────────────────────────────────────────────────────────────────────
-function urlChanged() {
-  const url = document.getElementById("sheets-url").value.trim();
-  document.getElementById("connection-status-card").style.display = url ? "block" : "none";
+// ============================================================
+// PEDIATRIC FEEDING RECOMMENDATIONS
+// Evidence: AAP, ESPGHAN 2022, Kleinman & Greer Pediatric Nutrition 8th ed.
+// Tailored for late preterm girls born 33+2 weeks
+// ============================================================
+function updateRecommendation(weightKg, latestWeek) {
+  const wol = (latestWeek != null && latestWeek > 0) ? latestWeek : weekOfLifeNow();
+  const pmaW = pma(wol);
+  const corrMo = correctedAgeMonths(wol);
+  const pmaInt = Math.floor(pmaW);
+  const pmaDay = Math.round((pmaW - pmaInt) * 7);
+
+  const ageEl = document.getElementById('feed-reco-age');
+  const bodyEl = document.getElementById('feed-reco-body');
+  const formulaEl = document.getElementById('feed-reco-formula');
+
+  ageEl.textContent = 'Current: PMA ' + pmaInt + 'w' + pmaDay + 'd | Corrected age: ' +
+    (corrMo >= 0 ? corrMo.toFixed(1) + ' months' : 'pre-term equivalent');
+
+  let kcalReco, volReco, feedsReco, bodyText, formulaText;
+
+  if (pmaW < 37) {
+    // Still pre-term equivalent
+    kcalReco = '110\u2013130';
+    volReco = '150\u2013180';
+    feedsReco = '8\u201312';
+    bodyText = 'At this PMA, preterm infants typically need ' + kcalReco + ' kcal/kg/day to support catch-up growth. ' +
+      'Target fluid intake is ' + volReco + ' ml/kg/day, split across ' + feedsReco + ' feeds. ' +
+      'Fortified breast milk or a post-discharge formula (22 cal/oz) is standard of care for infants born < 34 weeks.';
+    formulaText = 'Preferred: Enfamil EnfaCare (22 cal/oz) or fortified breast milk. ' +
+      'Post-discharge formulas provide extra protein, calcium, phosphorus, and zinc critical for bone mineralization in this window.';
+  } else if (pmaW < 44) {
+    // Early post-discharge, near term equivalent
+    kcalReco = '110\u2013130';
+    volReco = '150\u2013180';
+    feedsReco = '7\u20138';
+    bodyText = 'At early post-discharge for late preterms, the target remains ' + kcalReco + ' kcal/kg/day with ' +
+      volReco + ' ml/kg/day total volume across ' + feedsReco + ' feeds per day. ' +
+      'Catch-up growth is the priority. Most neonatologists recommend maintaining enriched nutrition through at least 3\u20136 months corrected age.';
+    formulaText = 'Preferred: Enfamil EnfaCare (22 cal/oz) as the primary formula. ' +
+      'For breast milk feeds, consider human milk fortifier if growth velocity is below target. ' +
+      'Standard 20 cal/oz formulas like Kendamil are adequate only once sustained catch-up is confirmed by the pediatrician.';
+  } else if (corrMo < 3) {
+    // Corrected 0-3 months
+    kcalReco = '110\u2013130';
+    volReco = '150\u2013180';
+    feedsReco = '6\u20138';
+    bodyText = 'At corrected age ' + corrMo.toFixed(1) + ' months, caloric needs for preterm catch-up remain ' + kcalReco + ' kcal/kg/day. ' +
+      'Volume target: ' + volReco + ' ml/kg/day across ' + feedsReco + ' feeds. ' +
+      'Most late preterms born at 33 weeks achieve catch-up weight by corrected 3\u20136 months if adequately nourished.';
+    formulaText = 'Post-discharge formula (EnfaCare 22 cal/oz) still recommended. ' +
+      'Transition to standard formula (Kendamil 20 cal/oz) is appropriate once the pediatrician confirms weight is tracking above the 10th percentile on CDC curves for corrected age.';
+  } else if (corrMo < 6) {
+    // Corrected 3-6 months
+    kcalReco = '100\u2013120';
+    volReco = '150\u2013170';
+    feedsReco = '5\u20137';
+    bodyText = 'At corrected age ' + corrMo.toFixed(1) + ' months, if catch-up growth is on track, caloric targets can ease to ' + kcalReco + ' kcal/kg/day. ' +
+      'Volume: ' + volReco + ' ml/kg/day across ' + feedsReco + ' feeds. ' +
+      'If growth remains below the 10th percentile, maintain the higher 110\u2013130 kcal/kg/day target.';
+    formulaText = 'If weight is tracking well: can transition from EnfaCare to standard Kendamil Stage 1 (20 cal/oz). ' +
+      'If still catching up: continue EnfaCare (22 cal/oz) until pediatrician advises otherwise. ' +
+      'This is also the window to discuss introduction of iron-fortified cereals around corrected 4\u20136 months.';
+  } else if (corrMo < 12) {
+    // Corrected 6-12 months
+    kcalReco = '100\u2013110';
+    volReco = '120\u2013150';
+    feedsReco = '4\u20136';
+    bodyText = 'At corrected age ' + corrMo.toFixed(1) + ' months, caloric needs from milk/formula are ' + kcalReco + ' kcal/kg/day as complementary solids are introduced. ' +
+      'Milk volume: ' + volReco + ' ml/kg/day across ' + feedsReco + ' feeds, with the remainder of calories from solids. ' +
+      'Iron and zinc from complementary foods become increasingly important.';
+    formulaText = 'Standard formula (Kendamil Stage 1 or 2, 20 cal/oz) is generally appropriate at this stage. ' +
+      'EnfaCare can be discontinued once weight is consistently above the 25th percentile for corrected age on CDC curves. ' +
+      'Introduce iron-rich solids (fortified cereals, pureed meats) to prevent iron deficiency common in ex-preterms.';
+  } else {
+    // Corrected 12+ months
+    kcalReco = '90\u2013100';
+    volReco = '~400\u2013500 ml total';
+    feedsReco = '3\u20134';
+    bodyText = 'At corrected age ' + corrMo.toFixed(1) + ' months, the majority of nutrition shifts to table foods. ' +
+      'Milk/formula provides ' + kcalReco + ' kcal/kg/day as a supplement, with ' + volReco + ' daily across ' + feedsReco + ' feeds. ' +
+      'Most ex-preterms born at 33 weeks have completed catch-up growth by this stage.';
+    formulaText = 'Whole cow\'s milk or toddler formula can replace infant formula after corrected 12 months, per AAP guidance. ' +
+      'Continue monitoring growth on CDC curves using corrected age until chronological age 24 months.';
+  }
+
+  // Compute concrete ml targets from the recommendation
+  if (weightKg && weightKg > 0) {
+    const volLow = parseFloat(volReco);
+    const volHigh = parseFloat(volReco.split('\u2013')[1]) || volLow;
+    if (!isNaN(volLow) && !isNaN(volHigh)) {
+      const mlLow = Math.round(weightKg * volLow);
+      const mlHigh = Math.round(weightKg * volHigh);
+      bodyText += ' For current weight (' + (weightKg*1000).toFixed(0) + 'g), that translates to roughly ' + mlLow + '\u2013' + mlHigh + ' ml/day total.';
+    }
+  }
+
+  bodyEl.textContent = bodyText;
+  formulaEl.textContent = formulaText;
 }
 
-function saveUrl() {
-  const url = document.getElementById("sheets-url").value.trim();
-  if (!url || !url.includes("script.google.com")) { toast("Paste a valid Apps Script URL"); return; }
-  sheetUrl = url;
-  localStorage.setItem("sheetUrl", url);
-  document.getElementById("connection-status-card").style.display = "block";
-  toast("URL saved — testing connection…");
-  testConnection();
+// ============================================================
+// DATA LIST
+// ============================================================
+function renderDataList() {
+  const el = document.getElementById('data-list');
+  if (state.measurements.length === 0) {
+    el.innerHTML = '<div class="empty-state"><p>No measurements yet</p></div>';
+    return;
+  }
+  const sorted = [...state.measurements].sort((a,b) => b.week - a.week || a.baby.localeCompare(b.baby));
+  el.innerHTML = sorted.map(m => {
+    const color = m.baby === 'Sophia' ? 'var(--sophia)' : 'var(--antonella)';
+    const nick = m.baby === 'Sophia' ? 'Soso' : 'Lella';
+    return `<div class="data-row">
+      <div class="data-dot" style="background:${color}"></div>
+      <div class="data-info">
+        <div class="data-name">${nick} -- ${m.date || 'Wk '+Math.round(m.week)}</div>
+        <div class="data-detail">${m.weightG ? m.weightG+'g' : '--'} | ${m.lengthCm ? m.lengthCm+'cm' : '--'} | PMA ${formatPMA(m.week)}</div>
+      </div>
+      <button class="data-delete" onclick="deleteMeasurement(${m.id})">&times;</button>
+    </div>`;
+  }).join('');
 }
 
-async function testConnection() {
-  const el = document.getElementById("conn-status-text");
-  el.textContent = "Connecting…";
+function deleteMeasurement(id) {
+  state.measurements = state.measurements.filter(m => m.id !== id);
+  saveToStorage();
+  renderDataList();
+  updateSummary();
+  renderAllCharts();
+}
+
+function clearAll() {
+  state.measurements = [];
+  saveToStorage();
+  renderDataList();
+  updateSummary();
+  renderAllCharts();
+}
+
+// ============================================================
+// SHARE / SYNC
+// ============================================================
+function shareData() {
+  if (state.measurements.length === 0) { alert('No data to share'); return; }
   try {
-    const d = await apiGet({action:"list"});
-    el.textContent = "Connected. " + (d.entries||[]).length + " entries in sheet.";
-    el.style.color = "var(--lella)";
-    await loadEntries();
-  } catch(e) {
-    el.textContent = "Failed: " + e.message;
-    el.style.color = "#E24B4A";
-  }
+    const json = JSON.stringify(state.measurements);
+    const encoded = btoa(unescape(encodeURIComponent(json)));
+    const url = window.location.origin + window.location.pathname + '#data=' + encoded;
+    if (navigator.share) {
+      navigator.share({ title:'Soso & Lella Data', url: url }).catch(()=>{});
+    } else if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(() => alert('Link copied! Send it to sync.'));
+    } else {
+      prompt('Copy this link to share:', url);
+    }
+  } catch(e) { alert('Error: ' + e.message); }
 }
 
-// ─── INIT ─────────────────────────────────────────────────────────────────────
-window.addEventListener("load", ()=>{
-  if (sheetUrl) {
-    document.getElementById("sheets-url").value = sheetUrl;
-    document.getElementById("connection-status-card").style.display = "block";
-  }
-  loadEntries();
-});
+// ============================================================
+// INIT
+// ============================================================
+function init() {
+  loadState();
+  updateSummary();
+  // Pre-fill current week of life
+  document.getElementById('inp-date').value = todayStr();
+  updateWeekHelper();
+}
+
+init();
 </script>
 </body>
 </html>
