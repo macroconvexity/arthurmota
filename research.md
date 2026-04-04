@@ -54,10 +54,12 @@
 *Mota (2026)* 
 [Download PDF](papers/Mota%20(2026)%20-%20TCG%20price%20model.pdf)
 
+---
 
 ### The Collectible Market Bubble and Burst: Evidence from the Pre- and Post-COVID Stimulus Cycle, 2020–2025
 *Mota (2026)* 
 [Download PDF](paper/Mota%20(2026)%20-%20Stimulus%20FOMO%20and%20Collectibles.pdf)
+
 ---
 
 ### A Probabilistic Framework for Combo Assembly in Constructed Card Games: Hypergeometric Models, Deck Composition, and Two-Player Race Dynamics
