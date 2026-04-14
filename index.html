@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>BTG Pactual | Structured Notes Lab</title>
+<style>
+:root {
+  --bg: #f7f8fa;
+  --white: #ffffff;
+  --card: #ffffff;
+  --accent: #003366;
+  --accent2: #00594f;
+  --blue: #1a6dd4;
+  --green: #0d8a6a;
+  --red: #c0392b;
+  --orange: #d4820a;
+  --gold: #b8860b;
+  --text: #1a1a2e;
+  --text2: #5a6578;
+  --text3: #8c95a6;
+  --border: #e4e8ee;
+  --border2: #d0d5dd;
+  --radius: 12px;
+  --shadow: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+  --shadow2: 0 4px 12px rgba(0,0,0,.08);
+}
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body { font-family:'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.55; overflow-x:hidden; -webkit-font-smoothing:antialiased; }
+
+/* Header */
+.header { position:sticky; top:0; z-index:100; background:var(--accent); padding:14px 16px; display:flex; align-items:center; gap:10px; }
+.header .logo { display:flex; align-items:center; gap:8px; flex:1; }
+.header .logo-text { color:#fff; font-size:15px; font-weight:700; letter-spacing:.5px; }
+.header .logo-divider { width:1px; height:18px; background:rgba(255,255,255,.3); }
+.header .logo-sub { color:rgba(255,255,255,.8); font-size:12px; font-weight:500; }
+.header .badge { font-size:9px; background:rgba(255,255,255,.2); color:#fff; padding:3px 10px; border-radius:20px; font-weight:600; letter-spacing:.5px; text-transform:uppercase; }
+
+/* Tabs */
+.tabs { display:flex; overflow-x:auto; gap:6px; padding:12px 16px 8px; scrollbar-width:none; background:var(--white); border-bottom:1px solid var(--border); }
+.tabs::-webkit-scrollbar { display:none; }
+.tab { flex-shrink:0; padding:7px 16px; border-radius:20px; font-size:12px; font-weight:600; background:var(--bg); border:1px solid var(--border); cursor:pointer; transition:.2s; white-space:nowrap; color:var(--text2); }
+.tab.active { background:var(--accent); border-color:var(--accent); color:#fff; }
+
+/* Container */
+.container { padding:0 12px 120px; max-width:600px; margin:0 auto; }
+.section-title { font-size:11px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:1.2px; margin:18px 4px 10px; }
+
+/* Cards */
+.card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:8px; cursor:pointer; transition:all .2s; box-shadow:var(--shadow); }
+.card:hover,.card:active { border-color:var(--accent); box-shadow:var(--shadow2); }
+.card .title { font-size:14px; font-weight:700; color:var(--text); margin-bottom:3px; }
+.card .subtitle { font-size:12px; color:var(--text2); line-height:1.4; }
+.card .tags { display:flex; gap:5px; margin-top:8px; flex-wrap:wrap; }
+.tag { font-size:10px; padding:3px 8px; border-radius:8px; font-weight:600; letter-spacing:.3px; }
+.tag.bull { background:#e8f5e9; color:#2e7d32; }
+.tag.bear { background:#ffebee; color:#c62828; }
+.tag.neutral { background:#e3f2fd; color:#1565c0; }
+.tag.yield { background:#fff8e1; color:#f57f17; }
+.tag.protection { background:#f3e5f5; color:#7b1fa2; }
+.tag.tenor { background:#f5f5f5; color:#616161; }
+
+/* Detail */
+.detail-overlay { position:fixed; inset:0; z-index:200; background:var(--bg); overflow-y:auto; transform:translateX(100%); transition:transform .3s ease; }
+.detail-overlay.open { transform:translateX(0); }
+.detail-header { position:sticky; top:0; z-index:10; background:var(--accent); padding:12px 16px; display:flex; align-items:center; gap:10px; }
+.back-btn { width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,.15); border:none; color:#fff; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.detail-header h1 { font-size:15px; font-weight:700; color:#fff; flex:1; }
+.detail-content { padding:14px; max-width:600px; margin:0 auto; padding-bottom:50px; }
+
+/* Chart */
+.chart-container { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:12px; box-shadow:var(--shadow); }
+.chart-title { font-size:11px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.8px; margin-bottom:10px; }
+canvas { width:100%!important; height:280px!important; }
+
+/* Sliders */
+.param-group { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:12px; box-shadow:var(--shadow); }
+.param-group-title { font-size:11px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:.8px; margin-bottom:12px; }
+.param-row { margin-bottom:14px; }
+.param-row:last-child { margin-bottom:0; }
+.param-label { display:flex; justify-content:space-between; font-size:12px; font-weight:600; margin-bottom:6px; color:var(--text); }
+.param-value { color:var(--blue); font-variant-numeric:tabular-nums; }
+input[type=range] { width:100%; -webkit-appearance:none; background:var(--border); height:3px; border-radius:2px; outline:none; }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:20px; height:20px; border-radius:50%; background:var(--accent); border:3px solid var(--white); cursor:pointer; box-shadow:0 1px 4px rgba(0,0,0,.2); }
+
+/* Info */
+.info-block { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:10px; box-shadow:var(--shadow); }
+.info-block h3 { font-size:13px; font-weight:700; color:var(--text); margin-bottom:6px; letter-spacing:.2px; }
+.info-block p,.info-block li { font-size:13px; color:var(--text2); line-height:1.6; }
+.info-block ul { padding-left:18px; }
+.info-block li { margin-bottom:3px; }
+
+/* Scenarios */
+.scenario-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:8px; }
+.scenario { text-align:center; padding:12px 8px; border-radius:10px; }
+.scenario.good { background:#e8f5e9; }
+.scenario.mid { background:#fff8e1; }
+.scenario.bad { background:#ffebee; }
+.scenario .label { font-size:10px; font-weight:700; color:var(--text3); text-transform:uppercase; margin-bottom:4px; letter-spacing:.3px; }
+.scenario .val { font-size:15px; font-weight:800; }
+.scenario.good .val { color:#2e7d32; }
+.scenario.mid .val { color:#e65100; }
+.scenario.bad .val { color:#c62828; }
+.scenario .pct { font-size:10px; font-weight:600; margin-top:2px; }
+.scenario.good .pct { color:#388e3c; }
+.scenario.mid .pct { color:#ef6c00; }
+.scenario.bad .pct { color:#d32f2f; }
+
+/* Disclaimer */
+.disclaimer { background:#fef9f0; border:1px solid #f0e0c0; border-radius:var(--radius); padding:14px; margin-top:10px; }
+.disclaimer h4 { font-size:11px; color:var(--orange); font-weight:700; margin-bottom:6px; text-transform:uppercase; letter-spacing:.5px; }
+.disclaimer p { font-size:11px; color:var(--text2); line-height:1.5; }
+
+/* Hero */
+.hero { text-align:center; padding:28px 20px 6px; }
+.hero h2 { font-size:20px; font-weight:800; color:var(--accent); margin-bottom:4px; letter-spacing:-.3px; }
+.hero p { font-size:12px; color:var(--text2); max-width:340px; margin:0 auto; line-height:1.5; }
+
+/* Search */
+.search-bar { margin:10px 12px; }
+.search-bar input { width:100%; padding:10px 14px; border-radius:10px; border:1px solid var(--border); background:var(--white); color:var(--text); font-size:13px; outline:none; box-shadow:var(--shadow); }
+.search-bar input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(0,51,102,.1); }
+.search-bar input::placeholder { color:var(--text3); }
+
+/* Profit/Loss indicator */
+.pl-indicator { display:flex; justify-content:space-between; margin-top:8px; padding:8px 12px; background:var(--bg); border-radius:8px; }
+.pl-indicator .item { text-align:center; }
+.pl-indicator .item .lbl { font-size:10px; color:var(--text3); font-weight:600; text-transform:uppercase; }
+.pl-indicator .item .v { font-size:13px; font-weight:700; margin-top:2px; }
+
+.hidden { display:none!important; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <span class="logo-text">BTG Pactual</span>
+    <span class="logo-divider"></span>
+    <span class="logo-sub">Structured Notes Lab</span>
+  </div>
+  <span class="badge">Educational</span>
+</div>
+
+<div id="mainView">
+  <div class="hero">
+    <h2>Structured Notes</h2>
+    <p>Explore 22 structures, adjust parameters interactively, and understand payoff profiles at maturity</p>
+  </div>
+
+  <div class="search-bar">
+    <input type="text" id="searchInput" placeholder="Search by name, strategy, or tenor...">
+  </div>
+
+  <div class="tabs" id="categoryTabs">
+    <div class="tab active" data-cat="all">All</div>
+    <div class="tab" data-cat="bullish">Bullish</div>
+    <div class="tab" data-cat="bearish">Bearish</div>
+    <div class="tab" data-cat="neutral">Range / Neutral</div>
+    <div class="tab" data-cat="yield">Yield Enhancement</div>
+    <div class="tab" data-cat="protection">Capital Protection</div>
+  </div>
+
+  <div class="container" id="cardList"></div>
+</div>
+
+<div class="detail-overlay" id="detailView">
+  <div class="detail-header">
+    <button class="back-btn" id="backBtn">&#8592;</button>
+    <h1 id="detailTitle"></h1>
+  </div>
+  <div class="detail-content" id="detailContent"></div>
+</div>
+
+<script>
+// ============================================================
+// STRUCTURES DATA — all payoff(p,S) use S as the final
+// underlying price on the chart X-axis, and every slider
+// param feeds into the formula.
+// ============================================================
+const N = 1000; // default notional for scenarios
+const STRUCTURES = [
+  // ── 1. Capital Protected Note ──
+  {
+    id:1, name:"Capital Protected Note (CPN)", cat:"protection", tenor:"1Y",
+    tags:["protection","1Y"],
+    short:"100% principal protection with upside participation on an equity index.",
+    desc:"A Capital Protected Note guarantees the return of your full principal at maturity while giving you participation in the upside of an underlying asset (e.g., S&P 500). A zero-coupon bond protects the principal; a call option purchased with the remaining budget provides upside.",
+    howItWorks:"Most of the notional is invested in a zero-coupon bond maturing at par. The remaining amount buys an at-the-money call option on the underlying. At maturity you receive: Notional + Participation% x max(0, Underlying Return). A floor can guarantee a minimum return even if the market falls.",
+    params:{spot:100,strike:100,participation:80,floor:0,notional:1000},
+    paramDefs:[
+      {key:"spot",label:"Initial Spot",min:50,max:200,step:1,fmt:v=>"$"+v},
+      {key:"strike",label:"Strike",min:50,max:200,step:1,fmt:v=>"$"+v},
+      {key:"participation",label:"Participation",min:20,max:150,step:5,fmt:v=>v+"%"},
+      {key:"floor",label:"Min Return Floor",min:0,max:5,step:.5,fmt:v=>v+"%"},
+      {key:"notional",label:"Notional",min:100,max:10000,step:100,fmt:v=>"$"+v.toLocaleString()}
+    ],
+    payoff:(p,S)=>{
+      const ret = Math.max(p.floor/100, (p.participation/100)*Math.max(0,(S-p.strike)/p.strike));
+      return p.notional*(1+ret);
+    },
+    scenarios:(p)=>{const n=p.notional;return{
+      bull:{label:"Mkt +20%",val:n*(1+(p.participation/100)*0.2)},
+      mid:{label:"Mkt Flat",val:n*(1+p.floor/100)},
+      bear:{label:"Mkt -30%",val:n*(1+p.floor/100)}
+    };},
+    risks:["Upside limited by participation rate","Opportunity cost vs direct equity","Issuer credit risk (counterparty default)","No dividend income received","Early exit may result in loss below par"],
+  },
+  // ── 2. Reverse Convertible ──
+  {
+    id:2, name:"Reverse Convertible", cat:"yield", tenor:"1Y",
+    tags:["yield","1Y"],
+    short:"High coupon note with downside risk if underlying falls below barrier.",
+    desc:"A Reverse Convertible pays an above-market fixed coupon in exchange for the investor bearing downside risk. If the underlying falls below the barrier at any point, you may receive shares (or cash equivalent) at maturity instead of full principal.",
+    howItWorks:"You invest and receive an enhanced coupon. The issuer effectively sells a put option to finance this coupon. If the underlying stays above the barrier, you get full principal + coupon. If it breaches the barrier and finishes below strike, you receive the depreciated value plus coupon.",
+    params:{spot:100,strike:100,barrier:70,coupon:12,notional:1000},
+    paramDefs:[
+      {key:"spot",label:"Initial Spot",min:50,max:200,step:1,fmt:v=>"$"+v},
+      {key:"strike",label:"Strike",min:50,max:200,step:1,fmt:v=>"$"+v},
+      {key:"barrier",label:"Barrier",min:40,max:95,step:1,fmt:v=>"$"+v},
+      {key:"coupon",label:"Coupon",min:2,max:30,step:.5,fmt:v=>v+"%"},
+      {key:"notional",label:"Notional",min:100,max:10000,step:100,fmt:v=>"$"+v.toLocaleString()}
+    ],
+    payoff:(p,S)=>{
+      const c = p.notional*p.coupon/100;
+      if(S >= p.strike) return p.notional + c;
+      if(S >= p.barrier) return p.notional + c; // above barrier, no loss
+      return p.notional*(S/p.strike) + c; // below barrier: take loss
+    },
+    scenarios:(p)=>{const n=p.notional,c=n*p.coupon/100;return{
+      bull:{label:"Stock +15%",val:n+c},
+      mid:{label:"Stock -15%",val:n+c},
+      bear:{label:"Stock -40%",val:n*(0.6/1)+c}
+    };},
+    risks:["Full downside exposure below barrier","Coupon does not offset large losses","Principal loss possible","Limited upside (capped at coupon)","Issuer credit risk"],
+  },
+  // ── 3. Autocallable Note ──
+  {
+    id:3, name:"Autocallable Note", cat:"yield", tenor:"2Y",
+    tags:["yield","2Y"],
+    short:"Periodically callable if above trigger; pays coupon each observation.",
+    desc:"An Autocallable Note pays periodic coupons and automatically redeems early if the underlying is above the autocall level on any observation date. If never called, principal is at risk below the barrier at maturity.",
+    howItWorks:"Every quarter the note checks: is the underlying above the autocall level? If yes, you receive principal + accumulated coupons and the note terminates. If it never triggers, at maturity: above barrier = principal + all coupons; below barrier = loss proportional to decline.",
+    params:{spot:100,autocallLevel:100,barrier:65,couponPerPeriod:3,notional:1000},
+    paramDefs:[
+      {key:"spot",label:"Initial Spot",min:50,max:200,step:1,fmt:v=>"$"+v},
+      {key:"autocallLevel",label:"Autocall Level",min:80,max:130,step:1,fmt:v=>"$"+v},
+      {key:"barrier",label:"Down Barrier",min:40,max:90,step:1,fmt:v=>"$"+v},
+      {key:"couponPerPeriod",label:"Coupon / Quarter",min:1,max:10,step:.25,fmt:v=>v+"%"},
+      {key:"notional",label:"Notional",min:100,max:10000,step:100,fmt:v=>"$"+v.toLocaleString()}
+    ],
+    payoff:(p,S)=>{
+      const totalC = p.notional*p.couponPerPeriod/100*8; // 2Y = 8 quarters
+      if(S >= p.autocallLevel) return p.notional + totalC;
+      if(S >= p.barrier) return p.notional + totalC;
+      return p.notional*(S/p.spot) + totalC;
+    },
+    scenarios:(p)=>{const n=p.notional,cq=n*p.couponPerPeriod/100;return{
+      bull:{label:"Called Q2",val:n+cq*2},
+      mid:{label:"Held 2Y",val:n+cq*8},
+      bear:{label:"Below Barrier",val:n*0.6+cq*8}
+    };},
+    risks:["Early call limits total coupon income","Full downside if barrier breached at maturity","Reinvestment risk on early call","Complex observation mechanics","Issuer credit risk"],
+  },
+  // ── 4. Bull Call Spread Note ──
+  {
+    id:4, name:"Bull Call Spread Note", cat:"bullish", tenor:"1Y",
+    tags:["bullish","1Y"],
+    short:"Leveraged upside between two strikes with capped maximum return.",
+    desc:"Provides amplified exposure to the upside of an underlying between two strike levels. Returns are capped at the upper strike, but the structure costs less than a simple call because of the sold call.",
+    howItWorks:"The note embeds a long call at the lower strike and a short call at the upper strike. Below the lower strike: principal returned. Between strikes: leveraged gains. Above upper strike: return is capped at maximum.",
+    params:{spot:100,lowerStrike:100,upperStrike:120,leverage:2,notional:1000},
+    paramDefs:[
+      {key:"spot",label:"Initial Spot",min:50,max:200,step:1,fmt:v=>"$"+v},
+      {key:"lowerStrike",label:"Lower Strike",min:70,max:130,step:1,fmt:v=>"$"+v},
+      {key:"upperStrike",label:"Upper Strike",min:105,max:180,step:1,fmt:v=>"$"+v},
+      {key:"leverage",label:"Leverage",min:1,max:5,step:.5,fmt:v=>v+"x"},
+      {key:"notional",label:"Notional",min:100,max:10000,step:100,fmt:v=>"$"+v.toLocaleString()}
+    ],
+    payoff:(p,S)=>{
+      if(S <= p.lowerStrike) return p.notional;
+      const maxG = (p.upperStrike - p.lowerStrike)/p.lowerStrike * p.leverage;
+      const g = Math.min((S - p.lowerStrike)/p.lowerStrike * p.leverage, maxG);
+      return p.notional*(1+g);
+    },
+    scenarios:(p)=>{const n=p.notional,mG=(p.upperStrike-p.lowerStrike)/p.lowerStrike*p.leverage;return{
+      bull:{label:"Above Cap",val:n*(1+mG)},
+      mid:{label:"Mid-Range",val:n*(1+mG/2)},
+      bear:{label:"Below Strike",val:n}
+    };},
+    risks:["Upside capped at upper strike","No downside protection below principal","Leverage magnifies opportunity cost","Issuer credit risk","Unattractive if market barely moves"],
+  },
+  // ── 5. Bear Put Spread Note ──
+  {
+    id:5, name:"Bear Put Spread Note", cat:"bearish", tenor:"1Y",
+    tags:["bearish","1Y"],
+    short:"Profits from moderate decline with limited cost if market rises.",
+    desc:"A Bear Put Spread Note profits when the underlying declines. It embeds a long put at a higher strike and a short put at a lower strike, creating defined-risk bearish exposure.",
+    howItWorks:"If the underlying falls between the two strikes, you profit proportionally. Below the lower strike, profit is capped. If the underlying rises above the upper strike, you only lose the embedded premium cost.",
+    params:{spot:100,upperStrike:100,lowerStrike:80,notional:1000,premium:5},
+    paramDefs:[
+      {key:"spot",label:"Initial Spot",min:50,max:200,step:1,fmt:v=>"$"+v},
+      {key:"upperStrike",label:"Upper Put Strike",min:80,max:150,step:1,fmt:v=>"$"+v},
+      {key:"lowerStrike",label:"Lower Put Strike",min:50,max:120,step:1,fmt:v=>"$"+v},
+      {key:"premium",label:"Premium Cost",min:1,max:15,step:.5,fmt:v=>v+"%"},
+      {key:"notional",label:"Notional",min:100,max:10000,step:100,fmt:v=>"$"+v.toLocaleString()}
+    ],
+    payoff:(p,S)=>{
+      const cost = p.notional*p.premium/100;
+      const maxPay = p.notional*(p.upperStrike - p.lowerStrike)/p.upperStrike;
+      if(S >= p.upperStrike) return p.notional - cost;
+      if(S <= p.lowerStrike) return p.notional - cost + maxPay;
+      return p.notional - cost + p.notional*(p.upperStrike - S)/p.upperStrike;
+    },
+    scenarios:(p)=>{const n=p.notional,c=n*p.premium/100,mx=n*(p.upperStrike-p.lowerStrike)/p.upperStrike;return{
+      bull:{label:"Mkt +20%",val:n-c},
+      mid:{label:"Mkt -10%",val:n-c+n*0.1},
+      bear:{label:"Mkt -30%",val:n-c+mx}
+    };},
+    risks:["Maximum loss is the premium paid","Profit capped at lower strike","Time decay erodes value","Requires move within timeframe","Issuer credit risk"],
+  },
+  // ── 6. Equity-Linked Note (ELN) ──
+  {
+    id:6, name:"Equity-Linked Note (ELN)", cat:"bullish", tenor:"2Y",
+    tags:["bullish","2Y"],
+    short:"Returns linked to equity performance with principal at risk.",
+    desc:"An Equity-Linked Note provides direct exposure to the performance of an equity or index. Upside returns are scaled by a participation rate and capped. Downside is 1:1 with the underlying.",
+    howItWorks:"At maturity: if the underlying is up, you receive Notional x (1 + min(Performance x Participation, Cap)). If down, you lose proportionally to the decline. It is like owning the index in note form.",
+    params:{spot:100,participation:120,cap:40,notional:1000},
+    paramDefs:[
+      {key:"spot",label:"Initial Spot",min:50,max:200,step:1,fmt:v=>"$"+v},
+      {key:"participation",label:"Upside Participation",min:50,max:200,step:5,fmt:v=>v+"%"},
+      {key:"cap",label:"Max Return Cap",min:10,max:80,step:5,fmt:v=>v+"%"},
+      {key:"notional",label:"Notional",min:100,max:10000,step:100,fmt:v=>"$"+v.toLocaleString()}
+    ],
+    payoff:(p,S)=>{
+      const perf = (S - p.spot)/p.spot;
+      if(perf >= 0) return p.notional*(1 + Math.min(perf*p.participation/100, p.cap/100));
+      return p.notional*(1 + perf);
+    },
+    scenarios:(p)=>{const n=p.notional;return{
+      bull:{label:"Index +25%",val:n*(1+Math.min(0.25*p.participation/100,p.cap/100))},
+      mid:{label:"Index Flat",val:n},
+      bear:{label:"Index -25%",val:n*0.75}
+    };},
+    risks:["Full downside exposure (1:1)","Upside capped at maximum return","No dividend income","Issuer credit risk","Participation may not offset cap in strong markets"],
+  },
+  // ── 7. Range Accrual Note (FIXED) ──
+  {
+    id:7, name:"Range Accrual Note", cat:"neutral", tenor:"2Y",
+    tags:["neutral","yield","2Y"],
+    short:"Earns coupon proportionally to days the underlying stays within a range.",
+    desc:"A Range Accrual Note pays a high annual coupon that accrues only on days when the underlying trades within a predefined range [Lower, Upper]. The more days in range, the higher your return. Principal is returned at maturity.",
+    howItWorks:"Each trading day, the note checks if the underlying price is within [Lower Bound, Upper Bound]. If yes, that day's share of the annual coupon accrues. At maturity: Notional + Coupon x (Days In Range / Total Days). The chart below shows your final value vs the underlying price — inside the range you earn the full pro-rata coupon, outside you earn nothing for that day.",
+    params:{spot:100,lower:85,upper:115,annualCoupon:15,notional:1000},
+    paramDefs:[
+      {key:"spot",label:"Initial Spot",min:50,max:200,step:1,fmt:v=>"$"+v},
+      {key:"lower",label:"Lower Bound",min:50,max:99,step:1,fmt:v=>"$"+v},
+      {key:"upper",label:"Upper Bound",min:101,max:180,step:1,fmt:v=>"$"+v},
+      {key:"annualCoupon",label:"Annual Coupon",min:5,max:30,step:1,fmt:v=>v+"%"},
+      {key:"notional",label:"Notional",min:100,max:10000,step:100,fmt:v=>"$"+v.toLocaleString()}
+    ],
+    payoff:(p,S)=>{
+      // Chart shows: if the underlying is at this price, is coupon accruing?
+      // Full coupon if in range, nothing if out
+      const inRange = (S >= p.lower && S <= p.upper) ? 1 : 0;
+      return p.notional*(1 + p.annualCoupon/100 * inRange);
+    },
+    xLabel:"Underlying Price (daily snapshot)",
+    scenarios:(p)=>{const n=p.notional,c=p.annualCoupon;return{
+      bull:{label:"90% In Range",val:n*(1+c/100*0.9)},
+      mid:{label:"60% In Range",val:n*(1+c/100*0.6)},
+      bear:{label:"20% In Range",val:n*(1+c/100*0.2)}
+    };},
+    risks:["Coupon depends on daily price observations","Volatile markets reduce accrual days","Zero coupon if price constantly outside range","Complex to hedge and monitor","Issuer credit risk"],
+  },
+  // ── 8. Shark Fin Note ──
+  {
+    id:8, name:"Shark Fin Note", cat:"bullish", tenor:"1Y",
+    tags:["bullish","1Y"],
+    short:"Upside participation with a knock-out barrier that caps extreme gains.",
+    desc:"A Shark Fin Note gives you upside participation up to a knock-out level. If the underlying ever breaches the KO barrier during the life, you receive only a smaller rebate instead of full participation. The payoff chart resembles a shark's dorsal fin.",
+    howItWorks:"If the final price is above spot but never touched the KO barrier, you earn full participation on the upside. If the barrier was touched at any point, you get only the fixed rebate. Below spot, principal is returned.",
+    params:{spot:100,koBarrier:130,participation:100,rebate:5,notional:1000},
+    paramDefs:[
+      {key:"spot",label:"Initial Spot",min:50,max:200,step:1,fmt:v=>"$"+v},
+      {key:"koBarrier",label:"Knock-Out Barrier",min:110,max:180,step:1,fmt:v=>"$"+v},
+      {key:"participation",label:"Participation",min:50,max:200,step:5,fmt:v=>v+"%"},
+      {key:"rebate",label:"KO Rebate",min:1,max:15,step:.5,fmt:v=>v+"%"},
+      {key:"notional",label:"Notional",min:100,max:10000,step:100,fmt:v=>"$"+v.toLocaleString()}
+    ],
+    payoff:(p,S)=>{
+      if(S >= p.koBarrier) return p.notional*(1 + p.rebate/100); // KO hit
+      if(S > p.spot) return p.notional*(1 + (S - p.spot)/p.spot * p.participation/100);
+      return p.notional;
+    },
+    scenarios:(p)=>{const n=p.notional;return{
+      bull:{label:"+20%, no KO",val:n*(1+0.2*p.participation/100)},
+      mid:{label:"KO Hit",val:n*(1+p.rebate/100)},
+      bear:{label:"Below Spot",val:n}
+    };},
+    risks:["Knock-out caps windfall gains to rebate only","Rebate may be far below potential gain","Path-dependent barrier monitoring","No downside participation","Issuer credit risk"],
+  },
+  // ── 9. Twin-Win Note ──
+  {
+    id:9, name:"Twin-Win Note", cat:"neutral", tenor:"2Y",
+    tags:["neutral","2Y"],
+    short:"Profit from both up and down moves, with barrier protection.",
+    desc:"A Twin-Win Note converts both positive and negative returns into positive returns, as long as the underlying never breaches the down-barrier. You profit whether the market goes moderately up or moderately down.",
+    howItWorks:"If the underlying finishes above spot: you earn the upside. If it finishes below spot but never touched the barrier: you earn the absolute value of the decline as a positive return. If the barrier is ever hit: you take the full downside loss.",
+    params:{spot:100,barrier:70,participation:100,notional:1000},
+    paramDefs:[
+      {key:"spot",label:"Initial Spot",min:50,max:200,step:1,fmt:v=>"$"+v},
+      {key:"barrier",label:"Down Barrier",min:40,max:95,step:1,fmt:v=>"$"+v},
+      {key:"participation",label:"Participation",min:50,max:200,step:5,fmt:v=>v+"%"},
+      {key:"notional",label:"Notional",min:100,max:10000,step:100,fmt:v=>"$"+v.toLocaleString()}
+    ],
+    payoff:(p,S)=>{
+      if(S >= p.spot) return p.notional*(1 + (S - p.spot)/p.spot * p.participation/100);
+      if(S >= p.barrier) return p.notional*(1 + (p.spot - S)/p.spot * p.participation/100);
+      return p.notional*(S/p.spot); // barrier breached
+    },
+    scenarios:(p)=>{const n=p.notional;return{
+      bull:{label:"Up 15%",val:n*(1+0.15*p.participation/100)},
+      mid:{label:"Down 15%",val:n*(1+0.15*p.participation/100)},
+      bear:{label:"Down 40%",val:n*0.6}
+    };},
+    risks:["Catastrophic loss if barrier is breached","Barrier is path-dependent","Complex structure harder to value","No dividend income","Issuer credit risk"],
+  },
+  // ── 10. Phoenix Autocallable ──
+  {
+    id:10, name:"Phoenix Autocallable", cat:"yield", tenor:"2Y",
+    tags:["yield","2Y"],
+    short:"Memory coupon with periodic autocall and barrier protection.",
+    desc:"A Phoenix Note pays a coupon at each observation date if the underlying is above the coupon barrier. Missed coupons are memorized and paid later if conditions are met. It can also autocall early if above the autocall level.",
+    howItWorks:"At each observation: above autocall level = note redeems at par + all coupons. Below autocall but above coupon barrier = coupon paid. Below coupon barrier = coupon deferred (memory). At maturity: above coupon barrier = all deferred coupons paid; below knock-in = capital loss.",
+    params:{spot:100,autocallLevel:105,couponBarrier:75,knockIn:65,couponPerQ:2.5,notional:1000},
+    paramDefs:[
+      {key:"spot",label:"Initial Spot",min:50,max:200,step:1,fmt:v=>"$"+v},
+      {key:"autocallLevel",label:"Autocall Level",min:95,max:130,step:1,fmt:v=>"$"+v},
+      {key:"couponBarrier",label:"Coupon Barrier",min:50,max:95,step:1,fmt:v=>"$"+v},
+      {key:"knockIn",label:"Knock-In Barrier",min:40,max:80,step:1,fmt:v=>"$"+v},
+      {key:"couponPerQ",label:"Quarterly Coupon",min:.5,max:8,step:.25,fmt:v=>v+"%"},
+      {key:"notional",label:"Notional",min:100,max:10000,step:100,fmt:v=>"$"+v.toLocaleString()}
+    ],
+    payoff:(p,S)=>{
+      const totalC = p.notional*p.couponPerQ/100*8;
+      if(S >= p.autocallLevel) return p.notional + totalC;
+      if(S >= p.couponBarrier) return p.notional + totalC;
+      if(S >= p.knockIn) return p.notional; // no coupon, principal ok
+      return p.notional*(S/p.spot); // loss
+    },
+    scenarios:(p)=>{const n=p.notional,cq=n*p.couponPerQ/100;return{
+      bull:{label:"Called Y1",val:n+cq*4},
+      mid:{label:"Coupon Paid 2Y",val:n+cq*8},
+      bear:{label:"KI Breached",val:n*0.6}
+    };},
+    risks:["Capital loss if knock-in breached","Coupons may not accrue every period","Early autocall limits total income","Complex memory coupon feature","Issuer credit risk"],
+  },
+  // ── 11. Digital Note ──
+  {
+    id:11, name:"Digital (Binary) Note", cat:"bullish", tenor:"1Y",
+    tags:["bullish","1Y"],
+    short:"Pays a fixed digital coupon if underlying finishes above strike.",
+    desc:"A Digital Note pays a fixed coupon if the underlying is at or above the strike at maturity, and returns principal in all cases. It is a simple binary bet with clearly defined outcomes.",
+    howItWorks:"At maturity: if Underlying >= Strike, you receive Notional + Digital Coupon. If below, you receive just Notional. The payoff is a step function — all-or-nothing at the strike level.",
+    params:{spot:100,strike:100,digitalCoupon:15,notional:1000},
+    paramDefs:[
+      {key:"spot",label:"Initial Spot",min:50,max:200,step:1,fmt:v=>"$"+v},
+      {key:"strike",label:"Strike Level",min:70,max:150,step:1,fmt:v=>"$"+v},
+      {key:"digitalCoupon",label:"Digital Coupon",min:3,max:40,step:1,fmt:v=>v+"%"},
+      {key:"notional",label:"Notional",min:100,max:10000,step:100,fmt:v=>"$"+v.toLocaleString()}
+    ],
+    payoff:(p,S)=> S >= p.strike ? p.notional*(1+p.digitalCoupon/100) : p.notional,
+    scenarios:(p)=>{const n=p.notional;return{
+      bull:{label:"Above Strike",val:n*(1+p.digitalCoupon/100)},
+      mid:{label:"Just Below",val:n},
+      bear:{label:"Far Below",val:n}
+    };},
+    risks:["All-or-nothing near the strike","Tiny miss means zero coupon","Coupon does not scale with performance","Price sensitivity extreme near expiry","Issuer credit risk"],
+  },
+  // ── 12. Worst-Of Autocallable (FIXED) ──
+  {
+    id:12, name:"Worst-Of Autocallable", cat:"yield", tenor:"1Y",
+    tags:["yield","1Y"],
+    short:"Higher coupon linked to the worst performer in a basket of stocks.",
+    desc:"A Worst-Of Autocallable is linked to a basket of underlyings (e.g., 3 stocks). The note pays enhanced coupons, but performance is determined by the worst-performing stock. Higher risk from dispersion = higher coupon.",
+    howItWorks:"At each observation, the worst performer determines the outcome. If ALL stocks are above the autocall level, the note redeems. If the worst stock falls below the barrier at maturity, you suffer that stock's loss. The chart X-axis represents the worst stock's final price.",
+    params:{spot:100,autocallLevel:100,barrier:60,coupon:4,notional:1000},
+    paramDefs:[
+      {key:"spot",label:"Initial Spot (Worst)",min:50,max:200,step:1,fmt:v=>"$"+v},
+      {key:"autocallLevel",label:"Autocall Level",min:80,max:120,step:1,fmt:v=>"$"+v},
+      {key:"barrier",label:"Barrier",min:40,max:85,step:1,fmt:v=>"$"+v},
+      {key:"coupon",label:"Quarterly Coupon",min:1,max:12,step:.5,fmt:v=>v+"%"},
+      {key:"notional",label:"Notional",min:100,max:10000,step:100,fmt:v=>"$"+v.toLocaleString()}
+    ],
+    payoff:(p,S)=>{
+      // S = worst stock final price
+      const totalC = p.notional*p.coupon/100*4;
+      if(S >= p.autocallLevel) return p.notional + totalC;
+      if(S >= p.barrier) return p.notional + totalC;
+      return p.notional*(S/p.spot) + totalC;
+    },
+    scenarios:(p)=>{const n=p.notional,tc=n*p.coupon/100*4;return{
+      bull:{label:"All Up",val:n+tc},
+      mid:{label:"Worst -20%",val:n+tc},
+      bear:{label:"Worst -50%",val:n*0.5+tc}
+    };},
+    risks:["Exposed to the single worst stock in basket","Correlation risk between underlyings","Higher complexity, hard to monitor","Large potential capital loss","Issuer credit risk"],
+  },
+  // ── 13. Bonus Certificate ──
+  {
+    id:13, name:"Bonus Certificate", cat:"bullish", tenor:"2Y",
+    tags:["bullish","protection","2Y"],
+    short:"Guaranteed minimum return if barrier is never breached.",
+    desc:"A Bonus Certificate provides a minimum bonus return at maturity, provided the underlying never touches the down-barrier during its life. If the barrier is hit, the bonus is lost and it behaves like direct ownership.",
+    howItWorks:"If the underlying never touches the barrier: you receive max(Final Price, Bonus Level) / Initial Price x Notional. If the barrier is breached: you get Final Price / Initial Price x Notional (which could be a loss).",
+    params:{spot:100,barrier:70,bonusLevel:115,notional:1000},
+    paramDefs:[
+      {key:"spot",label:"Initial Spot",min:50,max:200,step:1,fmt:v=>"$"+v},
+      {key:"barrier",label:"Barrier",min:40,max:95,step:1,fmt:v=>"$"+v},
+      {key:"bonusLevel",label:"Bonus Level",min:100,max:150,step:1,fmt:v=>"$"+v},
+      {key:"notional",label:"Notional",min:100,max:10000,step:100,fmt:v=>"$"+v.toLocaleString()}
+    ],
+    payoff:(p,S)=>{
+      if(S >= p.barrier) return p.notional * Math.max(S, p.bonusLevel) / p.spot;
+      return p.notional * (S / p.spot); // barrier hit
+    },
+    scenarios:(p)=>{const n=p.notional;return{
+      bull:{label:"Up 25%",val:n*1.25},
+      mid:{label:"Down 10%, no KI",val:n*p.bonusLevel/p.spot},
+      bear:{label:"Down 35%, KI",val:n*0.65}
+    };},
+    risks:["No bonus if barrier breached","Full downside like equity if barrier hit","Path-dependent monitoring","No dividends received","Issuer credit risk"],
+  },
+  // ── 14. Cliquet Note (Ratchet) ──
+  {
+    id:14, name:"Cliquet Note (Ratchet)", cat:"neutral", tenor:"5Y",
+    tags:["neutral","5Y"],
+    short:"Locks in periodic returns with local floors and caps per year.",
+    desc:"A Cliquet (Ratchet) Note locks in returns at the end of each period (e.g., annually). Each period has a local cap and floor. Total return is the sum of all capped annual returns, subject to a global floor.",
+    howItWorks:"Each year, the underlying's return is calculated. It is floored (e.g., 0%) and capped (e.g., 6%). After 5 years, total return = sum of all clipped annual returns. A global floor ensures you never receive less than a minimum total return. The chart shows payoff if the underlying returns the same amount each year.",
+    params:{spot:100,localFloor:0,localCap:6,globalFloor:0,years:5,notional:1000},
+    paramDefs:[
+      {key:"localFloor",label:"Local Floor",min:-5,max:2,step:.5,fmt:v=>v+"%"},
+      {key:"localCap",label:"Local Cap",min:2,max:15,step:.5,fmt:v=>v+"%"},
+      {key:"globalFloor",label:"Global Floor",min:0,max:10,step:1,fmt:v=>v+"%"},
+      {key:"years",label:"Tenor (Years)",min:2,max:7,step:1,fmt:v=>v+"Y"},
+      {key:"notional",label:"Notional",min:100,max:10000,step:100,fmt:v=>"$"+v.toLocaleString()}
+    ],
+    payoff:(p,S)=>{
+      // assume uniform annual return = (S/spot)^(1/years) - 1
+      const totalReturn = (S - p.spot)/p.spot;
+      const avgAnnual = totalReturn / p.years;
+      const clipped = Math.max(p.localFloor/100, Math.min(p.localCap/100, avgAnnual));
+      const total = Math.max(p.globalFloor/100, clipped * p.years);
+      return p.notional*(1 + total);
+    },
+    scenarios:(p)=>{const n=p.notional,y=p.years;return{
+      bull:{label:"Each +8%/yr",val:n*(1+p.localCap/100*y)},
+      mid:{label:"Each +3%/yr",val:n*(1+Math.min(p.localCap/100,0.03)*y)},
+      bear:{label:"Each -10%/yr",val:n*(1+Math.max(p.globalFloor/100,p.localFloor/100*y))}
+    };},
+    risks:["Annual caps limit strong bull years","Complex multi-period structure","Global floor may be zero","Path-dependent (order of returns matters)","Issuer credit risk over long tenor"],
+  },
+  // ── 15. Snowball Note ──
+  {
+    id:15, name:"Snowball Note", cat:"yield", tenor:"2Y",
+    tags:["yield","2Y"],
+    short:"Accumulates coupons like a snowball — missed coupons add to future payouts.",
+    desc:"A Snowball Note pays a coupon each period if the underlying is above the coupon barrier. If missed, the coupon accumulates and is paid (with all arrears) the next time conditions are met. At maturity, below knock-in means capital loss.",
+    howItWorks:"Each quarter: if underlying > coupon barrier, you receive the current coupon PLUS all previously deferred coupons. If below, coupon is deferred. At maturity: above coupon barrier = all coupons paid; between knock-in and coupon barrier = principal only; below knock-in = capital loss.",
+    params:{spot:100,couponBarrier:80,knockIn:65,couponPerQ:3,notional:1000},
+    paramDefs:[
+      {key:"spot",label:"Initial Spot",min:50,max:200,step:1,fmt:v=>"$"+v},
+      {key:"couponBarrier",label:"Coupon Barrier",min:60,max:100,step:1,fmt:v=>"$"+v},
+      {key:"knockIn",label:"Knock-In Barrier",min:40,max:80,step:1,fmt:v=>"$"+v},
+      {key:"couponPerQ",label:"Quarterly Coupon",min:1,max:10,step:.25,fmt:v=>v+"%"},
+      {key:"notional",label:"Notional",min:100,max:10000,step:100,fmt:v=>"$"+v.toLocaleString()}
+    ],
+    payoff:(p,S)=>{
+      const totalC = p.notional*p.couponPerQ/100*8;
+      if(S >= p.couponBarrier) return p.notional + totalC;
+      if(S >= p.knockIn) return p.notional;
+      return p.notional*(S/p.spot);
+    },
+    scenarios:(p)=>{const n=p.notional,tc=n*p.couponPerQ/100*8;return{
+      bull:{label:"Above Barrier",val:n+tc},
+      mid:{label:"Between Barriers",val:n},
+      bear:{label:"Below KI",val:n*0.6}
+    };},
+    risks:["Coupons may be deferred for long periods","Capital loss if knock-in breached","Snowball accumulation amplifies waiting risk","Complex coupon mechanics","Issuer credit risk"],
+  },
+  // ── 16. Leveraged Buffered Note ──
+  {
+    id:16, name:"Leveraged Buffered Note", cat:"bullish", tenor:"1Y",
+    tags:["bullish","protection","1Y"],
+    short:"Amplified upside with a buffer zone absorbing initial losses.",
+    desc:"Provides leveraged upside exposure with a downside buffer that absorbs the first X% of losses. Beyond the buffer, you lose 1:1. Designed for moderately bullish investors wanting some downside cushion.",
+    howItWorks:"Upside: you earn Leverage x Performance, capped at Max Return. Downside: first Buffer% of loss is absorbed (you lose nothing). Beyond the buffer, you lose 1:1. Example: 2x upside, 10% buffer, 25% cap.",
+    params:{spot:100,leverage:2,cap:25,buffer:10,notional:1000},
+    paramDefs:[
+      {key:"spot",label:"Initial Spot",min:50,max:200,step:1,fmt:v=>"$"+v},
+      {key:"leverage",label:"Upside Leverage",min:1,max:4,step:.25,fmt:v=>v+"x"},
+      {key:"cap",label:"Max Return",min:10,max:60,step:1,fmt:v=>v+"%"},
+      {key:"buffer",label:"Downside Buffer",min:5,max:25,step:1,fmt:v=>v+"%"},
+      {key:"notional",label:"Notional",min:100,max:10000,step:100,fmt:v=>"$"+v.toLocaleString()}
+    ],
+    payoff:(p,S)=>{
+      const perf = (S - p.spot)/p.spot;
+      if(perf >= 0) return p.notional*(1 + Math.min(perf*p.leverage, p.cap/100));
+      if(perf >= -p.buffer/100) return p.notional; // buffer absorbs
+      return p.notional*(1 + (perf + p.buffer/100)); // loss beyond buffer
+    },
+    scenarios:(p)=>{const n=p.notional;return{
+      bull:{label:"Up 15%",val:n*(1+Math.min(0.15*p.leverage,p.cap/100))},
+      mid:{label:"Down 8%",val:n},
+      bear:{label:"Down 30%",val:n*(1+(-0.3+p.buffer/100))}
+    };},
+    risks:["Upside is capped","Beyond buffer: full downside exposure","Leverage only applies to upside","No dividend income","Issuer credit risk"],
+  },
+  // ── 17. Callable Yield Note (FIXED) ──
+  {
+    id:17, name:"Callable Yield Note", cat:"yield", tenor:"5Y",
+    tags:["yield","5Y"],
+    short:"High fixed coupon with issuer call right — called early if rates drop.",
+    desc:"Pays a high fixed coupon but the issuer can redeem (call) it early on any coupon date. Typically called when interest rates decline, limiting the investor's total return. The chart shows total value based on the call year.",
+    howItWorks:"You receive an above-market fixed coupon annually. The issuer has the right to call the note at par on any coupon date after an initial non-call period. If called: principal + accrued coupons. If held to maturity: principal + all coupons.",
+    params:{spot:100,couponAnnual:8,callAfterYear:1,tenor:5,notional:1000},
+    paramDefs:[
+      {key:"couponAnnual",label:"Annual Coupon",min:3,max:15,step:.25,fmt:v=>v+"%"},
+      {key:"callAfterYear",label:"First Call Year",min:1,max:4,step:1,fmt:v=>"Year "+v},
+      {key:"tenor",label:"Tenor (Years)",min:2,max:7,step:1,fmt:v=>v+"Y"},
+      {key:"notional",label:"Notional",min:100,max:10000,step:100,fmt:v=>"$"+v.toLocaleString()}
+    ],
+    // X-axis: S maps to "year called" (S=40..160 mapped to year 0..tenor)
+    payoff:(p,S)=>{
+      // Map S (which goes from spot*0.4 to spot*1.6) to a year value
+      const spotVal = p.spot || 100;
+      const minS = spotVal*0.4, maxS = spotVal*1.6;
+      const yearFrac = (S - minS)/(maxS - minS) * p.tenor;
+      const yr = Math.max(p.callAfterYear, Math.min(p.tenor, yearFrac));
+      return p.notional*(1 + p.couponAnnual/100 * yr);
+    },
+    xLabel:"Holding Period (mapped from left=earliest call to right=maturity)",
+    scenarios:(p)=>{const n=p.notional;return{
+      bull:{label:"Called Y"+p.callAfterYear,val:n*(1+p.couponAnnual/100*p.callAfterYear)},
+      mid:{label:"Called Y3",val:n*(1+p.couponAnnual/100*Math.min(3,p.tenor))},
+      bear:{label:"Held "+p.tenor+"Y",val:n*(1+p.couponAnnual/100*p.tenor)}
+    };},
+    risks:["Reinvestment risk on early call","Issuer calls when advantageous for them","Opportunity cost vs longer duration bonds","No equity upside","Issuer credit risk"],
+  },
+  // ── 18. Principal-at-Risk Note ──
+  {
+    id:18, name:"Principal-at-Risk Note", cat:"bullish", tenor:"1Y",
+    tags:["bullish","1Y"],
+    short:"Enhanced upside participation but full principal at risk.",
+    desc:"A PARN gives enhanced upside participation (often > 100%) in exchange for full downside risk. Unlike capital-protected notes, your entire principal is exposed. Higher risk, higher potential reward.",
+    howItWorks:"At maturity: if the underlying is up, you receive Notional x (1 + Performance x Participation). If down, you lose proportionally. No buffer, no protection — just amplified upside for accepting full downside.",
+    params:{spot:100,participation:150,notional:1000},
+    paramDefs:[
+      {key:"spot",label:"Initial Spot",min:50,max:200,step:1,fmt:v=>"$"+v},
+      {key:"participation",label:"Upside Participation",min:100,max:300,step:10,fmt:v=>v+"%"},
+      {key:"notional",label:"Notional",min:100,max:10000,step:100,fmt:v=>"$"+v.toLocaleString()}
+    ],
+    payoff:(p,S)=>{
+      const perf = (S - p.spot)/p.spot;
+      if(perf >= 0) return p.notional*(1 + perf*p.participation/100);
+      return p.notional*(1 + perf);
+    },
+    scenarios:(p)=>{const n=p.notional;return{
+      bull:{label:"Up 20%",val:n*(1+0.2*p.participation/100)},
+      mid:{label:"Flat",val:n},
+      bear:{label:"Down 30%",val:n*0.7}
+    };},
+    risks:["Full principal at risk on downside","No buffer or protection","High participation amplifies FOMO risk","No dividend income","Issuer credit risk"],
+  },
+  // ── 19. Barrier Reverse Convertible ──
+  {
+    id:19, name:"Barrier Reverse Convertible", cat:"yield", tenor:"1Y",
+    tags:["yield","1Y"],
+    short:"Enhanced coupon with conditional principal protection via barrier.",
+    desc:"A BRC pays a high coupon and protects principal unless the underlying breaches a barrier during its life. Adds a barrier feature to the standard reverse convertible for conditional downside protection.",
+    howItWorks:"You receive an enhanced coupon. As long as the underlying never breaches the down-barrier during the life, you get full principal + coupon. If the barrier is breached AND the underlying finishes below strike, you take the loss on the principal portion.",
+    params:{spot:100,strike:100,barrier:65,coupon:10,notional:1000},
+    paramDefs:[
+      {key:"spot",label:"Initial Spot",min:50,max:200,step:1,fmt:v=>"$"+v},
+      {key:"strike",label:"Strike",min:50,max:200,step:1,fmt:v=>"$"+v},
+      {key:"barrier",label:"Barrier",min:40,max:90,step:1,fmt:v=>"$"+v},
+      {key:"coupon",label:"Annual Coupon",min:3,max:25,step:.5,fmt:v=>v+"%"},
+      {key:"notional",label:"Notional",min:100,max:10000,step:100,fmt:v=>"$"+v.toLocaleString()}
+    ],
+    payoff:(p,S)=>{
+      const c = p.notional*p.coupon/100;
+      if(S >= p.strike) return p.notional + c;
+      if(S >= p.barrier) return p.notional + c; // barrier not hit
+      return p.notional*(S/p.strike) + c; // barrier hit + below strike
+    },
+    scenarios:(p)=>{const n=p.notional,c=n*p.coupon/100;return{
+      bull:{label:"Above Strike",val:n+c},
+      mid:{label:"Down, no KI",val:n+c},
+      bear:{label:"KI + Down 40%",val:n*0.6+c}
+    };},
+    risks:["Capital loss if barrier breached and stock finishes below strike","Coupon doesn't offset large losses","Path-dependent barrier","Limited upside (coupon only)","Issuer credit risk"],
+  },
+  // ── 20. Outperformance Note (FIXED) ──
+  {
+    id:20, name:"Outperformance Note", cat:"bullish", tenor:"2Y",
+    tags:["bullish","2Y"],
+    short:"Profit from the relative performance spread between two assets.",
+    desc:"An Outperformance Note pays based on the difference in performance between two assets (e.g., Tech ETF vs Energy ETF). You profit if your chosen asset outperforms the other, regardless of absolute market direction.",
+    howItWorks:"At maturity: Return = Participation x (Asset A Return - Asset B Return). The chart X-axis represents Asset A's final price while Asset B is held fixed (adjustable via slider). A floor can protect against negative spreads.",
+    params:{spot:100,perfB:100,participation:100,floor:0,notional:1000},
+    paramDefs:[
+      {key:"spot",label:"Asset A Initial",min:50,max:200,step:1,fmt:v=>"$"+v},
+      {key:"perfB",label:"Asset B Final",min:50,max:200,step:1,fmt:v=>"$"+v},
+      {key:"participation",label:"Participation",min:50,max:200,step:10,fmt:v=>v+"%"},
+      {key:"floor",label:"Min Return Floor",min:-20,max:5,step:1,fmt:v=>v+"%"},
+      {key:"notional",label:"Notional",min:100,max:10000,step:100,fmt:v=>"$"+v.toLocaleString()}
+    ],
+    payoff:(p,S)=>{
+      // S = Asset A final, perfB = Asset B final (slider)
+      const retA = (S - p.spot)/p.spot;
+      const retB = (p.perfB - p.spot)/p.spot;
+      const spread = retA - retB;
+      const ret = Math.max(p.floor/100, spread * p.participation/100);
+      return p.notional*(1 + ret);
+    },
+    scenarios:(p)=>{const n=p.notional;return{
+      bull:{label:"A beats B +20%",val:n*(1+Math.max(p.floor/100, 0.2*p.participation/100))},
+      mid:{label:"Same perf",val:n*(1+Math.max(p.floor/100, (-(p.perfB-p.spot)/p.spot)*p.participation/100))},
+      bear:{label:"B beats A +15%",val:n*(1+Math.max(p.floor/100, -0.15*p.participation/100))}
+    };},
+    risks:["Relative performance can diverge unexpectedly","Correlation changes over time","Complex to monitor two assets","Floor may still result in loss","Issuer credit risk"],
+  },
+  // ── 21. Accumulator ──
+  {
+    id:21, name:"Accumulator", cat:"bullish", tenor:"1Y",
+    tags:["bullish","1Y"],
+    short:"Obligation to buy shares daily at a discount — profits if stock rises.",
+    desc:"An Accumulator obliges you to buy a fixed number of shares each day at a preset discount to the initial price. If the stock rises, you accumulate cheap shares. If it falls, you buy at above-market prices. A knock-out terminates if the stock rallies too much.",
+    howItWorks:"Daily you buy N shares at (Spot - Discount%). If the stock rises above the KO level, the contract terminates early. If the stock falls, you keep buying at the fixed price which is now above market. The chart shows net portfolio value at different final prices.",
+    params:{spot:100,discount:5,koLevel:120,notional:1000},
+    paramDefs:[
+      {key:"spot",label:"Initial Spot",min:50,max:200,step:1,fmt:v=>"$"+v},
+      {key:"discount",label:"Buy Discount",min:1,max:15,step:.5,fmt:v=>v+"%"},
+      {key:"koLevel",label:"Knock-Out Level",min:105,max:150,step:1,fmt:v=>"$"+v},
+      {key:"notional",label:"Notional",min:100,max:10000,step:100,fmt:v=>"$"+v.toLocaleString()}
+    ],
+    payoff:(p,S)=>{
+      const buyPrice = p.spot*(1 - p.discount/100);
+      if(S >= p.koLevel) return p.notional*(1 + (p.koLevel - buyPrice)/buyPrice * 0.5);
+      const pnl = (S - buyPrice)/buyPrice;
+      return p.notional*(1 + pnl);
+    },
+    scenarios:(p)=>{const n=p.notional,bp=p.spot*(1-p.discount/100);return{
+      bull:{label:"KO Hit",val:n*(1+(p.koLevel-bp)/bp*0.5)},
+      mid:{label:"Flat",val:n*(1+(p.spot-bp)/bp)},
+      bear:{label:"Stock -25%",val:n*(1+(p.spot*0.75-bp)/bp)}
+    };},
+    risks:["Forced to buy in falling market","Can accumulate large losses","KO limits upside participation","Daily obligation is rigid","Significant potential capital loss"],
+  },
+  // ── 22. Decrement Note (FIXED) ──
+  {
+    id:22, name:"Decrement Note", cat:"yield", tenor:"5Y",
+    tags:["yield","5Y"],
+    short:"Linked to a decrement index — synthetic dividend provides predictable pricing.",
+    desc:"A Decrement Note is linked to an index that deducts a fixed annual amount (e.g., 5%) to simulate dividend payments. This makes pricing more predictable and often allows better participation terms. The chart shows your payoff vs the underlying index final level (before decrement is applied).",
+    howItWorks:"The underlying is a decrement index that reduces by a fixed % annually. Your return is based on this modified index vs its starting value. If the actual market dividends exceed the decrement, you benefit; if lower, you lag. Notional is protected at maturity with upside participation on the decrement-adjusted index.",
+    params:{spot:100,decrementRate:5,participation:100,tenor:5,notional:1000},
+    paramDefs:[
+      {key:"spot",label:"Index Start",min:50,max:200,step:1,fmt:v=>v+" pts"},
+      {key:"decrementRate",label:"Annual Decrement",min:2,max:10,step:.5,fmt:v=>v+"%"},
+      {key:"participation",label:"Participation",min:50,max:200,step:5,fmt:v=>v+"%"},
+      {key:"tenor",label:"Tenor (Years)",min:1,max:7,step:1,fmt:v=>v+"Y"},
+      {key:"notional",label:"Notional",min:100,max:10000,step:100,fmt:v=>"$"+v.toLocaleString()}
+    ],
+    payoff:(p,S)=>{
+      // S = index final value (gross). Apply decrement drag.
+      const decMultiplier = Math.pow(1 - p.decrementRate/100, p.tenor);
+      const decIndex = S * decMultiplier;
+      const perf = (decIndex - p.spot)/p.spot;
+      return p.notional*(1 + Math.max(0, perf * p.participation/100));
+    },
+    scenarios:(p)=>{const n=p.notional,dm=Math.pow(1-p.decrementRate/100,p.tenor);return{
+      bull:{label:"Idx +40%",val:n*(1+Math.max(0,(1.4*dm-1)*p.participation/100))},
+      mid:{label:"Idx +15%",val:n*(1+Math.max(0,(1.15*dm-1)*p.participation/100))},
+      bear:{label:"Idx Flat",val:n}
+    };},
+    risks:["Decrement drag reduces effective return","If actual dividends < decrement: underperformance vs benchmark","Long tenor amplifies decrement effect","Complex index methodology","Issuer credit risk"],
+  },
+];
+
+// ============================================================
+// APP LOGIC
+// ============================================================
+const cardList = document.getElementById('cardList');
+const detailView = document.getElementById('detailView');
+const detailContent = document.getElementById('detailContent');
+const detailTitle = document.getElementById('detailTitle');
+const backBtn = document.getElementById('backBtn');
+const searchInput = document.getElementById('searchInput');
+const categoryTabs = document.getElementById('categoryTabs');
+
+let activeCategory = 'all';
+
+function renderCards(){
+  const q = searchInput.value.toLowerCase();
+  const filtered = STRUCTURES.filter(s=>{
+    const catMatch = activeCategory==='all' || s.cat===activeCategory;
+    const searchMatch = !q || s.name.toLowerCase().includes(q) || s.short.toLowerCase().includes(q) || s.tags.some(t=>t.toLowerCase().includes(q));
+    return catMatch && searchMatch;
+  });
+  let html = `<div class="section-title">${filtered.length} structure${filtered.length!==1?'s':''} available</div>`;
+  filtered.forEach(s=>{
+    const tagHTML = s.tags.map(t=>{
+      let cls='neutral';
+      if(t.includes('bull'))cls='bull'; else if(t.includes('bear'))cls='bear';
+      else if(t.includes('yield'))cls='yield'; else if(t.includes('protect'))cls='protection';
+      else if(t.match(/\dY/))cls='tenor';
+      return `<span class="tag ${cls}">${t}</span>`;
+    }).join('');
+    html+=`<div class="card" onclick="openDetail(${s.id})">
+      <div class="title">${s.name}</div>
+      <div class="subtitle">${s.short}</div>
+      <div class="tags">${tagHTML}</div>
+    </div>`;
+  });
+  cardList.innerHTML = html;
+}
+
+function openDetail(id){
+  const s = STRUCTURES.find(x=>x.id===id);
+  if(!s) return;
+  detailTitle.textContent = s.name;
+  const params = {...s.params};
+
+  let html=`
+    <div class="info-block"><h3>Overview</h3><p>${s.desc}</p></div>
+    <div class="info-block"><h3>How It Works</h3><p>${s.howItWorks}</p></div>
+    <div class="chart-container">
+      <div class="chart-title">Payoff at Maturity</div>
+      <canvas id="payoffChart"></canvas>
+      <div class="pl-indicator" id="plIndicator"></div>
+    </div>
+    <div class="param-group">
+      <div class="param-group-title">Adjust Parameters</div>
+      ${(s.paramDefs||[]).map(pd=>`
+        <div class="param-row">
+          <div class="param-label"><span>${pd.label}</span><span class="param-value" id="val_${pd.key}">${pd.fmt(params[pd.key])}</span></div>
+          <input type="range" id="slider_${pd.key}" min="${pd.min}" max="${pd.max}" step="${pd.step}" value="${params[pd.key]}" data-key="${pd.key}">
+        </div>
+      `).join('')}
+    </div>
+    <div class="info-block">
+      <h3>Scenario Analysis</h3>
+      <div class="scenario-grid" id="scenarioGrid"></div>
+    </div>
+    <div class="info-block">
+      <h3>Key Risks</h3>
+      <ul>${s.risks.map(r=>`<li>${r}</li>`).join('')}</ul>
+    </div>
+    <div class="disclaimer">
+      <h4>Important Disclaimer</h4>
+      <p>This tool is for <strong>educational purposes only</strong> and does not constitute investment advice, a solicitation, or an offer to buy or sell any securities. Structured notes are complex financial instruments that carry significant risks including but not limited to: loss of principal, issuer credit/default risk, liquidity risk, and market risk. Past performance does not guarantee future results. Payoff diagrams are theoretical and assume holding to maturity with no issuer default. Actual returns may differ materially due to fees, taxes, early redemption, counterparty risk, and prevailing market conditions. <strong>Always consult a qualified financial advisor</strong> before making investment decisions. BTG Pactual and its affiliates assume no responsibility for any losses arising from the use of this educational tool.</p>
+    </div>
+  `;
+  detailContent.innerHTML = html;
+
+  function drawChart(){
+    const canvas = document.getElementById('payoffChart');
+    if(!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.parentElement.clientWidth - 32;
+    const H = 280;
+    canvas.width = W*2; canvas.height = H*2;
+    canvas.style.width = W+'px'; canvas.style.height = H+'px';
+    ctx.scale(2,2);
+
+    const spotVal = params.spot || 100;
+    const nPts = 120;
+    const prices = [];
+    for(let i=0;i<=nPts;i++) prices.push(spotVal*0.4 + (spotVal*1.6 - spotVal*0.4)*i/nPts);
+    const payoffs = prices.map(p2 => s.payoff(params, p2));
+    const notional = params.notional || 1000;
+
+    const allVals = [...payoffs, notional];
+    let minV = Math.min(...allVals), maxV = Math.max(...allVals);
+    const margin = (maxV - minV)*0.12 || notional*0.05;
+    minV -= margin; maxV += margin;
+    const rangeV = maxV - minV || 1;
+
+    const pad = {t:20,r:50,b:36,l:52};
+    const cw = W - pad.l - pad.r;
+    const ch = H - pad.t - pad.b;
+    const toX = i => pad.l + i/nPts*cw;
+    const toY = v => pad.t + ch - (v - minV)/rangeV*ch;
+
+    ctx.clearRect(0,0,W,H);
+
+    // Grid lines
+    ctx.strokeStyle = '#e8ecf0';
+    ctx.lineWidth = 1;
+    for(let i=0;i<=5;i++){
+      const y = pad.t + ch*i/5;
+      ctx.beginPath(); ctx.moveTo(pad.l,y); ctx.lineTo(W-pad.r,y); ctx.stroke();
+    }
+
+    // Notional (breakeven) line
+    ctx.strokeStyle = '#b0b8c4';
+    ctx.setLineDash([5,4]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(toX(0), toY(notional));
+    ctx.lineTo(toX(nPts), toY(notional));
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Spot vertical
+    const spotFrac = (spotVal - spotVal*0.4)/(spotVal*1.6 - spotVal*0.4);
+    const spotX = pad.l + spotFrac*cw;
+    ctx.strokeStyle = '#c8cdd4';
+    ctx.setLineDash([3,3]);
+    ctx.beginPath(); ctx.moveTo(spotX, pad.t); ctx.lineTo(spotX, H-pad.b); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Gradient fill (green above notional, red below)
+    for(let i=0;i<nPts;i++){
+      const x1=toX(i), x2=toX(i+1);
+      const y1=toY(payoffs[i]), y2=toY(payoffs[i+1]);
+      const yN=toY(notional);
+      ctx.beginPath();
+      ctx.moveTo(x1,yN); ctx.lineTo(x1,y1); ctx.lineTo(x2,y2); ctx.lineTo(x2,yN);
+      ctx.closePath();
+      const above = (payoffs[i]+payoffs[i+1])/2 >= notional;
+      ctx.fillStyle = above ? 'rgba(13,138,106,.1)' : 'rgba(192,57,43,.08)';
+      ctx.fill();
+    }
+
+    // Payoff line
+    ctx.strokeStyle = '#003366';
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    for(let i=0;i<=nPts;i++){
+      const x=toX(i), y=toY(payoffs[i]);
+      i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+
+    // Y-axis labels
+    ctx.fillStyle = '#7a8494';
+    ctx.font = '10px -apple-system,sans-serif';
+    ctx.textAlign = 'right';
+    for(let i=0;i<=5;i++){
+      const v = minV + rangeV*(5-i)/5;
+      ctx.fillText('$'+Math.round(v).toLocaleString(), pad.l-6, pad.t+ch*i/5+4);
+    }
+
+    // X-axis labels
+    ctx.textAlign = 'center';
+    for(let i=0;i<=4;i++){
+      const idx = Math.round(i*nPts/4);
+      ctx.fillText('$'+Math.round(prices[idx]), toX(idx), H-pad.b+14);
+    }
+
+    // Axis labels
+    ctx.fillStyle = '#003366';
+    ctx.font = 'bold 10px -apple-system,sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('Payoff', W-pad.r+4, toY(payoffs[nPts])+4);
+    ctx.fillStyle = '#b0b8c4';
+    ctx.font = '10px -apple-system,sans-serif';
+    ctx.fillText('Invested', W-pad.r+4, toY(notional)+4);
+    ctx.fillStyle = '#7a8494';
+    ctx.textAlign = 'center';
+    ctx.fillText(s.xLabel || 'Underlying Price at Maturity', W/2, H-2);
+
+    // P&L indicator
+    const plDiv = document.getElementById('plIndicator');
+    if(plDiv){
+      const maxPayoff = Math.max(...payoffs);
+      const minPayoff = Math.min(...payoffs);
+      const maxPL = ((maxPayoff/notional-1)*100).toFixed(1);
+      const minPL = ((minPayoff/notional-1)*100).toFixed(1);
+      const spotPayoff = s.payoff(params, spotVal);
+      const spotPL = ((spotPayoff/notional-1)*100).toFixed(1);
+      plDiv.innerHTML = `
+        <div class="item"><div class="lbl">Max Return</div><div class="v" style="color:#2e7d32">+${maxPL}%</div></div>
+        <div class="item"><div class="lbl">At Spot</div><div class="v" style="color:${spotPL>=0?'#2e7d32':'#c62828'}">${spotPL>=0?'+':''}${spotPL}%</div></div>
+        <div class="item"><div class="lbl">Max Loss</div><div class="v" style="color:${minPL>=0?'#2e7d32':'#c62828'}">${minPL>=0?'+':''}${minPL}%</div></div>
+      `;
+    }
+  }
+
+  function updateScenarios(){
+    const sc = s.scenarios(params);
+    const n = params.notional||1000;
+    const grid = document.getElementById('scenarioGrid');
+    if(!grid) return;
+    const fmt = (v)=>{
+      const pct = ((v/n-1)*100).toFixed(1);
+      return {val:'$'+Math.round(v).toLocaleString(), pct:(pct>=0?'+':'')+pct+'%'};
+    };
+    const b=fmt(sc.bull.val), m=fmt(sc.mid.val), br=fmt(sc.bear.val);
+    grid.innerHTML=`
+      <div class="scenario good"><div class="label">${sc.bull.label}</div><div class="val">${b.val}</div><div class="pct">${b.pct}</div></div>
+      <div class="scenario mid"><div class="label">${sc.mid.label}</div><div class="val">${m.val}</div><div class="pct">${m.pct}</div></div>
+      <div class="scenario bad"><div class="label">${sc.bear.label}</div><div class="val">${br.val}</div><div class="pct">${br.pct}</div></div>
+    `;
+  }
+
+  setTimeout(()=>{
+    (s.paramDefs||[]).forEach(pd=>{
+      const slider = document.getElementById('slider_'+pd.key);
+      if(!slider) return;
+      slider.addEventListener('input', ()=>{
+        const v = parseFloat(slider.value);
+        params[pd.key] = v;
+        document.getElementById('val_'+pd.key).textContent = pd.fmt(v);
+        drawChart();
+        updateScenarios();
+      });
+    });
+    drawChart();
+    updateScenarios();
+  }, 50);
+
+  detailView.classList.add('open');
+  detailView.scrollTop = 0;
+  document.body.style.overflow = 'hidden';
+}
+
+backBtn.addEventListener('click', ()=>{
+  detailView.classList.remove('open');
+  document.body.style.overflow = '';
+});
+
+categoryTabs.addEventListener('click', e=>{
+  if(!e.target.classList.contains('tab')) return;
+  categoryTabs.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  e.target.classList.add('active');
+  activeCategory = e.target.dataset.cat;
+  renderCards();
+});
+
+searchInput.addEventListener('input', renderCards);
+renderCards();
+</script>
+</body>
+</html>
