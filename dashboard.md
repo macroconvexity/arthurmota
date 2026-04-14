@@ -20,6 +20,6 @@
 
 ## [Trade Desk](tradedesk.html)
 
-## [Structured Notes Lab](structnotelab.html)
+## [Structured Notes Lab](apptrade.html)
 
 ## [Soso & lella](soso_lella_tracker.html)
