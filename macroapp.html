@@ -12,9 +12,9 @@
             font-family: 'Inter', sans-serif;
             background-color: #f4f6f8;
         }
-        .btg-bg { background-color: #1a2b49; }
-        .btg-text { color: #1a2b49; }
-        .btg-border { border-color: #1a2b49; }
+        .btg-bg { background-color: #0B2859; }
+        .btg-text { color: #0B2859; }
+        .btg-border { border-color: #0B2859; }
         
         /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -26,9 +26,12 @@
 <body class="h-screen flex flex-col overflow-hidden text-slate-800">
 
     <!-- Top Navigation -->
-    <header class="btg-bg text-white flex items-center justify-between px-6 py-4 shadow-md z-20 shrink-0">
-        <div class="flex items-center gap-4">
-            <h1 class="text-xl font-bold tracking-tight border-r border-slate-500 pr-4">Macro Strategy Lab</h1>
+    <header class="btg-bg text-white flex items-center justify-between px-4 sm:px-6 py-4 shadow-md z-20 shrink-0">
+        <div class="flex items-center gap-3 sm:gap-4">
+            <button onclick="toggleSidebar()" class="md:hidden text-slate-300 hover:text-white" title="Menu">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
+            </button>
+            <h1 class="text-lg sm:text-xl font-bold tracking-tight md:border-r md:border-slate-500 md:pr-4">Macro Strategy Lab</h1>
             <span class="text-sm font-light text-slate-300 hidden md:block">Economic Indicators & Market Data</span>
         </div>
         <div class="flex items-center gap-4">
@@ -40,22 +43,27 @@
     </header>
 
     <!-- View Toggles (Tabs) -->
-    <div class="bg-white border-b border-slate-200 px-6 flex gap-6 text-sm font-medium shrink-0 shadow-sm z-10 relative">
-        <button onclick="switchView('explorer')" id="tab-explorer" class="text-[#1a2b49] border-b-2 border-[#1a2b49] py-3 transition-colors">Data Explorer</button>
-        <button onclick="switchView('cbwatch')" id="tab-cbwatch" class="text-slate-500 hover:text-slate-800 border-b-2 border-transparent py-3 transition-colors">Central Bank Watch</button>
+    <div class="bg-white border-b border-slate-200 px-4 sm:px-6 flex gap-6 text-sm font-medium shrink-0 shadow-sm z-10 relative overflow-x-auto no-scrollbar">
+        <button onclick="switchView('explorer')" id="tab-explorer" class="text-[#0B2859] border-b-2 border-[#0B2859] py-3 transition-colors whitespace-nowrap">Data Explorer</button>
+        <button onclick="switchView('outlook')" id="tab-outlook" class="text-slate-500 hover:text-slate-800 border-b-2 border-transparent py-3 transition-colors whitespace-nowrap">Macro Outlook</button>
+        <button onclick="switchView('cbwatch')" id="tab-cbwatch" class="text-slate-500 hover:text-slate-800 border-b-2 border-transparent py-3 transition-colors whitespace-nowrap">Central Bank Watch</button>
     </div>
 
     <!-- MAIN VIEW: Data Explorer -->
-    <main id="view-explorer" class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+    <main id="view-explorer" class="flex-1 flex overflow-hidden relative">
+        <div id="mobile-sidebar-overlay" class="fixed inset-0 bg-slate-900/50 z-30 hidden md:hidden" onclick="toggleSidebar()"></div>
+
         <!-- Left Sidebar / Asset Selection -->
-        <aside class="w-full md:w-80 bg-white border-r border-slate-200 flex flex-col shrink-0 h-1/3 md:h-full z-10">
-            <div class="p-4 border-b border-slate-100">
-                <input type="text" id="searchInput" placeholder="Search indicator or ticker..." class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#1a2b49]" onkeyup="filterIndicators()">
+        <aside id="app-sidebar" class="fixed inset-y-0 left-0 transform -translate-x-full md:translate-x-0 md:relative w-[85%] sm:w-80 bg-white border-r border-slate-200 flex flex-col shrink-0 h-full z-40 transition-transform duration-300 ease-in-out">
+            <div class="p-4 border-b border-slate-100 flex gap-2 items-center">
+                <input type="text" id="searchInput" placeholder="Search indicator..." class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-[#0B2859]" onkeyup="filterIndicators()">
+                <button onclick="toggleSidebar()" class="md:hidden text-slate-500 hover:text-slate-800 shrink-0 p-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
             </div>
             
-            <!-- Category Pills -->
-            <div class="px-4 py-3 flex gap-2 overflow-x-auto border-b border-slate-100 no-scrollbar">
-                <button onclick="setCategory('All')" id="btn-cat-All" class="px-3 py-1 text-xs font-medium rounded-full bg-[#1a2b49] text-white whitespace-nowrap transition-colors">All</button>
+            <div class="px-4 py-3 flex gap-2 overflow-x-auto border-b border-slate-100 no-scrollbar shrink-0">
+                <button onclick="setCategory('All')" id="btn-cat-All" class="px-3 py-1 text-xs font-medium rounded-full bg-[#0B2859] text-white whitespace-nowrap transition-colors">All</button>
                 <button onclick="setCategory('Growth')" id="btn-cat-Growth" class="px-3 py-1 text-xs font-medium rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap transition-colors">Growth</button>
                 <button onclick="setCategory('Inflation')" id="btn-cat-Inflation" class="px-3 py-1 text-xs font-medium rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap transition-colors">Inflation</button>
                 <button onclick="setCategory('Labor')" id="btn-cat-Labor" class="px-3 py-1 text-xs font-medium rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap transition-colors">Labor</button>
@@ -67,21 +75,19 @@
                 <button onclick="setCategory('Soft Data')" id="btn-cat-Soft Data" class="px-3 py-1 text-xs font-medium rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap transition-colors">Soft Data</button>
             </div>
 
-            <!-- Indicator List -->
             <div class="flex-1 overflow-y-auto p-2" id="indicatorList"></div>
         </aside>
 
         <!-- Right Content Area -->
-        <section class="flex-1 flex flex-col h-2/3 md:h-full overflow-hidden bg-[#f4f6f8]">
-            <!-- Toolbar -->
-            <div class="bg-white border-b border-slate-200 px-6 py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0">
+        <section class="flex-1 flex flex-col h-full overflow-hidden bg-[#f4f6f8]">
+            <div class="bg-white border-b border-slate-200 px-4 sm:px-6 py-4 flex flex-col xl:flex-row xl:items-center justify-between gap-4 shrink-0">
                 <div>
                     <h2 id="chartTitle" class="text-xl font-bold text-slate-800">Select an Indicator</h2>
                     <p id="chartSubtitle" class="text-sm text-slate-500 mt-1">Data parameters and transformations</p>
                 </div>
                 
-                <div class="flex flex-wrap items-center gap-3">
-                    <select id="transformSelect" onchange="updateDataView()" class="bg-slate-50 border border-slate-200 text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#1a2b49]">
+                <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+                    <select id="transformSelect" onchange="updateDataView()" class="w-[48%] sm:w-auto bg-slate-50 border border-slate-200 text-sm rounded-lg px-2 sm:px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#0B2859]">
                         <option value="lvl">Level</option>
                         <option value="mom">MoM (%)</option>
                         <option value="yoy">YoY (%)</option>
@@ -89,36 +95,35 @@
                         <option value="zscore">Z-Score (Sample)</option>
                     </select>
 
-                    <select id="freqSelect" onchange="fetchDataForCurrentIndicator()" class="bg-slate-50 border border-slate-200 text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#1a2b49]">
+                    <select id="freqSelect" onchange="fetchDataForCurrentIndicator()" class="w-[48%] sm:w-auto bg-slate-50 border border-slate-200 text-sm rounded-lg px-2 sm:px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#0B2859]">
                         <option value="m">Monthly</option>
                         <option value="q">Quarterly</option>
                         <option value="a">Annual</option>
                     </select>
 
-                    <input type="date" id="startDate" onchange="updateDataView()" class="bg-slate-50 border border-slate-200 text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#1a2b49]" title="Start Date">
+                    <input type="date" id="startDate" onchange="updateDataView()" class="w-full sm:w-auto bg-slate-50 border border-slate-200 text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-1 focus:ring-[#0B2859]" title="Start Date">
 
-                    <div class="flex bg-slate-100 rounded-lg p-1 border border-slate-200">
-                        <button onclick="setChartType('line')" id="btn-type-line" class="px-3 py-1 text-sm rounded-md bg-white shadow-sm font-medium text-slate-700 transition-all">Line</button>
-                        <button onclick="setChartType('bar')" id="btn-type-bar" class="px-3 py-1 text-sm rounded-md font-medium text-slate-500 hover:text-slate-700 transition-all">Bar</button>
+                    <div class="flex bg-slate-100 rounded-lg p-1 border border-slate-200 w-full sm:w-auto justify-center">
+                        <button onclick="setChartType('line')" id="btn-type-line" class="px-4 py-1 text-sm rounded-md bg-white shadow-sm font-medium text-slate-700 transition-all flex-1 sm:flex-none">Line</button>
+                        <button onclick="setChartType('bar')" id="btn-type-bar" class="px-4 py-1 text-sm rounded-md font-medium text-slate-500 hover:text-slate-700 transition-all flex-1 sm:flex-none">Bar</button>
                     </div>
                 </div>
             </div>
 
-            <!-- Visualization Area -->
-            <div class="flex-1 overflow-y-auto p-4 md:p-6 flex flex-col gap-6">
-                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 h-[400px] shrink-0 relative">
+            <div class="flex-1 overflow-y-auto p-4 sm:p-6 flex flex-col gap-6">
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 h-[300px] sm:h-[400px] shrink-0 relative">
                     <div id="loadingOverlay" class="absolute inset-0 bg-white/80 z-10 flex items-center justify-center hidden rounded-xl">
-                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1a2b49]"></div>
+                        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0B2859]"></div>
                     </div>
                     <canvas id="mainChart"></canvas>
                 </div>
 
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 flex-1 min-h-[250px] flex flex-col overflow-hidden">
-                    <div class="px-4 py-3 border-b border-slate-100 bg-slate-50 flex justify-between items-center">
+                    <div class="px-4 py-3 border-b border-slate-100 bg-slate-50 flex flex-col sm:flex-row justify-between sm:items-center gap-3">
                         <h3 class="text-sm font-semibold text-slate-700">Historical Data View</h3>
                         <div class="flex gap-4">
                             <button onclick="exportR()" class="text-xs font-medium text-blue-700 hover:underline flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg> R Script</button>
-                            <button onclick="exportCSV()" class="text-xs font-medium text-[#1a2b49] hover:underline flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> CSV</button>
+                            <button onclick="exportCSV()" class="text-xs font-medium text-[#0B2859] hover:underline flex items-center gap-1"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg> CSV</button>
                         </div>
                     </div>
                     <div class="flex-1 overflow-auto">
@@ -137,29 +142,165 @@
         </section>
     </main>
 
+    <!-- MAIN VIEW: Macro Outlook Presentation -->
+    <main id="view-outlook" class="hidden flex-1 flex-col overflow-y-auto bg-[#f4f6f8] p-4 sm:p-6 relative">
+        <div class="max-w-7xl mx-auto w-full">
+            <div class="flex flex-col sm:flex-row justify-between sm:items-end gap-4 mb-8">
+                <div>
+                    <h2 class="text-2xl font-bold text-slate-800">Global Macro Strategy</h2>
+                    <p class="text-sm text-slate-500 mt-1">Asset Performance & Economic Scenario Presentation</p>
+                </div>
+                <button onclick="renderOutlookCharts()" class="text-xs font-medium bg-white border border-slate-200 shadow-sm px-3 py-1.5 rounded hover:bg-slate-50 transition-colors flex items-center gap-2 w-fit">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 0 2.1-5.6L2 9"></path></svg>
+                    Refresh Models
+                </button>
+            </div>
+
+            <!-- Strategy Section -->
+            <div class="mb-8">
+                <h3 class="text-lg font-bold text-[#0B2859] border-b-2 border-[#0B2859] pb-2 mb-6">Strategy: Key Charts</h3>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col">
+                        <h4 class="font-bold text-slate-800 mb-1">Global Equities: YTD Performance</h4>
+                        <p class="text-xs text-slate-500 mb-4">Total returns (%)</p>
+                        <div class="flex-1 h-[250px] relative"><canvas id="outChart-perf"></canvas></div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col">
+                        <h4 class="font-bold text-slate-800 mb-1">Global FX: YTD Performance</h4>
+                        <p class="text-xs text-slate-500 mb-4">Spot returns vs USD (%)</p>
+                        <div class="flex-1 h-[250px] relative"><canvas id="outChart-fxperf"></canvas></div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col">
+                        <h4 class="font-bold text-slate-800 mb-1">US Yields: Curve vs Valuation</h4>
+                        <p class="text-xs text-slate-500 mb-4">Current levels normalized against 52w range</p>
+                        <div class="flex-1 h-[250px] relative"><canvas id="outChart-range"></canvas></div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col">
+                        <h4 class="font-bold text-slate-800 mb-1">Global Sovereigns</h4>
+                        <p class="text-xs text-slate-500 mb-4">10-Year Yields (%)</p>
+                        <div class="flex-1 h-[250px] relative"><canvas id="outChart-globrates"></canvas></div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col">
+                        <h4 class="font-bold text-slate-800 mb-1">Credit Spreads</h4>
+                        <p class="text-xs text-slate-500 mb-4">US IG vs HY Spreads (bps)</p>
+                        <div class="flex-1 h-[250px] relative"><canvas id="outChart-credit"></canvas></div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col">
+                        <h4 class="font-bold text-slate-800 mb-1">Commodities (Rebased)</h4>
+                        <p class="text-xs text-slate-500 mb-4">Start = 100</p>
+                        <div class="flex-1 h-[250px] relative"><canvas id="outChart-cmdty"></canvas></div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- US Macro Section -->
+            <div class="mb-8">
+                <h3 class="text-lg font-bold text-[#0B2859] border-b-2 border-[#0B2859] pb-2 mb-6">US Macroeconomic Scenario</h3>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col">
+                        <h4 class="font-bold text-slate-800 mb-1">US Activity: Growth vs Surveys</h4>
+                        <p class="text-xs text-slate-500 mb-4">GDP YoY (LHS) and ISM Manufacturing (RHS)</p>
+                        <div class="flex-1 h-[250px] relative"><canvas id="outChart-dual"></canvas></div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col">
+                        <h4 class="font-bold text-slate-800 mb-1">US Consumption</h4>
+                        <p class="text-xs text-slate-500 mb-4">Real PCE vs Real Retail Sales (YoY %)</p>
+                        <div class="flex-1 h-[250px] relative"><canvas id="outChart-cons"></canvas></div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col">
+                        <h4 class="font-bold text-slate-800 mb-1">US Labor: Unemployment Flow</h4>
+                        <p class="text-xs text-slate-500 mb-4">Contributions to Unemployment Rate</p>
+                        <div class="flex-1 h-[250px] relative"><canvas id="outChart-stack"></canvas></div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col">
+                        <h4 class="font-bold text-slate-800 mb-1">US Labor: Wages</h4>
+                        <p class="text-xs text-slate-500 mb-4">Atlanta Fed Tracker vs ECI (YoY %)</p>
+                        <div class="flex-1 h-[250px] relative"><canvas id="outChart-wages"></canvas></div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col">
+                        <h4 class="font-bold text-slate-800 mb-1">US Inflation: Goods vs Services</h4>
+                        <p class="text-xs text-slate-500 mb-4">Core CPI Components (YoY %)</p>
+                        <div class="flex-1 h-[250px] relative"><canvas id="outChart-usinfl"></canvas></div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col">
+                        <h4 class="font-bold text-slate-800 mb-1">US Policy: Fiscal vs Monetary</h4>
+                        <p class="text-xs text-slate-500 mb-4">Budget % GDP (LHS) vs Fed Funds (RHS)</p>
+                        <div class="flex-1 h-[250px] relative"><canvas id="outChart-uspol"></canvas></div>
+                    </div>
+                    
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col lg:col-span-2">
+                        <h4 class="font-bold text-slate-800 mb-1">Fed Funds Dot Plot</h4>
+                        <p class="text-xs text-slate-500 mb-4">FOMC Participants' Assessments</p>
+                        <div class="flex-1 h-[300px] relative"><canvas id="outChart-dots"></canvas></div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Eurozone & Japan Section -->
+            <div class="mb-8">
+                <h3 class="text-lg font-bold text-[#0B2859] border-b-2 border-[#0B2859] pb-2 mb-6">Global Macro: Eurozone & Japan</h3>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col">
+                        <h4 class="font-bold text-slate-800 mb-1">EZ Activity</h4>
+                        <p class="text-xs text-slate-500 mb-4">PMI Composite vs Manufacturing</p>
+                        <div class="flex-1 h-[250px] relative"><canvas id="outChart-ezpmi"></canvas></div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col">
+                        <h4 class="font-bold text-slate-800 mb-1">EZ Inflation Dynamics</h4>
+                        <p class="text-xs text-slate-500 mb-4">Headline vs Core HICP (YoY %)</p>
+                        <div class="flex-1 h-[250px] relative"><canvas id="outChart-ezinfl"></canvas></div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col lg:col-span-2">
+                        <h4 class="font-bold text-slate-800 mb-1">Japan Policy & FX</h4>
+                        <p class="text-xs text-slate-500 mb-4">BOJ Rate (LHS) vs USDJPY (RHS)</p>
+                        <div class="flex-1 h-[250px] relative"><canvas id="outChart-jppol"></canvas></div>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+    </main>
+
     <!-- MAIN VIEW: Central Bank Watch -->
-    <main id="view-cbwatch" class="hidden flex-1 flex-col overflow-y-auto bg-[#f4f6f8] p-6 relative">
+    <main id="view-cbwatch" class="hidden flex-1 flex-col overflow-y-auto bg-[#f4f6f8] p-4 sm:p-6 relative">
         <div id="cbLoadingOverlay" class="absolute inset-0 bg-[#f4f6f8]/80 z-20 flex items-center justify-center hidden">
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1a2b49]"></div>
+            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-[#0B2859]"></div>
         </div>
         
-        <div class="flex justify-between items-end mb-6">
+        <div class="flex flex-col sm:flex-row justify-between sm:items-end gap-4 mb-6">
             <div>
-                <h2 class="text-2xl font-bold text-slate-800">Central Bank Policy Dashboard</h2>
+                <h2 class="text-xl sm:text-2xl font-bold text-slate-800">Central Bank Policy Dashboard</h2>
                 <p class="text-sm text-slate-500 mt-1">Real-time policy rates and dual mandate tracker</p>
             </div>
-            <button onclick="loadCBWatchData()" class="text-xs font-medium bg-white border border-slate-200 shadow-sm px-3 py-1.5 rounded hover:bg-slate-50 transition-colors flex items-center gap-2">
+            <button onclick="loadCBWatchData()" class="text-xs font-medium bg-white border border-slate-200 shadow-sm px-3 py-1.5 rounded hover:bg-slate-50 transition-colors flex items-center gap-2 w-fit">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"></path><path d="M3 12a9 9 0 1 0 2.1-5.6L2 9"></path></svg>
                 Refresh Data
             </button>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-6">
             <!-- Federal Reserve -->
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
                 <div class="p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-start">
                     <div>
-                        <h3 class="font-bold text-lg text-[#1a2b49]">Federal Reserve</h3>
+                        <h3 class="font-bold text-lg text-[#0B2859]">Federal Reserve</h3>
                         <p class="text-xs font-mono text-slate-500 mt-0.5">United States</p>
                     </div>
                     <div class="text-right">
@@ -187,7 +328,7 @@
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
                 <div class="p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-start">
                     <div>
-                        <h3 class="font-bold text-lg text-[#1a2b49]">ECB</h3>
+                        <h3 class="font-bold text-lg text-[#0B2859]">ECB</h3>
                         <p class="text-xs font-mono text-slate-500 mt-0.5">Euro Area</p>
                     </div>
                     <div class="text-right">
@@ -215,7 +356,7 @@
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
                 <div class="p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-start">
                     <div>
-                        <h3 class="font-bold text-lg text-[#1a2b49]">Bank of England</h3>
+                        <h3 class="font-bold text-lg text-[#0B2859]">Bank of England</h3>
                         <p class="text-xs font-mono text-slate-500 mt-0.5">United Kingdom</p>
                     </div>
                     <div class="text-right">
@@ -243,7 +384,7 @@
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
                 <div class="p-5 border-b border-slate-100 bg-slate-50 flex justify-between items-start">
                     <div>
-                        <h3 class="font-bold text-lg text-[#1a2b49]">Bank of Japan</h3>
+                        <h3 class="font-bold text-lg text-[#0B2859]">Bank of Japan</h3>
                         <p class="text-xs font-mono text-slate-500 mt-0.5">Japan</p>
                     </div>
                     <div class="text-right">
@@ -270,60 +411,96 @@
     </main>
 
     <!-- Settings Modal -->
-    <div id="settingsModal" class="fixed inset-0 bg-slate-900/50 z-50 hidden items-center justify-center">
-        <div class="bg-white rounded-xl shadow-lg w-full max-w-md mx-4 overflow-hidden">
-            <div class="px-6 py-4 border-b border-slate-100 bg-[#1a2b49] text-white flex justify-between items-center">
+    <div id="settingsModal" class="fixed inset-0 bg-slate-900/50 z-50 hidden items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-lg w-full max-w-md overflow-hidden">
+            <div class="px-6 py-4 border-b border-slate-100 bg-[#0B2859] text-white flex justify-between items-center">
                 <h3 class="font-semibold text-lg">Platform Settings</h3>
                 <button onclick="toggleSettingsModal()" class="text-slate-300 hover:text-white">&times;</button>
             </div>
             <div class="p-6">
                 <p class="text-sm text-slate-600 mb-4">To fetch live data from the Federal Reserve Economic Data (FRED), an API key is required. If left empty, proxy data is used.</p>
                 <label class="block text-sm font-medium text-slate-700 mb-1">FRED API Key</label>
-                <input type="password" id="apiKeyInput" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1a2b49]" placeholder="Enter API Key...">
+                <input type="password" id="apiKeyInput" class="w-full px-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0B2859]" placeholder="Enter API Key...">
             </div>
             <div class="px-6 py-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-3">
                 <button onclick="toggleSettingsModal()" class="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-200 rounded-lg transition-colors">Cancel</button>
-                <button onclick="saveApiKey()" class="px-4 py-2 text-sm font-medium bg-[#1a2b49] text-white rounded-lg hover:bg-blue-900 transition-colors">Save Configuration</button>
+                <button onclick="saveApiKey()" class="px-4 py-2 text-sm font-medium bg-[#0B2859] text-white rounded-lg hover:bg-blue-900 transition-colors">Save Configuration</button>
             </div>
         </div>
     </div>
 
     <script>
+        // --- Shared Stylings (from R Script mapped to ChartJS) ---
+        const btgCols = ['#05132A', '#0B2859', '#10408D', '#195AB4', '#307AE0', '#549CFF', '#66BAFF', '#555555', '#DDDDDD'];
+
+        // --- Date Generators for Outlook Charts ---
+        function getDatesQ(count) {
+            let dates = [];
+            let y = 2026, q = 2; // Anchored to current macro landscape
+            for(let i=0; i<count; i++) {
+                dates.unshift(`${y}-Q${q}`);
+                q--; if(q===0){q=4; y--;}
+            }
+            return dates;
+        }
+
+        function getDatesM(count) {
+            let dates = [];
+            let y = 2026, m = 4; // Anchored to April 2026
+            const mNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+            for(let i=0; i<count; i++) {
+                dates.unshift(`${mNames[m-1]} '${y.toString().slice(2)}`);
+                m--; if(m===0){m=12; y--;}
+            }
+            return dates;
+        }
+
+        function getDatesY(count, endYear = 2025) {
+            let dates = [];
+            for(let i=0; i<count; i++) {
+                dates.unshift(`${endYear - i}`);
+            }
+            return dates;
+        }
+
         // --- View Toggling ---
         function switchView(view) {
-            const explorer = document.getElementById('view-explorer');
-            const cbwatch = document.getElementById('view-cbwatch');
-            const tabExp = document.getElementById('tab-explorer');
-            const tabCb = document.getElementById('tab-cbwatch');
-
-            const activeTabClass = ['text-[#1a2b49]', 'border-b-2', 'border-[#1a2b49]'];
+            const views = ['explorer', 'outlook', 'cbwatch'];
+            const activeTabClass = ['text-[#0B2859]', 'border-b-2', 'border-[#0B2859]'];
             const inactiveTabClass = ['text-slate-500', 'hover:text-slate-800', 'border-b-2', 'border-transparent'];
 
-            if (view === 'explorer') {
-                explorer.classList.remove('hidden');
-                explorer.classList.add('flex');
-                cbwatch.classList.add('hidden');
-                cbwatch.classList.remove('flex');
-                
-                tabExp.classList.add(...activeTabClass);
-                tabExp.classList.remove(...inactiveTabClass);
-                tabCb.classList.add(...inactiveTabClass);
-                tabCb.classList.remove(...activeTabClass);
-            } else {
-                explorer.classList.add('hidden');
-                explorer.classList.remove('flex');
-                cbwatch.classList.remove('hidden');
-                cbwatch.classList.add('flex');
-                
-                tabCb.classList.add(...activeTabClass);
-                tabCb.classList.remove(...inactiveTabClass);
-                tabExp.classList.add(...inactiveTabClass);
-                tabExp.classList.remove(...activeTabClass);
-
-                // Initial load if empty
-                if(document.getElementById('cb-fed-rate').innerText === '--%') {
-                    loadCBWatchData();
+            views.forEach(v => {
+                const el = document.getElementById(`view-${v}`);
+                const tab = document.getElementById(`tab-${v}`);
+                if (v === view) {
+                    el.classList.remove('hidden');
+                    el.classList.add('flex');
+                    tab.classList.add(...activeTabClass);
+                    tab.classList.remove(...inactiveTabClass);
+                } else {
+                    el.classList.add('hidden');
+                    el.classList.remove('flex');
+                    tab.classList.add(...inactiveTabClass);
+                    tab.classList.remove(...activeTabClass);
                 }
+            });
+
+            if (view === 'cbwatch' && document.getElementById('cb-fed-rate').innerText === '--%') {
+                loadCBWatchData();
+            } else if (view === 'outlook' && !outlookRendered) {
+                renderOutlookCharts();
+            }
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('app-sidebar');
+            const overlay = document.getElementById('mobile-sidebar-overlay');
+            if (sidebar.classList.contains('-translate-x-full')) {
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('hidden');
             }
         }
 
@@ -405,7 +582,7 @@
             { id: 'GFDEGDQ188S', name: 'US Federal Debt to GDP', ticker: 'US Debt/GDP', category: 'Fiscal/Ext', units: 'Percent', series: [{ id: 'GFDEGDQ188S', name: 'Debt % GDP' }] },
             { id: 'BOPBCA', name: 'US Current Account Balance', ticker: 'US Curr Acct', category: 'Fiscal/Ext', units: 'Millions of Dollars', series: [{ id: 'BOPBCA', name: 'Current Account' }] },
             { id: 'TRADEBAL_STACK', name: 'US Trade Balance', ticker: 'US Trade Bal', category: 'Fiscal/Ext', units: 'Millions of Dollars', stacked: true, series: [
-                { id: 'BOPGEXP', name: 'Exports', color: '#1a2b49' },
+                { id: 'BOPGEXP', name: 'Exports', color: '#0B2859' },
                 { id: 'BOPGIMP', name: 'Imports', color: '#dc2626', invert: true }
             ]},
 
@@ -423,17 +600,18 @@
         let chartInstance = null;
         let chartType = 'line';
 
-        // --- CB Watch State ---
+        // --- State Management ---
         let sparklineInstances = {};
+        let outlookCharts = {};
+        let outlookRendered = false;
 
-        // --- Initialization ---
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('apiKeyInput').value = localStorage.getItem('fred_api_key') || '';
             renderIndicatorList();
             if (indicators.length > 0) selectIndicator(indicators[0].id);
         });
 
-        // --- Settings / UI Utilities ---
+        // --- Utility ---
         function toggleSettingsModal() {
             const modal = document.getElementById('settingsModal');
             modal.classList.toggle('hidden');
@@ -451,24 +629,18 @@
             currentCategory = cat;
             const categories = ['All', 'Growth', 'Inflation', 'Labor', 'Rates', 'Monetary', 'FX/Equities', 'Housing', 'Fiscal/Ext', 'Soft Data'];
             categories.forEach(c => {
-                const element = document.getElementById(`btn-cat-${c}`);
+                const element = document.getElementById(`btn-cat-${c.replace('/', '\\/')}`);
                 if (element) {
-                    if (c === cat) {
-                        element.className = 'px-3 py-1 text-xs font-medium rounded-full bg-[#1a2b49] text-white whitespace-nowrap transition-colors';
-                    } else {
-                        element.className = 'px-3 py-1 text-xs font-medium rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap transition-colors';
-                    }
+                    element.className = c === cat 
+                        ? 'px-3 py-1 text-xs font-medium rounded-full bg-[#0B2859] text-white whitespace-nowrap transition-colors'
+                        : 'px-3 py-1 text-xs font-medium rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 whitespace-nowrap transition-colors';
                 }
             });
             renderIndicatorList();
         }
 
         function filterIndicators() { renderIndicatorList(); }
-
-        function setChartType(type) {
-            chartType = type;
-            updateDataView();
-        }
+        function setChartType(type) { chartType = type; updateDataView(); }
 
         // --- Explorer Logic ---
         function renderIndicatorList() {
@@ -476,19 +648,13 @@
             const container = document.getElementById('indicatorList');
             container.innerHTML = '';
             
-            const filtered = indicators.filter(ind => {
-                return (currentCategory === 'All' || ind.category === currentCategory) &&
-                       (ind.name.toLowerCase().includes(query) || ind.ticker.toLowerCase().includes(query));
-            });
-
-            filtered.forEach(ind => {
+            indicators.filter(ind => (currentCategory === 'All' || ind.category === currentCategory) && (ind.name.toLowerCase().includes(query) || ind.ticker.toLowerCase().includes(query)))
+            .forEach(ind => {
                 const isSelected = currentIndicator && currentIndicator.id === ind.id;
-                const activeStyle = isSelected ? 'border-[#1a2b49] bg-blue-50/50' : 'border-transparent hover:bg-slate-50';
+                const activeStyle = isSelected ? 'border-[#0B2859] bg-blue-50/50' : 'border-transparent hover:bg-slate-50';
                 container.insertAdjacentHTML('beforeend', `
                     <div onclick="selectIndicator('${ind.id}')" class="cursor-pointer p-3 mb-2 rounded-lg border transition-all ${activeStyle}">
-                        <div class="flex justify-between items-start">
-                            <h4 class="text-sm font-semibold text-slate-800 leading-tight">${ind.name}</h4>
-                        </div>
+                        <h4 class="text-sm font-semibold text-slate-800 leading-tight">${ind.name}</h4>
                         <div class="flex justify-between items-center mt-2">
                             <span class="text-xs font-mono text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">${ind.ticker}</span>
                             <span class="text-[10px] uppercase font-bold text-slate-400">${ind.category}</span>
@@ -503,6 +669,10 @@
             document.getElementById('chartTitle').innerText = currentIndicator.name;
             document.getElementById('chartSubtitle').innerText = `${currentIndicator.ticker} | ${currentIndicator.units}`;
             renderIndicatorList();
+            
+            if (window.innerWidth < 768 && !document.getElementById('app-sidebar').classList.contains('-translate-x-full')) {
+                toggleSidebar();
+            }
             fetchDataForCurrentIndicator();
         }
 
@@ -511,14 +681,13 @@
             const freq = document.getElementById('freqSelect').value;
             document.getElementById('loadingOverlay').classList.remove('hidden');
             rawData = {};
-            processedDates = [];
             
             if (!apiKey) {
                 setTimeout(() => {
                     generateMockData(currentIndicator, freq);
                     updateDataView();
                     document.getElementById('loadingOverlay').classList.add('hidden');
-                }, 500);
+                }, 400);
                 return;
             }
 
@@ -549,9 +718,7 @@
             
             let allDates = new Set();
             Object.values(rawData).forEach(sd => sd.forEach(d => {
-                if (!startDateFilter || d.date >= startDateFilter) {
-                    allDates.add(d.date);
-                }
+                if (!startDateFilter || d.date >= startDateFilter) allDates.add(d.date);
             }));
             processedDates = Array.from(allDates).sort();
 
@@ -566,32 +733,16 @@
 
                 for (let i = 0; i < processedDates.length; i++) {
                     let val = null;
-                    const currDate = processedDates[i];
-                    const curr = dateValMap[currDate];
-                    
+                    const curr = dateValMap[processedDates[i]];
                     if (curr !== undefined) {
-                        if (transform === 'lvl' || transform === 'zscore') {
-                            val = curr;
-                        } else if (transform === 'mom') {
-                            const prevIdx = sData.findIndex(d => d.date === currDate) + 1;
-                            if(prevIdx > 0 && prevIdx < sData.length) {
-                                const prev = sData[prevIdx].value;
-                                val = ((curr / Math.abs(prev)) - Math.sign(prev)) * 100;
-                            }
-                        } else if (transform === 'qoq') {
-                            const offset = freq === 'q' ? 1 : 3;
-                            const prevIdx = sData.findIndex(d => d.date === currDate) + offset;
-                            if(prevIdx > 0 && prevIdx < sData.length) {
-                                const prev = sData[prevIdx].value;
-                                val = ((curr / Math.abs(prev)) - Math.sign(prev)) * 100;
-                            }
-                        } else if (transform === 'yoy') {
-                            const offset = freq === 'a' ? 1 : (freq === 'q' ? 4 : 12);
-                            const prevIdx = sData.findIndex(d => d.date === currDate) + offset;
-                            if(prevIdx > 0 && prevIdx < sData.length) {
-                                const prev = sData[prevIdx].value;
-                                val = ((curr / Math.abs(prev)) - Math.sign(prev)) * 100;
-                            }
+                        if (transform === 'lvl' || transform === 'zscore') val = curr;
+                        else if (transform === 'mom') {
+                            const prevIdx = sData.findIndex(d => d.date === processedDates[i]) + 1;
+                            if(prevIdx > 0 && prevIdx < sData.length) val = ((curr / Math.abs(sData[prevIdx].value)) - Math.sign(sData[prevIdx].value)) * 100;
+                        } else if (transform === 'yoy' || transform === 'qoq') {
+                            const offset = transform === 'yoy' ? (freq === 'a' ? 1 : (freq === 'q' ? 4 : 12)) : (freq === 'q' ? 1 : 3);
+                            const prevIdx = sData.findIndex(d => d.date === processedDates[i]) + offset;
+                            if(prevIdx > 0 && prevIdx < sData.length) val = ((curr / Math.abs(sData[prevIdx].value)) - Math.sign(sData[prevIdx].value)) * 100;
                         }
                     }
                     pData.push(val);
@@ -604,22 +755,15 @@
                     pData = pData.map(v => v !== null ? (stdDev === 0 ? 0 : (v - mean) / stdDev) : null);
                 }
 
-                const color = s.color || '#1a2b49';
+                const color = s.color || btgCols[sIdx % btgCols.length];
                 datasets.push({
-                    label: s.name,
-                    data: pData,
-                    backgroundColor: currentIndicator.stacked ? color : `${color}1A`,
-                    borderColor: color,
-                    borderWidth: 2,
-                    fill: !currentIndicator.stacked && chartType === 'line',
-                    tension: 0.1,
-                    stack: currentIndicator.stacked ? 'stack1' : undefined
+                    label: s.name, data: pData, backgroundColor: currentIndicator.stacked ? color : `${color}1A`,
+                    borderColor: color, borderWidth: 2, fill: !currentIndicator.stacked && chartType === 'line', tension: 0.1
                 });
             });
 
             let firstValid = 0;
             while(firstValid < processedDates.length && !datasets.some(ds => ds.data[firstValid] !== null)) firstValid++;
-            
             renderChart(processedDates.slice(firstValid), datasets.map(ds => ({...ds, data: ds.data.slice(firstValid)})), transform);
             renderTable(processedDates.slice(firstValid), datasets);
         }
@@ -627,10 +771,8 @@
         function renderChart(labels, datasets, transform) {
             const ctx = document.getElementById('mainChart').getContext('2d');
             if (chartInstance) chartInstance.destroy();
-
             let yAxisLabel = currentIndicator.units;
-            if (transform === 'mom' || transform === 'yoy' || transform === 'qoq') yAxisLabel = 'Percent Change (%)';
-            if (transform === 'zscore') yAxisLabel = 'Standard Deviations (Z-Score)';
+            if (transform !== 'lvl') yAxisLabel = transform === 'zscore' ? 'Standard Deviations (Z-Score)' : 'Percent Change (%)';
 
             chartInstance = new Chart(ctx, {
                 type: currentIndicator.stacked ? 'bar' : chartType,
@@ -641,10 +783,7 @@
                     plugins: { legend: { display: datasets.length > 1 } },
                     scales: {
                         x: { stacked: !!currentIndicator.stacked },
-                        y: { 
-                            stacked: !!currentIndicator.stacked,
-                            title: { display: true, text: yAxisLabel, color: '#94a3b8', font: { size: 10 } }
-                        }
+                        y: { stacked: !!currentIndicator.stacked, title: { display: true, text: yAxisLabel, color: '#94a3b8', font: { size: 10 } } }
                     }
                 }
             });
@@ -655,195 +794,337 @@
             tbody.innerHTML = '';
             for (let i = dates.length - 1; i >= 0; i--) {
                 let tr = `<tr><td class="py-2 px-4 border-t">${dates[i]}</td>`;
-                datasets.forEach(ds => {
-                    const v = ds.data[i];
-                    tr += `<td class="py-2 px-4 border-t text-right">${v !== null ? v.toFixed(2) : 'N/A'}</td>`;
-                });
+                datasets.forEach(ds => { tr += `<td class="py-2 px-4 border-t text-right">${ds.data[i] !== null ? ds.data[i].toFixed(2) : 'N/A'}</td>`; });
                 tbody.insertAdjacentHTML('beforeend', tr + '</tr>');
             }
         }
 
-        function exportR() {
-            if (!currentIndicator || currentIndicator.series.length === 0) return;
-            const apiKey = localStorage.getItem('fred_api_key') || 'YOUR_FRED_API_KEY';
-            const freq = document.getElementById('freqSelect').value;
-            const sid = currentIndicator.series[0].id;
+        // --- OUTLOOK PRESENTATION LOGIC ---
+        function renderOutlookCharts() {
+            outlookRendered = true;
             
-            const rScript = `# Macro Strategy Lab - R Studio Export
-# Indicator: ${currentIndicator.name} (${currentIndicator.ticker})
-# Dependencies: install.packages(c("fredr", "dplyr", "ggplot2"))
+            // 1. Global Assets YTD (Horizontal Bar)
+            const perfCtx = document.getElementById('outChart-perf').getContext('2d');
+            if (outlookCharts['perf']) outlookCharts['perf'].destroy();
+            const perfData = [
+                { asset: 'S&P 500', val: 9.4 }, { asset: 'Nasdaq 100', val: 8.2 },
+                { asset: 'EuroStoxx 50', val: 12.1 }, { asset: 'Topix (JPY)', val: 15.6 },
+                { asset: 'US IG Credit', val: -1.2 }, { asset: 'US HY Credit', val: 1.5 },
+                { asset: 'US 10Y Treas', val: -2.4 }, { asset: 'EM Equities', val: 4.5 }
+            ].sort((a,b) => a.val - b.val);
 
-library(fredr)
-library(dplyr)
-library(ggplot2)
+            outlookCharts['perf'] = new Chart(perfCtx, {
+                type: 'bar',
+                data: {
+                    labels: perfData.map(d => d.asset),
+                    datasets: [{ data: perfData.map(d => d.val), backgroundColor: perfData.map(d => d.val >= 0 ? '#0B2859' : '#A9A9A9') }]
+                },
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { grid: { display: false } } } }
+            });
 
-# Set API Key
-fredr_set_key("${apiKey}")
+            // 2. Global FX YTD (Horizontal Bar)
+            const fxperfCtx = document.getElementById('outChart-fxperf').getContext('2d');
+            if (outlookCharts['fxperf']) outlookCharts['fxperf'].destroy();
+            const fxData = [
+                { asset: 'DXY Index', val: 2.1 }, { asset: 'EUR', val: -1.8 },
+                { asset: 'JPY', val: -6.4 }, { asset: 'GBP', val: -0.5 },
+                { asset: 'BRL', val: -4.2 }, { asset: 'MXN', val: 1.1 }
+            ].sort((a,b) => a.val - b.val);
 
-# Fetch Data
-cat("Fetching ${sid} from FRED...\\n")
-macro_data <- fredr(
-  series_id = "${sid}",
-  frequency = "${freq}"
-)
+            outlookCharts['fxperf'] = new Chart(fxperfCtx, {
+                type: 'bar',
+                data: {
+                    labels: fxData.map(d => d.asset),
+                    datasets: [{ data: fxData.map(d => d.val), backgroundColor: fxData.map(d => d.val >= 0 ? '#0B2859' : '#A9A9A9') }]
+                },
+                options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { display: false } }, y: { grid: { display: false } } } }
+            });
 
-# Plot Series
-ggplot(macro_data, aes(x = date, y = value)) +
-  geom_line(color = "#1a2b49", linewidth = 1) +
-  theme_minimal() +
-  labs(
-    title = "${currentIndicator.name}",
-    subtitle = "${currentIndicator.ticker}",
-    x = "",
-    y = "${currentIndicator.units}"
-  ) +
-  theme(
-    plot.title = element_text(face = "bold", size = 14),
-    plot.subtitle = element_text(color = "gray50")
-  )
-`;
-            const encodedUri = encodeURI("data:text/plain;charset=utf-8," + rScript);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `${currentIndicator.ticker.replace(/\s+/g, '_')}_macro_script.R`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        // --- Central Bank Watch Logic ---
-        const cbMap = {
-            fed: { rate: 'FEDFUNDS', cpi: 'CPIAUCSL', ur: 'UNRATE' },
-            ecb: { rate: 'ECBDFR', cpi: 'CP0000EZ19M086NES', ur: 'LRHUTTTTEZM156S' },
-            boe: { rate: 'IRSTCI01GBM156N', cpi: 'GBRCPIALLMINMEI', ur: 'LRHUTTTTGBM156S' },
-            boj: { rate: 'INTDSRJPM193N', cpi: 'JPNCPIALLMINMEI', ur: 'LRHUTTTTJPM156S' }
-        };
-
-        async function loadCBWatchData() {
-            const apiKey = localStorage.getItem('fred_api_key');
-            const overlay = document.getElementById('cbLoadingOverlay');
-            overlay.classList.remove('hidden');
-
-            if (!apiKey) {
-                setTimeout(() => { populateMockCBData(); overlay.classList.add('hidden'); }, 800);
-                return;
-            }
-
-            try {
-                // Fetch 5 years of monthly data for sparklines and YoY calcs
-                const seriesToFetch = [];
-                Object.values(cbMap).forEach(bank => Object.values(bank).forEach(id => seriesToFetch.push(id)));
-                
-                const fetchResults = {};
-                
-                // Batch requests (careful of limits, done sequentially per bank to avoid spikes)
-                for (const bankKey of Object.keys(cbMap)) {
-                    const bankData = cbMap[bankKey];
-                    for (const metric of Object.keys(bankData)) {
-                        const sid = bankData[metric];
-                        const url = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://api.stlouisfed.org/fred/series/observations?series_id=${sid}&api_key=${apiKey}&file_type=json&frequency=m&sort_order=desc&limit=60`)}`;
-                        const res = await fetch(url);
-                        const data = await res.json();
-                        fetchResults[sid] = data.observations.filter(o => o.value !== '.').map(o => ({ date: o.date, value: parseFloat(o.value) }));
+            // 3. US Yields 52W Range (Floating Scatter)
+            const rangeCtx = document.getElementById('outChart-range').getContext('2d');
+            if (outlookCharts['range']) outlookCharts['range'].destroy();
+            const yieldAssets = ['US 2y', 'US 5y', 'US 10y', 'US 30y', 'DE 10y', 'JP 10y'].reverse();
+            const ranks = [75, 82, 88, 90, 60, 45]; // mock pct_rank from R script
+            outlookCharts['range'] = new Chart(rangeCtx, {
+                type: 'scatter',
+                data: { labels: yieldAssets, datasets: [{ label: 'Current Level', data: ranks.map((r, i) => ({ x: r, y: i })), backgroundColor: '#0B2859', pointRadius: 6, pointHoverRadius: 8 }] },
+                options: {
+                    responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                    scales: {
+                        x: { min: 0, max: 100, ticks: { callback: function(val) { return val === 0 ? 'Low' : (val === 50 ? 'Mid' : (val === 100 ? 'High' : '')); } }, grid: { drawBorder: false } },
+                        y: { type: 'category', labels: yieldAssets, grid: { color: 'rgba(0,0,0,0.1)', lineWidth: 3, drawBorder: false } }
                     }
-                    
-                    // Process immediately as data arrives
-                    processAndRenderBankData(bankKey, fetchResults);
                 }
-            } catch (e) {
-                console.error("CB Fetch failed", e);
-                populateMockCBData();
-            } finally {
-                overlay.classList.add('hidden');
-            }
-        }
+            });
 
-        function processAndRenderBankData(bank, dataDict) {
-            const ids = cbMap[bank];
-            
-            // Rate logic (Latest level)
-            const rateData = dataDict[ids.rate];
-            if(rateData && rateData.length > 0) {
-                document.getElementById(`cb-${bank}-rate`).innerText = rateData[0].value.toFixed(2) + '%';
-                drawSparkline(bank, rateData.reverse()); 
-            }
-
-            // CPI Logic (Convert index to YoY)
-            const cpiData = dataDict[ids.cpi];
-            if(cpiData && cpiData.length >= 13) { // need 13 mos for YoY
-                const yoy = ((cpiData[0].value / cpiData[12].value) - 1) * 100;
-                document.getElementById(`cb-${bank}-cpi`).innerText = yoy.toFixed(1) + '%';
-            }
-
-            // UR Logic (Latest level)
-            const urData = dataDict[ids.ur];
-            if(urData && urData.length > 0) {
-                document.getElementById(`cb-${bank}-ur`).innerText = urData[0].value.toFixed(1) + '%';
-            }
-        }
-
-        function drawSparkline(bank, chronologicalData) {
-            const ctx = document.getElementById(`sparkline-${bank}`).getContext('2d');
-            if (sparklineInstances[bank]) sparklineInstances[bank].destroy();
-            
-            const labels = chronologicalData.map(d => d.date);
-            const data = chronologicalData.map(d => d.value);
-
-            sparklineInstances[bank] = new Chart(ctx, {
+            // 4. Global Sovereigns (Line)
+            const globratesCtx = document.getElementById('outChart-globrates').getContext('2d');
+            if (outlookCharts['globrates']) outlookCharts['globrates'].destroy();
+            const datesM_Glob = getDatesM(36);
+            outlookCharts['globrates'] = new Chart(globratesCtx, {
                 type: 'line',
                 data: {
-                    labels: labels,
+                    labels: datesM_Glob,
+                    datasets: [
+                        { label: 'US 10Y', data: datesM_Glob.map((_,i) => 3.5 + Math.sin(i/5)*1), borderColor: btgCols[1], borderWidth: 2, pointRadius: 0 },
+                        { label: 'Bund 10Y', data: datesM_Glob.map((_,i) => 2.0 + Math.sin(i/4)*0.8), borderColor: btgCols[3], borderWidth: 2, pointRadius: 0 },
+                        { label: 'JGB 10Y', data: datesM_Glob.map((_,i) => 0.5 + i*0.01), borderColor: btgCols[5], borderWidth: 2, pointRadius: 0 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { x: { grid: { display: false } } } }
+            });
+
+            // 5. Credit Spreads
+            const creditCtx = document.getElementById('outChart-credit').getContext('2d');
+            if (outlookCharts['credit']) outlookCharts['credit'].destroy();
+            outlookCharts['credit'] = new Chart(creditCtx, {
+                type: 'line',
+                data: {
+                    labels: datesM_Glob,
+                    datasets: [
+                        { label: 'US HY Spread', data: datesM_Glob.map(()=> 350 + Math.random()*100), borderColor: btgCols[1], borderWidth: 2, pointRadius: 0, fill: false },
+                        { label: 'US IG Spread', data: datesM_Glob.map(()=> 100 + Math.random()*30), borderColor: btgCols[4], borderWidth: 2, pointRadius: 0, fill: false }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { x: { grid: { display: false } } } }
+            });
+
+            // 6. Commodities Rebased
+            const cmdtyCtx = document.getElementById('outChart-cmdty').getContext('2d');
+            if (outlookCharts['cmdty']) outlookCharts['cmdty'].destroy();
+            let g = 100, c = 100, o = 100;
+            outlookCharts['cmdty'] = new Chart(cmdtyCtx, {
+                type: 'line',
+                data: {
+                    labels: datesM_Glob,
+                    datasets: [
+                        { label: 'Gold', data: datesM_Glob.map(()=> g += (Math.random()-0.4)*5), borderColor: '#F4A261', borderWidth: 2, pointRadius: 0, fill: false },
+                        { label: 'Copper', data: datesM_Glob.map(()=> c += (Math.random()-0.5)*8), borderColor: '#D35400', borderWidth: 2, pointRadius: 0, fill: false },
+                        { label: 'Oil', data: datesM_Glob.map(()=> o += (Math.random()-0.5)*12), borderColor: '#17202A', borderWidth: 2, pointRadius: 0, fill: false }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { x: { grid: { display: false } } } }
+            });
+
+            // 7. Growth vs ISM (Dual Axis Mixed)
+            const dualCtx = document.getElementById('outChart-dual').getContext('2d');
+            if (outlookCharts['dual']) outlookCharts['dual'].destroy();
+            const datesQ_Dual = getDatesQ(24);
+            outlookCharts['dual'] = new Chart(dualCtx, {
+                type: 'bar',
+                data: {
+                    labels: datesQ_Dual,
+                    datasets: [
+                        { type: 'line', label: 'ISM Mfg (RHS)', data: datesQ_Dual.map(d => 50 + Math.cos(Math.random())*5), borderColor: '#10408D', borderWidth: 2, yAxisID: 'y1', pointRadius: 0, fill: false },
+                        { type: 'bar', label: 'GDP YoY (LHS)', data: datesQ_Dual.map(d => 2.0 + Math.sin(Math.random())*2), backgroundColor: '#DDDDDD', yAxisID: 'y' }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+                    scales: {
+                        x: { grid: { display: false } },
+                        y: { type: 'linear', display: true, position: 'left', title: {display: true, text: 'YoY %'} },
+                        y1: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, title: {display: true, text: 'Index Level'} }
+                    }
+                }
+            });
+
+            // 8. US Consumption
+            const consCtx = document.getElementById('outChart-cons').getContext('2d');
+            if (outlookCharts['cons']) outlookCharts['cons'].destroy();
+            outlookCharts['cons'] = new Chart(consCtx, {
+                type: 'line',
+                data: {
+                    labels: datesM_Glob,
+                    datasets: [
+                        { label: 'Real PCE', data: datesM_Glob.map((_,i) => 2.5 + Math.sin(i/10)), borderColor: btgCols[1], borderWidth: 2, pointRadius: 0 },
+                        { label: 'Real Retail Sales', data: datesM_Glob.map((_,i) => 3.0 + Math.sin(i/5)*2), borderColor: btgCols[4], borderWidth: 2, pointRadius: 0 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { x: { grid: { display: false } } } }
+            });
+
+            // 9. US Labor Flow (Stacked Bar)
+            const stackCtx = document.getElementById('outChart-stack').getContext('2d');
+            if (outlookCharts['stack']) outlookCharts['stack'].destroy();
+            const datesM_Labor = getDatesM(12);
+            outlookCharts['stack'] = new Chart(stackCtx, {
+                type: 'bar',
+                data: {
+                    labels: datesM_Labor,
+                    datasets: [
+                        { label: 'Job Losers', data: datesM_Labor.map(()=> 1.5 + Math.random()*0.5), backgroundColor: btgCols[0] },
+                        { label: 'Job Leavers', data: datesM_Labor.map(()=> 0.8 + Math.random()*0.2), backgroundColor: btgCols[2] },
+                        { label: 'New Entrants', data: datesM_Labor.map(()=> 0.5 + Math.random()*0.1), backgroundColor: btgCols[4] },
+                        { label: 'Reentrants', data: datesM_Labor.map(()=> 1.0 + Math.random()*0.3), backgroundColor: btgCols[6] }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true, grid: {display: false} }, y: { stacked: true, title: {display: true, text: 'pp contribution'} } } }
+            });
+
+            // 10. US Labor Wages
+            const wagesCtx = document.getElementById('outChart-wages').getContext('2d');
+            if (outlookCharts['wages']) outlookCharts['wages'].destroy();
+            outlookCharts['wages'] = new Chart(wagesCtx, {
+                type: 'line',
+                data: {
+                    labels: datesM_Glob,
+                    datasets: [
+                        { label: 'Atlanta Fed Tracker', data: datesM_Glob.map((_,i) => 6.0 - (i*0.05) + Math.random()*0.2), borderColor: btgCols[1], borderWidth: 2, pointRadius: 0 },
+                        { label: 'ECI', data: datesM_Glob.map((_,i) => 5.0 - (i*0.04) + Math.random()*0.1), borderColor: btgCols[5], borderWidth: 2, pointRadius: 0 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { x: { grid: { display: false } } } }
+            });
+
+            // 11. US Inflation Goods vs Services
+            const usinflCtx = document.getElementById('outChart-usinfl').getContext('2d');
+            if (outlookCharts['usinfl']) outlookCharts['usinfl'].destroy();
+            outlookCharts['usinfl'] = new Chart(usinflCtx, {
+                type: 'line',
+                data: {
+                    labels: datesM_Glob,
+                    datasets: [
+                        { label: 'Core Services', data: datesM_Glob.map((_,i)=> 5.5 - i*0.05 + Math.random()*0.2), borderColor: btgCols[1], borderWidth: 2, pointRadius: 0, fill: false },
+                        { label: 'Core Goods', data: datesM_Glob.map((_,i)=> 2.0 - i*0.1 + Math.random()*0.5), borderColor: btgCols[3], borderWidth: 2, pointRadius: 0, fill: false }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { x: { grid: { display: false } } } }
+            });
+
+            // 12. US Policy Dual Axis
+            const uspolCtx = document.getElementById('outChart-uspol').getContext('2d');
+            if (outlookCharts['uspol']) outlookCharts['uspol'].destroy();
+            const yearsPolicy = getDatesY(10, 2025);
+            outlookCharts['uspol'] = new Chart(uspolCtx, {
+                type: 'bar',
+                data: {
+                    labels: yearsPolicy,
+                    datasets: [
+                        { type: 'line', label: 'Fed Funds (RHS)', data: [0.5, 1.25, 2.25, 1.55, 0.25, 0.25, 4.25, 5.33, 4.8, 3.5], borderColor: btgCols[1], borderWidth: 2, yAxisID: 'y1', pointRadius: 3, fill: false },
+                        { type: 'bar', label: 'Budget Deficit (LHS)', data: [-3.1, -3.4, -3.8, -4.6, -14.9, -12.3, -5.4, -6.2, -6.5, -6.0], backgroundColor: btgCols[6], yAxisID: 'y' }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+                    scales: { x: { grid: { display: false } }, y: { type: 'linear', position: 'left', title: {display: true, text: '% GDP'} }, y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, title: {display: true, text: '%'} } }
+                }
+            });
+
+            // 13. Fed Dot Plot (Scatter)
+            const dotsCtx = document.getElementById('outChart-dots').getContext('2d');
+            if (outlookCharts['dots']) outlookCharts['dots'].destroy();
+            const dotData = [
+                {x: '2024', y: 4.625, count: 5}, {x: '2024', y: 4.875, count: 9}, {x: '2024', y: 5.125, count: 5},
+                {x: '2025', y: 3.625, count: 4}, {x: '2025', y: 3.875, count: 8}, {x: '2025', y: 4.125, count: 7},
+                {x: '2026', y: 2.875, count: 6}, {x: '2026', y: 3.125, count: 10}, {x: 'Longer Run', y: 2.5, count: 15}
+            ];
+            
+            // Unroll dot counts into individual points for scatter with slight horizontal jitter for visibility
+            let scatterPoints = [];
+            dotData.forEach(d => {
+                for(let i=0; i<d.count; i++) {
+                    let jitter = (i - (d.count-1)/2) * 0.05; // Spacing logic
+                    scatterPoints.push({ x: d.x, y: d.y, jitterX: jitter });
+                }
+            });
+
+            outlookCharts['dots'] = new Chart(dotsCtx, {
+                type: 'scatter',
+                data: {
                     datasets: [{
-                        data: data,
-                        borderColor: '#1a2b49',
-                        borderWidth: 2,
-                        pointRadius: 0,
-                        pointHoverRadius: 0,
-                        fill: true,
-                        backgroundColor: 'rgba(26, 43, 73, 0.1)',
-                        tension: 0.1
+                        label: 'FOMC Member',
+                        data: scatterPoints.map(p => ({x: p.x, y: p.y})), 
+                        backgroundColor: '#0B2859', pointRadius: 4, pointHoverRadius: 6
                     }]
                 },
                 options: {
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                    responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
+                    scales: { 
+                        x: { type: 'category', labels: ['2024', '2025', '2026', 'Longer Run'], grid: { drawBorder: false } },
+                        y: { min: 2.0, max: 6.0, title: {display: true, text: 'Target Rate (%)'} }
+                    }
+                }
+            });
+
+            // 14. EZ PMIs
+            const ezpmiCtx = document.getElementById('outChart-ezpmi').getContext('2d');
+            if (outlookCharts['ezpmi']) outlookCharts['ezpmi'].destroy();
+            outlookCharts['ezpmi'] = new Chart(ezpmiCtx, {
+                type: 'line',
+                data: {
+                    labels: datesM_Glob,
+                    datasets: [
+                        { label: 'Composite', data: datesM_Glob.map((_,i)=> 48 + Math.sin(i/4)*4), borderColor: btgCols[1], borderWidth: 2, pointRadius: 0, fill: false },
+                        { label: 'Manufacturing', data: datesM_Glob.map((_,i)=> 45 + Math.sin(i/3)*3), borderColor: btgCols[4], borderWidth: 2, pointRadius: 0, fill: false }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { x: { grid: { display: false } } } }
+            });
+
+            // 15. EZ Inflation
+            const ezinflCtx = document.getElementById('outChart-ezinfl').getContext('2d');
+            if (outlookCharts['ezinfl']) outlookCharts['ezinfl'].destroy();
+            outlookCharts['ezinfl'] = new Chart(ezinflCtx, {
+                type: 'line',
+                data: {
+                    labels: datesM_Glob,
+                    datasets: [
+                        { label: 'Headline HICP', data: datesM_Glob.map((_,i)=> 8.0 - i*0.2 + Math.random()*0.3), borderColor: btgCols[0], borderWidth: 2, pointRadius: 0, fill: false },
+                        { label: 'Core HICP', data: datesM_Glob.map((_,i)=> 5.0 - i*0.1 + Math.random()*0.1), borderColor: btgCols[4], borderWidth: 2, pointRadius: 0, fill: false }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { x: { grid: { display: false } } } }
+            });
+
+            // 16. JP Policy Dual Axis
+            const jppolCtx = document.getElementById('outChart-jppol').getContext('2d');
+            if (outlookCharts['jppol']) outlookCharts['jppol'].destroy();
+            outlookCharts['jppol'] = new Chart(jppolCtx, {
+                type: 'line',
+                data: {
+                    labels: datesM_Glob,
+                    datasets: [
+                        { type: 'line', label: 'USDJPY (RHS)', data: datesM_Glob.map((_,i)=> 130 + i*0.8 + Math.random()*3), borderColor: btgCols[3], borderWidth: 2, yAxisID: 'y1', pointRadius: 0, fill: false },
+                        { type: 'line', label: 'BOJ Rate (LHS)', data: datesM_Glob.map((_,i)=> i < 24 ? -0.1 : (i < 30 ? 0.0 : 0.1)), borderColor: btgCols[1], borderWidth: 3, yAxisID: 'y', pointRadius: 0, fill: false, stepped: true }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
                     scales: {
-                        x: { display: false },
-                        y: { display: false, min: Math.min(...data) - 0.5, max: Math.max(...data) + 0.5 }
-                    },
-                    layout: { padding: 0 }
+                        x: { grid: { display: false } },
+                        y: { type: 'linear', position: 'left', title: {display: true, text: '%'} },
+                        y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, title: {display: true, text: 'Level'} }
+                    }
                 }
             });
         }
 
-        function populateMockCBData() {
-            const mock = {
-                fed: { rate: 5.33, cpi: 3.2, ur: 3.9 },
-                ecb: { rate: 4.00, cpi: 2.6, ur: 6.4 },
-                boe: { rate: 5.25, cpi: 3.4, ur: 3.9 },
-                boj: { rate: 0.10, cpi: 2.8, ur: 2.6 }
-            };
-
-            for (const bank of Object.keys(mock)) {
-                document.getElementById(`cb-${bank}-rate`).innerText = mock[bank].rate.toFixed(2) + '%';
-                document.getElementById(`cb-${bank}-cpi`).innerText = mock[bank].cpi.toFixed(1) + '%';
-                document.getElementById(`cb-${bank}-ur`).innerText = mock[bank].ur.toFixed(1) + '%';
-
-                // Gen 60 months of sparkline
-                let baseRate = mock[bank].rate;
-                let mockSpark = [];
-                for(let i=60; i>=0; i--) {
-                    mockSpark.push({ date: `M-${i}`, value: baseRate - (Math.random() * 2) + 1 });
+        // --- CB Watch Mock Setup ---
+        function loadCBWatchData() {
+            document.getElementById('cbLoadingOverlay').classList.remove('hidden');
+            setTimeout(() => {
+                const mock = { fed: {r: 5.33, c: 3.2, u: 3.9}, ecb: {r: 4.00, c: 2.6, u: 6.4}, boe: {r: 5.25, c: 3.4, u: 3.9}, boj: {r: 0.10, c: 2.8, u: 2.6} };
+                for (const b of Object.keys(mock)) {
+                    document.getElementById(`cb-${b}-rate`).innerText = mock[b].r.toFixed(2) + '%';
+                    document.getElementById(`cb-${b}-cpi`).innerText = mock[b].c.toFixed(1) + '%';
+                    document.getElementById(`cb-${b}-ur`).innerText = mock[b].u.toFixed(1) + '%';
+                    
+                    const ctx = document.getElementById(`sparkline-${b}`).getContext('2d');
+                    if(sparklineInstances[b]) sparklineInstances[b].destroy();
+                    let data = Array.from({length: 60}, () => mock[b].r - (Math.random()*2) + 1);
+                    sparklineInstances[b] = new Chart(ctx, {
+                        type: 'line', data: { labels: Array(60).fill(''), datasets: [{ data, borderColor: '#0B2859', borderWidth: 2, pointRadius: 0, fill: true, backgroundColor: 'rgba(11, 40, 89, 0.1)' }] },
+                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { enabled: false } }, scales: { x: { display: false }, y: { display: false } }, layout: { padding: 0 } }
+                    });
                 }
-                drawSparkline(bank, mockSpark);
-            }
+                document.getElementById('cbLoadingOverlay').classList.add('hidden');
+            }, 600);
         }
 
-        // Mock generator for explorer
         function generateMockData(indicator, freq) {
             indicator.series.forEach(s => {
-                let sData = [];
-                let val = 100;
+                let sData = []; let val = 100;
                 for (let i = 120; i >= 0; i--) {
                     val = val * (1 + (Math.random() - 0.5) * 0.02);
                     sData.push({ date: `202${Math.floor(i/12)}-${(i%12)+1}`, value: s.invert ? -val : val });
@@ -851,6 +1132,9 @@ ggplot(macro_data, aes(x = date, y = value)) +
                 rawData[s.id] = sData;
             });
         }
+        
+        function exportCSV() { alert('CSV Export triggered.'); }
+        function exportR() { alert('R Script Export triggered.'); }
     </script>
 </body>
 </html>
