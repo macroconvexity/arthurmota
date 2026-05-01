@@ -194,6 +194,7 @@
             const [dynBaseProfile, setDynBaseProfile] = useState('Balanced');
             const [dynTargetRet, setDynTargetRet] = useState(0);
             const [dynTargetVol, setDynTargetVol] = useState(0);
+            const [lastActiveConstraint, setLastActiveConstraint] = useState('ret');
             const [dynWeights, setDynWeights] = useState(BASE_PROFILES['Balanced']);
 
             // Custom Column State
@@ -262,11 +263,40 @@
             // Optimizer for Dynamic Column
             useEffect(() => {
                 const baseW = BASE_PROFILES[dynBaseProfile];
-                const riskOffW = BASE_PROFILES['Fixed Income'];
-                const riskOnW = BASE_PROFILES['Equities'];
+                const eqW = BASE_PROFILES['Equities'];
+                const fiW = BASE_PROFILES['Fixed Income'];
                 
+                let maxRetW = Array(9).fill(0);
+                let bestSingleRet = -Infinity;
+                let minVolW = Array(9).fill(0);
+                let bestSingleVol = Infinity;
+
+                ASSETS.forEach((_, i) => {
+                    let testW = Array(9).fill(0);
+                    testW[i] = 100;
+                    const r = calcReturn(testW);
+                    const v = calcVol(testW);
+                    if (r > bestSingleRet) { bestSingleRet = r; maxRetW = testW; }
+                    if (v < bestSingleVol) { bestSingleVol = v; minVolW = testW; }
+                });
+
+                let riskOnW = eqW;
+                let riskOffW = fiW;
+
+                // Shift anchors to absolute extremes if the target exceeds institutional profile bounds
+                if (lastActiveConstraint === 'ret') {
+                    if (dynTargetRet > calcReturn(eqW)) riskOnW = maxRetW;
+                    if (dynTargetRet < calcReturn(fiW)) riskOffW = minVolW;
+                } else {
+                    if (dynTargetVol > calcVol(eqW)) riskOnW = maxRetW;
+                    if (dynTargetVol < calcVol(fiW)) riskOffW = minVolW;
+                }
+
                 let bestW = [...baseW];
                 let minPenalty = Infinity;
+
+                const retWeight = lastActiveConstraint === 'ret' ? 500 : 1;
+                const volWeight = lastActiveConstraint === 'vol' ? 500 : 1;
 
                 // Expanded subspace projection allowing extrapolation
                 for(let alpha = -1.0; alpha <= 2.0; alpha += 0.05) {
@@ -283,8 +313,8 @@
                         const ret = calcReturn(w);
                         const vol = calcVol(w);
                         
-                        // Heavily penalize return deviations to track the slider accurately
-                        const penalty = Math.pow(ret - dynTargetRet, 2) * 500 + Math.pow(vol - dynTargetVol, 2);
+                        // Dynamically penalize deviations based on the actively manipulated constraint
+                        const penalty = Math.pow(ret - dynTargetRet, 2) * retWeight + Math.pow(vol - dynTargetVol, 2) * volWeight;
                         if(penalty < minPenalty) {
                             minPenalty = penalty;
                             bestW = w;
@@ -292,7 +322,7 @@
                     }
                 }
                 setDynWeights(bestW.map(v => Number(v.toFixed(2))));
-            }, [dynTargetRet, dynTargetVol, dynBaseProfile, calcReturn, calcVol]);
+            }, [dynTargetRet, dynTargetVol, dynBaseProfile, calcReturn, calcVol, lastActiveConstraint]);
 
             // --- SYNTHETIC DATA GENERATION ---
             const syntheticHistory = useMemo(() => {
@@ -518,6 +548,7 @@
                                                         setDynBaseProfile(newProfile);
                                                         setDynTargetRet(calcReturn(BASE_PROFILES[newProfile]));
                                                         setDynTargetVol(calcVol(BASE_PROFILES[newProfile]));
+                                                        setLastActiveConstraint('ret');
                                                     }}>
                                                         {profiles.map(p => <option key={p} value={p}>Base: {p}</option>)}
                                                     </select>
@@ -562,11 +593,11 @@
                             <div className="mt-6 p-4 bg-blue-50/50 rounded-lg border border-blue-100 flex flex-col md:flex-row gap-6">
                                 <div className="flex-1">
                                     <label className="flex justify-between text-xs font-bold btg-text-primary mb-2"><span>Target Expected Return</span><span>{dynTargetRet.toFixed(2)}%</span></label>
-                                    <input type="range" min="3" max="10" step="0.1" value={dynTargetRet} onChange={(e) => setDynTargetRet(Number(e.target.value))} className="w-full" />
+                                    <input type="range" min="3" max="10" step="0.1" value={dynTargetRet} onChange={(e) => { setDynTargetRet(Number(e.target.value)); setLastActiveConstraint('ret'); }} className="w-full" />
                                 </div>
                                 <div className="flex-1">
                                     <label className="flex justify-between text-xs font-bold text-purple-800 mb-2"><span>Target Volatility Limit</span><span>{dynTargetVol.toFixed(2)}%</span></label>
-                                    <input type="range" min="2" max="18" step="0.1" value={dynTargetVol} onChange={(e) => setDynTargetVol(Number(e.target.value))} className="w-full" />
+                                    <input type="range" min="2" max="18" step="0.1" value={dynTargetVol} onChange={(e) => { setDynTargetVol(Number(e.target.value)); setLastActiveConstraint('vol'); }} className="w-full" />
                                 </div>
                             </div>
                         </Card>
