@@ -452,6 +452,49 @@
                     return { name: pName, ret: calcReturn(w), vol: calcVol(w) };
                 });
 
+                const renderAssetRow = (asset, idx, isHighlighted = false) => {
+                    const trClass = isHighlighted ? "bg-slate-50 hover:bg-slate-100" : "bg-white hover:bg-slate-50";
+                    const tdStickyClass = isHighlighted ? "bg-slate-50" : "bg-white";
+                    
+                    return (
+                        <tr key={asset} className={`transition-colors ${trClass}`}>
+                            <td className={`p-3 border-b border-slate-100 font-medium text-slate-700 sticky left-0 z-10 flex items-center ${tdStickyClass}`}>
+                                <div className="w-2.5 h-2.5 rounded-full mr-2" style={{ backgroundColor: COLORS[asset] }}></div>
+                                {ASSET_LABELS[asset]}
+                            </td>
+                            {profiles.map(p => (
+                                <td key={p} className="p-2 border-b border-slate-100 text-center text-slate-600">{BASE_PROFILES[p][idx].toFixed(1)}</td>
+                            ))}
+                            <td className="p-2 border-b border-slate-100 text-center bg-blue-50 border-l border-blue-200 font-medium btg-text-primary">
+                                {dynWeights[idx].toFixed(1)}
+                            </td>
+                            <td className="p-2 border-b border-slate-100 text-center bg-slate-100 border-l border-slate-300">
+                                <input type="number" step="0.1" className={`w-16 text-center border border-slate-200 rounded p-1 text-xs ${isHighlighted ? 'bg-slate-50' : 'bg-white'}`} value={customWeights[idx]} onChange={e => { const newW = [...customWeights]; newW[idx] = parseFloat(e.target.value)||0; setCustomWeights(newW); }} />
+                            </td>
+                        </tr>
+                    );
+                };
+
+                const renderSubtotalRow = (label, indices) => {
+                    const getSum = (arr) => indices.reduce((sum, idx) => sum + arr[idx], 0);
+                    return (
+                        <tr key={label} className="bg-slate-100 font-bold text-xs text-slate-700 border-b-2 border-slate-200">
+                            <td className="p-3 border-b border-slate-200 sticky left-0 bg-slate-100 z-10 flex items-center">
+                                <span className="ml-6 uppercase tracking-wider text-[10px] text-slate-500">{label}</span>
+                            </td>
+                            {profiles.map(p => (
+                                <td key={p} className="p-2 border-b border-slate-200 text-center text-slate-600">{getSum(BASE_PROFILES[p]).toFixed(1)}%</td>
+                            ))}
+                            <td className="p-2 border-b border-slate-200 text-center bg-blue-100 border-l border-blue-200 btg-text-primary">
+                                {getSum(dynWeights).toFixed(1)}%
+                            </td>
+                            <td className="p-2 border-b border-slate-200 text-center bg-slate-200 border-l border-slate-300 text-slate-600">
+                                {getSum(customWeights).toFixed(1)}%
+                            </td>
+                        </tr>
+                    );
+                };
+
                 return (
                     <div className="space-y-6">
                         <Card className="overflow-hidden">
@@ -486,23 +529,15 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {ASSETS.map((asset, i) => (
-                                            <tr key={asset} className="hover:bg-slate-50 transition-colors">
-                                                <td className="p-3 border-b border-slate-100 font-medium text-slate-700 sticky left-0 bg-white z-10 flex items-center">
-                                                    <div className="w-2.5 h-2.5 rounded-full mr-2" style={{ backgroundColor: COLORS[asset] }}></div>
-                                                    {ASSET_LABELS[asset]}
-                                                </td>
-                                                {profiles.map(p => (
-                                                    <td key={p} className="p-2 border-b border-slate-100 text-center text-slate-600">{BASE_PROFILES[p][i].toFixed(1)}</td>
-                                                ))}
-                                                <td className="p-2 border-b border-slate-100 text-center bg-blue-50 border-l border-blue-200 font-medium btg-text-primary">
-                                                    {dynWeights[i].toFixed(1)}
-                                                </td>
-                                                <td className="p-2 border-b border-slate-100 text-center bg-slate-100 border-l border-slate-300">
-                                                    <input type="number" step="0.1" className="w-16 text-center bg-white border border-slate-200 rounded p-1 text-xs" value={customWeights[i]} onChange={e => { const newW = [...customWeights]; newW[i] = parseFloat(e.target.value)||0; setCustomWeights(newW); }} />
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {ASSETS.slice(0, 4).map((asset, i) => renderAssetRow(asset, i, false))}
+                                        {renderSubtotalRow('Total Fixed Income', [0, 1, 2, 3])}
+                                        
+                                        {ASSETS.slice(4, 7).map((asset, i) => renderAssetRow(asset, i + 4, false))}
+                                        {renderSubtotalRow('Total Equities', [4, 5, 6])}
+                                        
+                                        {renderAssetRow(ASSETS[7], 7, true)}
+                                        {renderAssetRow(ASSETS[8], 8, true)}
+
                                         <tr className="bg-slate-100 font-semibold text-xs border-t-2 border-slate-300">
                                             <td className="p-3 sticky left-0 bg-slate-100 border-r border-white">Total Weight</td>
                                             {profiles.map(p => <td key={p} className="text-center p-2 text-slate-500">{Math.round(BASE_PROFILES[p].reduce((a,b)=>a+b,0))}%</td>)}
