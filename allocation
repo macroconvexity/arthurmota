@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Macro Strategy Lab - Portfolio Allocation</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Global Dependencies -->
+    <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+    <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body { 
+            font-family: 'Inter', system-ui, -apple-system, sans-serif; 
+            background-color: #f4f6f8; 
+            color: #334155;
+        }
+        
+        /* BTG Pactual Palette */
+        .btg-bg-primary { background-color: #0B2859; }
+        .btg-text-primary { color: #0B2859; }
+        .btg-border-primary { border-color: #0B2859; }
+        .btg-bg-secondary { background-color: #10408D; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        input[type="range"] {
+            accent-color: #0B2859;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel" data-presets="env,react">
+        const { useState, useEffect, useMemo, useCallback } = React;
+        const { createRoot } = ReactDOM;
+        const { 
+            LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
+            BarChart, Bar, ScatterChart, Scatter, ComposedChart, AreaChart, Area, ZAxis
+        } = window.Recharts;
+
+        // --- ICONS ---
+        const Icon = ({ path, size=20, className="" }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d={path}/>
+            </svg>
+        );
+        const I_Settings = "M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0 2.73-.73l.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z";
+        const I_Layout = "M3 3h18v18H3z M3 9h18 M9 21V9";
+        const I_TrendingUp = "M23 6l-9.5 9.5-5-5L1 18 M17 6h6v6";
+
+        // --- QUANTITATIVE ENGINE & DATA CONSTANTS ---
+        const ASSETS = ['dev_sov', 'global_ig', 'global_hy', 'em_debt', 'us_eq', 'dm_eq', 'em_eq', 'alts', 'cash'];
+        const ASSET_LABELS = {
+            'dev_sov': 'Dev. Sovereign', 'global_ig': 'Global Inv. Grade', 'global_hy': 'Global High Yield',
+            'em_debt': 'EM Debt', 'us_eq': 'US Equities', 'dm_eq': 'DM (ex-US) Eq.', 'em_eq': 'EM Equities',
+            'alts': 'Alternatives', 'cash': 'Cash'
+        };
+        const COLORS = {
+            'dev_sov': '#94a3b8', 'global_ig': '#64748b', 'global_hy': '#475569', 'em_debt': '#334155',
+            'us_eq': '#0B2859', 'dm_eq': '#10408D', 'em_eq': '#195AB4', 'alts': '#66BAFF', 'cash': '#cbd5e1'
+        };
+
+        const HISTORICAL_METRICS = {
+            'dev_sov': { ret: 1.5, vol: 4.5 }, 'global_ig': { ret: 3.0, vol: 6.0 }, 'global_hy': { ret: 5.5, vol: 9.0 },
+            'em_debt': { ret: 4.5, vol: 10.0 }, 'us_eq': { ret: 12.0, vol: 15.0 }, 'dm_eq': { ret: 7.0, vol: 16.0 },
+            'em_eq': { ret: 5.0, vol: 20.0 }, 'alts': { ret: 6.0, vol: 11.0 }, 'cash': { ret: 1.5, vol: 0.5 }
+        };
+
+        const BASE_PROFILES = {
+            'Fixed Income': [16.3, 47.8, 14.3, 19.1, 0, 0, 0, 0, 2.5],
+            'Conservative': [11.7, 34.3, 10.3, 13.7, 13.7, 3.8, 2.5, 7.5, 2.5],
+            'Balanced': [8.5, 25.0, 7.5, 10.0, 27.5, 7.5, 5.0, 7.5, 1.5],
+            'Growth': [4.8, 14.2, 4.3, 5.7, 41.0, 11.0, 8.0, 10.0, 1.0],
+            'Equities': [0, 0, 0, 0, 68.0, 19.0, 12.0, 0, 1.0]
+        };
+
+        const STRESS_SCENARIOS = [
+            { id: 'gfc', title: 'Global Financial Crisis', subtitle: 'Sep 2008 to Mar 2009', rets: [10.0, -15.0, -40.0, -30.0, -55.0, -60.0, -65.0, -25.0, 2.0] },
+            { id: 'covid', title: 'COVID Liquidity Shock', subtitle: 'Feb 2020 to Mar 2020', rets: [5.0, -15.0, -22.0, -25.0, -34.0, -35.0, -32.0, -20.0, 0.0] },
+            { id: 'rates', title: '2022 Global Rate Shock', subtitle: 'Calendar Year 2022', rets: [-18.0, -22.0, -16.0, -25.0, -25.0, -22.0, -28.0, -15.0, 1.5] },
+            { id: 'liberation', title: 'Liberation Day 2025', subtitle: '19 Feb 2025 to 8 Apr 2025', rets: [2.0, -5.0, -18.0, -30.0, -20.0, -22.0, -45.0, -10.0, 0.0] }
+        ];
+
+        // Building Block Defaults
+        const INITIAL_FI_DECOMPOSITION = {
+            'dev_sov': { rf: 3.5, spread: 0.0, roll: 0.5, val_rf: 0.2, val_spr: 0.0, def: 0.0 },
+            'global_ig': { rf: 3.5, spread: 1.2, roll: 0.8, val_rf: 0.2, val_spr: 0.1, def: 0.0 },
+            'global_hy': { rf: 3.5, spread: 3.8, roll: 0.7, val_rf: 0.1, val_spr: -0.4, def: -0.5 },
+            'em_debt': { rf: 3.5, spread: 3.2, roll: 0.5, val_rf: 0.1, val_spr: -0.1, def: -0.2 }
+        };
+        const INITIAL_EQ_DECOMPOSITION = {
+            'us_eq': { div: 1.5, earnings: 5.5, inflation: 2.5, val: -2.7, fx: 0.0 },
+            'dm_eq': { div: 3.0, earnings: 4.0, inflation: 2.0, val: -1.5, fx: 0.0 },
+            'em_eq': { div: 2.8, earnings: 6.5, inflation: 3.0, val: -3.8, fx: 0.0 }
+        };
+        const BASE_RETURNS_OTHER = { 'alts': 7.0, 'cash': 3.5 };
+
+        const INITIAL_CORR_MATRIX = [
+            [1.00, 0.80, 0.10, 0.20,-0.10,-0.05,-0.05, 0.10, 0.05],
+            [0.80, 1.00, 0.40, 0.45, 0.20, 0.15, 0.15, 0.25, 0.05],
+            [0.10, 0.40, 1.00, 0.85, 0.70, 0.65, 0.65, 0.55, 0.00],
+            [0.20, 0.45, 0.85, 1.00, 0.60, 0.60, 0.75, 0.50, 0.00],
+            [-0.10,0.20, 0.70, 0.60, 1.00, 0.85, 0.75, 0.60, 0.00],
+            [-0.05,0.15, 0.65, 0.60, 0.85, 1.00, 0.80, 0.55, 0.00],
+            [-0.05,0.15, 0.65, 0.75, 0.75, 0.80, 1.00, 0.55, 0.00],
+            [0.10, 0.25, 0.55, 0.50, 0.60, 0.55, 0.55, 1.00, 0.00],
+            [0.05, 0.05, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, 1.00]
+        ];
+
+        // Math Helpers
+        const gaussianRandom = () => {
+            let u = 0, v = 0;
+            while(u === 0) u = Math.random();
+            while(v === 0) v = Math.random();
+            return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+        };
+        const cholesky = (matrix) => {
+            const n = matrix.length;
+            const res = Array(n).fill(0).map(() => Array(n).fill(0));
+            try {
+                for(let i=0; i<n; i++) {
+                    for(let k=0; k<=i; k++) {
+                        let sum = 0;
+                        for(let j=0; j<k; j++) sum += res[i][j] * res[k][j];
+                        if(i === k) {
+                            const val = matrix[i][i] - sum;
+                            if (val <= 0) throw new Error("Matrix not positive definite");
+                            res[i][k] = Math.sqrt(val);
+                        } else res[i][k] = (1.0 / res[k][k] * (matrix[i][k] - sum));
+                    }
+                }
+                return res;
+            } catch (e) {
+                // Fallback to identity matrix if user breaks correlation matrix constraints
+                console.warn("Cholesky decomposition failed. Falling back to Identity matrix for simulation.", e);
+                return Array(n).fill(0).map((_, i) => Array(n).fill(0).map((_, j) => i === j ? 1 : 0));
+            }
+        };
+        const multiplyMatrixVector = (matrix, vector) => matrix.map(row => row.reduce((sum, val, i) => sum + val * vector[i], 0));
+
+        // UI Components
+        const TabButton = ({ active, onClick, icon, children }) => (
+            <button onClick={onClick} className={`flex items-center space-x-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${active ? 'btg-border-primary btg-text-primary' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
+                <Icon path={icon} size={16} /><span>{children}</span>
+            </button>
+        );
+
+        const Card = ({ children, className = "" }) => (
+            <div className={`bg-white rounded-xl shadow-sm border border-slate-200 p-5 ${className}`}>
+                {children}
+            </div>
+        );
+
+        // --- MAIN APP ---
+        const App = () => {
+            const [activeTab, setActiveTab] = useState('dashboard');
+            
+            // CMA & Decomposition State
+            const [fiDecomposition, setFiDecomposition] = useState(INITIAL_FI_DECOMPOSITION);
+            const [eqDecomposition, setEqDecomposition] = useState(INITIAL_EQ_DECOMPOSITION);
+            const [otherReturns, setOtherReturns] = useState(BASE_RETURNS_OTHER);
+            const [correlationOverrides, setCorrelationOverrides] = useState({});
+
+            // Dynamic Column State
+            const [dynBaseProfile, setDynBaseProfile] = useState('Balanced');
+            const [dynTargetRet, setDynTargetRet] = useState(0);
+            const [dynTargetVol, setDynTargetVol] = useState(0);
+            const [dynWeights, setDynWeights] = useState(BASE_PROFILES['Balanced']);
+
+            // Custom Column State
+            const [customWeights, setCustomWeights] = useState(Array(9).fill(11.11));
+
+            // Forward Sim State
+            const [simProfile, setSimProfile] = useState('Balanced');
+            const [simCapital, setSimCapital] = useState(1000000);
+
+            // --- DERIVED STATE: CMA ---
+            const cmaReturns = useMemo(() => {
+                const r = { ...otherReturns };
+                Object.keys(fiDecomposition).forEach(k => {
+                    const c = fiDecomposition[k];
+                    r[k] = c.rf + c.spread + c.roll + c.val_rf + c.val_spr + c.def;
+                });
+                Object.keys(eqDecomposition).forEach(k => {
+                    const c = eqDecomposition[k];
+                    r[k] = c.div + c.earnings + c.inflation + c.val + c.fx;
+                });
+                return r;
+            }, [fiDecomposition, eqDecomposition, otherReturns]);
+
+            // --- DERIVED STATE: CORRELATIONS ---
+            const correlationMatrix = useMemo(() => {
+                const mat = INITIAL_CORR_MATRIX.map(row => [...row]);
+                Object.keys(correlationOverrides).forEach(key => {
+                    const [i, j] = key.split('-');
+                    mat[i][j] = correlationOverrides[key];
+                    mat[j][i] = correlationOverrides[key];
+                });
+                return mat;
+            }, [correlationOverrides]);
+
+            // --- CORE MATH FUNCTIONS ---
+            const calcVol = useCallback((weights) => {
+                let varSum = 0;
+                for(let i=0; i<9; i++) {
+                    for(let j=0; j<9; j++) {
+                        const cov = correlationMatrix[i][j] * HISTORICAL_METRICS[ASSETS[i]].vol * HISTORICAL_METRICS[ASSETS[j]].vol;
+                        varSum += (weights[i]/100) * (weights[j]/100) * cov;
+                    }
+                }
+                return Math.sqrt(varSum);
+            }, [correlationMatrix]);
+
+            const calcReturn = useCallback((weights, customReturns = null) => {
+                const retMap = customReturns || cmaReturns;
+                return weights.reduce((sum, w, i) => sum + (w/100) * retMap[ASSETS[i]], 0);
+            }, [cmaReturns]);
+
+            const getProfileWeights = useCallback((pName) => {
+                if(pName === 'Dynamic') return dynWeights;
+                if(pName === 'Custom') return customWeights;
+                return BASE_PROFILES[pName];
+            }, [dynWeights, customWeights]);
+
+            // Initialization for Dynamic Targets when App Loads
+            useEffect(() => {
+                if (dynTargetRet === 0) {
+                    setDynTargetRet(calcReturn(BASE_PROFILES['Balanced']));
+                    setDynTargetVol(calcVol(BASE_PROFILES['Balanced']));
+                }
+            }, [calcReturn, calcVol, dynTargetRet]);
+
+            // Optimizer for Dynamic Column
+            useEffect(() => {
+                const baseW = BASE_PROFILES[dynBaseProfile];
+                const riskOffW = BASE_PROFILES['Fixed Income'];
+                const riskOnW = BASE_PROFILES['Equities'];
+                
+                let bestW = [...baseW];
+                let minPenalty = Infinity;
+
+                // Expanded subspace projection allowing extrapolation
+                for(let alpha = -1.0; alpha <= 2.0; alpha += 0.05) {
+                    for(let beta = -1.0; beta <= 2.0; beta += 0.05) {
+                        const gamma = 1 - alpha - beta;
+                        let w = baseW.map((_, i) => alpha * riskOnW[i] + beta * riskOffW[i] + gamma * baseW[i]);
+                        
+                        // Floor at zero (long-only constraint) and normalize to 100%
+                        w = w.map(v => Math.max(0, v));
+                        const sum = w.reduce((a,b) => a+b, 0);
+                        if (sum === 0) continue;
+                        w = w.map(v => (v/sum) * 100);
+                        
+                        const ret = calcReturn(w);
+                        const vol = calcVol(w);
+                        
+                        // Heavily penalize return deviations to track the slider accurately
+                        const penalty = Math.pow(ret - dynTargetRet, 2) * 500 + Math.pow(vol - dynTargetVol, 2);
+                        if(penalty < minPenalty) {
+                            minPenalty = penalty;
+                            bestW = w;
+                        }
+                    }
+                }
+                setDynWeights(bestW.map(v => Number(v.toFixed(2))));
+            }, [dynTargetRet, dynTargetVol, dynBaseProfile, calcReturn, calcVol]);
+
+            // --- SYNTHETIC DATA GENERATION ---
+            const syntheticHistory = useMemo(() => {
+                const T = 120;
+                const data = [];
+                const L = cholesky(correlationMatrix);
+                for(let t=0; t<T; t++) {
+                    const z = ASSETS.map(() => gaussianRandom());
+                    const correlatedZ = multiplyMatrixVector(L, z);
+                    
+                    const monthRets = {};
+                    ASSETS.forEach((a, i) => {
+                        const annMean = HISTORICAL_METRICS[a].ret / 100;
+                        const annVol = HISTORICAL_METRICS[a].vol / 100;
+                        const drift = (annMean - 0.5 * annVol * annVol) / 12;
+                        const vol = annVol / Math.sqrt(12);
+                        monthRets[a] = drift + vol * correlatedZ[i];
+                    });
+                    data.push(monthRets);
+                }
+                return data;
+            }, [correlationMatrix]);
+
+            const simData = useMemo(() => {
+                const w = getProfileWeights(simProfile);
+                const nPaths = 1000; // Scaled down for browser performance relative to Python
+                const T = 120;
+                const blockSize = 6; 
+                const nBlocks = Math.ceil(T / blockSize);
+                
+                const paths = [];
+                for(let p=0; p<nPaths; p++) {
+                    let capital = simCapital;
+                    const path = [capital];
+                    let currentMonth = 0;
+
+                    for(let b=0; b<nBlocks; b++) {
+                        const startIndex = Math.floor(Math.random() * (syntheticHistory.length - blockSize));
+                        for(let i=0; i<blockSize && currentMonth < T; i++) {
+                            const monthData = syntheticHistory[startIndex + i];
+                            let portRet = 0;
+                            ASSETS.forEach((a, idx) => portRet += (w[idx]/100) * monthData[a]);
+                            capital *= (1 + portRet);
+                            path.push(capital);
+                            currentMonth++;
+                        }
+                    }
+                    paths.push(path);
+                }
+
+                const percentiles = [];
+                for(let t=0; t<=T; t++) {
+                    const vals = paths.map(p => p[t]).sort((a,b) => a-b);
+                    percentiles.push({
+                        month: t,
+                        p5: vals[Math.floor(nPaths * 0.05)],
+                        p50: vals[Math.floor(nPaths * 0.50)],
+                        p95: vals[Math.floor(nPaths * 0.95)]
+                    });
+                }
+                return percentiles;
+            }, [simProfile, simCapital, getProfileWeights, syntheticHistory]);
+
+            const backtestData = useMemo(() => {
+                const w = getProfileWeights(simProfile);
+                let cap = 100;
+                const path = [];
+                syntheticHistory.forEach((m, idx) => {
+                    let r = 0;
+                    ASSETS.forEach((a, i) => r += (w[i]/100) * m[a]);
+                    cap *= (1 + r);
+                    if(idx % 12 === 0 || idx === syntheticHistory.length - 1) {
+                        path.push({ year: 2016 + Math.floor(idx/12), value: cap });
+                    }
+                });
+                return path;
+            }, [simProfile, getProfileWeights, syntheticHistory]);
+
+            const drawdownData = useMemo(() => {
+                const w = getProfileWeights(simProfile);
+                let cap = 100;
+                let peak = 100;
+                const path = [];
+                syntheticHistory.forEach((m, idx) => {
+                    let r = 0;
+                    ASSETS.forEach((a, i) => r += (w[i]/100) * m[a]);
+                    cap *= (1 + r);
+                    if (cap > peak) peak = cap;
+                    const dd = ((cap - peak) / peak) * 100;
+                    path.push({ month: idx, year: 2016 + Math.floor(idx/12), drawdown: dd });
+                });
+                return path;
+            }, [simProfile, getProfileWeights, syntheticHistory]);
+
+            // --- UI HANDLERS ---
+            const handleCashChange = (val) => {
+                const num = parseFloat(val) || 0;
+                const delta = num - otherReturns['cash'];
+                setOtherReturns(p => ({ ...p, 'cash': num }));
+                
+                const newFi = { ...fiDecomposition };
+                Object.keys(newFi).forEach(k => {
+                    newFi[k] = { ...newFi[k], rf: parseFloat((newFi[k].rf + delta).toFixed(2)) };
+                });
+                setFiDecomposition(newFi);
+            };
+
+            const handleDecompChange = (type, asset, field, val) => {
+                const num = parseFloat(val) || 0;
+                if(type === 'fi') setFiDecomposition(p => ({ ...p, [asset]: { ...p[asset], [field]: num } }));
+                else setEqDecomposition(p => ({ ...p, [asset]: { ...p[asset], [field]: num } }));
+            };
+
+            const handleCorrChange = (i, j, val) => {
+                const num = parseFloat(val);
+                if(isNaN(num) || num < -1 || num > 1) return;
+                setCorrelationOverrides(p => ({ ...p, [`${i}-${j}`]: num }));
+            };
+
+            // --- RENDERERS ---
+            const renderDashboard = () => {
+                const profiles = Object.keys(BASE_PROFILES);
+
+                const compData = [...profiles, 'Dynamic', 'Custom'].map(pName => {
+                    const w = getProfileWeights(pName);
+                    const item = { name: pName };
+                    ASSETS.forEach((a, i) => item[a] = (w[i]/100) * cmaReturns[a]);
+                    return item;
+                });
+
+                const frontierData = [...profiles, 'Dynamic', 'Custom'].map(pName => {
+                    const w = getProfileWeights(pName);
+                    return { name: pName, ret: calcReturn(w), vol: calcVol(w) };
+                });
+
+                return (
+                    <div className="space-y-6">
+                        <Card className="overflow-hidden">
+                            <div className="flex justify-between items-center mb-6">
+                                <div>
+                                    <h3 className="text-lg font-bold btg-text-primary">Interactive Allocation Engine</h3>
+                                    <p className="text-sm text-slate-500">Asset class targets optimized for forward-looking macro conditions.</p>
+                                </div>
+                            </div>
+                            <div className="overflow-x-auto no-scrollbar pb-4">
+                                <table className="w-full text-sm border-collapse min-w-[800px]">
+                                    <thead>
+                                        <tr>
+                                            <th className="p-3 border-b border-slate-200 text-left bg-slate-50 text-slate-600 sticky left-0 z-10 w-48">Asset Class</th>
+                                            {profiles.map(p => <th key={p} className="p-3 border-b border-slate-200 text-center text-slate-600">{p}</th>)}
+                                            <th className="p-3 border-b border-slate-200 text-center bg-blue-50 border-l border-blue-200 w-40">
+                                                <div className="flex flex-col items-center">
+                                                    <span className="font-bold btg-text-primary mb-1">Dynamic Target</span>
+                                                    <select className="text-xs p-1 border rounded bg-white w-full outline-none" value={dynBaseProfile} onChange={e => {
+                                                        const newProfile = e.target.value;
+                                                        setDynBaseProfile(newProfile);
+                                                        setDynTargetRet(calcReturn(BASE_PROFILES[newProfile]));
+                                                        setDynTargetVol(calcVol(BASE_PROFILES[newProfile]));
+                                                    }}>
+                                                        {profiles.map(p => <option key={p} value={p}>Base: {p}</option>)}
+                                                    </select>
+                                                </div>
+                                            </th>
+                                            <th className="p-3 border-b border-slate-200 text-center bg-slate-100 border-l border-slate-300 w-32">
+                                                <span className="font-bold text-slate-700">Custom</span>
+                                            </th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {ASSETS.map((asset, i) => (
+                                            <tr key={asset} className="hover:bg-slate-50 transition-colors">
+                                                <td className="p-3 border-b border-slate-100 font-medium text-slate-700 sticky left-0 bg-white z-10 flex items-center">
+                                                    <div className="w-2.5 h-2.5 rounded-full mr-2" style={{ backgroundColor: COLORS[asset] }}></div>
+                                                    {ASSET_LABELS[asset]}
+                                                </td>
+                                                {profiles.map(p => (
+                                                    <td key={p} className="p-2 border-b border-slate-100 text-center text-slate-600">{BASE_PROFILES[p][i].toFixed(1)}</td>
+                                                ))}
+                                                <td className="p-2 border-b border-slate-100 text-center bg-blue-50 border-l border-blue-200 font-medium btg-text-primary">
+                                                    {dynWeights[i].toFixed(1)}
+                                                </td>
+                                                <td className="p-2 border-b border-slate-100 text-center bg-slate-100 border-l border-slate-300">
+                                                    <input type="number" step="0.1" className="w-16 text-center bg-white border border-slate-200 rounded p-1 text-xs" value={customWeights[i]} onChange={e => { const newW = [...customWeights]; newW[i] = parseFloat(e.target.value)||0; setCustomWeights(newW); }} />
+                                                </td>
+                                            </tr>
+                                        ))}
+                                        <tr className="bg-slate-100 font-semibold text-xs border-t-2 border-slate-300">
+                                            <td className="p-3 sticky left-0 bg-slate-100 border-r border-white">Total Weight</td>
+                                            {profiles.map(p => <td key={p} className="text-center p-2 text-slate-500">{Math.round(BASE_PROFILES[p].reduce((a,b)=>a+b,0))}%</td>)}
+                                            <td className="text-center p-2 bg-blue-100 border-l border-white btg-text-primary">{Math.round(dynWeights.reduce((a,b)=>a+b,0))}%</td>
+                                            <td className={`text-center p-2 border-l border-white ${Math.round(customWeights.reduce((a,b)=>a+b,0)) !== 100 ? 'text-red-600' : 'text-slate-600'}`}>{Math.round(customWeights.reduce((a,b)=>a+b,0))}%</td>
+                                        </tr>
+                                        <tr className="bg-white font-bold text-xs">
+                                            <td className="p-3 sticky left-0 bg-white border-r border-slate-100">Total Exp. Return (CMA)</td>
+                                            {profiles.map(p => <td key={p} className="text-center p-2 text-green-700">{calcReturn(BASE_PROFILES[p]).toFixed(2)}%</td>)}
+                                            <td className="text-center p-2 bg-blue-50 border-l border-blue-200 text-green-700">{calcReturn(dynWeights).toFixed(2)}%</td>
+                                            <td className="text-center p-2 bg-slate-50 border-l border-slate-200 text-green-700">{calcReturn(customWeights).toFixed(2)}%</td>
+                                        </tr>
+                                        <tr className="bg-slate-50 font-bold text-xs border-b border-slate-200">
+                                            <td className="p-3 sticky left-0 bg-slate-50 border-r border-slate-100">Total Volatility (10Y Hist)</td>
+                                            {profiles.map(p => <td key={p} className="text-center p-2 text-purple-700">{calcVol(BASE_PROFILES[p]).toFixed(2)}%</td>)}
+                                            <td className="text-center p-2 bg-blue-50 border-l border-blue-200 text-purple-700">{calcVol(dynWeights).toFixed(2)}%</td>
+                                            <td className="text-center p-2 bg-slate-50 border-l border-slate-200 text-purple-700">{calcVol(customWeights).toFixed(2)}%</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div className="mt-6 p-4 bg-blue-50/50 rounded-lg border border-blue-100 flex flex-col md:flex-row gap-6">
+                                <div className="flex-1">
+                                    <label className="flex justify-between text-xs font-bold btg-text-primary mb-2"><span>Target Expected Return</span><span>{dynTargetRet.toFixed(2)}%</span></label>
+                                    <input type="range" min="3" max="10" step="0.1" value={dynTargetRet} onChange={(e) => setDynTargetRet(Number(e.target.value))} className="w-full" />
+                                </div>
+                                <div className="flex-1">
+                                    <label className="flex justify-between text-xs font-bold text-purple-800 mb-2"><span>Target Volatility Limit</span><span>{dynTargetVol.toFixed(2)}%</span></label>
+                                    <input type="range" min="2" max="18" step="0.1" value={dynTargetVol} onChange={(e) => setDynTargetVol(Number(e.target.value))} className="w-full" />
+                                </div>
+                            </div>
+                        </Card>
+
+                        <Card>
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                                <div>
+                                    <h3 className="text-xl font-bold btg-text-primary">Forward Simulation Engine</h3>
+                                    <p className="text-sm text-slate-500 mt-1">Block Bootstrapping Model (empirical tail risks and correlation structure).</p>
+                                </div>
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-500 mb-1">Portfolio</label>
+                                        <select className="text-sm p-2 border border-slate-200 rounded-lg bg-slate-50 w-full sm:w-40 outline-none focus:ring-1 focus:ring-[#0B2859]" value={simProfile} onChange={e => setSimProfile(e.target.value)}>
+                                            {[...Object.keys(BASE_PROFILES), 'Dynamic', 'Custom'].map(p => <option key={p} value={p}>{p}</option>)}
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-500 mb-1">Initial Capital ($)</label>
+                                        <input type="number" className="text-sm p-2 border border-slate-200 rounded-lg bg-slate-50 w-full sm:w-32 outline-none focus:ring-1 focus:ring-[#0B2859]" value={simCapital} onChange={e => setSimCapital(Number(e.target.value))} />
+                                    </div>
+                                    <div className="bg-red-50 p-2 rounded-lg border border-red-100 flex flex-col justify-center min-w-[120px]">
+                                        <span className="block text-[10px] uppercase font-bold text-red-400">Est. 2σ Max Drawdown</span>
+                                        <span className="font-bold text-red-700 text-sm">{- (2 * calcVol(getProfileWeights(simProfile))).toFixed(1)}%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div className="h-[400px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <ComposedChart data={simData} margin={{ top: 10, right: 30, left: 20, bottom: 5 }}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                        <XAxis dataKey="month" tickFormatter={(val) => val % 12 === 0 ? `Yr ${val/12}` : val} minTickGap={24} />
+                                        <YAxis tickFormatter={(val) => `$${(val/1000).toFixed(0)}k`} />
+                                        <Tooltip formatter={(val) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val)} labelFormatter={(l) => `Month ${l}`} />
+                                        <Legend verticalAlign="top" height={36} wrapperStyle={{ paddingBottom: '20px' }} />
+                                        <Area type="monotone" dataKey="p95" name="95th Percentile" stroke="none" fill="#cbd5e1" fillOpacity={0.3} />
+                                        <Area type="monotone" dataKey="p5" name="5th Percentile" stroke="none" fill="#ffffff" fillOpacity={1} />
+                                        <Line type="monotone" dataKey="p50" name="Median Path" stroke="#0B2859" strokeWidth={3} dot={false} />
+                                        <Line type="monotone" dataKey="p95" name="Upper Bound (95%)" stroke="#94a3b8" strokeDasharray="5 5" dot={false} />
+                                        <Line type="monotone" dataKey="p5" name="Lower Bound (5%)" stroke="#94a3b8" strokeDasharray="5 5" dot={false} />
+                                    </ComposedChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </Card>
+
+                        <Card className="flex flex-col">
+                            <div className="flex justify-between items-start mb-4">
+                                <div>
+                                    <h3 className="text-lg font-bold btg-text-primary">Historical Backtest & Drawdown</h3>
+                                    <p className="text-xs text-slate-500 mt-1">10-Year cumulative growth and rolling max drawdown.</p>
+                                </div>
+                            </div>
+                            <div className="h-48 mb-4">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <LineChart data={backtestData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                        <XAxis dataKey="year" tick={{fontSize: 12}} />
+                                        <YAxis domain={['auto', 'auto']} tick={{fontSize: 12}} />
+                                        <Tooltip formatter={(val) => val.toFixed(1)} />
+                                        <Line type="monotone" dataKey="value" name="Portfolio Value" stroke="#0B2859" strokeWidth={3} dot={{r: 3}} activeDot={{r: 6}} />
+                                    </LineChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="h-32">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={drawdownData} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                        <XAxis dataKey="year" tick={{fontSize: 12}} minTickGap={24} />
+                                        <YAxis tickFormatter={(val) => `${val.toFixed(0)}%`} tick={{fontSize: 12}} />
+                                        <Tooltip formatter={(val) => `${val.toFixed(2)}%`} labelFormatter={(l) => `Year ${l}`} />
+                                        <Area type="monotone" dataKey="drawdown" name="Drawdown" stroke="#dc2626" fill="#fca5a5" fillOpacity={0.5} />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </div>
+                        </Card>
+
+                        <Card>
+                            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 border-b border-slate-200 pb-4 gap-4">
+                                <div>
+                                    <h3 className="text-xl font-bold btg-text-primary">Historical Stress Test Matrix</h3>
+                                    <p className="text-sm text-slate-500 mt-1">Portfolio drawdown reconstructed from per-asset realized returns during four severe market dislocations.</p>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                {STRESS_SCENARIOS.map((scenario) => {
+                                    const w = getProfileWeights(simProfile);
+                                    let totalRet = 0;
+                                    ASSETS.forEach((a, i) => totalRet += (w[i]/100) * scenario.rets[i]);
+                                    const isNegative = totalRet < 0;
+
+                                    return (
+                                        <div key={scenario.id} className="border border-slate-200 rounded-xl overflow-hidden shadow-sm flex flex-col bg-white">
+                                            <div className={`px-5 py-4 flex justify-between items-center ${isNegative ? 'bg-[#b91c1c]' : 'bg-[#15803d]'} text-white`}>
+                                                <div>
+                                                    <h4 className="font-bold text-lg leading-tight">{scenario.title}</h4>
+                                                    <p className="text-xs text-white/80 mt-1">{scenario.subtitle}</p>
+                                                </div>
+                                                <div className="text-3xl font-bold">
+                                                    {totalRet > 0 ? '+' : ''}{totalRet.toFixed(2)}%
+                                                </div>
+                                            </div>
+                                            <div className="overflow-x-auto">
+                                                <table className="w-full text-sm text-left">
+                                                    <thead className="bg-slate-50 text-slate-500 border-b border-slate-200">
+                                                        <tr>
+                                                            <th className="p-3 font-semibold">Asset</th>
+                                                            <th className="p-3 font-semibold text-right">Weight</th>
+                                                            <th className="p-3 font-semibold text-right">Asset Ret.</th>
+                                                            <th className="p-3 font-semibold text-right">Contrib.</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        {ASSETS.map((asset, i) => {
+                                                            const weight = w[i];
+                                                            const assetRet = scenario.rets[i];
+                                                            const contrib = (weight / 100) * assetRet;
+                                                            const retColor = assetRet < 0 ? 'text-red-600' : (assetRet > 0 ? 'text-green-600' : 'text-slate-600');
+                                                            const contribColor = contrib < 0 ? 'text-red-600' : (contrib > 0 ? 'text-green-600' : 'text-slate-600');
+                                                            
+                                                            return (
+                                                                <tr key={asset} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                                                                    <td className="p-3 text-slate-700 font-medium">{ASSET_LABELS[asset]}</td>
+                                                                    <td className="p-3 text-right text-slate-600">{weight.toFixed(1)}%</td>
+                                                                    <td className={`p-3 text-right font-medium ${retColor}`}>{assetRet > 0 ? '+' : ''}{assetRet.toFixed(2)}%</td>
+                                                                    <td className={`p-3 text-right font-bold ${contribColor}`}>{contrib > 0 ? '+' : ''}{contrib.toFixed(2)}%</td>
+                                                                </tr>
+                                                            );
+                                                        })}
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </Card>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            <Card>
+                                <h3 className="text-lg font-bold btg-text-primary mb-4">Return Composition Analysis</h3>
+                                <p className="text-xs text-slate-500 mb-4">Attribution of aggregate nominal return by asset class.</p>
+                                <div className="h-80">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={compData} layout="vertical" margin={{ left: 20 }}>
+                                            <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} />
+                                            <XAxis type="number" unit="%" />
+                                            <YAxis dataKey="name" type="category" width={80} tick={{fontSize: 11}} />
+                                            <Tooltip formatter={(val) => val.toFixed(2) + '%'} />
+                                            <Legend />
+                                            {ASSETS.map((a) => <Bar key={a} dataKey={a} stackId="a" fill={COLORS[a]} name={ASSET_LABELS[a]} />)}
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </Card>
+                            <Card>
+                                <h3 className="text-lg font-bold btg-text-primary mb-4">Risk Efficiency (Frontier)</h3>
+                                <p className="text-xs text-slate-500 mb-4">CMA Expected Return vs. Historical 10-Year Volatility.</p>
+                                <div className="h-80">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 10 }}>
+                                            <CartesianGrid />
+                                            <XAxis type="number" dataKey="vol" name="Volatility" domain={['dataMin - 1', 'dataMax + 1']} tickFormatter={(v) => v.toFixed(1) + '%'} />
+                                            <YAxis type="number" dataKey="ret" name="Return" domain={['dataMin - 1', 'dataMax + 1']} tickFormatter={(v) => v.toFixed(1) + '%'} />
+                                            <ZAxis range={[100, 100]} />
+                                            <Tooltip cursor={{ strokeDasharray: '3 3' }} formatter={(v) => v.toFixed(2) + '%'} />
+                                            {frontierData.map((d, i) => (
+                                                <Scatter key={d.name} name={d.name} data={[d]} fill={d.name === 'Dynamic' ? '#10408D' : (d.name === 'Custom' ? '#475569' : '#94a3b8')} />
+                                            ))}
+                                            <Legend />
+                                        </ScatterChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            </Card>
+                        </div>
+                    </div>
+                );
+            };
+
+            const renderAssumptions = () => (
+                <div className="space-y-6">
+                    <Card>
+                        <h3 className="text-lg font-bold btg-text-primary mb-4">Capital Market Assumptions (Summary)</h3>
+                        <p className="text-sm text-slate-500 mb-4">Values propagate recursively to the allocation engine.</p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            {[ASSETS.slice(0, 5), ASSETS.slice(5)].map((group, idx) => (
+                                <table key={idx} className="w-full text-sm">
+                                    <thead><tr className="border-b border-slate-200 text-slate-600"><th className="text-left py-2">Asset Class</th><th className="text-right py-2">Exp. Return</th></tr></thead>
+                                    <tbody>
+                                        {group.map(a => {
+                                            const isDerived = fiDecomposition[a] || eqDecomposition[a];
+                                            const isCash = a === 'cash' || a === 'alts';
+                                            return (
+                                                <tr key={a} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                                                    <td className="py-3 font-medium flex items-center"><div className="w-2 h-2 rounded-full mr-2" style={{ backgroundColor: COLORS[a] }}></div>{ASSET_LABELS[a]}</td>
+                                                    <td className="py-3 text-right">
+                                                        {isCash ? (
+                                                            <input type="number" step="0.1" className="w-16 text-right bg-blue-50 border border-blue-200 rounded p-1 font-bold text-blue-700 outline-none" value={otherReturns[a]} onChange={e => {
+                                                                if (a === 'cash') handleCashChange(e.target.value);
+                                                                else setOtherReturns(p => ({...p, [a]: parseFloat(e.target.value)||0}));
+                                                            }} />
+                                                        ) : isDerived ? (
+                                                            <span className="font-bold text-slate-700">{cmaReturns[a].toFixed(2)}%</span>
+                                                        ) : null}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            ))}
+                        </div>
+                    </Card>
+
+                    <Card>
+                        <h3 className="text-lg font-bold btg-text-primary mb-4">Return Attribution & Building Blocks</h3>
+                        <div className="space-y-8">
+                            <div>
+                                <h4 className="text-sm font-bold text-slate-700 mb-3 border-b pb-2">Fixed Income</h4>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-xs">
+                                        <thead className="bg-slate-50 text-slate-500"><tr><th className="p-2 text-left">Asset</th><th className="p-2 text-right">Risk Free</th><th className="p-2 text-right">Spread</th><th className="p-2 text-right">Roll</th><th className="p-2 text-right">Val(RF)</th><th className="p-2 text-right">Val(Spr)</th><th className="p-2 text-right">Default</th><th className="p-2 text-right font-bold">TOTAL</th></tr></thead>
+                                        <tbody>
+                                            {Object.keys(fiDecomposition).map(key => {
+                                                const d = fiDecomposition[key];
+                                                const total = d.rf + d.spread + d.roll + d.val_rf + d.val_spr + d.def;
+                                                return (
+                                                    <tr key={key} className="border-b border-slate-100 hover:bg-slate-50">
+                                                        <td className="p-2 font-medium text-slate-700">{ASSET_LABELS[key]}</td>
+                                                        <td className="p-2 text-right">
+                                                            {key === 'dev_sov' ? 
+                                                                <input type="number" step="0.1" className="w-12 text-right bg-transparent border-b border-slate-300 focus:border-[#0B2859] outline-none" value={d.rf} onChange={(e) => handleCashChange(e.target.value)} />
+                                                                : <span className="text-slate-500">{d.rf.toFixed(2)}</span>
+                                                            }
+                                                        </td>
+                                                        {['spread', 'roll', 'val_rf', 'val_spr', 'def'].map(field => (
+                                                            <td key={field} className="p-2 text-right"><input type="number" step="0.05" className="w-12 text-right bg-transparent border-b border-slate-200 focus:border-[#0B2859] outline-none" value={d[field]} onChange={(e) => handleDecompChange('fi', key, field, e.target.value)} /></td>
+                                                        ))}
+                                                        <td className="p-2 text-right font-bold bg-slate-50">{total.toFixed(2)}%</td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 className="text-sm font-bold text-slate-700 mb-3 border-b pb-2">Equities</h4>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-xs">
+                                        <thead className="bg-slate-50 text-slate-500"><tr><th className="p-2 text-left">Asset</th><th className="p-2 text-right">Div. Yield</th><th className="p-2 text-right">Real Earnings</th><th className="p-2 text-right">Inflation</th><th className="p-2 text-right">Valuation</th><th className="p-2 text-right">FX</th><th className="p-2 text-right font-bold">TOTAL</th></tr></thead>
+                                        <tbody>
+                                            {Object.keys(eqDecomposition).map(key => {
+                                                const d = eqDecomposition[key];
+                                                const total = d.div + d.earnings + d.inflation + d.val + d.fx;
+                                                return (
+                                                    <tr key={key} className="border-b border-slate-100 hover:bg-slate-50">
+                                                        <td className="p-2 font-medium text-slate-700">{ASSET_LABELS[key]}</td>
+                                                        {['div', 'earnings', 'inflation', 'val', 'fx'].map(field => (
+                                                            <td key={field} className="p-2 text-right"><input type="number" step="0.05" className="w-12 text-right bg-transparent border-b border-slate-200 focus:border-[#0B2859] outline-none" value={d[field]} onChange={(e) => handleDecompChange('eq', key, field, e.target.value)} /></td>
+                                                        ))}
+                                                        <td className="p-2 text-right font-bold bg-slate-50">{total.toFixed(2)}%</td>
+                                                    </tr>
+                                                );
+                                            })}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </Card>
+
+                    <Card className="overflow-x-auto">
+                        <h3 className="text-lg font-bold btg-text-primary mb-4">Correlation Matrix (Editable)</h3>
+                        <p className="text-sm text-slate-500 mb-4">Edits propagate to the Cholesky factorization in the simulation engine.</p>
+                        <table className="w-full text-xs border-collapse">
+                            <thead><tr><th className="p-2 border bg-slate-50"></th>{ASSETS.map(k => (<th key={k} className="p-2 border bg-slate-50 text-slate-600 font-normal">{k.toUpperCase().substring(0,4)}</th>))}</tr></thead>
+                            <tbody>
+                                {ASSETS.map((rowKey, i) => (
+                                    <tr key={rowKey}>
+                                        <td className="p-2 border font-bold bg-slate-50 text-slate-600">{rowKey.toUpperCase().substring(0,4)}</td>
+                                        {ASSETS.map((colKey, j) => {
+                                            const val = correlationMatrix[i][j];
+                                            return (
+                                                <td key={colKey} className={`p-2 border text-center ${i === j ? 'bg-slate-100 text-slate-300' : ''}`}>
+                                                    {i === j ? '1.0' : (
+                                                        <input type="number" step="0.05" max="1" min="-1" className="w-full text-center bg-transparent outline-none focus:text-blue-700 focus:font-bold" value={val} onChange={(e) => handleCorrChange(i, j, e.target.value)} />
+                                                    )}
+                                                </td>
+                                            )
+                                        })}
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </Card>
+                </div>
+            );
+
+            return (
+                <div className="min-h-screen flex flex-col overflow-x-hidden">
+                    <header className="btg-bg-primary text-white flex items-center justify-between px-6 py-4 shadow-md z-20 shrink-0">
+                        <div className="flex items-center gap-4">
+                            <h1 className="text-xl font-bold tracking-tight border-r border-slate-500 pr-4">Macro Strategy Lab</h1>
+                            <span className="text-sm font-light text-slate-300 hidden md:block">Portfolio Allocation & Simulation</span>
+                        </div>
+                        <div className="flex items-center gap-4">
+                            <span className="text-xs font-semibold tracking-wider text-slate-300 uppercase px-3 py-1 border border-slate-500 rounded-full hidden sm:block">Internal Research</span>
+                        </div>
+                    </header>
+
+                    <div className="bg-white border-b border-slate-200 px-6 flex gap-6 text-sm font-medium shrink-0 shadow-sm z-10 overflow-x-auto no-scrollbar">
+                        <TabButton active={activeTab === 'dashboard'} onClick={() => setActiveTab('dashboard')} icon={I_Layout}>Allocation Matrix & Simulations</TabButton>
+                        <TabButton active={activeTab === 'assumptions'} onClick={() => setActiveTab('assumptions')} icon={I_Settings}>Assumptions & Correlations</TabButton>
+                    </div>
+
+                    <main className="flex-1 p-6 max-w-screen-2xl mx-auto w-full">
+                        {activeTab === 'dashboard' && renderDashboard()}
+                        {activeTab === 'assumptions' && renderAssumptions()}
+                    </main>
+                </div>
+            );
+        };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
