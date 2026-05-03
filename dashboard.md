@@ -22,6 +22,8 @@
 
 ## [Structured Notes Lab](apptrade.html)
 
+## [Trainer AI](trainer.html)
+
 ## [Soso & lella](soso_lella_tracker.html)
 
 ## [Macro App](macroapp.html)
