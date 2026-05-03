@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BTG Pactual | AI Trainer Lab</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+    :root {
+      --btg-blue: #00295A;
+      --btg-light: #003b82;
+      --btg-ink: #0f172a;
+      --btg-muted: #64748b;
+      --btg-border: #e2e8f0;
+      --btg-bg: #f8fafc;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--btg-bg);
+      color: var(--btg-ink);
+    }
+    .bg-btg-blue { background-color: var(--btg-blue); }
+    .bg-btg-light { background-color: var(--btg-light); }
+    .text-btg-blue { color: var(--btg-blue); }
+    .border-btg-blue { border-color: var(--btg-blue); }
+    .modal-overlay { background-color: rgba(15, 23, 42, 0.72); backdrop-filter: blur(4px); }
+    .modal-content { max-height: 90vh; overflow-y: auto; }
+    .search-hidden { display: none !important; }
+    .line-clamp-2 {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .line-clamp-3 {
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    ::-webkit-scrollbar { width: 7px; height: 7px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    @media print {
+      aside, header, .no-print { display: none !important; }
+      body { overflow: visible !important; }
+      main { padding: 0 !important; overflow: visible !important; }
+    }
+  </style>
+</head>
+<body class="h-screen flex overflow-hidden text-sm">
+  <div id="mobile-overlay" class="fixed inset-0 modal-overlay z-20 hidden md:hidden" onclick="toggleSidebar()"></div>
+
+  <aside id="sidebar" class="bg-btg-blue text-white w-72 flex-shrink-0 flex flex-col z-30 transition-transform transform -translate-x-full md:translate-x-0 absolute md:relative h-full">
+    <div class="h-16 flex items-center px-6 border-b border-blue-900 font-bold text-lg tracking-wide">
+      BTG Pactual <span class="font-light ml-2 opacity-80">| AI Lab</span>
+    </div>
+    <div class="flex-1 overflow-y-auto py-4">
+      <div class="text-xs uppercase text-blue-300 font-semibold mb-2 px-6">Platform Navigation</div>
+      <nav class="space-y-0.5" id="nav-links"></nav>
+    </div>
+    <div class="mt-auto p-4 border-t border-blue-900">
+      <div class="text-xs text-blue-300 mb-1">Platform Scope</div>
+      <div class="font-medium">Investment Professionals</div>
+      <div class="text-xs text-blue-400 mt-2">v6.0 Content-Rich Build</div>
+    </div>
+  </aside>
+
+  <div class="flex-1 flex flex-col overflow-hidden w-full relative">
+    <header class="h-16 bg-white border-b flex items-center justify-between px-4 lg:px-8 shadow-sm z-10 flex-shrink-0">
+      <div class="flex items-center w-full gap-3">
+        <button onclick="toggleSidebar()" class="md:hidden text-gray-500 hover:text-gray-700">
+          <i class="fas fa-bars text-lg"></i>
+        </button>
+        <div class="relative w-full max-w-3xl">
+          <i class="fas fa-search absolute left-3 top-2.5 text-gray-400"></i>
+          <input type="text" id="global-search" placeholder="Search current module by tool, role, workflow, prompt, or risk..." class="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg bg-gray-50 focus:bg-white focus:outline-none focus:border-btg-blue transition-colors text-sm" />
+        </div>
+        <button onclick="openPathBuilder()" class="hidden lg:inline-flex items-center px-4 py-2 rounded-lg bg-btg-blue text-white font-semibold shadow-sm hover:bg-blue-950 no-print">
+          <i class="fas fa-route mr-2"></i>Build Path
+        </button>
+      </div>
+    </header>
+
+    <main class="flex-1 overflow-x-hidden overflow-y-auto bg-slate-50 p-4 lg:p-8" id="main-container"></main>
+
+    <div id="detail-modal" class="fixed inset-0 modal-overlay z-50 hidden flex items-center justify-center p-4">
+      <div class="bg-white rounded-xl shadow-xl w-full max-w-6xl modal-content flex flex-col relative">
+        <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-700 z-10 bg-white rounded-full p-1 shadow-sm border border-gray-200 no-print">
+          <i class="fas fa-times text-xl px-2 py-1"></i>
+        </button>
+        <div id="modal-body" class="p-0"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const navigationConfig = [
+  { id: 'home', icon: 'fa-home', label: 'Dashboard' },
+  { id: 'tools', icon: 'fa-wrench', label: 'AI Tools Deep Dive' },
+  { id: 'roles', icon: 'fa-user-tie', label: '50 Trails by Role' },
+  { id: 'topics', icon: 'fa-book', label: '50 Trails by Topic' },
+  { id: 'prompts', icon: 'fa-terminal', label: '100 Prompt Library' },
+  { id: 'workflows', icon: 'fa-bolt', label: '50 Daily Workflows' },
+  { id: 'playbooks', icon: 'fa-map', label: '50 Operating Playbooks' },
+  { id: 'presentations', icon: 'fa-file-powerpoint', label: '50 Presentations & Writing' },
+  { id: 'coding', icon: 'fa-code', label: '50 Coding & Automation' },
+  { id: 'knowledge', icon: 'fa-brain', label: '50 Knowledge Modules' },
+  { id: 'compliance', icon: 'fa-shield-halved', label: '50 Quality & Compliance' }
+];
+
+const tools = [
+  { name: 'ChatGPT Advanced', bestFor: 'file analysis, Python-backed calculations, data cleaning, charts, structured drafting', avoid: 'blind factual lookup without source verification', setup: 'Use projects for reusable workstreams; disable training where required by internal policy; upload small, anonymized samples first.' },
+  { name: 'Claude Chat', bestFor: 'long documents, writing quality, investment memo critique, presentation narratives', avoid: 'large-scale numerical computation without external validation', setup: 'Use Projects for style guides, memo templates, and reusable instructions.' },
+  { name: 'Claude Code', bestFor: 'building internal prototypes, HTML tools, JavaScript dashboards, refactoring scripts', avoid: 'sensitive codebases without approval', setup: 'Start from a clear file map and require comments, error handling, and test cases.' },
+  { name: 'Gemini', bestFor: 'Google Workspace integration, document drafting, research organization, long-context reasoning', avoid: 'unsourced claims in external research', setup: 'Use Gems for recurring workflows by role and audience.' },
+  { name: 'NotebookLM', bestFor: 'source-grounded knowledge bases, notes, transcripts, policy documents, internal learning hubs', avoid: 'open-ended web research', setup: 'Create notebooks by use case: product library, training archive, meeting archive, client-prep archive.' },
+  { name: 'Perplexity', bestFor: 'source-backed web research, market facts, competitor scans, public documents', avoid: 'private or proprietary queries', setup: 'Use it for public information only; keep queries generic if the topic is sensitive.' },
+  { name: 'Obsidian', bestFor: 'personal knowledge management, prompt vaults, meeting-note systems, research maps', avoid: 'unstructured dumping without tags', setup: 'Use templates and tags from day one.' },
+  { name: 'Microsoft Copilot', bestFor: 'Outlook, PowerPoint, Word, Teams summaries, first drafts', avoid: 'publishing material without human review', setup: 'Pair with strict review checklists and source validation.' }
+];
+
+const roleNames = [
+  'Portfolio Manager','Assistant Portfolio Manager','Equity Analyst','Fixed Income Analyst','Credit Analyst','Trader','Broker','Wealth Manager','Investment Advisor','Product Specialist',
+  'CIO','Junior Analyst','Senior Analyst','Team Head','Client-facing Professional','Research Professional','Sales Professional','Risk Professional','Operations Professional','Compliance Professional',
+  'Fund Analyst','ETF Analyst','Structured Products Professional','Alternative Investments Analyst','Private Markets Analyst','Multi-Asset Analyst','Quant Analyst','Data Analyst','Investment Writer','Presentation Specialist',
+  'Client Portfolio Reviewer','Relationship Manager','Investment Consultant','Due Diligence Analyst','Fund Selector','Asset Allocation Specialist','Risk Committee Member','Investment Committee Member','Sales Trader','Desk Strategist',
+  'Product Marketer','Training Manager','New Joiner','AI Beginner','AI Intermediate User','AI Power User','Non-technical Professional','Manager Learning AI','Senior Executive Learning AI','Internal Educator'
+];
+
+const topicNames = [
+  'Prompt Engineering for Finance','Deep Research with AI','Market Monitoring with AI','Portfolio Review','Client Meeting Preparation','Investment Committee Preparation','Product Comparison','Fund Analysis','ETF Analysis','Bond Analysis',
+  'Credit Memo Writing','Equity Idea Review','Fixed Income Analysis','Trade Idea Generation','Risk Scenario Review','Earnings Transcript Analysis','PDF Report Analysis','Meeting Notes Transformation','Presentation Creation','Report Writing',
+  'Executive Summaries','Slide Titles','Chart Storytelling','Client-Ready Language','Substack Writing','X/Twitter Content','LinkedIn Content','Knowledge Management','Obsidian Workflows','NotebookLM Workflows',
+  'Claude Projects','Gemini Gems','ChatGPT Projects','Coding Assistance','HTML Dashboards','R Scripts','Python Scripts','Quality Control','Compliance-Aware Writing','Internal Productivity',
+  'Brainstorming','Decision Support','Red-Teaming Investment Theses','Explaining Complex Products','Converting Raw Notes into Client Materials','Reusable Templates','Personal Productivity Systems','Research Archive Creation','Competitive Intelligence','AI-Assisted Training Programs'
+];
+
+const promptCategories = ['Portfolio Management','Equity Research','Fixed Income','Credit Research','Trading','Sales & Brokerage','Wealth Management','Client Communication','Product Strategy','Fund Analysis','ETF Analysis','Bond Analysis','Investment Committee','Risk Analysis','Trade Ideas','Report Writing','Presentation Creation','Meeting Prep','PDF Analysis','Transcript Analysis','Content Creation','Internal Productivity','Coding Assistance','Knowledge Management','Quality Control'];
+
+const playbookNames = [
+  'Daily Market Briefing','Weekly Market Update','Investment Committee Preparation','Client Meeting Preparation','Portfolio Review','Product Comparison','Fund Comparison','ETF Comparison','Bond Analysis','Equity Idea Review',
+  'Credit Idea Review','Trade Idea Memo','Risk Scenario Review','Earnings Season Monitoring','Transcript Analysis','PDF Research Report Analysis','Slide Deck Creation','Report Creation','Executive Summary Creation','Meeting Notes Transformation',
+  'Client Email Drafting','Wealth Portfolio Narrative','Product Pitch Creation','Social Media Post Creation','Substack Article Creation','X/Twitter Thread Creation','LinkedIn Post Creation','Personal Research Library','Reusable AI Templates','AI as Debate Partner',
+  'AI as Presentation Assistant','AI as Editor','AI as Coding Assistant','AI as QC Assistant','Challenge an Investment Thesis','Simplify Complex Products','Senior Stakeholder Briefing','One-Page Investment Memo','Notes to Client Talking Points','Internal vs External Research Comparison',
+  'Client Meeting Q&A','Presentation Pre-Review','Training Session Creation','Internal Knowledge Base','Personal Productivity System','Rough Ideas to Structured Plan','Argument Gap Review','Long Report to Short Note','Technical Analysis to Simple Language','Clean Investment Narrative'
+];
+
+const presentationNames = [
+  'Raw Notes to Slide Deck','Logical Deck Structure','Action-Oriented Slide Titles','Executive Summary Writing','CIO-Ready Summary','Client-Ready Investment Narrative','Speaker Notes','Dense Paragraph Rewrite','Charts into Clear Messages','Before/After Writing Examples',
+  'Simplifying Technical Language','Meeting Notes into Report','Report into Slides','One-Pager Creation','Investment-Bank-Style Document','Research into Social Media','Substack from Internal Notes','X/Twitter Thread from Analysis','LinkedIn Post from Research','Client Email',
+  'Internal Memo','Investment Committee Memo','Product Pitch Deck','Portfolio Review Deck','Fund Comparison Slides','ETF Comparison Slides','Bond Analysis Slides','Risk Scenario Slides','Q&A Slides','Appendix Slides',
+  'Chart Subtitles','Chart Footnotes','Editing for Tone','Editing for Clarity','Editing for Brevity','Removing Jargon','Transition Slides','Opening Remarks','Closing Remarks','Senior Management Talking Points',
+  'Meeting Handout','Training Material','FAQ Document','Client-Ready Summary','Technical Appendix','Slide-Review Checklist','Message Hierarchy','Storyline Alternatives','Bullets into Narrative','Narrative into Bullets'
+];
+
+const codingNames = [
+  'Non-Coders Using AI for Coding','Ask AI for Python Scripts','Ask AI for R Scripts','Debug Error Messages','Explain Code Line by Line','Clean Code','Create Charts','Create Simple Dashboards','Automate Repetitive Analysis','Create HTML Tools',
+  'Work with CSV Files','Validate Code Outputs','Reusable Templates','Comments and Documentation','Simple Data Cleaning Script','Chart from CSV','PDF Report Generator','PowerPoint Generator','Table Formatting Script','Portfolio Summary Script',
+  'Return Calculation Script','Volatility Calculation Script','Correlation Matrix','Drawdown Analysis','Scenario Table','Simple Backtest','Static Data Dashboard','HTML Cards from Data','JavaScript Filters','Searchable Prompt Library',
+  'Copy Buttons','Accordions','JavaScript Charts','Python Charts','R Charts','Package Installation Debugging','Avoid Hallucinated Packages','Explain Error Messages','Optimize Slow Code','Excel Logic into Python',
+  'Excel Logic into R','Python into R','R into Python','Reusable Functions','Small Coding Project Structure','Ask AI for Test Cases','Check Output Reasonableness','Document Internal Tool','Coding Learning Path','Build Confidence as Non-Coder'
+];
+
+const knowledgeNames = [
+  'Obsidian Setup','NotebookLM Setup','Claude Projects Setup','Gemini Gems Setup','ChatGPT Projects Setup','Personal Research Library','Reusable Prompt Library','Note Templates','Tagging System','Folder Structure',
+  'Meeting Notes Archive','Client Notes Archive','Investment Thesis Archive','Product Comparison Archive','Research Summary Archive','PDF Archive','Presentation Archive','Decision Log','Follow-Up Log','Reading List',
+  'Weekly Review System','Monthly Knowledge Review','Research Dashboard','AI-Assisted Search','Query Past Notes','Avoid Losing Institutional Knowledge','Source-Based Answers','Facts vs Opinions','Reusable Meeting Templates','Reusable Memo Templates',
+  'Reusable Presentation Templates','Personal AI Operating System','Connect Notes and Tasks','Raw Notes into Structured Notes','Summarize Old Notes','Tags by Asset Class','Tags by Client Type','Tags by Product Type','Tags by Workflow','Tags by Urgency',
+  'Prompt Vault','Workflow Vault','Research Map','Topic Map','Client-Prep System','Investment Committee Prep System','Learning Archive','AI Training Archive','Weekly Maintenance','Knowledge Base Audit'
+];
+
+const complianceNames = [
+  'What Not to Paste','Confidential Information','Client Information','MNPI Risks','Proprietary Research','Internal Positioning Data','Portfolio Data','Client Suitability','Product Recommendations','Hallucination Risk',
+  'Source Checking','Data Privacy','Prompt Hygiene','Human Review','Arithmetic Validation','Citation Validation','PDF Extraction Validation','Transcript Validation','Spreadsheet Validation','Model Output Validation',
+  'Investment Claim Validation','Performance Claim Validation','Forecast Claim Validation','Risk Statement Validation','Compliance-Aware Writing','Avoiding Promissory Language','Avoiding Guaranteed-Return Language','Avoiding Overconfidence','Avoiding Fake Citations','Avoiding Fake Links',
+  'Avoiding Fake Data','Avoiding Unsupported Claims','Facts vs Interpretation','Handling Uncertainty','Version Control','Audit Trail','Review Checklist','Senior-Review Workflow','External-Source Review','Client-Material Review',
+  'Internal-Material Review','Product-Material Review','Prompt-Review Checklist','AI Output Scoring','Red-Team Review','Bias Review','Sensitive Information Removal','Anonymization Workflow','Safe vs Unsafe Examples','Final Publishing Checklist'
+];
+
+function externalBlock(seed) {
+  return `
+    <div class="border-t border-gray-200 pt-5 mt-6">
+      <h4 class="font-bold text-gray-800 mb-3 text-xs uppercase tracking-wide">External Learning Queries</h4>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+        <div class="bg-red-50 text-red-900 p-3 rounded border border-red-100"><i class="fab fa-youtube text-red-600 mr-1.5"></i><strong>YouTube:</strong> "${seed} AI workflow tutorial"</div>
+        <div class="bg-orange-50 text-orange-900 p-3 rounded border border-orange-100"><i class="fas fa-envelope-open-text text-orange-600 mr-1.5"></i><strong>Substack:</strong> "${seed} AI for finance professionals"</div>
+        <div class="bg-gray-100 text-gray-800 p-3 rounded border border-gray-200"><i class="fab fa-x-twitter text-black mr-1.5"></i><strong>X:</strong> follow operators sharing ${seed.toLowerCase()} workflows, AI analysts, and tool builders</div>
+      </div>
+    </div>`;
+}
+
+function makeRole(name, idx) {
+  const tool = idx % 3 === 0 ? 'Claude + NotebookLM' : idx % 3 === 1 ? 'ChatGPT + Perplexity' : 'Gemini + Claude Projects';
+  return {
+    id: 'role-' + idx,
+    title: name,
+    type: 'Role Trail',
+    objective: `Use AI to compress low-value manual work and increase analytical leverage for the ${name}.`,
+    tools: tool,
+    difficulty: idx < 10 ? 'Beginner' : idx < 35 ? 'Intermediate' : 'Advanced',
+    workflow: [
+      `Map the recurring weekly tasks performed by a ${name}.`,
+      `Convert the most repetitive task into a structured AI prompt with required inputs and output format.`,
+      `Run the workflow on a low-risk example and compare output against a human draft.`,
+      `Create a quality-control checklist before using output in internal or client-facing work.`
+    ],
+    prompt: `Act as a senior ${name}. I will provide raw notes, data points, or documents. Convert them into a structured working output with: 1) key facts, 2) investment relevance, 3) risks, 4) missing information, 5) next actions. Use concise institutional language and separate facts from interpretation.`,
+    advanced: `Act as a skeptical reviewer of the ${name}'s workflow. Challenge the output for unsupported claims, weak assumptions, missing risks, and unclear recommendations. Return a table with Issue, Why it matters, Evidence needed, and Suggested fix.`,
+    qc: ['Verify every number against the original source.', 'Remove confidential or client-identifying information before prompting.', 'Do not publish AI text without human review.', 'Separate verified facts from judgment.'],
+    mistakes: ['Using AI as final approver.', 'Pasting sensitive data.', 'Asking vague questions without output structure.', 'Not checking source dates.']
+  };
+}
+
+function makeTopic(name, idx) {
+  const tool = idx % 4 === 0 ? 'Claude' : idx % 4 === 1 ? 'ChatGPT' : idx % 4 === 2 ? 'Perplexity' : 'NotebookLM';
+  return {
+    id: 'topic-' + idx,
+    title: name,
+    type: 'Topic Trail',
+    objective: `Turn ${name.toLowerCase()} into a repeatable AI-supported workflow for investment professionals.`,
+    tools: tool,
+    difficulty: idx < 15 ? 'Beginner' : idx < 35 ? 'Intermediate' : 'Advanced',
+    workflow: [
+      'Define the business question and the intended audience.',
+      'Collect inputs: notes, documents, tables, transcripts, or public sources.',
+      'Prompt the AI to produce a structured first pass with assumptions clearly labeled.',
+      'Run a second prompt to critique the first output and identify gaps.',
+      'Finalize with human review, source verification, and formatting for the right audience.'
+    ],
+    prompt: `You are helping with ${name}. Use the inputs I provide to produce a practical output for financial-market professionals. Structure the answer as: objective, relevant facts, implications, risks, open questions, and next steps. Do not invent information. Flag missing data clearly.`,
+    advanced: `Now act as a senior reviewer. Stress-test the ${name} output. Identify weak logic, unsupported statements, missing context, compliance risk, and areas that require source verification.`,
+    qc: ['Confirm the output matches the audience.', 'Check all factual claims.', 'Remove generic AI language.', 'Add explicit limitations where needed.'],
+    mistakes: ['Accepting a generic summary.', 'Skipping the second-pass critique.', 'Not specifying audience and format.', 'Letting AI create unsupported evidence.']
+  };
+}
+
+function makePrompt(category, idx) {
+  const tools = ['Claude','ChatGPT','Perplexity','NotebookLM','Gemini'];
+  const tool = tools[idx % tools.length];
+  return {
+    id: 'prompt-' + idx,
+    title: `${category}: Institutional Workflow Prompt ${idx + 1}`,
+    type: 'Prompt',
+    category,
+    tools: tool,
+    difficulty: idx < 30 ? 'Beginner' : idx < 75 ? 'Intermediate' : 'Advanced',
+    objective: `Create a high-quality ${category.toLowerCase()} output from raw inputs with clear assumptions and review points.`,
+    prompt: `Act as a senior ${category} specialist at an investment bank. I will provide raw inputs. Produce a professional output with five sections: 1) executive takeaway, 2) key evidence, 3) risk points, 4) follow-up questions, and 5) final draft language. Use concise institutional writing. Do not invent data. Highlight anything that needs verification.`,
+    advanced: `After producing the first output, run a red-team review. Identify unsupported statements, weak assumptions, missing sensitivities, compliance risk, and areas where the language is too strong for client-facing use.`,
+    workflow: ['Paste anonymized inputs.', 'Run the primary prompt.', 'Run the advanced review prompt.', 'Edit for house style.', 'Verify numbers and sources.'],
+    qc: ['Source-check claims.', 'Review tone.', 'Confirm no client data is exposed.', 'Validate calculations outside the model.'],
+    mistakes: ['No input structure.', 'No source verification.', 'Overly confident language.', 'Using generic audience assumptions.']
+  };
+}
+
+function makePlaybook(name, idx) {
+  return {
+    id: 'playbook-' + idx,
+    title: name,
+    type: 'Operating Playbook',
+    objective: `Execute ${name.toLowerCase()} consistently using AI as a drafting, structuring, and review assistant.`,
+    tools: idx % 2 === 0 ? 'Claude + ChatGPT' : 'Perplexity + NotebookLM',
+    difficulty: idx < 15 ? 'Beginner' : idx < 35 ? 'Intermediate' : 'Advanced',
+    workflow: [
+      'Define the output and audience before opening the AI tool.',
+      'Prepare inputs in a clean format and remove restricted information.',
+      'Run the primary generation prompt with a strict structure.',
+      'Run the critique prompt to identify missing risks and weak claims.',
+      'Revise manually and validate all facts before circulation.'
+    ],
+    prompt: `Build a ${name} output from the material below. Use this structure: context, key findings, implications, risks, recommended next steps, and open questions. Use direct institutional language. Do not invent facts. Flag any missing data.`,
+    advanced: `Act as a skeptical senior reviewer of this ${name}. Identify: 1) unsupported claims, 2) unclear logic, 3) hidden risks, 4) excessive confidence, and 5) missing follow-up questions. Return a table with fixes.`,
+    qc: ['Check source dates.', 'Validate every numerical claim.', 'Review compliance-sensitive wording.', 'Confirm final output fits intended audience.'],
+    mistakes: ['Skipping inputs cleanup.', 'Relying on AI for facts without sources.', 'Using output without review.', 'Not adapting tone to audience.']
+  };
+}
+
+function makeModule(name, type, idx) {
+  return {
+    id: `${type.toLowerCase().replaceAll(' ', '-')}-${idx}`,
+    title: name,
+    type,
+    objective: `Use AI to improve ${name.toLowerCase()} with a repeatable process and clear quality control.`,
+    tools: idx % 3 === 0 ? 'Claude' : idx % 3 === 1 ? 'ChatGPT' : 'Gemini',
+    difficulty: idx < 20 ? 'Beginner' : idx < 38 ? 'Intermediate' : 'Advanced',
+    workflow: [
+      'Define the current pain point and desired output.',
+      'Provide a sample of the current format or style.',
+      'Ask the model to produce a structured first version.',
+      'Ask the model to critique and improve its own output.',
+      'Apply human judgment before reuse or distribution.'
+    ],
+    prompt: `Help me with ${name}. I will provide raw material. Convert it into a professional output with clear structure, direct language, and a quality-control checklist. Do not add unsupported claims.`,
+    advanced: `Improve the ${name} output for senior investment professionals. Make it sharper, less generic, more concise, and better structured. Highlight any missing evidence.`,
+    qc: ['Check clarity.', 'Check evidence.', 'Check tone.', 'Check audience fit.'],
+    mistakes: ['Using generic instructions.', 'Not giving examples.', 'Not reviewing output.', 'Letting AI overstate conclusions.']
+  };
+}
+
+function makeCompliance(name, idx) {
+  return {
+    id: 'compliance-' + idx,
+    title: name,
+    type: 'Quality & Compliance',
+    objective: `Control ${name.toLowerCase()} risk when using AI in professional investment workflows.`,
+    tools: 'All AI tools',
+    difficulty: idx < 20 ? 'Beginner' : idx < 40 ? 'Intermediate' : 'Advanced',
+    rule: `Treat ${name.toLowerCase()} as a pre-publication risk area. AI output must be reviewed before any internal or external use.`,
+    unsafe: `Unsafe: paste sensitive information into an external AI tool and ask for a final client-ready conclusion without review.`,
+    safer: `Safer: anonymize inputs, ask for structure rather than final recommendation, verify facts, and apply human judgment before circulation.`,
+    workflow: ['Classify sensitivity.', 'Remove restricted information.', 'Run AI for structure or draft.', 'Verify facts.', 'Apply final human review.'],
+    prompt: `Review this draft for ${name.toLowerCase()} risk. Identify sensitive information, unsupported claims, overly strong language, missing disclaimers, and places where a human reviewer must verify the statement.`,
+    qc: ['No confidential data.', 'No unsupported claims.', 'No fake sources.', 'No guaranteed-return language.'],
+    mistakes: ['Treating AI as compliance approval.', 'Using unverified facts.', 'Leaving client identifiers in prompts.', 'Overconfident wording.']
+  };
+}
+
+const rolesData = roleNames.map(makeRole);
+const topicsData = topicNames.map(makeTopic);
+const promptLibrary = Array.from({length: 100}, (_, i) => makePrompt(promptCategories[i % promptCategories.length], i));
+const workflowData = playbookNames.map((name, i) => ({...makePlaybook(name, i), type: 'Daily Workflow', title: name + ' Workflow', timeSaved: `${20 + (i % 7) * 10} minutes`}));
+const playbooksData = playbookNames.map(makePlaybook);
+const presentationsData = presentationNames.map((name, i) => makeModule(name, 'Presentation & Writing', i));
+const codingData = codingNames.map((name, i) => makeModule(name, 'Coding & Automation', i));
+const knowledgeData = knowledgeNames.map((name, i) => makeModule(name, 'Knowledge Management', i));
+const complianceData = complianceNames.map(makeCompliance);
+
+let currentView = 'home';
+let currentData = [];
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('-translate-x-full');
+  document.getElementById('mobile-overlay').classList.toggle('hidden');
+}
+
+async function copyText(text, btn) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'absolute';
+      ta.style.left = '-999999px';
+      document.body.prepend(ta);
+      ta.select();
+      document.execCommand('copy');
+      ta.remove();
+    }
+    const original = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-check text-green-600"></i> Copied';
+    setTimeout(() => { btn.innerHTML = original; }, 1400);
+  } catch(e) {}
+}
+
+function switchView(viewId) {
+  currentView = viewId;
+  document.querySelectorAll('#nav-links a').forEach(link => {
+    if (link.dataset.target === viewId) {
+      link.classList.add('bg-btg-light','text-white','border-l-4','border-white');
+      link.classList.remove('text-blue-100','border-transparent');
+    } else {
+      link.classList.remove('bg-btg-light','text-white','border-l-4','border-white');
+      link.classList.add('text-blue-100','border-transparent');
+    }
+  });
+  if (window.innerWidth < 768 && !document.getElementById('sidebar').classList.contains('-translate-x-full')) toggleSidebar();
+  document.getElementById('global-search').value = '';
+  renderContent(viewId);
+}
+
+function renderNavigation() {
+  document.getElementById('nav-links').innerHTML = navigationConfig.map(item => `
+    <a href="#" data-target="${item.id}" onclick="switchView('${item.id}')" class="flex items-center px-6 py-3 text-sm font-medium border-l-4 border-transparent hover:bg-btg-light transition-colors text-blue-100">
+      <i class="fas ${item.icon} w-6 text-center mr-3 opacity-80"></i>${item.label}
+    </a>`).join('');
+}
+
+function openModal(html) {
+  document.getElementById('modal-body').innerHTML = html;
+  document.getElementById('detail-modal').classList.remove('hidden');
+}
+function closeModal() { document.getElementById('detail-modal').classList.add('hidden'); }
+
+function tag(label, cls='bg-slate-100 text-slate-700 border-slate-200') {
+  return `<span class="inline-flex items-center rounded-full border px-2.5 py-1 text-xs font-semibold ${cls}">${label}</span>`;
+}
+
+function itemCard(item, idx) {
+  return `
+    <div class="searchable-item bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer group" onclick="showItem('${item.id}')">
+      <div class="flex items-start justify-between gap-4 mb-3">
+        <div>
+          <div class="flex flex-wrap gap-2 mb-3">
+            ${tag(item.type || item.category || 'Module')}
+            ${tag(item.difficulty || 'Intermediate', item.difficulty === 'Advanced' ? 'bg-purple-50 text-purple-800 border-purple-200' : item.difficulty === 'Beginner' ? 'bg-green-50 text-green-800 border-green-200' : 'bg-blue-50 text-blue-800 border-blue-200')}
+          </div>
+          <h3 class="text-lg font-bold text-gray-800 group-hover:text-btg-blue transition-colors leading-tight">${item.title}</h3>
+        </div>
+        <i class="fas fa-chevron-right text-gray-300 group-hover:text-btg-blue mt-2"></i>
+      </div>
+      <p class="text-sm text-gray-600 line-clamp-3 mb-4">${item.objective || item.rule || ''}</p>
+      <div class="flex items-center justify-between border-t border-gray-100 pt-3 text-xs text-gray-500">
+        <span><i class="fas fa-robot mr-1 text-btg-blue"></i>${item.tools || 'Multiple AI tools'}</span>
+        ${item.timeSaved ? `<span class="font-semibold text-green-700">${item.timeSaved} saved</span>` : `<span class="font-semibold text-btg-blue">Open module</span>`}
+      </div>
+    </div>`;
+}
+
+function showItem(id) {
+  const all = [...rolesData, ...topicsData, ...promptLibrary, ...workflowData, ...playbooksData, ...presentationsData, ...codingData, ...knowledgeData, ...complianceData];
+  const item = all.find(x => x.id === id);
+  if (!item) return;
+  const promptId = 'prompt-' + item.id;
+  const advId = 'adv-' + item.id;
+  const isCompliance = item.type === 'Quality & Compliance';
+  openModal(`
+    <div class="bg-btg-blue text-white p-7 rounded-t-xl">
+      <div class="flex flex-wrap gap-2 mb-3">
+        ${tag(item.type || item.category || 'Module', 'bg-blue-900 text-blue-100 border-blue-800')}
+        ${tag(item.difficulty || 'Intermediate', 'bg-white/10 text-white border-white/20')}
+      </div>
+      <h2 class="text-2xl md:text-3xl font-bold leading-tight pr-10">${item.title}</h2>
+      <p class="text-blue-200 mt-2">${item.objective || item.rule || ''}</p>
+    </div>
+    <div class="p-7 bg-white rounded-b-xl">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-7">
+        <div class="lg:col-span-2 space-y-6">
+          ${isCompliance ? `
+            <section><h3 class="font-bold text-gray-800 text-lg border-b pb-2 mb-3">Unsafe example</h3><p class="text-sm text-red-900 bg-red-50 border border-red-100 rounded-lg p-4">${item.unsafe}</p></section>
+            <section><h3 class="font-bold text-gray-800 text-lg border-b pb-2 mb-3">Safer version</h3><p class="text-sm text-green-900 bg-green-50 border border-green-100 rounded-lg p-4">${item.safer}</p></section>
+          ` : `
+            <section><h3 class="font-bold text-gray-800 text-lg border-b pb-2 mb-3">Operating workflow</h3><ol class="list-decimal list-inside space-y-2 text-sm text-gray-700">${(item.workflow || []).map(s => `<li>${s}</li>`).join('')}</ol></section>
+          `}
+          <section class="relative group">
+            <div class="flex items-center justify-between mb-2"><h3 class="font-bold text-gray-800 text-lg">Copy-ready prompt</h3></div>
+            <pre id="${promptId}" class="text-sm font-mono whitespace-pre-wrap bg-slate-50 border border-gray-200 rounded-lg p-5 text-gray-800 leading-relaxed">${item.prompt || ''}</pre>
+            <button onclick="copyText(document.getElementById('${promptId}').innerText, this)" class="absolute top-10 right-3 bg-white border border-gray-300 shadow-sm font-medium text-gray-600 px-3 py-1.5 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity no-print"><i class="far fa-copy mr-1"></i>Copy</button>
+          </section>
+          ${item.advanced ? `<section class="relative group"><h3 class="font-bold text-gray-800 text-lg mb-2">Advanced prompt</h3><pre id="${advId}" class="text-sm font-mono whitespace-pre-wrap bg-blue-50 border border-blue-100 rounded-lg p-5 text-blue-950 leading-relaxed">${item.advanced}</pre><button onclick="copyText(document.getElementById('${advId}').innerText, this)" class="absolute top-10 right-3 bg-white border border-gray-300 shadow-sm font-medium text-gray-600 px-3 py-1.5 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity no-print"><i class="far fa-copy mr-1"></i>Copy</button></section>` : ''}
+        </div>
+        <aside class="space-y-5">
+          <div class="bg-slate-50 border border-gray-200 rounded-xl p-5">
+            <h4 class="font-bold text-xs uppercase tracking-wide text-gray-500 mb-2">Recommended tools</h4>
+            <p class="font-semibold text-gray-800">${item.tools || 'Multiple AI tools'}</p>
+          </div>
+          <div class="bg-green-50 border border-green-100 rounded-xl p-5">
+            <h4 class="font-bold text-green-800 mb-3 text-xs uppercase tracking-wide">QC checklist</h4>
+            <ul class="space-y-2 text-sm text-green-900">${(item.qc || []).map(x => `<li class="flex gap-2"><i class="fas fa-check mt-1 text-green-700 text-xs"></i><span>${x}</span></li>`).join('')}</ul>
+          </div>
+          <div class="bg-red-50 border border-red-100 rounded-xl p-5">
+            <h4 class="font-bold text-red-800 mb-3 text-xs uppercase tracking-wide">Common mistakes</h4>
+            <ul class="space-y-2 text-sm text-red-900">${(item.mistakes || []).map(x => `<li class="flex gap-2"><i class="fas fa-triangle-exclamation mt-1 text-red-700 text-xs"></i><span>${x}</span></li>`).join('')}</ul>
+          </div>
+        </aside>
+      </div>
+      ${externalBlock(item.title)}
+      <div class="pt-6 mt-6 border-t border-gray-200 flex flex-wrap gap-3 no-print">
+        <button onclick="window.print()" class="px-4 py-2 bg-slate-100 border border-slate-200 rounded-lg font-semibold text-slate-700"><i class="fas fa-print mr-2"></i>Print module</button>
+        <button onclick="copyText(document.getElementById('${promptId}').innerText, this)" class="px-4 py-2 bg-btg-blue text-white rounded-lg font-semibold"><i class="far fa-copy mr-2"></i>Copy primary prompt</button>
+      </div>
+    </div>`);
+}
+
+function openPathBuilder() {
+  openModal(`
+    <div class="bg-btg-blue text-white p-7 rounded-t-xl">
+      <h2 class="text-2xl font-bold">Build My Learning Path</h2>
+      <p class="text-blue-200 mt-2">Choose a profile and start with the highest-impact modules.</p>
+    </div>
+    <div class="p-7 bg-white rounded-b-xl">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        ${['AI Beginner','Portfolio Manager','Equity Analyst','Credit Analyst','Wealth Manager','Team Head'].map((r,i) => `<div class="border border-gray-200 rounded-xl p-5 hover:shadow-md cursor-pointer" onclick="closeModal(); switchView('roles')"><h3 class="font-bold text-btg-blue mb-2">${r}</h3><p class="text-sm text-gray-600">Start with core tools, daily workflows, prompt templates, and quality-control routines.</p></div>`).join('')}
+      </div>
+    </div>`);
+}
+
+function statCard(title, value, icon, target) {
+  return `<div onclick="switchView('${target}')" class="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md cursor-pointer transition-shadow"><div class="flex items-center justify-between mb-2"><h3 class="font-bold text-gray-700">${title}</h3><i class="fas ${icon} text-btg-blue text-xl"></i></div><div class="text-3xl font-extrabold text-btg-blue">${value}</div><p class="text-xs text-gray-500 mt-1">Complete content modules</p></div>`;
+}
+
+function renderHome() {
+  const featured = [playbooksData[2], promptLibrary[0], workflowData[7], complianceData[9]];
+  currentData = [];
+  return `
+    <div class="max-w-7xl mx-auto space-y-8">
+      <section class="bg-white border border-gray-200 rounded-2xl p-8 md:p-10 shadow-sm relative overflow-hidden">
+        <div class="absolute -top-24 -right-24 w-96 h-96 bg-blue-50 rounded-full blur-3xl opacity-80"></div>
+        <div class="relative z-10 max-w-4xl">
+          <div class="inline-flex items-center px-3 py-1 rounded-full bg-blue-50 text-btg-blue border border-blue-100 text-xs font-bold uppercase tracking-wide mb-4">Internal AI training hub</div>
+          <h1 class="text-3xl md:text-5xl font-extrabold text-btg-blue tracking-tight mb-4">BTG Pactual – AI Trainer Lab</h1>
+          <p class="text-lg text-gray-600 leading-relaxed">A content-rich training platform for investment professionals. Built around real workflows: prompts, role trails, topic trails, operating playbooks, writing modules, coding support, knowledge management, and quality control.</p>
+          <div class="mt-7 flex flex-wrap gap-3">
+            <button onclick="switchView('prompts')" class="px-5 py-3 bg-btg-blue text-white rounded-lg font-semibold shadow-sm hover:bg-blue-950"><i class="fas fa-terminal mr-2"></i>Open 100 Prompts</button>
+            <button onclick="switchView('playbooks')" class="px-5 py-3 bg-white border border-btg-blue text-btg-blue rounded-lg font-semibold hover:bg-blue-50"><i class="fas fa-map mr-2"></i>Open Playbooks</button>
+            <button onclick="openPathBuilder()" class="px-5 py-3 bg-slate-100 border border-slate-200 text-slate-800 rounded-lg font-semibold hover:bg-slate-200"><i class="fas fa-route mr-2"></i>Build Path</button>
+          </div>
+        </div>
+      </section>
+      <section class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+        ${statCard('Role Trails', rolesData.length, 'fa-user-tie', 'roles')}
+        ${statCard('Topic Trails', topicsData.length, 'fa-book', 'topics')}
+        ${statCard('Prompts', promptLibrary.length, 'fa-terminal', 'prompts')}
+        ${statCard('Playbooks', playbooksData.length, 'fa-map', 'playbooks')}
+        ${statCard('QC Modules', complianceData.length, 'fa-shield-halved', 'compliance')}
+      </section>
+      <section class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+          <h2 class="text-xl font-bold text-gray-800 mb-4">Top workflows to try today</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">${featured.map((x,i) => itemCard(x,i)).join('')}</div>
+        </div>
+        <div class="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+          <h2 class="text-xl font-bold text-gray-800 mb-4">AI tool picker</h2>
+          <div class="space-y-3 text-sm text-gray-700">
+            <div class="p-3 bg-slate-50 border rounded-lg"><strong>Long document?</strong><br>Use Claude or NotebookLM.</div>
+            <div class="p-3 bg-slate-50 border rounded-lg"><strong>CSV / calculation?</strong><br>Use ChatGPT Advanced Data Analysis.</div>
+            <div class="p-3 bg-slate-50 border rounded-lg"><strong>Public web facts?</strong><br>Use Perplexity.</div>
+            <div class="p-3 bg-slate-50 border rounded-lg"><strong>Reusable knowledge?</strong><br>Use Obsidian, NotebookLM, or Projects.</div>
+          </div>
+        </div>
+      </section>
+    </div>`;
+}
+
+function renderTools() {
+  currentData = [];
+  return `
+    <div class="max-w-7xl mx-auto space-y-6">
+      ${headerBlock('AI Tools Deep Dive','Capabilities, limitations, and practical setup guidance for investment professionals.')}
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-5">
+        ${tools.map((t,i) => `
+          <div class="searchable-item bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+            <h3 class="text-lg font-bold text-btg-blue mb-2">${t.name}</h3>
+            <p class="text-sm text-gray-600 mb-4 line-clamp-3"><strong>Best for:</strong> ${t.bestFor}</p>
+            <div class="space-y-3 text-sm">
+              <div class="bg-green-50 border border-green-100 rounded-lg p-3"><strong class="text-green-800">Use for</strong><br>${t.bestFor}</div>
+              <div class="bg-red-50 border border-red-100 rounded-lg p-3"><strong class="text-red-800">Avoid</strong><br>${t.avoid}</div>
+              <div class="bg-blue-50 border border-blue-100 rounded-lg p-3"><strong class="text-blue-800">Setup</strong><br>${t.setup}</div>
+            </div>
+            ${externalBlock(t.name)}
+          </div>`).join('')}
+      </div>
+    </div>`;
+}
+
+function headerBlock(title, subtitle) {
+  return `<div class="mb-6 border-b border-gray-200 pb-4"><h2 class="text-3xl font-extrabold text-btg-blue tracking-tight">${title}</h2><p class="text-gray-600 mt-2 text-lg">${subtitle}</p></div>`;
+}
+
+function filterBar(data, view) {
+  const types = [...new Set(data.map(x => x.type || x.category || 'Module'))];
+  const diffs = [...new Set(data.map(x => x.difficulty).filter(Boolean))];
+  return `
+    <div class="bg-white border border-gray-200 rounded-xl p-4 mb-5 flex flex-col md:flex-row gap-3 items-start md:items-center justify-between no-print">
+      <div class="text-sm text-gray-600"><strong>${data.length}</strong> items in this section</div>
+      <div class="flex flex-wrap gap-2">
+        <button onclick="clearFilters()" class="px-3 py-2 rounded-lg border border-gray-200 bg-slate-50 font-semibold text-xs">Clear filters</button>
+        ${types.slice(0,5).map(t => `<button onclick="quickFilter('${t}')" class="px-3 py-2 rounded-lg border border-gray-200 bg-white font-semibold text-xs hover:bg-blue-50">${t}</button>`).join('')}
+        ${diffs.map(d => `<button onclick="quickFilter('${d}')" class="px-3 py-2 rounded-lg border border-gray-200 bg-white font-semibold text-xs hover:bg-blue-50">${d}</button>`).join('')}
+      </div>
+    </div>`;
+}
+
+function renderGrid(title, subtitle, data) {
+  currentData = data;
+  return `
+    <div class="max-w-7xl mx-auto">
+      ${headerBlock(title, subtitle)}
+      ${filterBar(data)}
+      <div id="items-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+        ${data.map(itemCard).join('')}
+      </div>
+    </div>`;
+}
+
+function renderContent(viewId) {
+  const c = document.getElementById('main-container');
+  if (viewId === 'home') c.innerHTML = renderHome();
+  if (viewId === 'tools') c.innerHTML = renderTools();
+  if (viewId === 'roles') c.innerHTML = renderGrid('50 Learning Trails by Role','Detailed role-based AI training paths with prompts, workflows, mistakes, and QC routines.', rolesData);
+  if (viewId === 'topics') c.innerHTML = renderGrid('50 Learning Trails by Topic','Task-level training modules for the real workflows used by investment professionals.', topicsData);
+  if (viewId === 'prompts') c.innerHTML = renderGrid('100 Master Prompt Library','Copy-ready institutional prompts with advanced review prompts and quality-control checks.', promptLibrary);
+  if (viewId === 'workflows') c.innerHTML = renderGrid('50 Daily Workflow Ideas','Practical AI use cases for day-to-day work, with estimated time saved and execution steps.', workflowData);
+  if (viewId === 'playbooks') c.innerHTML = renderGrid('50 Operating Playbooks','End-to-end operating manuals for recurring investment and client-facing tasks.', playbooksData);
+  if (viewId === 'presentations') c.innerHTML = renderGrid('50 Presentations & Writing Modules','Training modules for decks, notes, executive summaries, client language, and narrative structure.', presentationsData);
+  if (viewId === 'coding') c.innerHTML = renderGrid('50 Coding & Automation Modules','A practical non-coder track for using AI to build scripts, dashboards, tools, and automation.', codingData);
+  if (viewId === 'knowledge') c.innerHTML = renderGrid('50 Knowledge Management Modules','Systems for research libraries, prompt vaults, notes, archives, projects, and source-grounded retrieval.', knowledgeData);
+  if (viewId === 'compliance') c.innerHTML = renderGrid('50 Quality & Compliance Modules','Risk controls, safe prompting, review workflows, and publishing checklists.', complianceData);
+}
+
+function quickFilter(term) {
+  document.getElementById('global-search').value = term;
+  applySearch(term);
+}
+function clearFilters() {
+  document.getElementById('global-search').value = '';
+  applySearch('');
+}
+function applySearch(term) {
+  const q = term.toLowerCase();
+  document.querySelectorAll('.searchable-item').forEach(el => {
+    el.classList.toggle('search-hidden', q && !el.innerText.toLowerCase().includes(q));
+  });
+}
+document.getElementById('global-search').addEventListener('input', e => applySearch(e.target.value));
+
+document.addEventListener('DOMContentLoaded', () => {
+  renderNavigation();
+  switchView('home');
+});
+</script>
+</body>
+</html>
