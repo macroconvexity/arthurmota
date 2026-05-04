@@ -29,3 +29,5 @@
 ## [Macro App](macroapp.html)
 
 ## [Allocation](allocation.html)
+
+## [Trainer Kids/Teen](trainer_kids.html)
