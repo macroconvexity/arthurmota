@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BTG Pactual | Structured Notes Lab</title>
 <style>
 :root {
@@ -37,17 +37,20 @@ body { font-family:'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',
 .header .badge { font-size:9px; background:rgba(255,255,255,.2); color:#fff; padding:3px 10px; border-radius:20px; font-weight:600; letter-spacing:.5px; text-transform:uppercase; }
 
 /* Tabs */
-.tabs { display:flex; overflow-x:auto; gap:6px; padding:12px 16px 8px; scrollbar-width:none; background:var(--white); border-bottom:1px solid var(--border); }
+.tabs { display:flex; overflow-x:auto; gap:6px; padding:12px 16px 8px; scrollbar-width:none; background:var(--white); border-bottom:1px solid var(--border); justify-content:center; }
 .tabs::-webkit-scrollbar { display:none; }
 .tab { flex-shrink:0; padding:7px 16px; border-radius:20px; font-size:12px; font-weight:600; background:var(--bg); border:1px solid var(--border); cursor:pointer; transition:.2s; white-space:nowrap; color:var(--text2); }
 .tab.active { background:var(--accent); border-color:var(--accent); color:#fff; }
 
 /* Container */
-.container { padding:0 12px 120px; max-width:600px; margin:0 auto; }
+.container { padding:0 16px 120px; max-width:1180px; margin:0 auto; }
+#cardList { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:12px; align-items:stretch; }
+#cardList .section-title { grid-column:1 / -1; }
+
 .section-title { font-size:11px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:1.2px; margin:18px 4px 10px; }
 
 /* Cards */
-.card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:8px; cursor:pointer; transition:all .2s; box-shadow:var(--shadow); }
+.card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:0; cursor:pointer; transition:all .2s; box-shadow:var(--shadow); min-height:132px; display:flex; flex-direction:column; }
 .card:hover,.card:active { border-color:var(--accent); box-shadow:var(--shadow2); }
 .card .title { font-size:14px; font-weight:700; color:var(--text); margin-bottom:3px; }
 .card .subtitle { font-size:12px; color:var(--text2); line-height:1.4; }
@@ -66,7 +69,13 @@ body { font-family:'SF Pro Display',-apple-system,BlinkMacSystemFont,'Segoe UI',
 .detail-header { position:sticky; top:0; z-index:10; background:var(--accent); padding:12px 16px; display:flex; align-items:center; gap:10px; }
 .back-btn { width:32px; height:32px; border-radius:50%; background:rgba(255,255,255,.15); border:none; color:#fff; font-size:18px; cursor:pointer; display:flex; align-items:center; justify-content:center; }
 .detail-header h1 { font-size:15px; font-weight:700; color:#fff; flex:1; }
-.detail-content { padding:14px; max-width:600px; margin:0 auto; padding-bottom:50px; }
+.detail-content { padding:18px; max-width:1180px; margin:0 auto; padding-bottom:50px; }
+.detail-layout { display:grid; grid-template-columns:minmax(0,1fr) minmax(340px,430px); gap:16px; align-items:start; }
+.detail-main,.detail-side { min-width:0; }
+.detail-side { position:sticky; top:64px; }
+.naive-block { border-color:#d7e7f8; background:#fbfdff; }
+.model-note { border-color:#e6edf5; background:#fbfcfe; }
+
 
 /* Chart */
 .chart-container { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:16px; margin-bottom:12px; box-shadow:var(--shadow); }
@@ -112,12 +121,12 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:20px; h
 .disclaimer p { font-size:11px; color:var(--text2); line-height:1.5; }
 
 /* Hero */
-.hero { text-align:center; padding:28px 20px 6px; }
+.hero { text-align:left; padding:30px 4px 8px; max-width:1180px; margin:0 auto; }
 .hero h2 { font-size:20px; font-weight:800; color:var(--accent); margin-bottom:4px; letter-spacing:-.3px; }
-.hero p { font-size:12px; color:var(--text2); max-width:340px; margin:0 auto; line-height:1.5; }
+.hero p { font-size:13px; color:var(--text2); max-width:560px; margin:0; line-height:1.5; }
 
 /* Search */
-.search-bar { margin:10px 12px; }
+.search-bar { margin:10px auto; max-width:1180px; padding:0 16px; }
 .search-bar input { width:100%; padding:10px 14px; border-radius:10px; border:1px solid var(--border); background:var(--white); color:var(--text); font-size:13px; outline:none; box-shadow:var(--shadow); }
 .search-bar input:focus { border-color:var(--accent); box-shadow:0 0 0 3px rgba(0,51,102,.1); }
 .search-bar input::placeholder { color:var(--text3); }
@@ -127,6 +136,21 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:20px; h
 .pl-indicator .item { text-align:center; }
 .pl-indicator .item .lbl { font-size:10px; color:var(--text3); font-weight:600; text-transform:uppercase; }
 .pl-indicator .item .v { font-size:13px; font-weight:700; margin-top:2px; }
+
+@media (max-width: 900px) {
+  .header { padding:14px 16px; }
+  .tabs { justify-content:flex-start; }
+  .container { max-width:600px; padding:0 12px 120px; }
+  #cardList { display:block; }
+  .card { min-height:0; margin-bottom:8px; display:block; }
+  .hero { text-align:center; padding:28px 20px 6px; }
+  .hero p { margin:0 auto; max-width:340px; font-size:12px; }
+  .search-bar { margin:10px 12px; padding:0; max-width:none; }
+  .detail-content { max-width:600px; padding:14px; }
+  .detail-layout { display:block; }
+  .detail-side { position:static; }
+  .scenario-grid { grid-template-columns:1fr; }
+}
 
 .hidden { display:none!important; }
 </style>
@@ -145,7 +169,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:20px; h
 <div id="mainView">
   <div class="hero">
     <h2>Structured Notes</h2>
-    <p>Explore 22 structures, adjust parameters interactively, and understand payoff profiles at maturity</p>
+    <p>Explore 22 structures, adjust parameters interactively, and understand simplified payoff profiles across desktop and mobile</p>
   </div>
 
   <div class="search-bar">
@@ -166,7 +190,7 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:20px; h
 
 <div class="detail-overlay" id="detailView">
   <div class="detail-header">
-    <button class="back-btn" id="backBtn">&#8592;</button>
+    <button class="back-btn" id="backBtn" aria-label="Back to structure list">&#8592;</button>
     <h1 id="detailTitle"></h1>
   </div>
   <div class="detail-content" id="detailContent"></div>
@@ -185,6 +209,8 @@ const STRUCTURES = [
     id:1, name:"Capital Protected Note (CPN)", cat:"protection", tenor:"1Y",
     tags:["protection","1Y"],
     short:"100% principal protection with upside participation on an equity index.",
+    plain:"Think of this as a conservative equity-linked note. The bond part is intended to repay your principal, while the option part gives you some upside if the market rises. You give up dividends and may receive less upside than owning the index directly.",
+    modelNote:"The chart is a simplified maturity payoff using the final underlying level. It assumes the issuer does not default and the note is held to maturity.",
     desc:"A Capital Protected Note guarantees the return of your full principal at maturity while giving you participation in the upside of an underlying asset (e.g., S&P 500). A zero-coupon bond protects the principal; a call option purchased with the remaining budget provides upside.",
     howItWorks:"Most of the notional is invested in a zero-coupon bond maturing at par. The remaining amount buys an at-the-money call option on the underlying. At maturity you receive: Notional + Participation% x max(0, Underlying Return). A floor can guarantee a minimum return even if the market falls.",
     params:{spot:100,strike:100,participation:80,floor:0,notional:1000},
@@ -206,39 +232,41 @@ const STRUCTURES = [
     };},
     risks:["Upside limited by participation rate","Opportunity cost vs direct equity","Issuer credit risk (counterparty default)","No dividend income received","Early exit may result in loss below par"],
   },
-  // ‚îÄ‚îÄ 2. Reverse Convertible ‚îÄ‚îÄ
+  // ─── 2. Reverse Convertible ───
   {
     id:2, name:"Reverse Convertible", cat:"yield", tenor:"1Y",
     tags:["yield","1Y"],
-    short:"High coupon note with downside risk if underlying falls below barrier.",
-    desc:"A Reverse Convertible pays an above-market fixed coupon in exchange for the investor bearing downside risk. If the underlying falls below the barrier at any point, you may receive shares (or cash equivalent) at maturity instead of full principal.",
-    howItWorks:"You invest and receive an enhanced coupon. The issuer effectively sells a put option to finance this coupon. If the underlying stays above the barrier, you get full principal + coupon. If it breaches the barrier and finishes below strike, you receive the depreciated value plus coupon.",
-    params:{spot:100,strike:100,barrier:70,coupon:12,notional:1000},
+    short:"High coupon note with downside risk if the underlying finishes below strike.",
+    plain:"You receive a high coupon because you are accepting equity downside risk. If the stock finishes below the strike, your principal falls with the stock. The coupon helps, but it does not fully protect you in a large selloff.",
+    modelNote:"The chart uses a standard reverse-convertible final-level payoff. It does not model secondary-market pricing, dividends, fees, or issuer credit spread changes.",
+    desc:"A Reverse Convertible pays an above-market fixed coupon in exchange for the investor bearing downside equity risk. If the underlying finishes at or above the strike, you receive principal plus coupon. If it finishes below strike, principal is reduced in line with the underlying, while the coupon is still paid.",
+    howItWorks:"The issuer effectively sells a put option embedded in the note to finance the high coupon. At maturity: above strike = full principal + coupon. Below strike = principal reduced by the underlying's decline from strike + coupon. Unlike a barrier reverse convertible, this standard version depends on the final level versus strike.",
+    params:{spot:100,strike:100,coupon:12,notional:1000},
     paramDefs:[
       {key:"spot",label:"Initial Spot",min:50,max:200,step:1,fmt:v=>"$"+v},
       {key:"strike",label:"Strike",min:50,max:200,step:1,fmt:v=>"$"+v},
-      {key:"barrier",label:"Barrier",min:40,max:95,step:1,fmt:v=>"$"+v},
       {key:"coupon",label:"Coupon",min:2,max:30,step:.5,fmt:v=>v+"%"},
       {key:"notional",label:"Notional",min:100,max:10000,step:100,fmt:v=>"$"+v.toLocaleString()}
     ],
     payoff:(p,S)=>{
       const c = p.notional*p.coupon/100;
       if(S >= p.strike) return p.notional + c;
-      if(S >= p.barrier) return p.notional + c; // above barrier, no loss
-      return p.notional*(S/p.strike) + c; // below barrier: take loss
+      return p.notional*(S/p.strike) + c;
     },
     scenarios:(p)=>{const n=p.notional,c=n*p.coupon/100;return{
       bull:{label:"Stock +15%",val:n+c},
-      mid:{label:"Stock -15%",val:n+c},
-      bear:{label:"Stock -40%",val:n*(0.6/1)+c}
+      mid:{label:"Stock Flat",val:n+c},
+      bear:{label:"Stock -40%",val:n*(p.spot*0.6/p.strike)+c}
     };},
-    risks:["Full downside exposure below barrier","Coupon does not offset large losses","Principal loss possible","Limited upside (capped at coupon)","Issuer credit risk"],
+    risks:["Full downside exposure below strike","Coupon does not offset large losses","Principal loss possible","Limited upside (capped at coupon)","Issuer credit risk"],
   },
   // ‚îÄ‚îÄ 3. Autocallable Note ‚îÄ‚îÄ
   {
     id:3, name:"Autocallable Note", cat:"yield", tenor:"2Y",
     tags:["yield","2Y"],
     short:"Periodically callable if above trigger; pays coupon each observation.",
+    plain:"This is an income note that may end early. If the underlying is strong enough on an observation date, the issuer calls the note and pays principal plus coupons earned so far. If it never calls and the market falls below the barrier, principal can be impaired.",
+    modelNote:"Autocalls are path-dependent. The chart is a simplified terminal-observation proxy; actual cashflows depend on each observation date and the date on which the note is called.",
     desc:"An Autocallable Note pays periodic coupons and automatically redeems early if the underlying is above the autocall level on any observation date. If never called, principal is at risk below the barrier at maturity.",
     howItWorks:"Every quarter the note checks: is the underlying above the autocall level? If yes, you receive principal + accumulated coupons and the note terminates. If it never triggers, at maturity: above barrier = principal + all coupons; below barrier = loss proportional to decline.",
     params:{spot:100,autocallLevel:100,barrier:65,couponPerPeriod:3,notional:1000},
@@ -267,6 +295,8 @@ const STRUCTURES = [
     id:4, name:"Bull Call Spread Note", cat:"bullish", tenor:"1Y",
     tags:["bullish","1Y"],
     short:"Leveraged upside between two strikes with capped maximum return.",
+    plain:"This is a bullish structure for a moderate rally. You earn more than the market between the lower and upper strikes, but once the upper strike is reached your upside stops.",
+    modelNote:"The chart shows the maturity payoff from the embedded call spread. It assumes the note is held to maturity and ignores secondary-market mark-to-market.",
     desc:"Provides amplified exposure to the upside of an underlying between two strike levels. Returns are capped at the upper strike, but the structure costs less than a simple call because of the sold call.",
     howItWorks:"The note embeds a long call at the lower strike and a short call at the upper strike. Below the lower strike: principal returned. Between strikes: leveraged gains. Above upper strike: return is capped at maximum.",
     params:{spot:100,lowerStrike:100,upperStrike:120,leverage:2,notional:1000},
@@ -288,13 +318,15 @@ const STRUCTURES = [
       mid:{label:"Mid-Range",val:n*(1+mG/2)},
       bear:{label:"Below Strike",val:n}
     };},
-    risks:["Upside capped at upper strike","No downside protection below principal","Leverage magnifies opportunity cost","Issuer credit risk","Unattractive if market barely moves"],
+    risks:["Upside capped at upper strike","No payoff above principal if the underlying is flat or down","Leverage magnifies opportunity cost","Issuer credit risk","Unattractive if market barely moves"],
   },
   // ‚îÄ‚îÄ 5. Bear Put Spread Note ‚îÄ‚îÄ
   {
     id:5, name:"Bear Put Spread Note", cat:"bearish", tenor:"1Y",
     tags:["bearish","1Y"],
     short:"Profits from moderate decline with limited cost if market rises.",
+    plain:"This is a bearish structure for a moderate decline. You benefit if the underlying falls, but the gain is capped after the lower strike. If the market rises, the main cost is the premium embedded in the note.",
+    modelNote:"The chart shows the payoff of the embedded bear put spread at maturity. It treats the premium cost as paid up front.",
     desc:"A Bear Put Spread Note profits when the underlying declines. It embeds a long put at a higher strike and a short put at a lower strike, creating defined-risk bearish exposure.",
     howItWorks:"If the underlying falls between the two strikes, you profit proportionally. Below the lower strike, profit is capped. If the underlying rises above the upper strike, you only lose the embedded premium cost.",
     params:{spot:100,upperStrike:100,lowerStrike:80,notional:1000,premium:5},
@@ -324,6 +356,8 @@ const STRUCTURES = [
     id:6, name:"Equity-Linked Note (ELN)", cat:"bullish", tenor:"2Y",
     tags:["bullish","2Y"],
     short:"Returns linked to equity performance with principal at risk.",
+    plain:"This behaves like equity exposure in note form. You participate in upside based on the participation rate and cap, but you also take downside risk if the underlying falls.",
+    modelNote:"The chart shows a final-level equity-linked payoff with capped upside and one-for-one downside.",
     desc:"An Equity-Linked Note provides direct exposure to the performance of an equity or index. Upside returns are scaled by a participation rate and capped. Downside is 1:1 with the underlying.",
     howItWorks:"At maturity: if the underlying is up, you receive Notional x (1 + min(Performance x Participation, Cap)). If down, you lose proportionally to the decline. It is like owning the index in note form.",
     params:{spot:100,participation:120,cap:40,notional:1000},
@@ -350,9 +384,11 @@ const STRUCTURES = [
     id:7, name:"Range Accrual Note", cat:"neutral", tenor:"2Y",
     tags:["neutral","yield","2Y"],
     short:"Earns coupon proportionally to days the underlying stays within a range.",
+    plain:"This is an income note that pays more when the underlying stays inside a range. The investor is effectively betting on stability. A volatile market can sharply reduce the coupon even if the final price looks acceptable.",
+    modelNote:"Range accruals depend on the number of days in range, not only the final price. The chart shows a simplified snapshot: full annualized accrual when the price is inside the range and no accrual outside it.",
     desc:"A Range Accrual Note pays a high annual coupon that accrues only on days when the underlying trades within a predefined range [Lower, Upper]. The more days in range, the higher your return. Principal is returned at maturity.",
     howItWorks:"Each trading day, the note checks if the underlying price is within [Lower Bound, Upper Bound]. If yes, that day's share of the annual coupon accrues. At maturity: Notional + Coupon x (Days In Range / Total Days). The chart below shows your final value vs the underlying price ‚Äî inside the range you earn the full pro-rata coupon, outside you earn nothing for that day.",
-    params:{spot:100,lower:85,upper:115,annualCoupon:15,notional:1000},
+    params:{spot:100,lower:85,upper:115,annualCoupon:15,years:2,notional:1000},
     paramDefs:[
       {key:"spot",label:"Initial Spot",min:50,max:200,step:1,fmt:v=>"$"+v},
       {key:"lower",label:"Lower Bound",min:50,max:99,step:1,fmt:v=>"$"+v},
@@ -364,13 +400,13 @@ const STRUCTURES = [
       // Chart shows: if the underlying is at this price, is coupon accruing?
       // Full coupon if in range, nothing if out
       const inRange = (S >= p.lower && S <= p.upper) ? 1 : 0;
-      return p.notional*(1 + p.annualCoupon/100 * inRange);
+      return p.notional*(1 + p.annualCoupon/100 * (p.years||2) * inRange);
     },
     xLabel:"Underlying Price (daily snapshot)",
-    scenarios:(p)=>{const n=p.notional,c=p.annualCoupon;return{
-      bull:{label:"90% In Range",val:n*(1+c/100*0.9)},
-      mid:{label:"60% In Range",val:n*(1+c/100*0.6)},
-      bear:{label:"20% In Range",val:n*(1+c/100*0.2)}
+    scenarios:(p)=>{const n=p.notional,c=p.annualCoupon,y=p.years||2;return{
+      bull:{label:"90% In Range",val:n*(1+c/100*y*0.9)},
+      mid:{label:"60% In Range",val:n*(1+c/100*y*0.6)},
+      bear:{label:"20% In Range",val:n*(1+c/100*y*0.2)}
     };},
     risks:["Coupon depends on daily price observations","Volatile markets reduce accrual days","Zero coupon if price constantly outside range","Complex to hedge and monitor","Issuer credit risk"],
   },
@@ -379,6 +415,8 @@ const STRUCTURES = [
     id:8, name:"Shark Fin Note", cat:"bullish", tenor:"1Y",
     tags:["bullish","1Y"],
     short:"Upside participation with a knock-out barrier that caps extreme gains.",
+    plain:"This is a bullish note with a speed limit. You benefit from a moderate rally, but if the market rallies too far and touches the knock-out level, the payoff switches to a smaller fixed rebate.",
+    modelNote:"Shark fins are path-dependent. The chart treats a final level above the knock-out as a proxy for the barrier being hit; in real notes, an intraperiod touch can trigger the knock-out even if the final level is lower.",
     desc:"A Shark Fin Note gives you upside participation up to a knock-out level. If the underlying ever breaches the KO barrier during the life, you receive only a smaller rebate instead of full participation. The payoff chart resembles a shark's dorsal fin.",
     howItWorks:"If the final price is above spot but never touched the KO barrier, you earn full participation on the upside. If the barrier was touched at any point, you get only the fixed rebate. Below spot, principal is returned.",
     params:{spot:100,koBarrier:130,participation:100,rebate:5,notional:1000},
@@ -406,6 +444,8 @@ const STRUCTURES = [
     id:9, name:"Twin-Win Note", cat:"neutral", tenor:"2Y",
     tags:["neutral","2Y"],
     short:"Profit from both up and down moves, with barrier protection.",
+    plain:"This note can make money if the market moves up or moderately down. The key condition is that the downside barrier is not breached. Once that barrier is hit, the protection disappears and equity-like losses can apply.",
+    modelNote:"Twin-win barriers are path-dependent. The chart uses final level as a simplified proxy for whether the downside barrier was breached.",
     desc:"A Twin-Win Note converts both positive and negative returns into positive returns, as long as the underlying never breaches the down-barrier. You profit whether the market goes moderately up or moderately down.",
     howItWorks:"If the underlying finishes above spot: you earn the upside. If it finishes below spot but never touched the barrier: you earn the absolute value of the decline as a positive return. If the barrier is ever hit: you take the full downside loss.",
     params:{spot:100,barrier:70,participation:100,notional:1000},
@@ -432,6 +472,8 @@ const STRUCTURES = [
     id:10, name:"Phoenix Autocallable", cat:"yield", tenor:"2Y",
     tags:["yield","2Y"],
     short:"Memory coupon with periodic autocall and barrier protection.",
+    plain:"This is an autocall income note with memory coupons. Missed coupons can be recovered later, but only if the underlying recovers enough. The attractive coupon is compensation for barrier and issuer risk.",
+    modelNote:"Phoenix notes are path-dependent. The chart simplifies observation dates, memory coupons, and autocall timing into a terminal payoff proxy.",
     desc:"A Phoenix Note pays a coupon at each observation date if the underlying is above the coupon barrier. Missed coupons are memorized and paid later if conditions are met. It can also autocall early if above the autocall level.",
     howItWorks:"At each observation: above autocall level = note redeems at par + all coupons. Below autocall but above coupon barrier = coupon paid. Below coupon barrier = coupon deferred (memory). At maturity: above coupon barrier = all deferred coupons paid; below knock-in = capital loss.",
     params:{spot:100,autocallLevel:105,couponBarrier:75,knockIn:65,couponPerQ:2.5,notional:1000},
@@ -462,6 +504,8 @@ const STRUCTURES = [
     id:11, name:"Digital (Binary) Note", cat:"bullish", tenor:"1Y",
     tags:["bullish","1Y"],
     short:"Pays a fixed digital coupon if underlying finishes above strike.",
+    plain:"This is an all-or-nothing coupon note. Finish at or above the strike and you receive the fixed coupon. Finish just below the strike and you only receive principal.",
+    modelNote:"The chart shows the binary maturity payoff. A small difference around the strike can materially change the outcome.",
     desc:"A Digital Note pays a fixed coupon if the underlying is at or above the strike at maturity, and returns principal in all cases. It is a simple binary bet with clearly defined outcomes.",
     howItWorks:"At maturity: if Underlying >= Strike, you receive Notional + Digital Coupon. If below, you receive just Notional. The payoff is a step function ‚Äî all-or-nothing at the strike level.",
     params:{spot:100,strike:100,digitalCoupon:15,notional:1000},
@@ -484,6 +528,8 @@ const STRUCTURES = [
     id:12, name:"Worst-Of Autocallable", cat:"yield", tenor:"1Y",
     tags:["yield","1Y"],
     short:"Higher coupon linked to the worst performer in a basket of stocks.",
+    plain:"This pays a higher coupon because it is linked to the weakest name in a basket. One bad stock can drive the entire payoff, even if the other names perform well.",
+    modelNote:"Worst-of autocalls are path-dependent and basket-based. The chart uses the final price of the worst performer as a simplified proxy.",
     desc:"A Worst-Of Autocallable is linked to a basket of underlyings (e.g., 3 stocks). The note pays enhanced coupons, but performance is determined by the worst-performing stock. Higher risk from dispersion = higher coupon.",
     howItWorks:"At each observation, the worst performer determines the outcome. If ALL stocks are above the autocall level, the note redeems. If the worst stock falls below the barrier at maturity, you suffer that stock's loss. The chart X-axis represents the worst stock's final price.",
     params:{spot:100,autocallLevel:100,barrier:60,coupon:4,notional:1000},
@@ -513,6 +559,8 @@ const STRUCTURES = [
     id:13, name:"Bonus Certificate", cat:"bullish", tenor:"2Y",
     tags:["bullish","protection","2Y"],
     short:"Guaranteed minimum return if barrier is never breached.",
+    plain:"This gives a bonus return if the underlying never breaches the barrier. If the barrier is touched, the bonus disappears and the investor is left with equity-like exposure.",
+    modelNote:"Bonus certificates have path-dependent barriers. The chart assumes the final level is a proxy for whether the barrier was breached.",
     desc:"A Bonus Certificate provides a minimum bonus return at maturity, provided the underlying never touches the down-barrier during its life. If the barrier is hit, the bonus is lost and it behaves like direct ownership.",
     howItWorks:"If the underlying never touches the barrier: you receive max(Final Price, Bonus Level) / Initial Price x Notional. If the barrier is breached: you get Final Price / Initial Price x Notional (which could be a loss).",
     params:{spot:100,barrier:70,bonusLevel:115,notional:1000},
@@ -538,6 +586,8 @@ const STRUCTURES = [
     id:14, name:"Cliquet Note (Ratchet)", cat:"neutral", tenor:"5Y",
     tags:["neutral","5Y"],
     short:"Locks in periodic returns with local floors and caps per year.",
+    plain:"This note locks in annual returns within a cap and floor. It is useful when steady positive years are expected, but it sacrifices upside in very strong years.",
+    modelNote:"Cliquet payoff depends on each period's return path. The chart assumes the same annualized return in every year for illustration.",
     desc:"A Cliquet (Ratchet) Note locks in returns at the end of each period (e.g., annually). Each period has a local cap and floor. Total return is the sum of all capped annual returns, subject to a global floor.",
     howItWorks:"Each year, the underlying's return is calculated. It is floored (e.g., 0%) and capped (e.g., 6%). After 5 years, total return = sum of all clipped annual returns. A global floor ensures you never receive less than a minimum total return. The chart shows payoff if the underlying returns the same amount each year.",
     params:{spot:100,localFloor:0,localCap:6,globalFloor:0,years:5,notional:1000},
@@ -550,8 +600,7 @@ const STRUCTURES = [
     ],
     payoff:(p,S)=>{
       // assume uniform annual return = (S/spot)^(1/years) - 1
-      const totalReturn = (S - p.spot)/p.spot;
-      const avgAnnual = totalReturn / p.years;
+      const avgAnnual = Math.pow(S / p.spot, 1 / p.years) - 1;
       const clipped = Math.max(p.localFloor/100, Math.min(p.localCap/100, avgAnnual));
       const total = Math.max(p.globalFloor/100, clipped * p.years);
       return p.notional*(1 + total);
@@ -568,6 +617,8 @@ const STRUCTURES = [
     id:15, name:"Snowball Note", cat:"yield", tenor:"2Y",
     tags:["yield","2Y"],
     short:"Accumulates coupons like a snowball ‚Äî missed coupons add to future payouts.",
+    plain:"This is an income note where missed coupons accumulate. The investor waits for the underlying to recover above the coupon barrier. If the underlying falls through the knock-in, principal risk becomes the main issue.",
+    modelNote:"Snowball notes are path-dependent. The chart simplifies deferred coupon and knock-in behavior into a final-level proxy.",
     desc:"A Snowball Note pays a coupon each period if the underlying is above the coupon barrier. If missed, the coupon accumulates and is paid (with all arrears) the next time conditions are met. At maturity, below knock-in means capital loss.",
     howItWorks:"Each quarter: if underlying > coupon barrier, you receive the current coupon PLUS all previously deferred coupons. If below, coupon is deferred. At maturity: above coupon barrier = all coupons paid; between knock-in and coupon barrier = principal only; below knock-in = capital loss.",
     params:{spot:100,couponBarrier:80,knockIn:65,couponPerQ:3,notional:1000},
@@ -596,6 +647,8 @@ const STRUCTURES = [
     id:16, name:"Leveraged Buffered Note", cat:"bullish", tenor:"1Y",
     tags:["bullish","protection","1Y"],
     short:"Amplified upside with a buffer zone absorbing initial losses.",
+    plain:"This gives leveraged upside and absorbs the first part of losses. It is designed for a moderately bullish view. Losses beyond the buffer still hit the investor.",
+    modelNote:"The chart shows the maturity payoff from leveraged upside and downside buffer, assuming the note is held to maturity.",
     desc:"Provides leveraged upside exposure with a downside buffer that absorbs the first X% of losses. Beyond the buffer, you lose 1:1. Designed for moderately bullish investors wanting some downside cushion.",
     howItWorks:"Upside: you earn Leverage x Performance, capped at Max Return. Downside: first Buffer% of loss is absorbed (you lose nothing). Beyond the buffer, you lose 1:1. Example: 2x upside, 10% buffer, 25% cap.",
     params:{spot:100,leverage:2,cap:25,buffer:10,notional:1000},
@@ -624,6 +677,8 @@ const STRUCTURES = [
     id:17, name:"Callable Yield Note", cat:"yield", tenor:"5Y",
     tags:["yield","5Y"],
     short:"High fixed coupon with issuer call right ‚Äî called early if rates drop.",
+    plain:"This is a high-coupon bond-like note where the issuer can call it early. The investor receives income, but the issuer is likely to redeem when keeping the note outstanding becomes expensive for them.",
+    modelNote:"Callable notes depend on the issuer call decision. The chart maps the X-axis to an illustrative holding period rather than an underlying price.",
     desc:"Pays a high fixed coupon but the issuer can redeem (call) it early on any coupon date. Typically called when interest rates decline, limiting the investor's total return. The chart shows total value based on the call year.",
     howItWorks:"You receive an above-market fixed coupon annually. The issuer has the right to call the note at par on any coupon date after an initial non-call period. If called: principal + accrued coupons. If held to maturity: principal + all coupons.",
     params:{spot:100,couponAnnual:8,callAfterYear:1,tenor:5,notional:1000},
@@ -655,6 +710,8 @@ const STRUCTURES = [
     id:18, name:"Principal-at-Risk Note", cat:"bullish", tenor:"1Y",
     tags:["bullish","1Y"],
     short:"Enhanced upside participation but full principal at risk.",
+    plain:"This is a high-beta equity-linked note. You get more upside participation than the underlying, but the downside is not protected.",
+    modelNote:"The chart shows final-level payoff with enhanced upside participation and one-for-one downside exposure.",
     desc:"A PARN gives enhanced upside participation (often > 100%) in exchange for full downside risk. Unlike capital-protected notes, your entire principal is exposed. Higher risk, higher potential reward.",
     howItWorks:"At maturity: if the underlying is up, you receive Notional x (1 + Performance x Participation). If down, you lose proportionally. No buffer, no protection ‚Äî just amplified upside for accepting full downside.",
     params:{spot:100,participation:150,notional:1000},
@@ -680,6 +737,8 @@ const STRUCTURES = [
     id:19, name:"Barrier Reverse Convertible", cat:"yield", tenor:"1Y",
     tags:["yield","1Y"],
     short:"Enhanced coupon with conditional principal protection via barrier.",
+    plain:"This is a reverse convertible with conditional protection. You receive a high coupon, but if the barrier is breached and the stock finishes below the strike, principal falls with the underlying.",
+    modelNote:"Barrier reverse convertibles are path-dependent. The chart uses final level as a proxy for barrier breach; actual protection depends on intraperiod monitoring.",
     desc:"A BRC pays a high coupon and protects principal unless the underlying breaches a barrier during its life. Adds a barrier feature to the standard reverse convertible for conditional downside protection.",
     howItWorks:"You receive an enhanced coupon. As long as the underlying never breaches the down-barrier during the life, you get full principal + coupon. If the barrier is breached AND the underlying finishes below strike, you take the loss on the principal portion.",
     params:{spot:100,strike:100,barrier:65,coupon:10,notional:1000},
@@ -708,6 +767,8 @@ const STRUCTURES = [
     id:20, name:"Outperformance Note", cat:"bullish", tenor:"2Y",
     tags:["bullish","2Y"],
     short:"Profit from the relative performance spread between two assets.",
+    plain:"This is a relative-value note. The investor is not simply betting that Asset A goes up; the investor is betting that Asset A performs better than Asset B.",
+    modelNote:"The chart holds Asset B's final level fixed using the slider and varies Asset A. It is a simplified relative-performance payoff.",
     desc:"An Outperformance Note pays based on the difference in performance between two assets (e.g., Tech ETF vs Energy ETF). You profit if your chosen asset outperforms the other, regardless of absolute market direction.",
     howItWorks:"At maturity: Return = Participation x (Asset A Return - Asset B Return). The chart X-axis represents Asset A's final price while Asset B is held fixed (adjustable via slider). A floor can protect against negative spreads.",
     params:{spot:100,perfB:100,participation:100,floor:0,notional:1000},
@@ -738,6 +799,8 @@ const STRUCTURES = [
     id:21, name:"Accumulator", cat:"bullish", tenor:"1Y",
     tags:["bullish","1Y"],
     short:"Obligation to buy shares daily at a discount ‚Äî profits if stock rises.",
+    plain:"This is a disciplined buying program with risk. You buy shares at a preset discounted price, but if the stock falls, you keep buying above market. Upside can also be cut short by a knock-out.",
+    modelNote:"Accumulators depend on daily fixing, purchase quantity, and knock-out timing. The chart is a simplified final-value proxy, not a trade booking model.",
     desc:"An Accumulator obliges you to buy a fixed number of shares each day at a preset discount to the initial price. If the stock rises, you accumulate cheap shares. If it falls, you buy at above-market prices. A knock-out terminates if the stock rallies too much.",
     howItWorks:"Daily you buy N shares at (Spot - Discount%). If the stock rises above the KO level, the contract terminates early. If the stock falls, you keep buying at the fixed price which is now above market. The chart shows net portfolio value at different final prices.",
     params:{spot:100,discount:5,koLevel:120,notional:1000},
@@ -765,6 +828,8 @@ const STRUCTURES = [
     id:22, name:"Decrement Note", cat:"yield", tenor:"5Y",
     tags:["yield","5Y"],
     short:"Linked to a decrement index ‚Äî synthetic dividend provides predictable pricing.",
+    plain:"This note links returns to an index that subtracts a fixed annual decrement. The structure can offer cleaner pricing, but the decrement is a drag that the market must overcome before the investor earns upside.",
+    modelNote:"The chart applies a simplified annual decrement drag to the final index level before calculating upside participation.",
     desc:"A Decrement Note is linked to an index that deducts a fixed annual amount (e.g., 5%) to simulate dividend payments. This makes pricing more predictable and often allows better participation terms. The chart shows your payoff vs the underlying index final level (before decrement is applied).",
     howItWorks:"The underlying is a decrement index that reduces by a fixed % annually. Your return is based on this modified index vs its starting value. If the actual market dividends exceed the decrement, you benefit; if lower, you lag. Notional is protected at maturity with upside participation on the decrement-adjusted index.",
     params:{spot:100,decrementRate:5,participation:100,tenor:5,notional:1000},
@@ -807,8 +872,8 @@ let activeCategory = 'all';
 function renderCards(){
   const q = searchInput.value.toLowerCase();
   const filtered = STRUCTURES.filter(s=>{
-    const catMatch = activeCategory==='all' || s.cat===activeCategory;
-    const searchMatch = !q || s.name.toLowerCase().includes(q) || s.short.toLowerCase().includes(q) || s.tags.some(t=>t.toLowerCase().includes(q));
+    const catMatch = activeCategory==='all' || s.cat===activeCategory || s.tags.includes(activeCategory);
+    const searchMatch = !q || [s.name,s.short,s.desc,s.howItWorks,s.plain,s.tenor].filter(Boolean).some(x=>x.toLowerCase().includes(q)) || s.tags.some(t=>t.toLowerCase().includes(q));
     return catMatch && searchMatch;
   });
   let html = `<div class="section-title">${filtered.length} structure${filtered.length!==1?'s':''} available</div>`;
@@ -829,6 +894,65 @@ function renderCards(){
   cardList.innerHTML = html;
 }
 
+
+function formatXTick(s, params, price){
+  if(s.id === 17){
+    const spotVal = params.spot || 100;
+    const minS = spotVal*0.4, maxS = spotVal*1.6;
+    const rawYear = (price - minS)/(maxS - minS) * (params.tenor || 5);
+    const yr = Math.max(params.callAfterYear || 1, Math.min(params.tenor || 5, rawYear));
+    return 'Y' + Math.round(yr);
+  }
+  if(s.id === 22) return Math.round(price) + ' pts';
+  return '$' + Math.round(price);
+}
+
+function computeScenarios(s, p){
+  const n = p.notional || 1000;
+  const spot = p.spot || 100;
+
+  if(s.id === 7){
+    const c = p.annualCoupon || 0, y = p.years || 2;
+    return {
+      bull:{label:"90% In Range",val:n*(1+c/100*y*0.9)},
+      mid:{label:"60% In Range",val:n*(1+c/100*y*0.6)},
+      bear:{label:"20% In Range",val:n*(1+c/100*y*0.2)}
+    };
+  }
+
+  if(s.id === 17){
+    return {
+      bull:{label:"Called Y"+p.callAfterYear,val:n*(1+p.couponAnnual/100*p.callAfterYear)},
+      mid:{label:"Called Y"+Math.min(3,p.tenor),val:n*(1+p.couponAnnual/100*Math.min(3,p.tenor))},
+      bear:{label:"Held "+p.tenor+"Y",val:n*(1+p.couponAnnual/100*p.tenor)}
+    };
+  }
+
+  if(s.id === 20){
+    return {
+      bull:{label:"A beats B +20%",val:n*(1+Math.max(p.floor/100, 0.2*p.participation/100))},
+      mid:{label:"Same Performance",val:n*(1+Math.max(p.floor/100, 0))},
+      bear:{label:"B beats A +15%",val:n*(1+Math.max(p.floor/100, -0.15*p.participation/100))}
+    };
+  }
+
+  if(s.id === 21){
+    const buyPrice = p.spot*(1-p.discount/100);
+    return {
+      bull:{label:"KO Hit",val:n*(1+(p.koLevel-buyPrice)/buyPrice*0.5)},
+      mid:{label:"Stock Flat",val:s.payoff(p, spot)},
+      bear:{label:"Stock -25%",val:s.payoff(p, spot*0.75)}
+    };
+  }
+
+  return {
+    bull:{label:"Underlying +20%",val:s.payoff(p, spot*1.2)},
+    mid:{label:"Underlying Flat",val:s.payoff(p, spot)},
+    bear:{label:"Underlying -30%",val:s.payoff(p, spot*0.7)}
+  };
+}
+
+
 function openDetail(id){
   const s = STRUCTURES.find(x=>x.id===id);
   if(!s) return;
@@ -836,29 +960,37 @@ function openDetail(id){
   const params = {...s.params};
 
   let html=`
-    <div class="info-block"><h3>Overview</h3><p>${s.desc}</p></div>
-    <div class="info-block"><h3>How It Works</h3><p>${s.howItWorks}</p></div>
-    <div class="chart-container">
-      <div class="chart-title">Payoff at Maturity</div>
-      <canvas id="payoffChart"></canvas>
-      <div class="pl-indicator" id="plIndicator"></div>
-    </div>
-    <div class="param-group">
-      <div class="param-group-title">Adjust Parameters</div>
-      ${(s.paramDefs||[]).map(pd=>`
-        <div class="param-row">
-          <div class="param-label"><span>${pd.label}</span><span class="param-value" id="val_${pd.key}">${pd.fmt(params[pd.key])}</span></div>
-          <input type="range" id="slider_${pd.key}" min="${pd.min}" max="${pd.max}" step="${pd.step}" value="${params[pd.key]}" data-key="${pd.key}">
+    <div class="detail-layout">
+      <div class="detail-main">
+        <div class="info-block"><h3>Overview</h3><p>${s.desc}</p></div>
+        <div class="info-block naive-block"><h3>Plain-English Explanation</h3><p>${s.plain || s.short}</p></div>
+        <div class="info-block"><h3>How It Works</h3><p>${s.howItWorks}</p></div>
+        <div class="info-block model-note"><h3>Chart / Model Assumption</h3><p>${s.modelNote || 'The chart is a simplified maturity payoff using the final underlying level. It assumes the note is held to maturity and the issuer does not default.'}</p></div>
+        <div class="info-block">
+          <h3>Scenario Analysis</h3>
+          <div class="scenario-grid" id="scenarioGrid"></div>
         </div>
-      `).join('')}
-    </div>
-    <div class="info-block">
-      <h3>Scenario Analysis</h3>
-      <div class="scenario-grid" id="scenarioGrid"></div>
-    </div>
-    <div class="info-block">
-      <h3>Key Risks</h3>
-      <ul>${s.risks.map(r=>`<li>${r}</li>`).join('')}</ul>
+        <div class="info-block">
+          <h3>Key Risks</h3>
+          <ul>${s.risks.map(r=>`<li>${r}</li>`).join('')}</ul>
+        </div>
+      </div>
+      <div class="detail-side">
+        <div class="chart-container">
+          <div class="chart-title">Payoff / Value Profile</div>
+          <canvas id="payoffChart"></canvas>
+          <div class="pl-indicator" id="plIndicator"></div>
+        </div>
+        <div class="param-group">
+          <div class="param-group-title">Adjust Parameters</div>
+          ${(s.paramDefs||[]).map(pd=>`
+            <div class="param-row">
+              <div class="param-label"><span>${pd.label}</span><span class="param-value" id="val_${pd.key}">${pd.fmt(params[pd.key])}</span></div>
+              <input type="range" id="slider_${pd.key}" min="${pd.min}" max="${pd.max}" step="${pd.step}" value="${params[pd.key]}" data-key="${pd.key}">
+            </div>
+          `).join('')}
+        </div>
+      </div>
     </div>
     <div class="disclaimer">
       <h4>Important Disclaimer</h4>
@@ -872,7 +1004,7 @@ function openDetail(id){
     if(!canvas) return;
     const ctx = canvas.getContext('2d');
     const W = canvas.parentElement.clientWidth - 32;
-    const H = 280;
+    const H = window.innerWidth > 900 ? 320 : 280;
     canvas.width = W*2; canvas.height = H*2;
     canvas.style.width = W+'px'; canvas.style.height = H+'px';
     ctx.scale(2,2);
@@ -962,7 +1094,7 @@ function openDetail(id){
     ctx.textAlign = 'center';
     for(let i=0;i<=4;i++){
       const idx = Math.round(i*nPts/4);
-      ctx.fillText('$'+Math.round(prices[idx]), toX(idx), H-pad.b+14);
+      ctx.fillText(formatXTick(s, params, prices[idx]), toX(idx), H-pad.b+14);
     }
 
     // Axis labels
@@ -995,7 +1127,7 @@ function openDetail(id){
   }
 
   function updateScenarios(){
-    const sc = s.scenarios(params);
+    const sc = computeScenarios(s, params);
     const n = params.notional||1000;
     const grid = document.getElementById('scenarioGrid');
     if(!grid) return;
@@ -1025,6 +1157,7 @@ function openDetail(id){
     });
     drawChart();
     updateScenarios();
+    window.onresize = ()=>{ if(detailView.classList.contains('open')) drawChart(); };
   }, 50);
 
   detailView.classList.add('open');
