@@ -9,6 +9,15 @@
   <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script>
+    // Force classic JSX runtime so Babel does NOT emit `import { jsx } from "react/jsx-runtime"`.
+    // Newer @babel/preset-react defaults to runtime: 'automatic', which breaks in-browser text/babel.
+    if (window.Babel && Babel.registerPreset) {
+      Babel.registerPreset('react-classic', {
+        presets: [[Babel.availablePresets['react'], { runtime: 'classic' }]]
+      });
+    }
+  </script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
@@ -56,8 +65,44 @@
 </head>
 <body>
   <div id="root"></div>
+  <div id="boot-error" style="display:none;padding:24px;font-family:Inter,sans-serif;color:#7f1d1d;background:#fef2f2;border:1px solid #fecaca;margin:24px;border-radius:12px;">
+    <h2 style="margin-top:0;">Dashboard failed to load.</h2>
+    <p>One or more external scripts could not be reached. Check that these hosts are not blocked by a corporate proxy:</p>
+    <ul>
+      <li>cdn.tailwindcss.com</li>
+      <li>unpkg.com (React 18)</li>
+      <li>cdnjs.cloudflare.com (html2pdf)</li>
+      <li>cdn.jsdelivr.net (xlsx)</li>
+    </ul>
+    <p id="boot-error-detail" style="font-family:monospace;font-size:12px;color:#991b1b;"></p>
+  </div>
 
-  <script type="text/babel" data-presets="env,react">
+  <script>
+    window.addEventListener('error', function (e) {
+      var box = document.getElementById('boot-error');
+      var detail = document.getElementById('boot-error-detail');
+      if (box) box.style.display = 'block';
+      if (detail) detail.textContent = (e && e.message ? e.message : 'unknown error') + ' @ ' + (e && e.filename ? e.filename : '');
+    });
+    window.addEventListener('load', function () {
+      setTimeout(function () {
+        var root = document.getElementById('root');
+        if (root && root.childElementCount === 0) {
+          if (!window.React || !window.ReactDOM || !window.Babel) {
+            var box = document.getElementById('boot-error');
+            var detail = document.getElementById('boot-error-detail');
+            if (box) box.style.display = 'block';
+            if (detail) detail.textContent = 'Missing: ' +
+              (!window.React ? 'React ' : '') +
+              (!window.ReactDOM ? 'ReactDOM ' : '') +
+              (!window.Babel ? 'Babel' : '');
+          }
+        }
+      }, 1500);
+    });
+  </script>
+
+  <script type="text/babel" data-presets="react-classic">
     const { useState, useEffect, useMemo, useCallback } = React;
     const { createRoot } = ReactDOM;
 
@@ -1247,8 +1292,16 @@
       );
     };
 
-    const root = createRoot(document.getElementById('root'));
-    root.render(<App />);
+    try {
+      const root = createRoot(document.getElementById('root'));
+      root.render(<App />);
+    } catch (err) {
+      const box = document.getElementById('boot-error');
+      const detail = document.getElementById('boot-error-detail');
+      if (box) box.style.display = 'block';
+      if (detail) detail.textContent = 'Render error: ' + (err && err.message ? err.message : String(err));
+      console.error('Render error', err);
+    }
   </script>
 </body>
 </html>
