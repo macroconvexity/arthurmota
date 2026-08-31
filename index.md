@@ -96,12 +96,12 @@ description: Arthur Mota. Macroeconomist and macro strategist working across glo
     <div class="listing-item">
       <div class="meta">30 JUN 2025</div>
       <div><h3>The Great EMH Confusion</h3><p>Why critics and defenders of efficient markets often answer different questions.</p></div>
-      <div class="actions"><a class="pill" href="posts/EMH.html">Read</a></div>
+      <div class="actions"><a class="pill" href="posts/EMH.md">Read</a></div>
     </div>
     <div class="listing-item">
       <div class="meta">30 JUN 2025</div>
       <div><h3>The Phillips Curve Evolution</h3><p>From flattening to pandemic-era steepening and the search for normalization.</p></div>
-      <div class="actions"><a class="pill" href="posts/phillips.html">Read</a></div>
+      <div class="actions"><a class="pill" href="posts/phillips.md">Read</a></div>
     </div>
   </div>
 </section>
