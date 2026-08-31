@@ -23,13 +23,16 @@
         <a href="{{ '/discussion.html' | relative_url }}">Notes</a>
         <a href="{{ '/dashboard.html' | relative_url }}">Research Lab</a>
         <a href="{{ '/book.html' | relative_url }}">Books</a>
+        <a href="{{ '/lectures.html' | relative_url }}">Lectures</a>
         <a href="{{ '/cv.html' | relative_url }}">CV</a>
       </nav>
     </div>
   </header>
 
   <main class="shell page-shell">
+    {% if page.prose %}<div class="prose">{% endif %}
     {{ content }}
+    {% if page.prose %}</div>{% endif %}
   </main>
 
   <footer class="site-footer">
