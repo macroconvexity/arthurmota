@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 760" role="img" aria-labelledby="title desc">
+  <title id="title">Quantitative macro research visual</title>
+  <desc id="desc">A refined academic visualization with layered contours, subtle grid, and market series.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#fbfcfe"/>
+      <stop offset="55%" stop-color="#f2f6fb"/>
+      <stop offset="100%" stop-color="#ecf2f8"/>
+    </linearGradient>
+    <linearGradient id="mist" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.82"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.12"/>
+    </linearGradient>
+    <linearGradient id="line1" x1="0" x2="1">
+      <stop offset="0%" stop-color="#9eb3c8"/>
+      <stop offset="100%" stop-color="#cfd8e2"/>
+    </linearGradient>
+    <linearGradient id="line2" x1="0" x2="1">
+      <stop offset="0%" stop-color="#204f8f"/>
+      <stop offset="100%" stop-color="#2b6fbc"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="6"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="760" fill="url(#bg)"/>
+
+  <!-- grid -->
+  <g stroke="#dde5ee" stroke-width="1">
+    <path d="M80 100 H1120"/>
+    <path d="M80 210 H1120"/>
+    <path d="M80 320 H1120"/>
+    <path d="M80 430 H1120"/>
+    <path d="M80 540 H1120"/>
+    <path d="M80 650 H1120"/>
+    <path d="M170 90 V650"/>
+    <path d="M320 90 V650"/>
+    <path d="M470 90 V650"/>
+    <path d="M620 90 V650"/>
+    <path d="M770 90 V650"/>
+    <path d="M920 90 V650"/>
+    <path d="M1070 90 V650"/>
+  </g>
+
+  <!-- soft contours / landscape -->
+  <g fill="none" stroke="#d9e3ed" stroke-width="2" opacity="0.95">
+    <path d="M0 530 C140 420 270 390 390 445 C520 505 620 510 760 446 C875 392 996 366 1200 402"/>
+    <path d="M0 500 C130 415 245 370 375 402 C520 438 640 454 760 412 C893 362 1025 340 1200 368"/>
+    <path d="M0 468 C150 375 288 330 430 354 C550 377 660 392 774 350 C905 302 1025 292 1200 320"/>
+    <path d="M0 445 C168 340 314 275 470 292 C595 306 702 332 834 294 C973 252 1078 250 1200 272"/>
+  </g>
+  <g fill="#d7e1eb" opacity="0.45">
+    <path d="M0 760V470C130 415 245 370 375 402C520 438 640 454 760 412C893 362 1025 340 1200 368V760Z"/>
+    <path d="M0 760V520C140 420 270 390 390 445C520 505 620 510 760 446C875 392 996 366 1200 402V760Z" opacity="0.65"/>
+  </g>
+  <rect x="0" y="0" width="560" height="760" fill="url(#mist)"/>
+
+  <!-- plot area -->
+  <g>
+    <rect x="85" y="95" width="1030" height="555" rx="0" fill="rgba(255,255,255,0)"/>
+    <g stroke="#94a3b5" stroke-width="1.5">
+      <line x1="85" y1="650" x2="1115" y2="650"/>
+      <line x1="85" y1="95" x2="85" y2="650"/>
+    </g>
+  </g>
+
+  <!-- dominant series -->
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M85 545 C140 512 168 483 210 486 C255 490 286 542 335 533 C390 523 428 404 488 392 C560 377 625 478 680 470 C760 457 805 320 878 328 C945 336 989 414 1047 404 C1089 397 1112 351 1132 318" stroke="url(#line2)" stroke-width="5"/>
+    <path d="M85 498 C145 502 182 470 226 452 C277 431 324 441 370 453 C428 468 474 437 515 340 C553 248 592 221 640 245 C685 268 730 303 788 318 C838 331 869 309 929 284 C975 264 1032 262 1132 278" stroke="url(#line1)" stroke-width="4"/>
+  </g>
+  <g fill="#224f8a">
+    <circle cx="1132" cy="318" r="5.5"/>
+  </g>
+  <g fill="#b5c0cc">
+    <circle cx="1132" cy="278" r="4.6"/>
+  </g>
+
+  <!-- annotation dots -->
+  <g fill="#214b84" opacity="0.22" filter="url(#soft)">
+    <circle cx="488" cy="392" r="18"/>
+    <circle cx="878" cy="328" r="18"/>
+    <circle cx="1047" cy="404" r="14"/>
+  </g>
+
+  <!-- legend -->
+  <g font-family="Arial, Helvetica, sans-serif" font-size="22" fill="#32485f">
+    <line x1="735" y1="58" x2="775" y2="58" stroke="#295f9f" stroke-width="5"/>
+    <text x="790" y="65">Macro growth composite</text>
+    <line x1="954" y1="58" x2="994" y2="58" stroke="#b6c1cc" stroke-width="4"/>
+    <text x="1008" y="65">Policy and risk backdrop</text>
+  </g>
+
+  <!-- small labels -->
+  <g font-family="Arial, Helvetica, sans-serif" font-size="17" fill="#6a7888">
+    <text x="36" y="655">0</text>
+    <text x="25" y="544">25</text>
+    <text x="25" y="434">50</text>
+    <text x="25" y="324">75</text>
+    <text x="14" y="214">100</text>
+    <text x="75" y="690">2004</text>
+    <text x="301" y="690">2008</text>
+    <text x="602" y="690">2013</text>
+    <text x="902" y="690">2018</text>
+    <text x="1082" y="690">2022</text>
+  </g>
+
+  <!-- title area inside panel -->
+  <g font-family="Arial, Helvetica, sans-serif" fill="#66778a">
+    <text x="88" y="48" font-size="18" letter-spacing="2.5">MACROECONOMIC REGIME MAP</text>
+    <text x="882" y="720" font-size="16">Illustrative figure for site presentation</text>
+  </g>
+</svg>
