@@ -1,0 +1,221 @@
+{
+ "updated": "2026-10-06T03:09:32Z",
+ "slot": "manual",
+ "as_of_ny": "2026-10-05 23:08",
+ "last_close": "2026-10-02",
+ "live_since": "2026-10-05",
+ "in_sample": true,
+ "positions": [
+  {
+   "t": "SOXX",
+   "name": "iShares PHLX SOX Semiconductor Sector Index Fund",
+   "lev": 1,
+   "w": 0.27974,
+   "w_target": 0.248466,
+   "px": 589.51,
+   "chg_pct": 0.104,
+   "since": "2026-09-08",
+   "pnl_pct": 11.174,
+   "locked": false,
+   "band_pct": 6.24,
+   "breach": false
+  },
+  {
+   "t": "ROM",
+   "name": "ProShares Ultra Technology",
+   "lev": 2,
+   "w": 0.242863,
+   "w_target": 0.257317,
+   "px": 167.48,
+   "chg_pct": 1.141,
+   "since": "2026-09-22",
+   "pnl_pct": 6.358,
+   "locked": false,
+   "band_pct": 6.137,
+   "breach": false
+  },
+  {
+   "t": "TECL",
+   "name": "Direxion Daily Technology Bull 3X ETF",
+   "lev": 3,
+   "w": 0.155918,
+   "w_target": 0.173917,
+   "px": 250.5,
+   "chg_pct": 1.701,
+   "since": "2026-07-31",
+   "pnl_pct": 39.448,
+   "locked": false,
+   "band_pct": 9.214,
+   "breach": false
+  },
+  {
+   "t": "USD",
+   "name": "ProShares Ultra Semiconductors",
+   "lev": 2,
+   "w": 0.144833,
+   "w_target": 0.147266,
+   "px": 102.97,
+   "chg_pct": 1.971,
+   "since": "2026-09-21",
+   "pnl_pct": 13.338,
+   "locked": false,
+   "band_pct": 10.349,
+   "breach": false
+  },
+  {
+   "t": "SOXL",
+   "name": "Direxion Daily Semiconductor Bull 3X ETF",
+   "lev": 3,
+   "w": 0.104345,
+   "w_target": 0.083598,
+   "px": 164.27,
+   "chg_pct": 0.342,
+   "since": "2026-01-08",
+   "pnl_pct": 217.173,
+   "locked": false,
+   "band_pct": 17.791,
+   "breach": false
+  },
+  {
+   "t": "LABU",
+   "name": "Direxion Daily S&P Biotech Bull 3X ETF",
+   "lev": 3,
+   "w": 0.072301,
+   "w_target": 0.089436,
+   "px": 257.38,
+   "chg_pct": 3.482,
+   "since": "2026-03-17",
+   "pnl_pct": 63.376,
+   "locked": false,
+   "band_pct": 15.23,
+   "breach": false
+  }
+ ],
+ "orders": [],
+ "preview": [],
+ "alerts": [],
+ "stats": {
+  "live": {
+   "days": 0,
+   "sys_pct": 0.0,
+   "spy_pct": 0.0
+  },
+  "windows": [
+   {
+    "label": "Since 2012",
+    "start": "2012-01-03",
+    "end": "2026-10-05",
+    "sys_cagr": 0.262105,
+    "spy_cagr": 0.151378,
+    "sys_maxdd": -0.510394,
+    "spy_maxdd": -0.337173,
+    "sys_sharpe": 0.7302,
+    "spy_sharpe": 0.8363
+   },
+   {
+    "label": "2012 to 2022-09",
+    "start": "2012-01-03",
+    "end": "2022-09-30",
+    "sys_cagr": 0.169079,
+    "spy_cagr": 0.123395,
+    "sys_maxdd": -0.510394,
+    "spy_maxdd": -0.337173,
+    "sys_sharpe": 0.5845,
+    "spy_sharpe": 0.7402
+   },
+   {
+    "label": "Since 2022-10",
+    "start": "2022-10-03",
+    "end": "2026-10-05",
+    "sys_cagr": 0.550936,
+    "spy_cagr": 0.230209,
+    "sys_maxdd": -0.416605,
+    "spy_maxdd": -0.187552,
+    "sys_sharpe": 1.0526,
+    "spy_sharpe": 1.1134
+   }
+  ],
+  "yearly": [
+   {
+    "year": 2012,
+    "sys": 0.166214,
+    "spy": 0.159903
+   },
+   {
+    "year": 2013,
+    "sys": 0.947703,
+    "spy": 0.323078
+   },
+   {
+    "year": 2014,
+    "sys": 0.285814,
+    "spy": 0.134638
+   },
+   {
+    "year": 2015,
+    "sys": -0.317945,
+    "spy": 0.012343
+   },
+   {
+    "year": 2016,
+    "sys": 0.178539,
+    "spy": 0.119979
+   },
+   {
+    "year": 2017,
+    "sys": 0.867889,
+    "spy": 0.217054
+   },
+   {
+    "year": 2018,
+    "sys": -0.300894,
+    "spy": -0.04569
+   },
+   {
+    "year": 2019,
+    "sys": 0.318969,
+    "spy": 0.312239
+   },
+   {
+    "year": 2020,
+    "sys": 0.477367,
+    "spy": 0.183316
+   },
+   {
+    "year": 2021,
+    "sys": 0.183304,
+    "spy": 0.287288
+   },
+   {
+    "year": 2022,
+    "sys": -0.098465,
+    "spy": -0.181754
+   },
+   {
+    "year": 2023,
+    "sys": 0.355747,
+    "spy": 0.261758
+   },
+   {
+    "year": 2024,
+    "sys": 0.227064,
+    "spy": 0.248865
+   },
+   {
+    "year": 2025,
+    "sys": 0.904727,
+    "spy": 0.177191
+   },
+   {
+    "year": 2026,
+    "sys": 0.524521,
+    "spy": 0.145123
+   }
+  ],
+  "cost": {
+   "slip_1x_bp": 2.0,
+   "slip_lev_bp": 5.0
+  }
+ },
+ "history": []
+}
