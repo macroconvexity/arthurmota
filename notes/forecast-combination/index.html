@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Why the simple average of forecasts is hard to beat · Arthur Mota</title>
+<meta name="description" content="The forecast combination puzzle in closed form and by simulation: what estimated weights cost, the sample size at which they start to pay, how far to shrink them, and why instability matters more than estimation error.">
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="../../assets/mono.css">
+<style>section p,section li{font-size:13px}section ol,section ul{margin:0 0 16px;padding-left:20px}sub,sup{font-size:10px;line-height:0}</style>
+</head><body>
+<header><div class="mast"><a href="../../"><svg class="logo" viewBox="0 0 32 32" aria-label="home"><rect width="32" height="32" fill="#111"/><path d="M7 11h18M12 11v13M20 11v9.5a3.5 3.5 0 0 0 3.5 3.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="square"/></svg></a><h1>Why the simple average of forecasts is hard to beat</h1></div>
+<p class="tag">Note · Statistics, forecasting · October 2026</p>
+<p class="sub">What estimated combination weights cost, when they start to pay, and what breaks them.</p>
+<nav><a href="../../">[home]</a><a href="../">[notes]</a><a href="#question">[question]</a><a href="#cost">[cost]</a><a href="#breakeven">[break-even]</a><a href="#shrink">[shrinkage]</a><a href="#stability">[stability]</a><a href="#limits">[limits]</a><a href="#refs">[references]</a></nav></header>
+<hr>
+<section id="question"><h2>Question</h2>
+<p>Combining forecasts lowers the error, and theory says how: weight each forecast by what it adds, given how its errors move with the others (Bates and Granger, 1969). In applied work the weights that theory recommends keep losing to the plain average. Stock and Watson (2004) named this the forecast combination puzzle, and Smith and Wallis (2009) and Claeskens, Magnus, Vasnev and Wang (2016) traced it to the error in the estimated weights.</p>
+<p>This note puts numbers on that explanation. Estimation error has an exact price, and for the sample sizes of macro forecasting the price is often lower than the puzzle suggests. What does more damage in the simulations is a covariance of forecast errors that moves between the sample and the period of use.</p>
+<p>Setup. There are K unbiased forecasts of the same variable, with errors of covariance &Sigma;. A combination with weights w that sum to one has mean squared error w'&Sigma;w. The best weights and their error are</p>
+<p class="eq">w* = &Sigma;<sup>&minus;1</sup>1 / (1'&Sigma;<sup>&minus;1</sup>1), &nbsp; MSE* = 1 / (1'&Sigma;<sup>&minus;1</sup>1)</p>
+<p>and the simple average has MSE<sub>avg</sub> = 1'&Sigma;1 / K<sup>2</sup>. Call g = MSE<sub>avg</sub> / MSE* the gain on offer: g = 1.10 means the average carries 10% more squared error than the optimum. With equal variances and one common correlation, g is exactly 1 and the average is the optimum.</p>
+</section><hr>
+<section id="cost"><h2>The cost of estimating the weights</h2>
+<p>In practice &Sigma; is replaced by the second moments of T past errors. With Gaussian errors the expected out-of-sample error of the resulting weights is</p>
+<p class="eq">E[MSE(ŵ)] = MSE* &times; (T &minus; 1) / (T &minus; K)</p>
+<p>The cost depends on the number of forecasts and the number of observations and on nothing else. No feature of &Sigma; enters. It is the same algebra as the estimated minimum-variance portfolio, with forecast errors in the place of returns.</p>
+<div class="exh">Exhibit 1 <span>Extra squared error of estimated weights over the true optimum, by sample size. Simulation.</span></div><div id="c1"></div>
+<div class="exh">Table 1 <span>Extra squared error over the optimum: simulation against the formula, and inverse-MSE weights</span></div>
+<div class="scroll"><table id="t1"></table></div>
+<p class="note">20,000 samples per cell. Errors have a common correlation of 0.6 and variances spaced from 1 to 2. Inverse-MSE weights are proportional to 1 over each forecast's own mean squared error and ignore correlations.</p>
+<p style="margin-top:16px">Inverse-MSE weights cost almost nothing to estimate, and their error barely changes with T. They also stop short of the optimum for good, because they ignore the correlations. In this design they stay about 8% above it with four forecasts however long the sample.</p>
+</section><hr>
+<section id="breakeven"><h2>When estimated weights start to pay</h2>
+<p>Estimated weights beat the simple average in expectation when (T &minus; 1)/(T &minus; K) is below g. Solving for the sample size:</p>
+<p class="eq">T* = K + (K &minus; 1) / (g &minus; 1)</p>
+<div class="exh">Table 2 <span>Break-even number of observations T*, by number of forecasts and gain on offer</span></div>
+<div class="scroll"><table id="t2"></table></div>
+<p class="note">Below T* the simple average is expected to win. A quarterly series gives 40 observations in ten years and 120 in thirty.</p>
+<div class="exh">Table 3 <span>Simulation check: estimated weights at T*, where their extra error should equal the gain on offer</span></div>
+<div class="scroll"><table id="t3"></table></div>
+<p style="margin-top:16px">How large is g? It is set by how unequal the forecasts are and how correlated their errors.</p>
+<div class="exh">Table 4 <span>Gain on offer g &minus; 1, by design. In brackets, the smallest optimal weight.</span></div>
+<div class="scroll"><table id="t4"></table></div>
+<p class="note">Variance ratio is the error variance of the worst forecast over the best, with the others spaced geometrically between.</p>
+<p style="margin-top:16px">Two readings. When forecasts are of similar quality (a variance ratio of 1.5) the gain is a few percent: with four forecasts T* is 61 quarters at a correlation of 0.6 and 134 with uncorrelated errors. When errors are highly correlated and quality differs, the gain is large, and it comes from negative weights on the weaker forecasts: the optimum is a spread between models. That is where a wrong &Sigma; hurts most.</p>
+</section><hr>
+<section id="shrink"><h2>Shrinking toward the average</h2>
+<p>Take a share &lambda; of the estimated weights and 1 &minus; &lambda; of the simple average. Estimated weights are unbiased for w*, so the two sources of loss add:</p>
+<p class="eq">E[MSE(&lambda;)] / MSE* = 1 + &lambda;<sup>2</sup>c + (1 &minus; &lambda;)<sup>2</sup>(g &minus; 1), &nbsp; c = (K &minus; 1)/(T &minus; K)<br>&lambda;* = (g &minus; 1) / (g &minus; 1 + c)</p>
+<div class="exh">Exhibit 2 <span id="x2"></span></div><div id="c2"></div>
+<div class="kpi" id="k2"></div>
+<p>The best mix is never at either end: as long as g is above 1 and the sample is finite, some shrinkage beats both pure choices. The catch is that &lambda;* needs g, which is as unknown as &Sigma;. The curve is flat near its minimum, so a fixed &lambda; of one half gives up little.</p>
+</section><hr>
+<section id="stability"><h2>What breaks the estimate</h2>
+<p>The formula assumes Gaussian errors and a &Sigma; that holds from the estimation sample into the period of use. Table 5 relaxes each in turn for four forecasts.</p>
+<div class="exh">Table 5 <span>Extra squared error over the optimum of the period of use</span></div>
+<div class="scroll"><table id="t5"></table></div>
+<p class="note">Student t errors are scaled to the same covariance. In the third case the four forecasts have equal error variance in the period of use. In the fourth the best and worst forecasts trade places. Correlation stays at 0.6 throughout.</p>
+<ol style="margin-top:16px">
+<li>Fat tails raise the cost of estimated weights (from about 8% to about 14% at T = 40) and leave inverse-MSE weights where they were.</li>
+<li>When the forecasts converge in quality the simple average is the optimum, and estimated weights carry the full cost of a pattern that is gone.</li>
+<li>When the ranking reverses, estimated weights are the worst choice at any sample size, and a longer sample does not help: the extra error is still about 68% at T = 120. A long sample measures the old &Sigma; precisely.</li>
+</ol>
+</section><hr>
+<section id="conclusions"><h2>Conclusions</h2>
+<ol>
+<li>Estimation error alone is a weak explanation at moderate K. With four forecasts and ten years of quarterly errors it costs 8%, so under a stable &Sigma; estimated weights win whenever the true gain is larger than that.</li>
+<li>It becomes a strong one as K grows against T. With eight forecasts and the same forty quarters the cost is 22%.</li>
+<li>The simple average is safest where the optimum is most tempting: large gains come from correlated errors and negative weights, which are the cases a shift in &Sigma; turns into large losses.</li>
+<li>A half-and-half mix of estimated weights and the average is never the worst rule in Table 5, and at T = 40 it is the best one while &Sigma; holds. It still loses to the simple average once &Sigma; moves.</li>
+</ol>
+</section><hr>
+<section id="limits"><h2>Limits</h2>
+<ul>
+<li>Simulation on designed covariances. Nothing here is estimated on a real panel of forecasts, so the size of g in practice is not measured.</li>
+<li>Forecasts are unbiased and errors are independent over time. Bias, serial correlation in multi-step errors and weights without the sum-to-one constraint are left out.</li>
+<li>The stability cases are single, known breaks. Gradual drift and rolling estimation windows are not studied.</li>
+<li>The comparison is on squared error. Other loss functions can rank the rules differently.</li>
+</ul>
+</section><hr>
+<section id="refs"><h2>References</h2>
+<ul class="idx">
+<li>Bates, J. M. and Granger, C. W. J. (1969). The combination of forecasts. Operational Research Quarterly 20, 451 to 468.</li>
+<li>Claeskens, G., Magnus, J. R., Vasnev, A. L. and Wang, W. (2016). The forecast combination puzzle: a simple theoretical explanation. International Journal of Forecasting 32, 754 to 762.</li>
+<li>Smith, J. and Wallis, K. F. (2009). A simple explanation of the forecast combination puzzle. Oxford Bulletin of Economics and Statistics 71, 331 to 355.</li>
+<li>Stock, J. H. and Watson, M. W. (2004). Combination forecasts of output growth in a seven-country data set. Journal of Forecasting 23, 405 to 430.</li>
+<li>Timmermann, A. (2006). Forecast combinations. Handbook of Economic Forecasting, volume 1, chapter 4.</li>
+</ul>
+<p class="note">Personal page. Views are my own and do not represent my employer. Nothing here is investment advice.</p></section>
+<script src="../../assets/plot.js"></script>
+<script src="note.js"></script>
+</body></html>

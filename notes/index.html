@@ -1,1 +1,24 @@
-<!doctype html><meta charset="utf-8"><title>Arthur Mota</title><link rel="canonical" href="../#notes"><meta http-equiv="refresh" content="0;url=../#notes"><a href="../#notes">Arthur Mota</a>
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Notes · Arthur Mota</title>
+<meta name="description" content="Notes on macro modelling, statistics, forecasting and portfolio theory: simulations, empirical studies, readings of papers and method.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="../assets/mono.css">
+</head><body>
+<header><div class="mast"><a href="../"><svg class="logo" viewBox="0 0 32 32" aria-label="home"><rect width="32" height="32" fill="#111"/><path d="M7 11h18M12 11v13M20 11v9.5a3.5 3.5 0 0 0 3.5 3.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="square"/></svg></a><h1>Notes</h1></div>
+<p class="tag">Simulations, studies, readings and method</p>
+<p class="sub">Macro and cross-asset modelling, statistics and portfolio theory. Working papers are under <a href="../#research">research</a>.</p>
+<nav><a href="../">[home]</a><a href="../#lab">[lab]</a><a href="../#research">[research]</a></nav></header>
+<hr>
+<section><div class="tog" id="f">Theme <button data-t="" class="on">[all]</button><button data-t="macro">[macro]</button><button data-t="cross-asset">[cross-asset]</button><button data-t="statistics">[statistics]</button><button data-t="portfolio">[portfolio]</button><button data-t="theory">[theory]</button></div>
+<div class="scroll"><table id="n">
+<tr><th>Date</th><th>Note</th><th>Theme</th><th></th></tr>
+<tr data-t="statistics macro"><td class="d">2026-10</td><td><a href="forecast-combination/">Why the simple average of forecasts is hard to beat</a><br><span class="s">What estimated combination weights cost, the sample size at which they start to pay, and why instability matters more than estimation error. Simulation.</span></td><td class="d">Statistics</td><td class="r"><a href="forecast-combination/">[open]</a></td></tr>
+<tr data-t="macro"><td class="d"></td><td><a href="../posts/phillips.html">The Phillips Curve Evolution</a><br><span class="s">From flattening to pandemic-era steepening and the search for normalization.</span></td><td class="d">Macro</td><td class="r"><a href="../posts/phillips.html">[open]</a></td></tr>
+<tr data-t="theory"><td class="d"></td><td><a href="../posts/EMH.html">The Great EMH Confusion</a><br><span class="s">Why critics and defenders of efficient markets answer different questions.</span></td><td class="d">Theory</td><td class="r"><a href="../posts/EMH.html">[open]</a></td></tr>
+</table></div></section>
+<script>
+document.getElementById('f').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+ document.querySelectorAll('#f button').forEach(x=>x.classList.toggle('on',x===b));
+ document.querySelectorAll('#n tr[data-t]').forEach(r=>r.hidden=!!b.dataset.t&&!r.dataset.t.split(' ').includes(b.dataset.t))});
+</script>
+</body></html>
