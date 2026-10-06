@@ -14,13 +14,8 @@ tr.tot td{border-top:1px solid #111;font-weight:700}
 <header><div class="mast"><a href="./"><svg class="logo" viewBox="0 0 32 32" aria-label="home"><rect width="32" height="32" fill="#111"/><path d="M7 11h18M12 11v13M20 11v9.5a3.5 3.5 0 0 0 3.5 3.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="square"/></svg></a><h1>Black-Litterman lab</h1></div>
 <p class="tag">Research lab · Portfolio construction</p>
 <p class="sub">A Bayesian way to build a portfolio. Start from the returns the market portfolio implies, add your own views with a stated confidence, and read the expected returns and weights that come out.</p>
-<nav><a href="./">[home]</a><a href="./#lab">[lab]</a><a href="#read">[how to read]</a><a href="#model">[inputs]</a><a href="#views">[views]</a><a href="#results">[results]</a><a href="#method">[method]</a></nav></header>
+<nav><a href="./">[home]</a><a href="./#lab">[lab]</a><a href="#model">[inputs]</a><a href="#views">[views]</a><a href="#results">[results]</a><a href="#method">[method]</a></nav></header>
 <hr>
-<section id="read"><h2>How to read this</h2>
-<p><b>The problem.</b> A portfolio optimiser needs an expected return for every asset, and small changes in those guesses produce wild swings in the weights. Black and Litterman turned the question around.</p>
-<p><b>The idea.</b> Assume the market portfolio is already a sensible portfolio. Then ask which expected returns would make an investor want to hold exactly that. Those are the equilibrium returns, the neutral starting point. You then state only the opinions you actually hold, for example "US equities will earn 8%" or "emerging markets will beat Japan by 2%", and how sure you are of each. The model moves the returns toward your views in proportion to that confidence, and spreads the adjustment to correlated assets.</p>
-<p><b>What to look at.</b> With no views the answer is the market portfolio. Each view tilts the weights away from it. A confident view tilts a lot, a vague one barely at all. All returns on this page are annual and in excess of the risk-free rate. All inputs are illustrative.</p>
-</section><hr>
 <section id="model"><h2>Inputs</h2>
 <div class="ctl">
  <label>Risk aversion &delta; <span id="vd"></span><input type="range" id="delta" min="0.5" max="6" step="0.1" value="2.5"></label>

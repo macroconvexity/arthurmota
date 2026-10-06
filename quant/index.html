@@ -1,31 +1,29 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Quant Book · Arthur Mota</title>
-<meta name="description" content="A simulated cross-asset systematic book on liquid ETFs, with positions, trades, risk and an honest test of the evidence. Updated every trading day.">
+<meta name="description" content="A simulated cross-asset systematic book on liquid ETFs: nine published strategies across risk premia, flows and calendar effects, with positions, trades, risk and an honest test of the evidence. Updated every trading day.">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="../assets/mono.css">
 <style>.bar{display:inline-block;height:8px;background:#111;vertical-align:middle}.bar.neg{background:#999}.ok{font-weight:700}.no{color:#777}</style>
 </head><body>
 <header><div class="mast"><a href="../"><svg class="logo" viewBox="0 0 32 32" aria-label="home"><rect width="32" height="32" fill="#111"/><path d="M7 11h18M12 11v13M20 11v9.5a3.5 3.5 0 0 0 3.5 3.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="square"/></svg></a><h1>Quant book</h1></div>
 <p class="tag">Systematic, cross-asset, multi-strategy · Simulated, daily</p>
 <p class="sub" id="stamp">Loading.</p>
-<nav><a href="../">[home]</a><a href="../#lab">[lab]</a><a href="#read">[how to read]</a><a href="#book">[book]</a><a href="#perf">[performance]</a><a href="#pos">[positions]</a><a href="#trades">[trades]</a><a href="#risk">[risk]</a><a href="#honest">[evidence]</a><a href="#data">[data]</a><a href="#limits">[limits]</a></nav></header>
+<nav><a href="../">[home]</a><a href="../#lab">[lab]</a><a href="#book">[book]</a><a href="#sleeves">[strategies]</a><a href="#perf">[performance]</a><a href="#pos">[positions]</a><a href="#trades">[trades]</a><a href="#signals">[signals]</a><a href="#risk">[risk]</a><a href="#honest">[evidence]</a><a href="#data">[data]</a><a href="#limits">[limits]</a></nav></header>
 <hr>
-<section id="read"><h2>How to read this page</h2>
-<p>This is a paper portfolio run by rules, with no discretion. Nine strategies trade <span id="nins"></span> liquid ETFs across equities, rates, commodities, currencies and volatility. Every trading day the page records what the book holds, what it traded, its risk and its result.</p>
-<p><b>Two families.</b> <i>Risk premia</i> are returns paid for bearing a risk others avoid. <i>Flows and calendar</i> are returns that come from when large investors have to trade.</p>
-<p><b>It is simulated.</b> No money is invested. The simulation runs from <span class="start"></span>, and everything before <span class="live"></span> is a backtest: rules applied to history after the fact. From that date on the record is out of sample, because the rules were fixed before the returns happened. The two are shown apart.</p>
-<p class="note">Returns are in excess of the 3-month Treasury bill, after trading costs. Not investment advice. No positions are recommended.</p>
-</section><hr>
 <section id="book"><h2>Book today</h2>
 <div class="kpi" id="kp"></div>
+<p id="state" class="sub"></p>
 <div class="scroll"><table id="st"></table></div>
-<p class="note">Each strategy is shown at a common volatility scale. Alpha is what is left of the return after removing the part explained by the S&amp;P 500, per unit of its own risk.</p>
+<p class="note">Each strategy is shown at its own 10% volatility scale. The book holds one ninth of each, times a diversification multiplier. Alpha is what is left of the return after removing the part explained by the S&amp;P 500, per unit of its own risk.</p>
+</section><hr>
+<section id="sleeves"><h2>Strategies</h2>
+<div class="scroll"><table id="sl"></table></div>
 </section><hr>
 <section id="perf"><h2>Performance</h2>
 <div class="tog" id="wt">Window <button data-w="252">[1Y]</button><button data-w="1260">[5Y]</button><button data-w="0">[Full]</button></div>
 <div class="exh">Exhibit 1 <span>Cumulative excess return, rebased to 100, log scale. A dashed vertical line marks the start of the out-of-sample record once it is inside the window.</span></div><div id="c1"></div>
 <div class="exh">Exhibit 2 <span>Drawdown from the running peak</span></div><div id="c2"></div>
-<div class="exh">Exhibit 3 <span>Each strategy at a common volatility scale, cumulative, rebased to 100. The grey line is 100.</span></div><div class="grid" id="g3"></div>
+<div class="exh">Exhibit 3 <span>Each strategy at its own 10% volatility scale, cumulative, rebased to 100. The grey line is 100.</span></div><div class="grid" id="g3"></div>
 <div class="scroll" style="margin-top:16px"><table id="pt"></table></div>
 <div class="exh">Table <span>Book, monthly returns in percent</span></div>
 <div class="scroll"><table id="mt" class="cm"></table></div>
@@ -37,14 +35,20 @@
 </section><hr>
 <section id="trades"><h2>Trades</h2>
 <div class="scroll"><table id="bl"></table></div>
-<p class="note">Changes in position of at least 0.2% of capital over the last ten sessions and into the next one. A position takes effect in the session shown and is traded at the close before it.</p>
+<p class="note">Changes in position of at least 0.2% of capital over the last ten sessions and into the next one. A position takes effect in the session shown and is traded at the close before it. Reactive positions are left alone until the target leaves a band of 10% of the average size.</p>
+</section><hr>
+<section id="signals"><h2>Signals</h2>
+<div class="exh">Table <span>Twelve-month momentum is the excess return over its volatility, in standard deviations. Momentum and value ranks are inside the asset class, 0 to 100. Carry is the annual return if prices do not move.</span></div>
+<div class="scroll"><table id="sg"></table></div>
+<div class="exh">Monitors <span>Read daily, not traded</span></div>
+<div class="scroll"><table id="mn"></table></div>
 </section><hr>
 <section id="risk"><h2>Risk</h2>
 <div class="kpi" id="rk"></div>
 <div class="two"><div class="scroll"><table id="rc"></table></div><div class="scroll"><table id="ec"></table></div></div>
 <div class="exh">Table <span>What the book did in past episodes, against passive portfolios</span></div>
 <div class="scroll"><table id="sx"></table></div>
-<p class="note">Volatility, VaR and expected shortfall come from the book's own daily returns over the last two years; VaR and shortfall are one day at 95%. Its bad days cluster when volatility jumps: the two volatility shocks in the table are its worst episodes.</p>
+<p class="note">Volatility, VaR and expected shortfall come from the book's own daily returns over the last two years; VaR and shortfall are one day at 95%. The book is short volatility in more than one sleeve, so its bad days cluster when volatility jumps: the two volatility shocks in the table are its worst episodes.</p>
 <div class="exh">Table <span>Correlation between strategies, last five years</span></div>
 <div class="scroll"><table id="cr" class="cm"></table></div>
 </section><hr>
@@ -57,16 +61,17 @@
 <div class="exh">Table <span>Sharpe ratio by starting year: does the result depend on where the sample begins?</span></div>
 <div class="scroll"><table id="bs"></table></div>
 <p class="note" id="bsn"></p>
-<p class="note">Trying many ideas and keeping some produces a good-looking backtest by luck alone. The chance that the gain is real, and the deflated Sharpe ratio, are corrections for that: the second counts every idea tried.</p>
+<p class="note">The chance that the gain is real comes from a block bootstrap of the difference in Sharpe ratios. The deflated Sharpe ratio (Bailey and Lopez de Prado) asks how likely it is that the true Sharpe ratio is above zero once you allow for the number of ideas tried. Trying many ideas and keeping some produces a good-looking backtest by luck alone, and this is the correction for it.</p>
+<div class="exh">Table <span>Every idea tried, in the book or not</span></div>
+<div class="scroll"><table id="tt"></table></div>
 </section><hr>
 <section id="data"><h2>Data</h2>
-<ul class="idx"><li><a href="data/book_daily.csv">book_daily.csv</a><br><span class="s">Daily excess returns: the book, the nine strategies, the S&amp;P 500 and a 60/40 portfolio.</span></li>
+<ul class="idx"><li><a href="data/book_daily.csv">book_daily.csv</a><br><span class="s">Daily excess returns: the book, the nine strategies, the four ideas left out, the S&amp;P 500 and a 60/40 portfolio.</span></li>
 <li><a href="data/exposure_daily.csv">exposure_daily.csv</a><br><span class="s">Daily net exposure by asset class, overnight exposure, gross and net.</span></li>
-<li><a href="data/meta.json">meta.json</a><br><span class="s">Positions, trades, risk, criteria and all statistics.</span></li></ul>
+<li><a href="data/meta.json">meta.json</a><br><span class="s">Positions, trades, signals, risk, criteria and all statistics.</span></li></ul>
 </section><hr>
 <section id="limits"><h2>Limits</h2>
 <p>A backtest is not a track record. The sample starts in 2008. Several strategies are long equities part of the time, so the book has a correlation of about one half with the S&amp;P 500 and part of its return is equity risk taken at chosen moments. It loses sharply when volatility jumps. Effects of this kind can fade once they are widely known, and some depend on trading at very low cost. ETF closing prices are not always tradable in size.</p>
-<p class="note">The methodology, inputs and code behind this page are not published.</p>
 <p class="note">Educational research. Simulated results have inherent limits and do not represent actual trading. Not investment advice.</p>
 </section>
 <script src="../assets/plot.js"></script><script src="quant.js"></script>

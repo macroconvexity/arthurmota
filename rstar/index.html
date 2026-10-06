@@ -1,20 +1,14 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>R-star · Arthur Mota</title>
-<meta name="description" content="The US neutral real interest rate: the median and range across families of estimates, and the stance of policy. Updated weekly.">
+<meta name="description" content="The US neutral real interest rate by several methods: Federal Reserve models, market forward real rates, surveys and trend measures, with the range across them and the stance of policy. Updated weekly.">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="../assets/mono.css">
 </head><body>
 <header><div class="mast"><a href="../"><svg class="logo" viewBox="0 0 32 32" aria-label="home"><rect width="32" height="32" fill="#111"/><path d="M7 11h18M12 11v13M20 11v9.5a3.5 3.5 0 0 0 3.5 3.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="square"/></svg></a><h1>R-star</h1></div>
 <p class="tag">US neutral real interest rate · Several methods, one page · Weekly</p>
 <p class="sub" id="stamp">Loading.</p>
-<nav><a href="../">[home]</a><a href="../#lab">[lab]</a><a href="#read">[how to read]</a><a href="#now">[today]</a><a href="#est">[estimates]</a><a href="#hist">[history]</a><a href="#stance">[stance]</a><a href="#bcb">[BCB lens]</a><a href="#data">[data]</a><a href="#limits">[limits]</a></nav></header>
+<nav><a href="../">[home]</a><a href="../#lab">[lab]</a><a href="#now">[today]</a><a href="#est">[estimates]</a><a href="#hist">[history]</a><a href="#stance">[stance]</a><a href="#bcb">[BCB lens]</a><a href="#data">[data]</a><a href="#limits">[limits]</a></nav></header>
 <hr>
-<section id="read"><h2>How to read this page</h2>
-<p>R-star is the real interest rate that neither stimulates nor restrains the economy once it is at full employment with inflation on target. It is the benchmark against which a policy rate is judged tight or loose. Nobody observes it. It has to be inferred, and every method infers something slightly different.</p>
-<p>This page combines four families of estimates: statistical models, what the bond market prices for the distant future, surveys and official projections, and the trend of real rates themselves. The useful reading is the range and where the families agree, not any single number.</p>
-<p><b>Real against which inflation.</b> <span id="basisn"></span></p>
-<p class="note">All rates are real, in percent a year. Not investment advice.</p>
-</section><hr>
 <section id="now"><h2>Today</h2>
 <div class="kpi" id="kp"></div>
 <p id="verdict" class="sub"></p>
@@ -23,15 +17,17 @@
 <div class="tog bt">Inflation basis <button data-b="cpi">[CPI]</button><button data-b="pce">[PCE]</button></div>
 <div class="scroll"><table id="tb"></table></div>
 <p class="note" id="tbn"></p>
-<div class="exh">Exhibit 1 <span>Latest estimate by family in <span class="bn">CPI</span> terms, percent, highest first</span></div>
+<div class="exh">Exhibit 1 <span>Latest estimate by method in <span class="bn">CPI</span> terms, percent, highest first. Grey bars are shown for reference and are not in the median.</span></div>
 <div id="c1"></div>
+<div class="exh">Table <span>What moves the two New York Fed models: r-star is trend growth plus everything else</span></div>
+<div class="scroll"><table id="dc"></table></div>
 </section><hr>
 <section id="hist"><h2>History</h2>
 <div class="tog bt">Inflation basis <button data-b="cpi">[CPI]</button><button data-b="pce">[PCE]</button></div>
 <div class="tog" id="wt">Window <button data-w="60">[5Y]</button><button data-w="120">[10Y]</button><button data-w="0">[Full]</button></div>
-<div class="exh">Exhibit 2 <span>Median across estimates and the range between the lowest and the highest, <span class="bn">CPI</span> terms, percent</span></div>
+<div class="exh">Exhibit 2 <span>Median across methods and the range between the lowest and the highest, <span class="bn">CPI</span> terms, percent</span></div>
 <div id="c2"></div>
-<div class="exh">Exhibit 3 <span>Each family on its own. The grey line is zero.</span></div>
+<div class="exh">Exhibit 3 <span>Each method on its own. The grey line is zero.</span></div>
 <div class="grid" id="g3"></div>
 </section><hr>
 <section id="stance"><h2>Stance of policy</h2>
@@ -44,16 +40,16 @@
 <div id="c4"></div>
 </section><hr>
 <section id="bcb"><h2>The Banco Central do Brasil lens</h2>
-<p>The Banco Central do Brasil does not publish one neutral rate. It reports a set of measures and summarises them by their median and range. The same exercise is repeated here for the United States.</p>
-<p class="sub" id="bcbn"></p>
+<p id="bcbp"></p>
+<div class="scroll"><table id="bt"></table></div>
+<p class="note" id="bcbn"></p>
 </section><hr>
 <section id="data"><h2>Data</h2>
-<ul class="idx"><li><a href="data/history.csv">history.csv</a><br><span class="s">Month end: the median, the range, the median of each family and the real policy rate, each in CPI terms and in PCE terms.</span></li>
-<li><a href="data/meta.json">meta.json</a><br><span class="s">Latest values and the stance of policy.</span></li></ul>
+<ul class="idx"><li><a href="data/history.csv">history.csv</a><br><span class="s">Month-end value of every estimate, the median, the range and the real policy rate, each in CPI terms and in PCE terms.</span></li>
+<li><a href="data/meta.json">meta.json</a><br><span class="s">Latest values, dates, sources and the stance of policy.</span></li></ul>
 </section><hr>
 <section id="limits"><h2>Limits</h2>
 <p>Model estimates have wide statistical bands, of a point or more on either side, and are revised as data are revised. Market measures move with risk appetite and with the supply of Treasuries, not only with views on the neutral rate. Survey measures move slowly and can lag. Trend measures follow policy itself, so they say where real rates have been, not where neutral is. Agreement across families is the only reassurance available, and even that can be shared error.</p>
-<p class="note">The methodology, inputs and code behind this page are not published.</p>
 <p class="note">Educational research. Not investment advice. This is not an official release of any institution.</p>
 </section>
 <script src="../assets/plot.js"></script><script src="rstar.js"></script>

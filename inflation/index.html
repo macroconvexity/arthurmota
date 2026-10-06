@@ -1,20 +1,14 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Inflation · Arthur Mota</title>
-<meta name="description" content="US CPI forecast for the next release and a monthly path to the end of next year, headline and core. Updated daily.">
+<meta name="description" content="US CPI forecast for the next release and a monthly path to the end of next year, headline and core. Energy is refreshed every day from pump prices and the futures curve.">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="../assets/mono.css">
 </head><body>
 <header><div class="mast"><a href="../"><svg class="logo" viewBox="0 0 32 32" aria-label="home"><rect width="32" height="32" fill="#111"/><path d="M7 11h18M12 11v13M20 11v9.5a3.5 3.5 0 0 0 3.5 3.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="square"/></svg></a><h1>Inflation</h1></div>
 <p class="tag">US consumer prices · The next print and the path ahead · Daily</p>
 <p class="sub" id="stamp">Loading.</p>
-<nav><a href="../">[home]</a><a href="../#lab">[lab]</a><a href="#read">[how to read]</a><a href="#next">[next print]</a><a href="#energy">[energy]</a><a href="#path">[path]</a><a href="#cal">[calendar]</a><a href="#record">[record]</a><a href="#data">[data]</a></nav></header>
+<nav><a href="../">[home]</a><a href="../#lab">[lab]</a><a href="#next">[next print]</a><a href="#energy">[energy]</a><a href="#path">[path]</a><a href="#cal">[calendar]</a><a href="#record">[record]</a><a href="#data">[data]</a></nav></header>
 <hr>
-<section id="read"><h2>How to read this page</h2>
-<p>This page forecasts the US Consumer Price Index: the next monthly release, and the path of headline and core inflation to the end of next year. It is refreshed every day as energy prices move, and on each release day when the official number comes in.</p>
-<p><b>Headline and core.</b> Headline is the whole index. Core leaves out food and energy, which swing the most and say the least about where inflation is settling.</p>
-<p><b>Two ways to quote it.</b> The monthly change is seasonally adjusted, which is how the market reads a print. The 12-month rate is computed on the unadjusted index, which is how the BLS publishes it.</p>
-<p class="note">Built on public data. The methodology, inputs and code behind this page are not published. Not investment advice.</p>
-</section><hr>
 <section id="next"><h2>Next print</h2>
 <p id="nx" class="sub"></p>
 <div class="kpi" id="kp"></div>
@@ -50,9 +44,10 @@
 </section><hr>
 <section id="data"><h2>Data</h2>
 <ul class="idx"><li><a href="data/path.csv">path.csv</a><br><span class="s">Three years of official prints and the forecast to the end of next year: monthly changes, 12-month rates, indexes, release dates.</span></li>
-<li><a href="data/gasoline_weekly.csv">gasoline_weekly.csv</a><br><span class="s">Weekly pump price, observed and projected.</span></li>
+<li><a href="data/gasoline_weekly.csv">gasoline_weekly.csv</a><br><span class="s">Weekly pump price and wholesale price, observed and projected.</span></li>
 <li><a href="data/history.csv">history.csv</a><br><span class="s">The call for each print as it stood on every day it was made.</span></li>
 </ul>
+<p class="note">Built on public data. Not investment advice.</p>
 </section>
 
 <script src="../assets/plot.js"></script><script src="inflation.js"></script>

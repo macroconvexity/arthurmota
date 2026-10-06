@@ -1,20 +1,14 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Yield Decomposition · Arthur Mota</title>
-<meta name="description" content="Daily decomposition of US Treasury yields into expected inflation, inflation risk premium, expected real rate and real term premium.">
+<meta name="description" content="Daily decomposition of US Treasury yields into expected inflation, inflation risk premium, expected real rate and real term premium, merging the ACM and DKW models and carried to the last market close.">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="../assets/mono.css">
 </head><body>
 <header><div class="mast"><a href="../"><svg class="logo" viewBox="0 0 32 32" aria-label="home"><rect width="32" height="32" fill="#111"/><path d="M7 11h18M12 11v13M20 11v9.5a3.5 3.5 0 0 0 3.5 3.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="square"/></svg></a><h1>Yield decomposition</h1></div>
 <p class="tag">US Treasury yields · What is priced, and why · Daily</p>
 <p class="sub" id="stamp">Loading.</p>
-<nav><a href="../">[home]</a><a href="../#lab">[lab]</a><a href="#read">[how to read]</a><a href="#now">[today]</a><a href="#hist">[history]</a><a href="#move">[what moved]</a><a href="#bei">[breakeven]</a><a href="#tp">[term premium]</a><a href="#data">[data]</a><a href="#limits">[limits]</a></nav></header>
+<nav><a href="../">[home]</a><a href="../#lab">[lab]</a><a href="#now">[today]</a><a href="#hist">[history]</a><a href="#move">[what moved]</a><a href="#bei">[breakeven]</a><a href="#tp">[term premium]</a><a href="#data">[data]</a><a href="#limits">[limits]</a></nav></header>
 <hr>
-<section id="read"><h2>How to read this page</h2>
-<p>A Treasury yield is not one number. It bundles what investors expect and what they charge for bearing risk. This page splits it into four pieces every day:</p>
-<p class="eq">yield = expected inflation + inflation risk premium + expected real rate + real term premium</p>
-<p><b>Expected inflation</b> is the average inflation investors expect over the life of the bond. <b>Expected real rate</b> is the average policy rate they expect, after inflation. Together they are the path of policy the market has in mind. The two <b>premia</b> are the extra yield demanded for the risk that inflation, or real rates, turn out different. When a yield rises, the split says whether the market changed its view of the central bank or simply wants more compensation for holding duration.</p>
-<p class="note">None of these pieces is observed. They are estimates, and estimates of this kind disagree with one another.</p>
-</section><hr>
 <section id="now"><h2>Today</h2>
 <div class="tog" id="mt">Maturity <button data-m="5y">[5y]</button><button data-m="10y">[10y]</button><button data-m="5y5y">[5y5y forward]</button></div>
 <div class="scroll"><table id="snap"></table></div>
@@ -22,7 +16,7 @@
 </section><hr>
 <section id="hist"><h2>History</h2>
 <div class="tog" id="wt">Window <button data-w="63">[3M]</button><button data-w="252">[1Y]</button><button data-w="1260">[5Y]</button><button data-w="0">[Full]</button></div>
-<div class="exh">Exhibit 1 <span>The yield and its four pieces, percent. The line is the market yield. The dashed vertical line marks where the latest, provisional days begin.</span></div>
+<div class="exh">Exhibit 1 <span>The yield and its four pieces, percent. The line is the market yield. The dashed vertical line marks where the nowcast begins.</span></div>
 <div id="c1"></div>
 </section><hr>
 <section id="move"><h2>What moved the yield</h2>
@@ -31,7 +25,6 @@
 <p class="note">Change in each piece over the selected window, in basis points. The bars add up to the change in the market yield.</p>
 </section><hr>
 <section id="bei"><h2>Breakeven and real yield</h2>
-<p>The breakeven rate, the gap between a nominal and an inflation-protected yield, is often read as expected inflation. It is not only that. It also holds the inflation risk premium, and it is pushed down by the liquidity premium investors demand to hold the less traded inflation-protected bond:</p>
 <p class="eq">breakeven = expected inflation + inflation risk premium &minus; liquidity premium</p>
 <div class="exh">Exhibit 3 <span>Breakeven rate and its pieces, percent. The line is the market breakeven.</span></div>
 <div id="c3"></div>
@@ -39,21 +32,19 @@
 <div class="exh">Exhibit 4 <span>Inflation-protected yield and its pieces, percent. The line is the market real yield.</span></div>
 <div id="c4"></div>
 </section><hr>
-<section id="tp"><h2>Term premium: how far estimates disagree</h2>
-<div class="exh">Exhibit 5 <span>Nominal term premium, percent: the estimate used on this page and two alternatives</span></div>
+<section id="tp"><h2>Term premium: where the models disagree</h2>
+<div class="exh">Exhibit 5 <span>Nominal term premium, percent: each model and the merged estimate used on this page</span></div>
 <div id="c5"></div>
-<p class="note">The gap between the dashed lines is the uncertainty of the estimate. Read the level of a term premium with that width in mind, and its changes with more confidence.</p>
 </section><hr>
 <section id="data"><h2>Data</h2>
 <ul class="idx">
-<li><a href="data/decomp_10y.csv">decomp_10y.csv</a> · <a href="data/decomp_5y.csv">decomp_5y.csv</a> · <a href="data/decomp_5y5y.csv">decomp_5y5y.csv</a><br><span class="s">Daily since 2000, percent. Market yield, the four pieces, residual, liquidity premium, real yield, breakeven, the term premium with two alternative estimates, and a flag for provisional days.</span></li>
-<li><a href="data/meta.json">meta.json</a><br><span class="s">Dates the data run through.</span></li></ul>
+<li><a href="data/decomp_10y.csv">decomp_10y.csv</a> · <a href="data/decomp_5y.csv">decomp_5y.csv</a> · <a href="data/decomp_5y5y.csv">decomp_5y5y.csv</a><br><span class="s">Daily since 2000, percent. Market yield, the four pieces, residual, liquidity premium, real yield, breakeven, each model's term premium and expected path, and a flag for nowcast days.</span></li>
+<li><a href="data/meta.json">meta.json</a><br><span class="s">Dates each source runs through and the fit of the nowcast.</span></li></ul>
 <pre>import pandas as pd
 d = pd.read_csv("https://macroconvexity.github.io/arthurmota/yields/data/decomp_10y.csv", index_col=0, parse_dates=True)</pre>
 </section><hr>
 <section id="limits"><h2>Limits</h2>
 <p>The pieces are estimates and are revised. The latest days are provisional and are replaced as the estimates are updated. The residual is the small part of the market yield the split leaves unassigned, a few basis points. Expected inflation moves slowly, so most daily action lands in the real pieces. Read the level of a term premium with the disagreement between estimates in mind, and its changes with more confidence.</p>
-<p class="note">The methodology, inputs and code behind this page are not published.</p>
 <p class="note">Educational research. Not investment advice. This is not an official statistical release of any institution.</p>
 </section>
 <script src="../assets/plot.js"></script><script src="yields.js"></script>

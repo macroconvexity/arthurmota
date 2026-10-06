@@ -8,11 +8,8 @@
 <header><div class="mast"><a href="./"><svg class="logo" viewBox="0 0 32 32" aria-label="home"><rect width="32" height="32" fill="#111"/><path d="M7 11h18M12 11v13M20 11v9.5a3.5 3.5 0 0 0 3.5 3.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="square"/></svg></a><h1>Options Strategy Playground</h1></div>
 <p class="tag">Research lab · Derivatives pricing</p>
 <p class="sub">Black-Scholes pricing for eight standard option strategies. Pick a structure, move the strikes, the volatility and the time left, and see the profit and loss at expiry, the value today, the breakevens and the net Greeks.</p>
-<nav><a href="./">[home]</a><a href="./#lab">[lab]</a><a href="#read">[how to read]</a><a href="#model">[inputs]</a><a href="#results">[results]</a><a href="#method">[method]</a></nav></header>
+<nav><a href="./">[home]</a><a href="./#lab">[lab]</a><a href="#model">[inputs]</a><a href="#results">[results]</a><a href="#method">[method]</a></nav></header>
 <hr>
-<section id="read"><h2>How to read this</h2>
-<p>An option is a contract that pays off only if the underlying price ends on one side of a fixed level, the strike. A call pays when the price ends above the strike, a put when it ends below. A strategy is a bundle of such contracts, sometimes with the stock itself. The chart shows what the bundle earns or loses for each possible price of the underlying. The solid line is the result if held to expiry, net of what the position cost today. The dashed line is what the position would be worth right now if the price jumped to that level, which is why it is smooth: time and volatility are still in the price. The gap between the two lines is time value. The Greeks say how the value today moves when one input changes by a small amount and the others stay put.</p>
-</section><hr>
 <section id="model"><h2>Inputs</h2>
 <div class="ctl">
  <label>Strategy <select id="strat" style="width:100%"></select></label>

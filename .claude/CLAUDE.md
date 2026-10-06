@@ -10,16 +10,16 @@ Pages and results. Each lab page (`/risk/`, `/yields/`, `/curve/`, `/fx/`, `/qua
 their inputs and the paper sources live in Arthur's private models repository, and work on any of them belongs in a
 session opened there. The `data/` folders are written by jobs in that repository every day: read them, never edit them.
 
-## The disclosure rule
+## Page style
 
-The site shows results and how to read them. It does not show how they are produced. A page says what each number
-is, states its limits in terms of the outcome, and carries the line "The methodology, inputs and code behind this page
-are not published." Sources, formulas of construction, parameters, sample choices, estimation steps, rule definitions
-and code stay out of the HTML, the scripts, the data files and this repository. A request to explain a method on a
-page is answered with what the number means.
+Arthur's rule, 2026-10-06: a page is exhibits, tables and tools, with short captions and a short Limits section.
 
-A script only displays what `data/` holds. Anything that has to be computed is computed upstream and arrives as a
-number.
+- Show the substance: every estimate by name, the tables behind a result, the interactive tools.
+- Leave out the hand-holding: no "How to read this page" section, no paragraphs teaching how to interpret a table,
+  no method write-ups.
+- Pages do not link to code. The inflation page shows the forecast and its record, never how it is made.
+- The S&P 500 page runs its valuation in the browser. Its script mirrors the model in the private repository, so a
+  change to one needs the other.
 
 ## Publishing
 

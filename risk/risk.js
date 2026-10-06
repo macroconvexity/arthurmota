@@ -4,7 +4,7 @@ const [raw,M,R,SP,Y,meta]=await Promise.all([fetch('data/returns_daily.csv').the
 const L=raw.trim().split('\n'),cols=L[0].split(','),D=[],C={};cols.slice(1).forEach(c=>C[c]=[]);
 for(let i=1;i<L.length;i++){const p=L[i].split(',');D.push(p[0]);for(let j=1;j<p.length;j++)C[cols[j]].push(p[j]===''?NaN:+p[j]);}
 const $=id=>document.getElementById(id),lab=meta.labels,N=D.length,FK=Object.keys(meta.factor_defs),GRAY='#888';
-$('stamp').textContent=`Data through ${meta.last_date}. T-bill ${meta.rf_last_annual_pct}%.`;
+$('stamp').textContent=`Data through ${meta.last_date}. ${meta.n_stocks} stocks, $${meta.mktcap_usd_tn} trillion. Portfolios formed ${meta.formation}. T-bill ${meta.rf_last_annual_pct}%.`;
 const M_=s=>s.replace(/^-/,'\u2212'),P=(x,d=1)=>x==null?'–':M_((x*100).toFixed(d)+'%'),F=(x,d=2)=>x==null?'–':M_(x.toFixed(d));
 let win='Full';const NW={'1Y':252,'5Y':1260,Full:N};
 const slice=()=>{const n=Math.min(NW[win],N);return[N-n,N]};
@@ -84,7 +84,7 @@ function years(){
 }
 function french(){const f=meta.french;
  $('ft').innerHTML=f.error?'<tr><td>Ken French library unavailable on the last run.</td></tr>':'<tr><th>Factor</th><th class="n">Daily corr.</th><th class="n">Monthly corr.</th><th class="n">This model p.a.</th><th class="n">French p.a.</th></tr>'+Object.keys(f).filter(k=>f[k].corr!=null).map(k=>`<tr><td>${k}</td><td class="n">${F(f[k].corr)}</td><td class="n">${F(f[k].corr_m)}</td><td class="n">${P(f[k].ann)}</td><td class="n">${P(f[k].ann_ff)}</td></tr>`).join('')+`<tr><td class="t" colspan="5">Common sample from ${meta.start} to ${f.through}, arithmetic mean annualised.</td></tr>`;}
-$('fdef').innerHTML='<tr><th>Factor</th><th>In plain words</th></tr>'+FK.map(k=>`<tr><td>${k} <span class="t">${meta.factor_defs[k].label}</span></td><td>${meta.factor_defs[k].plain}</td></tr>`).join('');
+$('fdef').innerHTML='<tr><th>Factor</th><th>In plain words</th><th>Sorted on</th></tr>'+FK.map(k=>`<tr><td>${k} <span class="t">${meta.factor_defs[k].label}</span></td><td>${meta.factor_defs[k].plain}</td><td>${meta.factor_defs[k].signal}</td></tr>`).join('');
 const sel=$('sel');['Factor','Sorted portfolio','Sector portfolio','Style ETF','Factor ETF'].forEach(g=>{const o=document.createElement('optgroup');o.label=g;Object.keys(lab).filter(k=>lab[k].group===g).forEach(k=>{const e=document.createElement('option');e.value=k;e.textContent=g==='Factor'?k+' · '+lab[k].label:lab[k].label+(g.includes('ETF')?' ('+k+')':'');o.appendChild(e)});sel.appendChild(o)});
 sel.value='HML';
 const ms=$('msel'),MN={CAPM:'CAPM',FF3:'Three factor',C4:'Four factor, with momentum',FF6:'Six factor',ALL:'All seventeen factors'};

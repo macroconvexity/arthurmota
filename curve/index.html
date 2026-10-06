@@ -1,25 +1,20 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Yield Curve · Arthur Mota</title>
-<meta name="description" content="Where the US Treasury curve from 2 to 30 years is priced to be at each month end to December of next year, the federal funds path priced meeting by meeting, and the path policy rules call for. Updated daily.">
+<meta name="description" content="Where the US Treasury curve from 2 to 30 years is priced to be at each month end to December of next year, the federal funds path priced meeting by meeting, and the path called for by the median of twelve forward-looking policy rules anchored on time-varying estimates of the neutral rate. Updated daily.">
 <link rel="icon" href="../favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="../assets/mono.css">
 </head><body>
 <header><div class="mast"><a href="../"><svg class="logo" viewBox="0 0 32 32" aria-label="home"><rect width="32" height="32" fill="#111"/><path d="M7 11h18M12 11v13M20 11v9.5a3.5 3.5 0 0 0 3.5 3.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="square"/></svg></a><h1>Yield curve</h1></div>
 <p class="tag">US Treasury curve and the federal funds path · Priced and rule-implied · Daily</p>
 <p class="sub" id="stamp">Loading.</p>
-<nav><a href="../">[home]</a><a href="../#lab">[lab]</a><a href="#read">[how to read]</a><a href="#now">[today]</a><a href="#policy">[policy path]</a><a href="#curve">[curve]</a><a href="#rules">[rules]</a><a href="#track">[track record]</a><a href="#data">[data]</a><a href="#limits">[limits]</a></nav></header>
+<nav><a href="../">[home]</a><a href="../#lab">[lab]</a><a href="#now">[today]</a><a href="#policy">[policy path]</a><a href="#curve">[curve]</a><a href="#rules">[rules]</a><a href="#track">[track record]</a><a href="#data">[data]</a><a href="#limits">[limits]</a></nav></header>
 <hr>
-<section id="read"><h2>How to read this page</h2>
-<p>The Treasury curve already contains a path for itself. A forward yield is the rate the market locks in today for a bond that starts at a later date, so the curve says where each maturity is priced to be next month, next quarter and at the end of next year. Federal funds futures do the same for the policy rate, meeting by meeting. This page reads both every day and lays them out month by month.</p>
-<p>It then asks a second question: what rate would the Federal Reserve's own past behaviour call for? A set of forward-looking policy rules gives two numbers. The first is the rate the rules <b>call for</b>: where policy would sit if it adjusted in full. The second is the <b>rule path</b>: starting from today's rate and closing the distance at the pace the Federal Reserve has moved in the past, meeting by meeting. The gap between the rule path and the priced path moves the curve to give a second set of projections.</p>
-<p class="note">Priced is not predicted. A forward yield includes a premium for bearing risk, and since 1990 forwards have been a worse guide to where yields ended up than assuming no change (see the track record). The rules describe past behaviour, not what policy should be. Not investment advice.</p>
-</section><hr>
 <section id="now"><h2>Today</h2>
 <div class="kpi" id="kp"></div>
 <p id="verdict" class="sub"></p>
 </section><hr>
 <section id="policy"><h2>Federal funds path</h2>
-<div class="exh">Exhibit 1 <span>Effective federal funds rate: history, the path priced in futures, the rate the median rule calls for, and the median rule path, percent</span></div>
+<div class="exh">Exhibit 1 <span>Effective federal funds rate: history, the path priced in futures, the rate the median rule calls for, and the median rule path at the estimated speed of adjustment, percent</span></div>
 <div id="c1"></div>
 <div class="exh">Table <span>By FOMC meeting: rate after the decision and the step at that meeting</span></div>
 <div class="scroll"><table id="mt"></table></div>
@@ -37,9 +32,14 @@
 </section><hr>
 <section id="rules"><h2>The rules</h2>
 <p id="rp"></p>
+<div class="scroll"><table id="rt"></table></div>
+<p class="note" id="rtn"></p>
+<div class="exh">Table <span>What goes into the rules, by quarter: forecasts for the four quarters that follow, and what the median rule makes of them</span></div>
+<div class="scroll"><table id="it"></table></div>
+<p class="note" id="itn"></p>
 <div class="exh">Exhibit 4 <span>The policy rate against the rate the median rule called for, percent</span></div>
 <div id="c4"></div>
-<p class="note">The rate called for swings more than the rate itself, because the rate moves only part of the way each quarter. The rules called for far more than the Federal Reserve delivered in 2017 to 2019, and for deeply negative rates in 2020.</p>
+<p class="note">The rate called for swings more than the rate itself, because the rate moves only part of the way each quarter. The rules called for far more than the Federal Reserve delivered in 2017 to 2019, when unemployment ran below its noncyclical rate, and for deeply negative rates in 2020. Quarters with the rate at its floor are left out of the estimation but shown here.</p>
 </section><hr>
 <section id="track"><h2>Track record of the priced curve</h2>
 <p>How far forward yields have been from the yield that followed, every month end since <span id="ts"></span>. A positive average error means yields ended below what was priced. The last column is the miss from assuming the yield would not change.</p>
@@ -50,11 +50,11 @@
 <section id="data"><h2>Data</h2>
 <ul class="idx"><li><a href="data/projections.csv">projections.csv</a><br><span class="s">Every month end to the horizon: the policy rate and each vertex, priced and under the rules.</span></li>
 <li><a href="data/policy_path.csv">policy_path.csv</a><br><span class="s">Every FOMC meeting: priced rate and step, the rate the median rule calls for, the median rule path, its interquartile range and full range.</span></li>
-<li><a href="data/meta.json">meta.json</a><br><span class="s">Everything on this page, with dates.</span></li></ul>
+<li><a href="data/rules.csv">rules.csv</a><br><span class="s">The twelve rules: neutral rate, sample, estimated responses, fit.</span></li>
+<li><a href="data/meta.json">meta.json</a><br><span class="s">Everything on this page, with dates and sources.</span></li></ul>
 </section><hr>
 <section id="limits"><h2>Limits</h2>
 <p>Forwards carry a term premium, so the priced curve is a break-even, not a forecast. The futures path carries a small premium as well. The neutral rate behind any policy rule is not observed, and every rule inherits that uncertainty. A committee that reacts to something the rules do not see will depart from them. The rule numbers move less often than the priced path, which moves every day. The curve on the rule path ignores changes in the term premium.</p>
-<p class="note">The methodology, inputs and code behind this page are not published.</p>
 <p class="note">Educational research. Not investment advice. This is not an official release of any institution.</p>
 </section>
 <script src="../assets/plot.js"></script><script src="curve.js"></script>
