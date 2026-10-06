@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The Treasury premium by maturity · Arthur Mota</title>
+<meta name="description" content="A daily estimate of the convenience yield of US Treasuries from public data: SOFR swap rate minus Treasury yield from 3 months to 30 years, its history since 2020, and how it compares with the currency-hedged G10 measure.">
+<link rel="icon" href="../../favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="../../assets/mono.css">
+<style>section p,section li{font-size:13px}section ol,section ul{margin:0 0 16px;padding-left:20px}</style>
+</head><body>
+<header><div class="mast"><a href="../../"><svg class="logo" viewBox="0 0 32 32" aria-label="home"><rect width="32" height="32" fill="#111"/><path d="M7 11h18M12 11v13M20 11v9.5a3.5 3.5 0 0 0 3.5 3.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="square"/></svg></a><h1>The Treasury premium by maturity</h1></div>
+<p class="tag">Note · US rates · October 2026</p>
+<p class="sub" id="stamp">Loading.</p>
+<nav><a href="../../">[home]</a><a href="../">[notes]</a><a href="#result">[result]</a><a href="#curve">[by maturity]</a><a href="#history">[history]</a><a href="#hedged">[against the G10]</a><a href="#limits">[limits]</a><a href="#sources">[sources]</a></nav></header>
+<hr>
+<section id="result"><h2>Result</h2>
+<div class="kpi" id="kp"></div>
+<p>The Treasury premium here is the SOFR swap rate minus the Treasury yield at the same maturity. A positive number means investors accept a lower yield on the Treasury than on the swap, which is what a convenience yield looks like. A negative number means the Treasury has to pay more than the swap.</p>
+<p id="lead"></p>
+</section><hr>
+<section id="curve"><h2>By maturity</h2>
+<div class="exh">Exhibit 1 <span id="x1"></span></div><div id="c1"></div>
+<div class="exh">Table 1 <span>Treasury par yield, SOFR swap rate on the same basis, and the premium in basis points</span></div>
+<div class="scroll"><table id="t1"></table></div>
+<p class="note">Percentile is the share of days since October 2020 with a lower premium than the latest. Yields in percent, the rest in basis points.</p>
+<p style="margin-top:16px" id="slope"></p>
+</section><hr>
+<section id="history"><h2>History</h2>
+<div class="exh">Exhibit 2 <span>Premium at 2, 10 and 30 years, weekly, basis points</span></div><div id="c2"></div>
+<div class="exh">Table 2 <span>Average premium by year, basis points</span></div>
+<div class="scroll"><table id="t2"></table></div>
+<div class="exh">Table 3 <span>Premium and the level of the Treasury yield, monthly</span></div>
+<div class="scroll"><table id="t3"></table></div>
+<p class="note">Beta is the change in the premium, in basis points, for a one basis point change in the Treasury yield at the same maturity.</p>
+<p style="margin-top:16px" id="hist"></p>
+</section><hr>
+<section id="hedged"><h2>Against the G10</h2>
+<p>The other standard measure compares the Treasury with G10 government bonds swapped into dollars (Du, Im and Schreger, 2018). It is built from cross-currency swaps that have no public source, and the published series stops in June 2025. The two measures are linked by an identity: the hedged measure equals the US premium over swaps, minus the foreign bond's own premium over its swaps, minus the cross-currency basis.</p>
+<div class="exh">Exhibit 3 <span id="x3"></span></div><div id="c3"></div>
+<div class="exh">Table 4 <span id="x4"></span></div>
+<div class="scroll"><table id="t4"></table></div>
+<p style="margin-top:16px" id="hedge"></p>
+</section><hr>
+<section id="limits"><h2>Limits</h2>
+<ul>
+<li>A swap is not a bond. It needs no funding and little balance sheet, so part of the gap is the cost of holding a cash bond and not a judgment on the Treasury as a safe asset.</li>
+<li>Treasury par yields are the Treasury's fitted curve and the swap rates are an exchange's end-of-day curve. The two are struck at different times of the afternoon, which adds noise of a few basis points on volatile days.</li>
+<li>The record starts in October 2020, when a complete SOFR curve becomes available. Comparisons with the years before 2020 need Libor swaps, which carried bank credit risk and are not comparable.</li>
+<li>The 3-month and 6-month readings move with Treasury bill supply and with the path of policy priced inside the quarter, and are the noisiest on the page.</li>
+<li>The hedged G10 series is read from its authors' dataset and ends on 30 June 2025. Nothing after that date is estimated here.</li>
+</ul>
+</section><hr>
+<section id="sources"><h2>Sources</h2>
+<ul class="idx">
+<li>US Treasury, daily par yield curve rates.</li>
+<li>Eris Innovations, end-of-day SOFR par coupon curve.</li>
+<li>Du, W., Keerati, R. and Schreger, J. (2025). Decoupling dollar and Treasury privilege. Prepared for the 2025 IMF Annual Research Conference. Dataset of covered interest parity deviations between government bond yields, version 4.</li>
+<li>Du, W., Im, J. and Schreger, J. (2018). The U.S. Treasury premium. Journal of International Economics 112, 167 to 181.</li>
+</ul>
+<p class="note">Personal page. Views are my own and do not represent my employer. Nothing here is investment advice.</p></section>
+<script src="../../assets/plot.js"></script>
+<script src="note.js"></script>
+</body></html>
