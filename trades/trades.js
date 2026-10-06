@@ -7,7 +7,7 @@ const pc=(v,d=1)=>num(v)?M((v*100).toFixed(d))+'%':'–';          // fraction t
 const pp=(v,d=1)=>num(v)?M(v.toFixed(d))+'%':'–';                 // already percent
 const sp=(v,d=1)=>num(v)?(v>0?'+':'')+M(v.toFixed(d))+'%':'–';
 const f2=(v,d=2)=>num(v)?M(v.toFixed(d)):'–';
-const SLOT={open:'Open',midday:'12:00',afternoon:'14:30',manual:'Manual'};
+const SLOT={open:'Open',midday:'11:00',afternoon:'13:00',manual:'Manual'};
 function parseCsv(txt){const L=String(txt||'').trim().split('\n').filter(Boolean);if(L.length<2)return{cols:[],rows:[]};const cols=L[0].split(',').map(s=>s.trim());return{cols,rows:L.slice(1).map(l=>l.split(',').map(s=>s.trim()))}}
 function equity(txt){const c=parseCsv(txt),ix=k=>c.cols.indexOf(k),o={date:[],sys:[],spy:[],live:[]};
  c.rows.forEach(p=>{const s=parseFloat(p[ix('sys')]),b=parseFloat(p[ix('spy')]);if(!p[ix('date')]||!isFinite(s)||!isFinite(b))return;o.date.push(p[ix('date')]);o.sys.push(s);o.spy.push(b);o.live.push(p[ix('live')]==='1'?1:0)});return o}
@@ -55,7 +55,7 @@ function render(m,E,Wt,$,Plot){m=m||{};
  $('ps').innerHTML=posTable(P);
  const pv=A(m.preview),pvOn=m.slot==='midday'||m.slot==='afternoon';
  $('pvh').textContent='Preview'+(pvOn?', '+(SLOT[m.slot]):'');
- $('pv').innerHTML=pvOn||pv.length?(pv.length?'<p class="sub">What the next open would do at current prices ('+esc(m.as_of_ny||'')+' New York time). Nothing is traded before the open.</p>'+ordersTable(pv,true):'<p>The next open would not change any position at current prices.</p>'):'<p class="sub">Shown at 12:00 and 14:30.</p>';
+ $('pv').innerHTML=pvOn||pv.length?(pv.length?'<p class="sub">What the next open would do at current prices ('+esc(m.as_of_ny||'')+' New York time). Nothing is traded before the open.</p>'+ordersTable(pv,true):'<p>The next open would not change any position at current prices.</p>'):'<p class="sub">Shown at 11:00 and 13:00.</p>';
  $('kp').innerHTML=liveKpi(m,E);
  const sp_=chartSpec(E);
  if(sp_)Plot.line($('c1'),{...sp_,log:true,dec:2,base:1,title:'System against SPY'});else $('c1').innerHTML='<p>No equity data.</p>';
