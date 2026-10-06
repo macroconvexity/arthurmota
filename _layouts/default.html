@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{ page.title | default: site.title }} · Arthur Mota</title>
+<link rel="icon" href="{{ '/favicon.svg' | relative_url }}" type="image/svg+xml"><link rel="stylesheet" href="{{ '/assets/mono.css' | relative_url }}">
+<style>.md{font-size:13px}.md h1{font-size:20px;line-height:1.4;margin:0 0 16px}.md h2{margin:32px 0 12px;padding-top:24px;border-top:1px solid #ddd}.md h3{font-size:13px;margin:24px 0 8px}.md ul,.md ol{margin:0 0 16px;padding-left:20px}.md blockquote{margin:0 0 16px 20px;padding-left:12px;border-left:2px solid #111}.md table{margin:0 0 16px}.md sub,.md sup{font-size:10px;line-height:0}.md img{max-width:100%}</style>
+</head><body>
+<header><div class="mast"><a href="{{ '/' | relative_url }}"><svg class="logo" viewBox="0 0 32 32" aria-label="home"><rect width="32" height="32" fill="#111"/><path d="M7 11h18M12 11v13M20 11v9.5a3.5 3.5 0 0 0 3.5 3.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="square"/></svg></a><p class="tag" style="margin:0">Note · Arthur Mota</p></div>
+<nav><a href="{{ '/' | relative_url }}">[home]</a><a href="{{ '/notes/' | relative_url }}">[notes]</a><a href="{{ '/#research' | relative_url }}">[research]</a></nav></header>
+<hr>
+<article class="md">
+{{ content }}
+</article>
+<hr>
+<p class="note">Personal page. Views are my own and do not represent my employer. Nothing here is investment advice.</p>
+</body></html>
