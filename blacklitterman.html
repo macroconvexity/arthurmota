@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Black-Litterman lab · Arthur Mota</title>
+<meta name="description" content="Black-Litterman portfolio lab: back out the returns the market portfolio implies, blend them with your own views by confidence, and see the expected returns and weights that result.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="assets/mono.css">
+<style>
+td input[type=number]{min-width:54px}
+#tv td input[type=number]{min-width:48px}
+#ta,#tc{min-width:520px}#tv{min-width:640px}#tr{min-width:600px}#tq{min-width:560px}
+#msg{color:#111;font-weight:700;min-height:16px;margin:0 0 12px}
+tr.tot td{border-top:1px solid #111;font-weight:700}
+</style>
+</head><body>
+<header><div class="mast"><a href="./"><svg class="logo" viewBox="0 0 32 32" aria-label="home"><rect width="32" height="32" fill="#111"/><path d="M7 11h18M12 11v13M20 11v9.5a3.5 3.5 0 0 0 3.5 3.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="square"/></svg></a><h1>Black-Litterman lab</h1></div>
+<p class="tag">Research lab · Portfolio construction</p>
+<p class="sub">A Bayesian way to build a portfolio. Start from the returns the market portfolio implies, add your own views with a stated confidence, and read the expected returns and weights that come out.</p>
+<nav><a href="./">[home]</a><a href="./#lab">[lab]</a><a href="#read">[how to read]</a><a href="#model">[inputs]</a><a href="#views">[views]</a><a href="#results">[results]</a><a href="#method">[method]</a></nav></header>
+<hr>
+<section id="read"><h2>How to read this</h2>
+<p><b>The problem.</b> A portfolio optimiser needs an expected return for every asset, and small changes in those guesses produce wild swings in the weights. Black and Litterman turned the question around.</p>
+<p><b>The idea.</b> Assume the market portfolio is already a sensible portfolio. Then ask which expected returns would make an investor want to hold exactly that. Those are the equilibrium returns, the neutral starting point. You then state only the opinions you actually hold, for example "US equities will earn 8%" or "emerging markets will beat Japan by 2%", and how sure you are of each. The model moves the returns toward your views in proportion to that confidence, and spreads the adjustment to correlated assets.</p>
+<p><b>What to look at.</b> With no views the answer is the market portfolio. Each view tilts the weights away from it. A confident view tilts a lot, a vague one barely at all. All returns on this page are annual and in excess of the risk-free rate. All inputs are illustrative.</p>
+</section><hr>
+<section id="model"><h2>Inputs</h2>
+<div class="ctl">
+ <label>Risk aversion &delta; <span id="vd"></span><input type="range" id="delta" min="0.5" max="6" step="0.1" value="2.5"></label>
+ <label>Prior uncertainty &tau; <span id="vt"></span><input type="range" id="tau" min="0.01" max="1" step="0.01" value="0.05"></label>
+ <label>View uncertainty &Omega; <select id="omode"><option value="sd">as entered (standard error per view)</option><option value="hl">proportional to prior (He and Litterman)</option></select></label>
+</div>
+<div class="exh">Table 1 <span>Assets, market weights and volatility. Illustrative, not live data.</span></div>
+<div class="scroll"><table id="ta"></table></div>
+<p class="note" id="wnote"></p>
+<div class="exh">Table 2 <span>Correlation matrix. Edit the upper triangle, the lower mirrors it.</span></div>
+<div class="scroll"><table id="tc" class="cm"></table></div>
+<div class="kpi" style="margin-top:20px"><div><b id="k1">&ndash;</b>Market portfolio volatility</div><div><b id="k2">&ndash;</b>Market excess return implied</div><div><b id="k3">&ndash;</b>Market Sharpe ratio implied (&delta;&sigma;)</div></div>
+<p class="note">Risk aversion sets the level of all equilibrium returns: the implied Sharpe ratio of the market is &delta; times its volatility. If the number above looks too high or too low for the asset mix, move &delta;.</p>
+</section><hr>
+<section id="views"><h2>Views</h2>
+<p>Each row is one view. The weights define a portfolio. Weights that sum to 1 make an absolute view (that portfolio earns Q). Weights that sum to 0 make a relative view (the long leg beats the short leg by Q). The standard error says how wide your uncertainty around Q is: 0 means certain, a large number means the view is ignored. Under the He and Litterman option the standard error is not an input: the field is switched off and the view is used whatever it holds.</p>
+<div class="scroll"><table id="tv"></table></div>
+<p style="margin-top:10px"><button class="btn" id="addv">add view</button> <button class="btn" id="reset">reset inputs</button></p>
+<p id="msg"></p>
+<div class="exh">Table 3 <span>What each view does. The posterior sits between equilibrium and the view.</span></div>
+<div class="scroll"><table id="tq"></table></div>
+<p class="note">Weight on view is the share of the gap between equilibrium and the view that this view would close if it were the only one: P&tau;&Sigma;P&prime; / (P&tau;&Sigma;P&prime; + &omega;). With several correlated views the posterior can land elsewhere, because the views inform each other.</p>
+</section><hr>
+<section id="results"><h2>Results</h2>
+<div class="kpi"><div><b id="k4">&ndash;</b>Portfolio excess return, posterior</div><div><b id="k5">&ndash;</b>Portfolio volatility</div><div><b id="k6">&ndash;</b>Active risk versus market</div><div><b id="k7">&ndash;</b>Sum of risky weights</div></div>
+<div class="two">
+<div><div class="exh">Exhibit 1 <span>Expected excess return: equilibrium versus posterior</span></div><div id="c1"></div></div>
+<div><div class="exh">Exhibit 2 <span>Weights: market versus Black-Litterman</span></div><div id="c2"></div></div>
+</div>
+<div class="exh">Table 4 <span>Returns and weights by asset</span></div>
+<div class="scroll"><table id="tr"></table></div>
+<p class="note">The weights are the unconstrained mean-variance optimum and are not forced to add to 100%. The balance is cash when positive and borrowing when negative. Short positions are allowed. The standard error columns show how uncertain the model is about each mean before and after the views.</p>
+<div class="exh">Exhibit 3 <span>Risk and return. Horizontal axis is volatility, vertical axis is expected excess return.</span></div>
+<div id="c3"></div>
+<p class="note">The two curves are the best return available at each level of risk from the risky assets alone, fully invested, under equilibrium and under posterior returns. The straight line adds cash or borrowing under posterior returns. The square is the market portfolio at equilibrium returns. The circle is the Black-Litterman portfolio at posterior returns: it lies on the straight line.</p>
+</section><hr>
+<section id="method"><h2>Method and limits</h2>
+<p><b>Reverse optimisation.</b> An investor with risk aversion &delta; who maximises w&prime;&mu; &minus; (&delta;/2)&middot;w&prime;&Sigma;w holds w = (&delta;&Sigma;)<sup>&minus;1</sup>&mu;. Setting w to the market weights and solving for &mu; gives the equilibrium excess returns:</p>
+<p class="eq">&Pi; = &delta; &Sigma; w<sub>mkt</sub></p>
+<p><b>Prior.</b> The true mean is uncertain around equilibrium, with covariance proportional to the asset covariance. &tau; is small when the equilibrium is trusted.</p>
+<p class="eq">&mu; ~ N(&Pi;, &tau;&Sigma;)</p>
+<p><b>Views.</b> K views on N assets. P is the K by N matrix of view portfolios, Q the K view returns, &Omega; the diagonal matrix of view error variances. The page takes a standard error per view and squares it. The He and Litterman option sets each variance equal to the prior variance of the view portfolio instead, in which case &tau; cancels out of the posterior mean.</p>
+<p class="eq">P&mu; = Q + &epsilon;, &nbsp; &epsilon; ~ N(0, &Omega;) &nbsp;&nbsp; &omega;<sub>k</sub> = s<sub>k</sub><sup>2</sup> &nbsp;or&nbsp; &omega;<sub>k</sub> = p<sub>k</sub>&tau;&Sigma;p<sub>k</sub>&prime;</p>
+<p><b>Posterior.</b> Bayes' rule for normal distributions gives the mean and the covariance of the mean. The page computes the first form, which stays valid when a view is certain (&omega; = 0). The second form is the same thing written as a precision-weighted average.</p>
+<p class="eq">&mu;<sub>BL</sub> = &Pi; + &tau;&Sigma;P&prime; (P&tau;&Sigma;P&prime; + &Omega;)<sup>&minus;1</sup> (Q &minus; P&Pi;)</p>
+<p class="eq">M = &tau;&Sigma; &minus; &tau;&Sigma;P&prime; (P&tau;&Sigma;P&prime; + &Omega;)<sup>&minus;1</sup> P&tau;&Sigma;</p>
+<p class="eq">&mu;<sub>BL</sub> = [(&tau;&Sigma;)<sup>&minus;1</sup> + P&prime;&Omega;<sup>&minus;1</sup>P]<sup>&minus;1</sup> [(&tau;&Sigma;)<sup>&minus;1</sup>&Pi; + P&prime;&Omega;<sup>&minus;1</sup>Q]</p>
+<p><b>Weights.</b> The same investor, now using posterior returns. The second equality shows why the result is stable: the portfolio is the market plus a multiple of each view portfolio, nothing else.</p>
+<p class="eq">w<sub>BL</sub> = (&delta;&Sigma;)<sup>&minus;1</sup> &mu;<sub>BL</sub> = w<sub>mkt</sub> + (&tau;/&delta;) P&prime; (P&tau;&Sigma;P&prime; + &Omega;)<sup>&minus;1</sup> (Q &minus; P&Pi;)</p>
+<p><b>Choices made here.</b> The optimisation uses &Sigma;, so no views returns the market portfolio exactly. He and Litterman use the posterior predictive covariance &Sigma; + M, which scales the no-view portfolio by 1/(1+&tau;). The difference is small for small &tau;. Volatility, active risk and the frontier in Exhibit 3 are all measured with &Sigma;.</p>
+<p><b>Limits.</b> The output is only as good as &Sigma;, which is taken as known. Returns are assumed normal. The equilibrium argument needs the market weights to describe the whole investable universe, and five blocks do not. There are no constraints: no long-only rule, no budget, no transaction costs, no limit on leverage. The calibration of &tau; and &Omega; has no agreed answer, and the weights are sensitive to both. The correlation matrix must be positive definite, and the page refuses to compute when it is not.</p>
+<p class="note">Sources: Black and Litterman (1992), Global Portfolio Optimization. He and Litterman (1999), The Intuition Behind Black-Litterman Model Portfolios. Idzorek (2005), A Step-by-Step Guide to the Black-Litterman Model.</p>
+<p class="note">Educational tool. Illustrative inputs, not live data. Not investment advice.</p>
+</section>
+<script src="assets/plot.js"></script>
+<script>
+// --- math ---
+const tr=A=>A[0].map((_,j)=>A.map(r=>r[j]));
+const mul=(A,B)=>A.map(r=>B[0].map((_,j)=>r.reduce((s,v,k)=>s+v*B[k][j],0)));
+const add=(A,B,s)=>A.map((r,i)=>r.map((v,j)=>v+(s==null?1:s)*B[i][j]));
+const scl=(A,s)=>A.map(r=>r.map(v=>v*s));
+const col=v=>v.map(x=>[x]),vec=A=>A.map(r=>r[0]);
+const dot=(a,b)=>a.reduce((s,v,i)=>s+v*b[i],0);
+const quad=(a,S,b)=>a.reduce((s,v,i)=>s+v*dot(S[i],b),0);
+// Gauss-Jordan inverse with partial pivoting. Returns null when singular.
+function inv(A){const n=A.length,M=A.map((r,i)=>[...r,...r.map((_,j)=>i===j?1:0)]);
+ let sc=0;A.forEach(r=>r.forEach(v=>{sc=Math.max(sc,Math.abs(v))}));if(!(sc>0))return null;
+ for(let c=0;c<n;c++){let p=c;for(let r=c+1;r<n;r++)if(Math.abs(M[r][c])>Math.abs(M[p][c]))p=r;
+  if(!(Math.abs(M[p][c])>1e-12*sc))return null;[M[c],M[p]]=[M[p],M[c]];
+  const d=M[c][c];for(let j=0;j<2*n;j++)M[c][j]/=d;
+  for(let r=0;r<n;r++)if(r!==c){const f=M[r][c];if(f!==0)for(let j=0;j<2*n;j++)M[r][j]-=f*M[c][j]}}
+ return M.map(r=>r.slice(n))}
+// Positive definite test by Cholesky.
+function isPD(A){const n=A.length,Lm=A.map(r=>r.map(()=>0));
+ for(let i=0;i<n;i++)for(let j=0;j<=i;j++){let s=A[i][j];for(let k=0;k<j;k++)s-=Lm[i][k]*Lm[j][k];
+  if(i===j){if(!(s>1e-12))return false;Lm[i][i]=Math.sqrt(s)}else Lm[i][j]=s/Lm[j][j]}
+ return true}
+const covFrom=(vol,R)=>R.map((r,i)=>r.map((v,j)=>v*vol[i]*vol[j]));
+// Black-Litterman. All inputs in decimals. P is K by N, q length K, omega length K (variances) or null for He-Litterman.
+function bl(S,w,delta,tau,P,q,omega){
+ const pi=vec(mul(S,col(w))).map(v=>v*delta),tS=scl(S,tau),Si=inv(S);
+ if(!Si)return null;
+ let mu=pi,M=tS,pv=[],om=[];
+ if(P.length){const Pt=tr(P),tSPt=mul(tS,Pt),PtSPt=mul(P,tSPt);
+  pv=PtSPt.map((r,i)=>r[i]);om=omega?omega.slice():pv.slice();
+  const A=PtSPt.map((r,i)=>r.map((v,j)=>v+(i===j?om[i]:0))),Ai=inv(A);
+  if(!Ai)return null;
+  const K=mul(tSPt,Ai),gap=q.map((v,i)=>v-dot(P[i],pi));
+  mu=pi.map((v,i)=>v+dot(K[i],gap));
+  M=add(tS,mul(K,tr(tSPt)),-1)}
+ const wbl=vec(mul(Si,col(mu))).map(v=>v/delta);
+ return{pi,mu,M,wbl,pv,om,Si}}
+// Frontier of fully invested portfolios: constants of the minimum-variance hyperbola.
+function fc(Si,mu){let A=0,B=0,C=0;const n=mu.length;
+ for(let i=0;i<n;i++)for(let j=0;j<n;j++){A+=Si[i][j];B+=Si[i][j]*mu[j];C+=mu[i]*Si[i][j]*mu[j]}
+ return{A,B,C,D:Math.max(0,A*C-B*B)}}
+const upper=(f,s)=>{const z=f.A*s*s-1;return z<-1e-9?NaN:(f.B+Math.sqrt(f.D*Math.max(0,z)))/f.A};
+// --- ui ---
+const NAMES=['US equities','Europe equities','Japan equities','EM equities','Global bonds'],SHORT=['US','Europe','Japan','EM','Bonds'],N=5;
+const DEF={w:[45,20,10,10,15],vol:[15,18,17,25,8],
+ corr:[[1,.8,.6,.7,.1],[.8,1,.6,.75,.2],[.6,.6,1,.65,.15],[.7,.75,.65,1,.25],[.1,.2,.15,.25,1]],
+ views:[{p:[1,0,0,0,0],q:8,sd:5},{p:[0,0,-1,1,0],q:2,sd:4}]};
+let views;
+const $=id=>document.getElementById(id);
+const pc=(v,d)=>{const t=Math.abs(v*100).toFixed(d==null?1:d);return(v<0&&+t!==0?'−':'')+t+'%'};
+const sg=(v,d)=>{const t=Math.abs(v*100).toFixed(d==null?1:d);return(+t===0?'':v>0?'+':'−')+t+'%'};
+const num=(cls,i,j,val,step,extra)=>`<input type="number" class="${cls}" data-i="${i}" data-j="${j==null?'':j}" value="${val}" step="${step}" ${extra||''}>`;
+function build(){
+ views=DEF.views.map(v=>({p:v.p.slice(),q:v.q,sd:v.sd}));
+ $('delta').value=2.5;$('tau').value=0.05;$('omode').value='sd';
+ $('ta').innerHTML='<tr><th>Asset</th><th>Market weight, %</th><th>Volatility, %</th></tr>'+NAMES.map((a,i)=>`<tr><td>${a}</td><td>${num('iw',i,null,DEF.w[i],1,'min="0"')}</td><td>${num('iv',i,null,DEF.vol[i],0.5,'min="0.1"')}</td></tr>`).join('');
+ $('tc').innerHTML='<tr><th></th>'+SHORT.map(a=>`<th>${a}</th>`).join('')+'</tr>'+SHORT.map((a,i)=>`<tr><th>${a}</th>`+SHORT.map((_,j)=>j>i?`<td>${num('ic',i,j,DEF.corr[i][j].toFixed(2),0.05,'min="-0.99" max="0.99"')}</td>`:`<td id="m${i}${j}">${i===j?'1.00':''}</td>`).join('')+'</tr>').join('');
+ drawViews();calc()}
+function drawViews(){
+ $('tv').innerHTML='<tr><th>#</th>'+SHORT.map(a=>`<th>${a}</th>`).join('')+'<th>Q, %</th><th id="vsh">Std. error, %</th><th></th></tr>'+
+ (views.length?views.map((v,k)=>`<tr><td class="d">${k+1}</td>`+v.p.map((x,j)=>`<td>${num('vp',k,j,x,0.5)}</td>`).join('')+`<td>${num('vq',k,null,v.q,0.25)}</td><td>${num('vs',k,null,v.sd,0.25,'min="0"')}</td><td><button data-rm="${k}">remove</button></td></tr>`).join(''):'<tr><td colspan="9" class="s">No views. The result is the market portfolio.</td></tr>')}
+function label(p){const t=p.map((x,j)=>x?((x>0?'+':'−')+(Math.abs(x)===1?'':Math.abs(x)+' ')+SHORT[j]):'').filter(Boolean);return t.length?t.join(' '):'(empty)'}
+// Clears every output so nothing stale stays under the error. lvl 1 keeps the weights note, lvl 2 also keeps tiles k1 to k3 (both current).
+function fail(m,lvl){$('msg').textContent=m;(lvl===2?['k4','k5','k6','k7']:['k1','k2','k3','k4','k5','k6','k7']).forEach(k=>$(k).textContent='n/a');
+ if(!lvl)$('wnote').textContent='';
+ $('tq').innerHTML='<tr><td class="s">No result. Fix the input flagged above.</td></tr>';$('tr').innerHTML='<tr><td class="s">No result. Fix the input flagged above.</td></tr>';
+ ['c1','c2','c3'].forEach(k=>$(k).innerHTML='<p class="note">No result. Fix the input flagged above.</p>')}
+function calc(){
+ const delta=+$('delta').value,tau=+$('tau').value,hl=$('omode').value==='hl';
+ $('vd').textContent=delta.toFixed(1);$('vt').textContent=tau.toFixed(2);
+ // He-Litterman takes omega from tau and P Sigma P', so the standard error field is not an input in that mode.
+ if($('vsh'))$('vsh').textContent=hl?'Std. error, % (not used)':'Std. error, %';document.querySelectorAll('.vs').forEach(e=>{e.disabled=hl});
+ const wr=[...document.querySelectorAll('.iw')].map(e=>parseFloat(e.value)),vol=[...document.querySelectorAll('.iv')].map(e=>parseFloat(e.value)/100);
+ const R=NAMES.map((_,i)=>NAMES.map((_,j)=>i===j?1:0));
+ document.querySelectorAll('.ic').forEach(e=>{const i=+e.dataset.i,j=+e.dataset.j,v=parseFloat(e.value);R[i][j]=R[j][i]=v;$('m'+j+i).textContent=v===v?v.toFixed(2):''});
+ const ws=wr.reduce((s,v)=>s+v,0);
+ if(wr.some(v=>!(v>=0))||!(ws>0))return fail('Market weights must be zero or positive and sum to more than zero.');
+ if(vol.some(v=>!(v>0)))return fail('Every volatility must be positive.');
+ if(R.some(r=>r.some(v=>!(v>=-1&&v<=1))))return fail('Correlations must lie between -1 and 1.');
+ const w=wr.map(v=>v/ws),S=covFrom(vol,R);
+ $('wnote').textContent=Math.abs(ws-100)>1e-9?'Market weights sum to '+ws.toFixed(1)+'% and are rescaled to 100%.':'';
+ if(!isPD(R))return fail('This correlation matrix is not positive definite: no set of assets can have these correlations together. Adjust it.',1);
+ const mv=Math.sqrt(quad(w,S,w));
+ const act=[],skip=[];views.forEach((v,k)=>{const ok=v.p.every(x=>x===x)&&v.q===v.q&&(hl||v.sd>=0);if(ok&&v.p.some(x=>x!==0))act.push(k);else skip.push(k+1)});
+ const P=act.map(k=>views[k].p.slice()),q=act.map(k=>views[k].q/100),om=hl?null:act.map(k=>Math.pow(views[k].sd/100,2));
+ const b=bl(S,w,delta,tau,P,q,om);
+ $('k1').textContent=pc(mv);$('k2').textContent=pc(delta*mv*mv);$('k3').textContent=(delta*mv).toFixed(2);
+ if(!b)return fail('The views cannot be combined: two certain views overlap or contradict each other. Give one of them a standard error above zero, or remove it.',2);
+ $('msg').textContent=skip.length?'View '+skip.join(', ')+' is empty or incomplete and is ignored.':'';
+ const{pi,mu,M,wbl}=b,d=wbl.map((v,i)=>v-w[i]),sum=wbl.reduce((s,v)=>s+v,0),bv=Math.sqrt(quad(wbl,S,wbl)),br=dot(wbl,mu);
+ $('k4').textContent=pc(br);$('k5').textContent=pc(bv);$('k6').textContent=pc(Math.sqrt(Math.max(0,quad(d,S,d))));$('k7').textContent=pc(sum);
+ $('tq').innerHTML='<tr><th>#</th><th>View portfolio</th><th class="n">Equilibrium</th><th class="n">View Q</th><th class="n">Posterior</th><th class="n">Std. error used</th><th class="n">Weight on view</th></tr>'+
+  (act.length?act.map((k,i)=>{const o=b.om[i],c=b.pv[i]/(b.pv[i]+o);return `<tr><td class="d">${k+1}</td><td>${label(P[i])}</td><td class="n">${pc(dot(P[i],pi),2)}</td><td class="n">${pc(q[i],2)}</td><td class="n">${pc(dot(P[i],mu),2)}</td><td class="n">${pc(Math.sqrt(o),2)}</td><td class="n">${(c*100).toFixed(0)}%</td></tr>`}).join(''):'<tr><td colspan="7" class="s">No active views.</td></tr>');
+ $('tr').innerHTML='<tr><th>Asset</th><th class="n">Equilibrium return</th><th class="n">Posterior return</th><th class="n">Change</th><th class="n">Std. error prior</th><th class="n">Std. error post.</th><th class="n">Market weight</th><th class="n">BL weight</th><th class="n">Active</th></tr>'+
+  NAMES.map((a,i)=>`<tr><td>${a}</td><td class="n">${pc(pi[i],2)}</td><td class="n"><b>${pc(mu[i],2)}</b></td><td class="n">${sg(mu[i]-pi[i],2)}</td><td class="n">${pc(Math.sqrt(tau*S[i][i]),2)}</td><td class="n">${pc(Math.sqrt(Math.max(0,M[i][i])),2)}</td><td class="n">${pc(w[i])}</td><td class="n"><b>${pc(wbl[i])}</b></td><td class="n">${sg(d[i])}</td></tr>`).join('')+
+  `<tr><td>${sum<=1?'Cash':'Borrowing'}</td><td></td><td></td><td></td><td></td><td></td><td class="n">0.0%</td><td class="n"><b>${pc(1-sum)}</b></td><td class="n">${sg(1-sum)}</td></tr>`+
+  `<tr class="tot"><td>Portfolio</td><td class="n">${pc(dot(w,pi),2)}</td><td class="n">${pc(br,2)}</td><td></td><td></td><td></td><td class="n">100.0%</td><td class="n">100.0%</td><td></td></tr>`;
+ Plot.bar($('c1'),{x:SHORT,series:[{name:'Equilibrium',y:pi},{name:'Posterior',y:mu}],pct:true,dec:1,h:300,title:'Expected excess returns'});
+ Plot.bar($('c2'),{x:SHORT,series:[{name:'Market',y:w},{name:'Black-Litterman',y:wbl}],pct:true,dec:0,h:300,title:'Portfolio weights'});
+ frontier(b,S,w,mv,bv,br,vol)}
+function frontier(b,S,w,mv,bv,br,vol){
+ const f0=fc(b.Si,b.pi),f1=fc(b.Si,b.mu),smin=1/Math.sqrt(f0.A),xmax=Math.max(...vol,bv,mv)*1.08,G=120;
+ let x=[];for(let i=0;i<=G;i++)x.push(xmax*i/G);x.push(smin);x.sort((a,c)=>a-c);
+ const y0=x.map(s=>upper(f0,s)),y1=x.map(s=>upper(f1,s)),mr=dot(w,b.pi);
+ let lo=0,hi=-1e99;[...y0,...y1,mr,br].forEach(v=>{if(v===v){lo=Math.min(lo,v);hi=Math.max(hi,v)}});
+ const sh=Math.sqrt(f1.C),cml=x.map(s=>sh*s<=hi*1.0001?sh*s:NaN);
+ const H=300,host=$('c3');
+ Plot.line(host,{x,xnum:true,series:[{name:'Frontier, equilibrium returns',y:y0,dash:'5 3'},{name:'Frontier, posterior returns',y:y1,dash:''},{name:'With cash or borrowing, posterior',y:cml,dash:'2 3'}],pct:true,dec:1,ymin:lo,ymax:hi,h:H,xfmt:v=>(v*100).toFixed(1)+'%',title:'Efficient frontier'});
+ // markers, using the same plot frame as plot.js (W 720, margins 50, 8, 8, 22, 5% padding on y)
+ const pad=(hi-lo)*.05||1,a=lo-pad,z=hi+pad,X=s=>50+662*(s-x[0])/(x[x.length-1]-x[0]),Y=v=>8+(H-30)*(1-(v-a)/(z-a));
+ const svg=host.querySelector('svg'),NS='http://www.w3.org/2000/svg';
+ const mk=(tag,at)=>{const e=document.createElementNS(NS,tag);for(const k in at)e.setAttribute(k,at[k]);svg.appendChild(e)};
+ mk('rect',{x:(X(mv)-4.5).toFixed(1),y:(Y(mr)-4.5).toFixed(1),width:9,height:9,fill:'#111','class':'pt'});
+ mk('circle',{cx:X(bv).toFixed(1),cy:Y(br).toFixed(1),r:5,fill:'#fff',stroke:'#111','stroke-width':1.6,'class':'pt'});
+ host.querySelector('.legend').insertAdjacentHTML('beforeend','<span><svg viewBox="0 0 22 8"><rect x="7" y="0" width="8" height="8" fill="#111"/></svg>Market portfolio</span><span><svg viewBox="0 0 22 8"><circle cx="11" cy="4" r="3" fill="#fff" stroke="#111" stroke-width="1.4"/></svg>Black-Litterman portfolio</span>')}
+if(typeof document!=='undefined'){
+ document.addEventListener('input',e=>{const t=e.target,c=t.className;
+  if(c==='vp')views[+t.dataset.i].p[+t.dataset.j]=parseFloat(t.value);
+  else if(c==='vq')views[+t.dataset.i].q=parseFloat(t.value);
+  else if(c==='vs')views[+t.dataset.i].sd=parseFloat(t.value);
+  calc()});
+ $('tv').addEventListener('click',e=>{const k=e.target.dataset.rm;if(k!=null){views.splice(+k,1);drawViews();calc()}});
+ $('addv').addEventListener('click',()=>{views.push({p:[0,1,0,0,0],q:6,sd:4});drawViews();calc()});
+ $('reset').addEventListener('click',build);
+ build()}
+</script>
+</body></html>

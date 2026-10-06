@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Brazil small model · Arthur Mota</title>
+<meta name="description" content="A four-equation semi-structural model of Brazil in the style of the central bank's small model: IS curve, Phillips curve, Taylor rule and UIP. Set a starting point, apply shocks and read the paths.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="assets/mono.css">
+<style>
+details{margin:0 0 16px}summary{cursor:pointer;font-size:12px;margin:0 0 10px}
+h3{font-size:12px;margin:18px 0 8px;font-weight:700}
+.ctl label .s{float:none;font-weight:400;display:block}
+</style>
+</head><body>
+<header><div class="mast"><a href="./"><svg class="logo" viewBox="0 0 32 32" aria-label="home"><rect width="32" height="32" fill="#111"/><path d="M7 11h18M12 11v13M20 11v9.5a3.5 3.5 0 0 0 3.5 3.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="square"/></svg></a><h1>Brazil small model</h1></div>
+<p class="tag">Research lab · Monetary policy</p>
+<p class="sub">A four-equation semi-structural model of Brazil, in the style of the small aggregate model the Banco Central do Brasil describes in its reports. Choose a starting point, apply shocks and read the paths of inflation, the output gap, the policy rate and the exchange rate.</p>
+<nav><a href="./">[home]</a><a href="./#lab">[lab]</a><a href="#read">[how to read]</a><a href="#model">[inputs]</a><a href="#results">[results]</a><a href="#method">[method]</a></nav></header>
+<hr>
+<section id="read"><h2>How to read this</h2>
+<p>The model is a loop with four links. A policy rate above neutral cools demand (the output gap). Weak demand and a stronger currency slow inflation. Slower inflation pulls expectations down. The central bank sets the rate by looking at where expectations sit against the target. Each quarter the loop turns once.</p>
+<p>The solid line in each chart is your scenario, shocks included. The dashed line is the same starting point with no shocks. The distance between the two is what the shock does. Every number on this page is a model output from the inputs you set. Nothing here is live data or a forecast.</p>
+</section><hr>
+<section id="model"><h2>Inputs</h2>
+<div class="tog"><span>Starting point:</span><button id="preA" class="on">off target (illustrative)</button><button id="preB">steady state</button><span class="t">|</span><button id="reset">reset shocks</button><button id="resetAll">reset all</button></div>
+<h3>Starting point (illustrative, not current data)</h3>
+<div class="ctl">
+ <label>Inflation, % a year <input type="number" id="pi0" step="0.1"></label>
+ <label>Inflation expectations, % a year <input type="number" id="pe0" step="0.1"></label>
+ <label>Output gap, % of potential <input type="number" id="h0" step="0.1"></label>
+ <label>Policy rate (Selic), % a year <input type="number" id="i0" step="0.25"></label>
+</div>
+<h3>Structure</h3>
+<div class="ctl">
+ <label>Neutral real rate <span id="v_rn"></span><input type="range" id="rn" min="3" max="8" step="0.25"></label>
+ <label>Inflation target <span id="v_piT"></span><input type="range" id="piT" min="2" max="5" step="0.25"></label>
+ <label>Horizon <select id="n"><option value="12">12 quarters</option><option value="20" selected>20 quarters</option><option value="40">40 quarters</option></select></label>
+</div>
+<h3>Shocks (all arrive in quarter 1)</h3>
+<div class="ctl">
+ <label>Monetary: rate set off the rule <span id="v_sm"></span><input type="range" id="sm" min="-200" max="200" step="25"><span class="s">One-off deviation from the rule, basis points.</span></label>
+ <label>Fiscal impulse <span id="v_sf"></span><input type="range" id="sf" min="-2" max="2" step="0.1"><span class="s">% of GDP, held for quarters 1 to 4.</span></label>
+ <label>Exchange rate <span id="v_sx"></span><input type="range" id="sx" min="-10" max="10" step="1"><span class="s">Permanent jump in USD/BRL. Positive is a weaker real.</span></label>
+ <label>Supply (food, energy, weather) <span id="v_ss"></span><input type="range" id="ss" min="-1" max="3" step="0.25"><span class="s">Points added to the price level in one quarter.</span></label>
+</div>
+<details><summary>Coefficients (illustrative calibration, editable)</summary>
+<div class="ctl">
+ <label>Inflation inertia (a1) <input type="number" id="a1" step="0.01" min="0" max="0.95"></label>
+ <label>Exchange rate pass-through, same quarter (a2) <input type="number" id="a2" step="0.001" min="0"></label>
+ <label>Exchange rate pass-through, lagged (a3) <input type="number" id="a3" step="0.001" min="0"></label>
+ <label>Phillips curve slope (a4) <input type="number" id="a4" step="0.01" min="0"></label>
+ <label>Gap persistence (b1) <input type="number" id="b1" step="0.01" min="0" max="0.99"></label>
+ <label>Gap response to real rate (b2) <input type="number" id="b2" step="0.01" min="0"></label>
+ <label>Gap response to fiscal impulse (b3) <input type="number" id="b3" step="0.01" min="0"></label>
+ <label>Rule: first lag of the rate (t1) <input type="number" id="t1" step="0.01"></label>
+ <label>Rule: second lag of the rate (t2) <input type="number" id="t2" step="0.01"></label>
+ <label>Rule: response to expectations (t3) <input type="number" id="t3" step="0.01" min="0"></label>
+ <label>Expectations: own lag (f1) <input type="number" id="f1" step="0.01" min="0" max="0.99"></label>
+ <label>Expectations: past inflation (f2) <input type="number" id="f2" step="0.001" min="0"></label>
+ <label>Expectations: output gap (f3) <input type="number" id="f3" step="0.001" min="0"></label>
+ <label>Exchange rate response to rate change (d) <input type="number" id="d" step="0.05" min="0"></label>
+ <label>Foreign inflation, % a year <input type="number" id="piS" step="0.1"></label>
+</div></details>
+<div class="kpi">
+ <div><b id="k1">–</b>Peak 12-month inflation</div>
+ <div><b id="k2">–</b>Inflation back inside the band</div>
+ <div><b id="k3">–</b>Policy rate, peak and trough</div>
+ <div><b id="k4">–</b>Policy rate at the horizon</div>
+ <div><b id="k5">–</b>Output gap, lowest point</div>
+ <div><b id="k6">–</b>Real rate at the start, against neutral</div>
+</div>
+<p class="note" id="warn"></p>
+</section><hr>
+<section id="results"><h2>Results</h2>
+<div class="exh">Exhibit 1 <span>Inflation over four quarters and expected inflation, % a year. Grey lines are the target and the upper limit of the band (target plus 1.5 points).</span></div>
+<div id="c1"></div>
+<div class="exh">Exhibit 2 <span>Policy rate, % a year. The grey line is the nominal neutral rate (neutral real rate plus target).</span></div>
+<div id="c2"></div>
+<div class="exh">Exhibit 3 <span>Output gap, % of potential output. Above zero the economy runs hot.</span></div>
+<div id="c3"></div>
+<div class="exh">Exhibit 4 <span>Nominal exchange rate, USD/BRL as an index, quarter 0 = 100. Up is a weaker real.</span></div>
+<div id="c4"></div>
+<div class="exh">Table 1 <span>Scenario path by quarter</span></div>
+<div class="scroll"><table id="tb1"></table></div>
+<div class="exh">Table 2 <span>Effect of the shocks: scenario minus the no-shock path, in percentage points (exchange rate in %)</span></div>
+<div class="scroll"><table id="tb2"></table></div>
+<p class="note">Real rate is the policy rate minus expected inflation. Inflation in the tables is the four-quarter rate. When the target is above foreign inflation, as in the default settings, the exchange rate index drifts up in every path, because the model assumes the real loses value at the gap between the two. With the target equal to foreign inflation there is no drift.</p>
+</section><hr>
+<section id="method"><h2>Method and limits</h2>
+<p><b>Units.</b> One period is a quarter. Inflation &pi; is quarterly inflation at an annual rate, and the charts show its four-quarter average, &pi;4. Rates are % a year. The output gap h is % of potential. The exchange rate change &Delta;e is % per quarter, with e in reais per dollar. Before quarter 0, inflation is assumed flat at the starting value.</p>
+<p><b>Expectations.</b> Slow to move, pulled by past inflation and demand, anchored partly on the target &pi;*.</p>
+<p class="eq">&pi;e<sub>t</sub> = f1&middot;&pi;e<sub>t&minus;1</sub> + f2&middot;&pi;4<sub>t&minus;1</sub> + f3&middot;h<sub>t&minus;1</sub> + (1 &minus; f1 &minus; f2)&middot;&pi;*</p>
+<p><b>IS curve.</b> Demand responds with a lag to the gap between the real rate and the neutral real rate r*, and to the fiscal impulse g.</p>
+<p class="eq">h<sub>t</sub> = b1&middot;h<sub>t&minus;1</sub> &minus; b2&middot;(i<sub>t&minus;1</sub> &minus; &pi;e<sub>t&minus;1</sub> &minus; r*) + b3&middot;g<sub>t</sub></p>
+<p><b>Taylor rule.</b> Two lags of the rate for smoothing, and a response to expected inflation against target. The monetary shock m is added once.</p>
+<p class="eq">i<sub>t</sub> = t1&middot;i<sub>t&minus;1</sub> + t2&middot;i<sub>t&minus;2</sub> + (1 &minus; t1 &minus; t2)&middot;[r* + &pi;* + t3&middot;(&pi;e<sub>t</sub> &minus; &pi;*)] + m<sub>t</sub></p>
+<p><b>Exchange rate.</b> A reduced form of uncovered interest parity: the real drifts at the inflation differential, gains when the rate rises against a fixed foreign rate, and takes the exchange rate shock x as a permanent level jump.</p>
+<p class="eq">&Delta;e<sub>t</sub> = (&pi;* &minus; &pi;f)/4 &minus; d&middot;(i<sub>t</sub> &minus; i<sub>t&minus;1</sub>) + x<sub>t</sub></p>
+<p><b>Phillips curve.</b> Inertia, expectations, the exchange rate measured against its trend drift, demand, and the supply shock s. The weights on past and expected inflation add to one, so inflation settles at the target.</p>
+<p class="eq">&pi;<sub>t</sub> = a1&middot;&pi;<sub>t&minus;1</sub> + (1 &minus; a1)&middot;&pi;e<sub>t</sub> + 4&middot;a2&middot;(&Delta;e<sub>t</sub> &minus; drift) + 4&middot;a3&middot;(&Delta;e<sub>t&minus;1</sub> &minus; drift) + a4&middot;h<sub>t</sub> + 4&middot;s<sub>t</sub></p>
+<p class="eq">drift = (&pi;* &minus; &pi;f)/4</p>
+<p><b>What the default calibration implies.</b> Starting from steady state: a 10% depreciation adds about 0.8 points to 12-month inflation at the peak, four quarters out. A 100 basis point monetary shock grows to about 160 basis points through the smoothing terms, opens a gap of about &minus;0.6 points and takes about 0.2 points off inflation. A supply shock of 1 point on the price level lifts 12-month inflation by more than 2 points at the peak, because inertia carries each quarter's inflation into the next. A fiscal impulse of 1% of GDP opens a gap of about half a point.</p>
+<p><b>Limits.</b> The coefficients are an illustrative calibration chosen to give plausible magnitudes. They are not the central bank's published estimates, and the bank's own model is richer: it separates market-set from administered prices, uses commodity prices and a country risk measure, and treats expectations as partly model-consistent. Here expectations are backward-looking, so announcements and credibility have no effect. The neutral rate, foreign inflation and the foreign interest rate are constants. The rule ignores the output gap and the policy rate cannot go below zero. The exchange rate has no risk premium that responds to fiscal policy. All relationships are linear, so a shock twice as large has twice the effect.</p>
+<p class="note">Educational tool. Illustrative inputs, not live data. The starting values are not the current Selic, inflation or exchange rate. Not investment advice.</p>
+</section>
+<script src="assets/plot.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+const COEF={a1:.62,a2:.023,a3:.011,a4:.12,b1:.85,b2:.11,b3:.15,t1:1.48,t2:-.58,t3:2.03,f1:.75,f2:.131,f3:.022,d:.5,piS:2};
+const STRUCT={rn:5,piT:3};
+const SHOCK={sm:0,sf:0,sx:0,ss:0};
+const START_A={pi0:5,pe0:4.5,h0:1,i0:14};
+const NUM=['pi0','pe0','h0','i0',...Object.keys(COEF)],RNG=['rn','piT','sm','sf','sx','ss'];
+let preset='A';
+function steady(){return{pi0:+$('piT').value,pe0:+$('piT').value,h0:0,i0:+$('rn').value+ +$('piT').value}}
+function put(o){for(const k in o)$(k).value=o[k]}
+function read(){const p={};[...NUM,...RNG].forEach(k=>{const v=parseFloat($(k).value);p[k]=v===v?v:({...COEF,...STRUCT,...SHOCK,...START_A})[k]});p.n=+$('n').value;return p}
+
+// One run. Index 0 is the starting point, quarters 1..n are simulated.
+function sim(p,n,shocks){
+ const drift=(p.piT-p.piS)/4,pi=[p.pi0],pi4=[p.pi0],pe=[p.pe0],h=[p.h0],i=[p.i0],e=[100],de=[drift],q=[p.pi0,p.pi0,p.pi0,p.pi0];
+ for(let t=1;t<=n;t++){
+  const sm=shocks&&t===1?p.sm/100:0,sf=shocks&&t<=4?p.sf:0,sx=shocks&&t===1?p.sx:0,ss=shocks&&t===1?p.ss:0;
+  const iL=i[t-1],iL2=t>=2?i[t-2]:p.i0;
+  const pet=p.f1*pe[t-1]+p.f2*pi4[t-1]+p.f3*h[t-1]+(1-p.f1-p.f2)*p.piT;
+  const ht=p.b1*h[t-1]-p.b2*(iL-pe[t-1]-p.rn)+p.b3*sf;
+  const it=Math.max(0,p.t1*iL+p.t2*iL2+(1-p.t1-p.t2)*(p.rn+p.piT+p.t3*(pet-p.piT))+sm);
+  const det=drift-p.d*(it-iL)+sx;
+  const pit=p.a1*pi[t-1]+(1-p.a1)*pet+4*p.a2*(det-drift)+4*p.a3*(de[t-1]-drift)+p.a4*ht+4*ss;
+  q.push(pit);const m=q.length;
+  pi.push(pit);pi4.push((q[m-1]+q[m-2]+q[m-3]+q[m-4])/4);pe.push(pet);h.push(ht);i.push(it);de.push(det);e.push(e[t-1]*(1+det/100));
+ }
+ return{pi,pi4,pe,h,i,e,rr:i.map((v,k)=>v-pe[k])};
+}
+const f=(v,d=2)=>v.toFixed(d).replace('-','−'),sg=(v,d=2)=>(v>0?'+':v<0?'−':'')+Math.abs(v).toFixed(d);
+function labels(p){
+ $('v_rn').textContent=f(p.rn)+'%';$('v_piT').textContent=f(p.piT)+'%';
+ $('v_sm').textContent=sg(p.sm,0)+' bp';$('v_sf').textContent=sg(p.sf,1)+'%';$('v_sx').textContent=sg(p.sx,0)+'%';$('v_ss').textContent=sg(p.ss,2)+' pt';
+}
+function table(el,head,rows){el.innerHTML='<tr>'+head.map((c,k)=>`<th${k?' class="n"':''}>${c}</th>`).join('')+'</tr>'+rows.map(r=>'<tr>'+r.map((c,k)=>`<td class="${k?'n':'d'}">${c}</td>`).join('')+'</tr>').join('')}
+function run(){
+ const p=read(),n=p.n;labels(p);
+ const S=sim(p,n,true),B=sim(p,n,false),x=Array.from({length:n+1},(_,k)=>k),any=p.sm||p.sf||p.sx||p.ss;
+ const flat=v=>x.map(()=>v),xf=v=>'Q'+Math.round(v),grey={color:'#999',width:1,dash:''};
+ const base=y=>any?[{name:'No shocks',y,dash:'5 3'}]:[];
+ Plot.line($('c1'),{x,xnum:true,xfmt:xf,dec:1,h:260,title:'Inflation',series:[{name:'Inflation, 4 quarters',y:S.pi4,dash:'',width:1.8},...base(B.pi4),{name:'Expected inflation',y:S.pe,dash:'2 3'},{name:'Target',y:flat(p.piT),...grey},{name:'Upper limit',y:flat(p.piT+1.5),...grey,dash:'8 3 2 3'}]});
+ Plot.line($('c2'),{x,xnum:true,xfmt:xf,dec:1,h:220,title:'Policy rate',series:[{name:'Policy rate',y:S.i,dash:'',width:1.8},...base(B.i),{name:'Nominal neutral',y:flat(p.rn+p.piT),...grey}]});
+ Plot.line($('c3'),{x,xnum:true,xfmt:xf,dec:1,h:220,zero:true,legend:true,title:'Output gap',series:[{name:'Output gap',y:S.h,dash:'',width:1.8},...base(B.h)]});
+ Plot.line($('c4'),{x,xnum:true,xfmt:xf,dec:0,h:220,legend:true,title:'Exchange rate',series:[{name:'USD/BRL index',y:S.e,dash:'',width:1.8},...base(B.e)]});
+ // headline numbers
+ let pk=0;S.pi4.forEach((v,k)=>{if(v>S.pi4[pk])pk=k});
+ $('k1').textContent=f(S.pi4[pk])+'% (Q'+pk+')';
+ const hi=p.piT+1.5,lo=p.piT-1.5;let last=-1;S.pi4.forEach((v,k)=>{if(v>hi||v<lo)last=k});
+ $('k2').textContent=last<0?'never leaves':last>=n?'not by Q'+n:'Q'+(last+1);
+ $('k3').textContent=f(Math.max(...S.i))+'% / '+f(Math.min(...S.i))+'%';
+ $('k4').textContent=f(S.i[n])+'%';
+ let tr=0;S.h.forEach((v,k)=>{if(v<S.h[tr])tr=k});
+ $('k5').textContent=sg(S.h[tr])+' (Q'+tr+')';
+ $('k6').textContent=f(S.rr[0])+'% vs '+f(p.rn)+'%';
+ // convergence check on a long run
+ const Lg=sim(p,400,true),bad=!isFinite(Lg.pi4[400])||Math.abs(Lg.pi4[400]-p.piT)>.1||Math.abs(Lg.h[400])>.1;
+ const w=[];if(bad)w.push('With these coefficients the model does not settle at the target within 100 years. The paths are not meaningful. At least one coefficient is outside the range in which the system is stable. Move the last coefficient changed back toward its default, or use reset all.');
+ if(Math.min(...S.i)<=0)w.push('The policy rate hits the zero floor in this run.');
+ if(p.f1+p.f2>1)w.push('Expectation weights f1 + f2 exceed one, so the target carries a negative weight.');
+ $('warn').textContent=w.join(' ');
+ // tables
+ const ks=[0,1,2,3,4,6,8,12,16,20,28,40].filter(k=>k<=n);
+ table($('tb1'),['Quarter','Inflation','Expected','Output gap','Policy rate','Real rate','USD/BRL'],ks.map(k=>['Q'+k,f(S.pi4[k]),f(S.pe[k]),sg(S.h[k]),f(S.i[k]),f(S.rr[k]),f(S.e[k],1)]));
+ if(any)table($('tb2'),['Quarter','Inflation','Expected','Output gap','Policy rate','Real rate','USD/BRL'],ks.filter(k=>k>0).map(k=>['Q'+k,sg(S.pi4[k]-B.pi4[k]),sg(S.pe[k]-B.pe[k]),sg(S.h[k]-B.h[k]),sg(S.i[k]-B.i[k]),sg(S.rr[k]-B.rr[k]),sg((S.e[k]/B.e[k]-1)*100,1)]));
+ else $('tb2').innerHTML='<tr><td class="t">No shock is set. Move a shock slider to fill this table.</td></tr>';
+}
+function setPreset(k){preset=k;$('preA').className=k==='A'?'on':'';$('preB').className=k==='B'?'on':'';put(k==='A'?START_A:steady());run()}
+put({...COEF,...STRUCT,...SHOCK,...START_A});
+[...NUM,...RNG,'n'].forEach(k=>$(k).addEventListener('input',()=>{
+ if(['pi0','pe0','h0','i0'].includes(k)){preset='';$('preA').className='';$('preB').className=''}
+ if((k==='rn'||k==='piT')&&preset==='B')put(steady());
+ run()}));
+$('preA').onclick=()=>setPreset('A');$('preB').onclick=()=>setPreset('B');
+$('reset').onclick=()=>{put(SHOCK);run()};
+$('resetAll').onclick=()=>{put({...COEF,...STRUCT,...SHOCK});$('n').value=20;setPreset('A')};
+run();
+</script>
+</body></html>

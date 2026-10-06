@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Options Strategy Playground · Arthur Mota</title>
+<meta name="description" content="Payoff diagrams, Black-Scholes pricing, breakevens and net Greeks for eight standard option strategies.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="assets/mono.css">
+<style>.ctl label i{font-style:normal}.kpi b{overflow-wrap:anywhere}tr.net td{border-top:1px solid #111;font-weight:700}</style>
+</head><body>
+<header><div class="mast"><a href="./"><svg class="logo" viewBox="0 0 32 32" aria-label="home"><rect width="32" height="32" fill="#111"/><path d="M7 11h18M12 11v13M20 11v9.5a3.5 3.5 0 0 0 3.5 3.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="square"/></svg></a><h1>Options Strategy Playground</h1></div>
+<p class="tag">Research lab · Derivatives pricing</p>
+<p class="sub">Black-Scholes pricing for eight standard option strategies. Pick a structure, move the strikes, the volatility and the time left, and see the profit and loss at expiry, the value today, the breakevens and the net Greeks.</p>
+<nav><a href="./">[home]</a><a href="./#lab">[lab]</a><a href="#read">[how to read]</a><a href="#model">[inputs]</a><a href="#results">[results]</a><a href="#method">[method]</a></nav></header>
+<hr>
+<section id="read"><h2>How to read this</h2>
+<p>An option is a contract that pays off only if the underlying price ends on one side of a fixed level, the strike. A call pays when the price ends above the strike, a put when it ends below. A strategy is a bundle of such contracts, sometimes with the stock itself. The chart shows what the bundle earns or loses for each possible price of the underlying. The solid line is the result if held to expiry, net of what the position cost today. The dashed line is what the position would be worth right now if the price jumped to that level, which is why it is smooth: time and volatility are still in the price. The gap between the two lines is time value. The Greeks say how the value today moves when one input changes by a small amount and the others stay put.</p>
+</section><hr>
+<section id="model"><h2>Inputs</h2>
+<div class="ctl">
+ <label>Strategy <select id="strat" style="width:100%"></select></label>
+ <label>Quantity (units of the structure) <input type="number" id="qty" value="1" min="1" step="1"></label>
+ <label>Spot S <span id="vS"></span><input type="range" id="S" min="50" max="150" step="1" value="100"></label>
+ <label><i id="lK1">Strike K1</i> <span id="vK1"></span><input type="range" id="K1" min="50" max="150" step="1" value="100"></label>
+ <label id="gK2"><i id="lK2">Strike K2</i> <span id="vK2"></span><input type="range" id="K2" min="50" max="150" step="1" value="110"></label>
+ <label>Time to expiry T <span id="vT"></span><input type="range" id="T" min="0.01" max="2" step="0.01" value="0.5"></label>
+ <label>Implied volatility &sigma; <span id="vV"></span><input type="range" id="vol" min="5" max="100" step="1" value="20"></label>
+ <label>Risk-free rate r <span id="vR"></span><input type="range" id="r" min="0" max="10" step="0.1" value="3"></label>
+ <label>Dividend yield q <span id="vQ"></span><input type="range" id="q" min="0" max="8" step="0.1" value="0"></label>
+</div>
+<p id="desc" class="sub"></p>
+<div class="kpi">
+ <div><b id="kCost">.</b><span id="kCostL">Net cost today</span></div>
+ <div><b id="kGain">.</b>Maximum gain at expiry</div>
+ <div><b id="kLoss">.</b>Maximum loss at expiry</div>
+ <div><b id="kBE">.</b>Breakeven(s) at expiry</div>
+</div>
+<div class="kpi">
+ <div><b id="kDelta">.</b>Delta, per 1.00 move in S</div>
+ <div><b id="kGamma">.</b>Gamma, change in delta per 1.00 in S</div>
+ <div><b id="kVega">.</b>Vega, per 1 vol point</div>
+ <div><b id="kTheta">.</b>Theta, per calendar day</div>
+ <div><b id="kRho">.</b>Rho, per 1 rate point</div>
+</div>
+</section><hr>
+<section id="results"><h2>Results</h2>
+<div class="exh">Exhibit 1 <span>Profit and loss against the underlying price: at expiry, halfway to expiry and today. Vertical lines mark spot and the strikes.</span></div>
+<div id="c1"></div>
+<p class="note">All three lines subtract the net cost paid today, so the dashed line crosses zero at the current spot. The cost is not carried at the risk-free rate.</p>
+<div class="exh">Exhibit 2 <span>Net delta of the position today against the underlying price</span></div>
+<div id="c2"></div>
+<p class="note">Delta is the slope of the dashed line in Exhibit 1. Where it changes fastest, gamma is largest.</p>
+<div class="exh">Exhibit 3 <span>Legs, priced at the current spot. Values are for the position, quantity and sign included.</span></div>
+<div class="scroll"><table id="t1"></table></div>
+<p class="note" id="parity"></p>
+</section><hr>
+<section id="method"><h2>Method and limits</h2>
+<p><b>Model.</b> European options on an underlying that pays a continuous dividend yield q, priced with Black-Scholes-Merton. S is spot, K the strike, T the time to expiry in years, r the continuously compounded risk-free rate, &sigma; the implied volatility, N the standard normal distribution function and n its density.</p>
+<p class="eq">d<sub>1</sub> = [ ln(S/K) + (r &minus; q + &sigma;<sup>2</sup>/2)&middot;T ] / (&sigma;&middot;&radic;T) &nbsp;&nbsp; d<sub>2</sub> = d<sub>1</sub> &minus; &sigma;&middot;&radic;T<br>
+Call = S&middot;e<sup>&minus;qT</sup>&middot;N(d<sub>1</sub>) &minus; K&middot;e<sup>&minus;rT</sup>&middot;N(d<sub>2</sub>)<br>
+Put = K&middot;e<sup>&minus;rT</sup>&middot;N(&minus;d<sub>2</sub>) &minus; S&middot;e<sup>&minus;qT</sup>&middot;N(&minus;d<sub>1</sub>)</p>
+<p><b>Put-call parity.</b> A call minus a put at the same strike and expiry is a forward, whatever the volatility. The page checks this on every recalculation.</p>
+<p class="eq">Call &minus; Put = S&middot;e<sup>&minus;qT</sup> &minus; K&middot;e<sup>&minus;rT</sup></p>
+<p><b>Greeks.</b> Analytic, in the units a screen usually quotes. Vega is per one volatility point (0.01), rho per one rate point (0.01), theta per calendar day (1/365 of a year). The stock leg has delta 1 and no other Greek.</p>
+<p class="eq">Delta: call e<sup>&minus;qT</sup>&middot;N(d<sub>1</sub>), put &minus;e<sup>&minus;qT</sup>&middot;N(&minus;d<sub>1</sub>)<br>
+Gamma = e<sup>&minus;qT</sup>&middot;n(d<sub>1</sub>) / (S&middot;&sigma;&middot;&radic;T)<br>
+Vega = S&middot;e<sup>&minus;qT</sup>&middot;n(d<sub>1</sub>)&middot;&radic;T / 100<br>
+Theta call = [ &minus;S&middot;e<sup>&minus;qT</sup>&middot;n(d<sub>1</sub>)&middot;&sigma;/(2&radic;T) &minus; r&middot;K&middot;e<sup>&minus;rT</sup>&middot;N(d<sub>2</sub>) + q&middot;S&middot;e<sup>&minus;qT</sup>&middot;N(d<sub>1</sub>) ] / 365<br>
+Theta put = [ &minus;S&middot;e<sup>&minus;qT</sup>&middot;n(d<sub>1</sub>)&middot;&sigma;/(2&radic;T) + r&middot;K&middot;e<sup>&minus;rT</sup>&middot;N(&minus;d<sub>2</sub>) &minus; q&middot;S&middot;e<sup>&minus;qT</sup>&middot;N(&minus;d<sub>1</sub>) ] / 365<br>
+Rho: call K&middot;T&middot;e<sup>&minus;rT</sup>&middot;N(d<sub>2</sub>) / 100, put &minus;K&middot;T&middot;e<sup>&minus;rT</sup>&middot;N(&minus;d<sub>2</sub>) / 100</p>
+<p><b>Expiry profile.</b> At expiry a call is worth max(S<sub>T</sub> &minus; K, 0) and a put max(K &minus; S<sub>T</sub>, 0). The profit and loss is the sum over legs minus the net cost today. That function is piecewise linear with kinks at the strikes, so breakevens, maximum gain and maximum loss are solved exactly on the segments between strikes, not read off a grid. A position whose payoff keeps rising or falling beyond the last strike is reported as unlimited.</p>
+<p class="eq">P&amp;L(S<sub>T</sub>) = &Sigma; quantity<sub>i</sub> &middot; payoff<sub>i</sub>(S<sub>T</sub>) &minus; &Sigma; quantity<sub>i</sub> &middot; price<sub>i</sub>(S, today)</p>
+<p><b>Limits.</b> One flat volatility for every strike and expiry, so no skew or term structure: spreads and strangles are priced as if both strikes traded at the same implied volatility. European exercise only, so early exercise of American options is ignored. No bid-offer, commissions, margin or financing of the premium. Dividends received on a stock leg are left out of the expiry line. The spread strategies use the lower of the two strikes as the low strike whichever slider it comes from. The normal distribution function uses the Abramowitz and Stegun 7.1.26 approximation, accurate to about 1.5e-7, which puts prices within roughly 0.00002 for a spot of 100.</p>
+<p class="note">Educational tool. Illustrative inputs, not live data. Not investment advice.</p>
+</section>
+<script src="assets/plot.js"></script>
+<script>
+// ---------- pricing ----------
+function npdf(x){return Math.exp(-0.5*x*x)/Math.sqrt(2*Math.PI)}
+// Abramowitz and Stegun 7.1.26 on erf, max abs error 1.5e-7. Symmetric by construction, so N(x)+N(-x)=1.
+function ncdf(x){const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+ const s=x<0?-1:1,z=Math.abs(x)/Math.SQRT2,t=1/(1+p*z),y=1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-z*z);return 0.5*(1+s*y)}
+// Black-Scholes-Merton. type 'call' | 'put'. vega per 1 vol point, rho per 1 rate point, theta per calendar day.
+function bs(S,K,T,r,q,sig,type){const c=type==='call';
+ if(!(T>0)||!(sig>0)||!(S>0)){const fwdS=S*Math.exp(-q*Math.max(T,0)),pvK=K*Math.exp(-r*Math.max(T,0)),itm=c?fwdS>pvK:fwdS<pvK;
+  return{price:Math.max(c?fwdS-pvK:pvK-fwdS,0),delta:itm?(c?1:-1)*Math.exp(-q*Math.max(T,0)):0,gamma:0,vega:0,theta:0,rho:0}}
+ const sq=Math.sqrt(T),d1=(Math.log(S/K)+(r-q+0.5*sig*sig)*T)/(sig*sq),d2=d1-sig*sq,dq=Math.exp(-q*T),dr=Math.exp(-r*T),pd=npdf(d1);
+ const gamma=dq*pd/(S*sig*sq),vega=S*dq*pd*sq/100,decay=-S*dq*pd*sig/(2*sq);
+ if(c)return{price:S*dq*ncdf(d1)-K*dr*ncdf(d2),delta:dq*ncdf(d1),gamma,vega,theta:(decay-r*K*dr*ncdf(d2)+q*S*dq*ncdf(d1))/365,rho:K*T*dr*ncdf(d2)/100};
+ return{price:K*dr*ncdf(-d2)-S*dq*ncdf(-d1),delta:-dq*ncdf(-d1),gamma,vega,theta:(decay+r*K*dr*ncdf(-d2)-q*S*dq*ncdf(-d1))/365,rho:-K*T*dr*ncdf(-d2)/100}}
+function legNow(l,S,T,r,q,sig){if(l.type==='stock')return{price:S,delta:1,gamma:0,vega:0,theta:0,rho:0};return bs(S,l.K,T,r,q,sig,l.type)}
+function legExp(l,s){return l.type==='stock'?s:l.type==='call'?Math.max(s-l.K,0):Math.max(l.K-s,0)}
+function valueAt(legs,s,T,r,q,sig){let v=0;legs.forEach(l=>v+=l.qty*legNow(l,s,T,r,q,sig).price);return v}
+function payoffAt(legs,s){let v=0;legs.forEach(l=>v+=l.qty*legExp(l,s));return v}
+// Exact expiry analysis of a piecewise linear payoff: nodes at 0 and at each strike, then the slope beyond the last strike.
+function expiry(legs,cost){const ks=[...new Set(legs.filter(l=>l.type!=='stock').map(l=>l.K))].sort((a,b)=>a-b),nodes=[0,...ks.filter(k=>k>0)];
+ const pl=nodes.map(s=>payoffAt(legs,s)-cost);let slope=0;legs.forEach(l=>{if(l.type!=='put')slope+=l.qty});
+ const eps=1e-9,be=[];
+ for(let i=1;i<nodes.length;i++){const a=pl[i-1],b=pl[i];if(Math.abs(b)<eps&&(Math.abs(a)>eps||(i<nodes.length-1?Math.abs(pl[i+1])>eps:Math.abs(slope)>eps)))be.push(nodes[i]); // zero at a strike with a non-zero segment on either side: a touch, or the edge of a flat zero stretch when the net premium is nil
+  else if(a*b<0&&Math.abs(a)>eps&&Math.abs(b)>eps)be.push(nodes[i-1]+(nodes[i]-nodes[i-1])*(-a)/(b-a))}
+ const last=pl[pl.length-1];if(Math.abs(slope)>eps&&last*slope<0&&Math.abs(last)>eps)be.push(nodes[nodes.length-1]-last/slope);
+ return{be,maxGain:slope>eps?Infinity:Math.max(...pl),maxLoss:slope<-eps?-Infinity:Math.min(...pl),nodes,pl,slope}}
+
+// ---------- strategies. strike refs: 'k1' the first slider, 'lo'/'hi' the lower and higher of the two ----------
+const STRATS={
+ longCall:{name:'Long call',two:false,legs:[['call','k1',1]],desc:'Buy one call. Loss limited to the premium, gain open-ended above the strike plus premium.'},
+ longPut:{name:'Long put',two:false,legs:[['put','k1',1]],desc:'Buy one put. Loss limited to the premium, gain grows as the underlying falls toward zero.'},
+ coveredCall:{name:'Covered call',two:false,legs:[['stock',null,1],['call','k1',-1]],desc:'Hold the stock and sell one call against it. The premium cushions the downside and the upside is capped at the strike.'},
+ protectivePut:{name:'Protective put',two:false,legs:[['stock',null,1],['put','k1',1]],desc:'Hold the stock and buy one put. The put sets a floor under the position at the strike, for the cost of the premium.'},
+ bullCallSpread:{name:'Bull call spread',two:true,legs:[['call','lo',1],['call','hi',-1]],desc:'Buy the low-strike call, sell the high-strike call. Gain and loss are both capped.'},
+ bearPutSpread:{name:'Bear put spread',two:true,legs:[['put','hi',1],['put','lo',-1]],desc:'Buy the high-strike put, sell the low-strike put. Gain and loss are both capped.'},
+ longStraddle:{name:'Long straddle',two:false,legs:[['call','k1',1],['put','k1',1]],desc:'Buy a call and a put at the same strike. Gains from a large move either way, loses both premiums if the price sits at the strike.'},
+ longStrangle:{name:'Long strangle',two:true,legs:[['put','lo',1],['call','hi',1]],desc:'Buy a low-strike put and a high-strike call. Cheaper than a straddle, needs a larger move to pay.'}
+};
+function buildLegs(key,K1,K2,n){const lo=Math.min(K1,K2),hi=Math.max(K1,K2);
+ return STRATS[key].legs.map(([type,ref,q])=>({type,K:type==='stock'?null:ref==='k1'?K1:ref==='lo'?lo:hi,qty:q*n}))}
+
+// ---------- page ----------
+if(typeof document!=='undefined'){
+const $=id=>document.getElementById(id),f2=v=>v.toFixed(2),f4=v=>v.toFixed(4),sg=(v,d)=>(v>=0?'+':'')+v.toFixed(d),sz=v=>Math.abs(v)<5e-3?'0.00':sg(v,2);
+const sel=$('strat');Object.keys(STRATS).forEach(k=>{const o=document.createElement('option');o.value=k;o.textContent=STRATS[k].name;sel.appendChild(o)});
+function run(){
+ const key=sel.value,st=STRATS[key],S=+$('S').value,K1=+$('K1').value,K2=+$('K2').value,T=+$('T').value,sig=+$('vol').value/100,r=+$('r').value/100,q=+$('q').value/100;
+ let n=Math.floor(+$('qty').value);if(!(n>=1))n=1;
+ $('gK2').hidden=!st.two;$('lK1').textContent=st.two?'Strike A':'Strike K';$('lK2').textContent='Strike B';
+ $('vS').textContent=f2(S);$('vK1').textContent=f2(K1);$('vK2').textContent=f2(K2);$('vT').textContent=T.toFixed(2)+'y ('+Math.round(T*365)+'d)';
+ $('vV').textContent=(sig*100).toFixed(0)+'%';$('vR').textContent=(r*100).toFixed(1)+'%';$('vQ').textContent=(q*100).toFixed(1)+'%';
+ const legs=buildLegs(key,K1,K2,n),rows=legs.map(l=>{const g=legNow(l,S,T,r,q,sig),o={};Object.keys(g).forEach(k=>o[k]=g[k]*l.qty);return o});
+ const net={price:0,delta:0,gamma:0,vega:0,theta:0,rho:0};rows.forEach(o=>Object.keys(net).forEach(k=>net[k]+=o[k]));
+ const free=Math.abs(net.price)<1e-9&&!(st.two&&K1===K2),cost=free?0:net.price,ex=expiry(legs,cost);
+ $('desc').textContent=st.desc+(st.two&&K1===K2?' The two strikes are equal, so the structure is degenerate: move one of them.':'')+(free?' At these inputs the position costs nothing: the net premium is below 1e-9, so nothing can be lost and each breakeven sits at a strike, where the payoff starts.':'');
+ $('kCost').textContent=f2(Math.abs(cost));$('kCostL').textContent=Math.abs(cost)<5e-3?'Net cost today':cost>0?'Net cost today (debit paid)':'Net cost today (credit received)';
+ $('kGain').textContent=ex.maxGain===Infinity?'Unlimited':sz(ex.maxGain);$('kLoss').textContent=ex.maxLoss===-Infinity?'Unlimited':free?'0.00 (no premium at risk)':sz(ex.maxLoss);
+ $('kBE').textContent=ex.be.length?ex.be.map(f2).join(' / '):'None';
+ $('kDelta').textContent=sg(net.delta,4);$('kGamma').textContent=sg(net.gamma,4);$('kVega').textContent=sg(net.vega,4);$('kTheta').textContent=sg(net.theta,4);$('kRho').textContent=sg(net.rho,4);
+ // charts
+ const ks=legs.filter(l=>l.K!=null).map(l=>l.K),lo=0.5*Math.min(S,...ks),hi=1.5*Math.max(S,...ks),N=160;
+ const xs=[...new Set([...Array.from({length:N+1},(_,i)=>+(lo+(hi-lo)*i/N).toFixed(4)),S,...ks,...ex.be.filter(b=>b>lo&&b<hi)])].sort((a,b)=>a-b);
+ const marks=[...new Set([S,...ks])];
+ Plot.line($('c1'),{x:xs,xnum:true,zero:true,dec:2,h:300,vline:marks,title:'Profit and loss by underlying price',series:[
+  {name:'At expiry',y:xs.map(s=>payoffAt(legs,s)-cost)},
+  {name:'Today',y:xs.map(s=>valueAt(legs,s,T,r,q,sig)-cost)},
+  {name:'Halfway to expiry',y:xs.map(s=>valueAt(legs,s,T/2,r,q,sig)-cost)}]});
+ Plot.line($('c2'),{x:xs,xnum:true,zero:true,dec:2,h:200,vline:marks,legend:true,title:'Net delta by underlying price',series:[
+  {name:'Net delta today',y:xs.map(s=>{let d=0;legs.forEach(l=>d+=l.qty*legNow(l,s,T,r,q,sig).delta);return d})}]});
+ // table
+ let h='<tr><th>Leg</th><th class="n">Qty</th><th class="n">Strike</th><th class="n">Value</th><th class="n">Delta</th><th class="n">Gamma</th><th class="n">Vega</th><th class="n">Theta</th><th class="n">Rho</th></tr>';
+ const cells=o=>`<td class="n">${sg(o.price,4)}</td><td class="n">${sg(o.delta,4)}</td><td class="n">${sg(o.gamma,4)}</td><td class="n">${sg(o.vega,4)}</td><td class="n">${sg(o.theta,4)}</td><td class="n">${sg(o.rho,4)}</td>`;
+ legs.forEach((l,i)=>{h+=`<tr><td>${l.qty>0?'Long':'Short'} ${l.type}</td><td class="n">${sg(l.qty,0)}</td><td class="n">${l.K==null?'':f2(l.K)}</td>${cells(rows[i])}</tr>`});
+ h+=`<tr class="net"><td>Net</td><td></td><td></td>${cells(net)}</tr>`;$('t1').innerHTML=h;
+ const c=bs(S,K1,T,r,q,sig,'call').price,p=bs(S,K1,T,r,q,sig,'put').price,fw=S*Math.exp(-q*T)-K1*Math.exp(-r*T);
+ $('parity').textContent='Positive value is an asset, negative a liability. Put-call parity check at strike '+f2(K1)+': call '+f4(c)+' minus put '+f4(p)+' = '+f4(c-p)+', forward value S·exp(-qT) - K·exp(-rT) = '+f4(fw)+'.';
+}
+['strat','qty','S','K1','K2','T','vol','r','q'].forEach(id=>{$(id).addEventListener('input',run);$(id).addEventListener('change',run)});
+run();
+}
+</script>
+</body></html>

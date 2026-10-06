@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>S&amp;P 500 Fair Value · Arthur Mota</title>
+<meta name="description" content="Weekly fair value of the S&amp;P 500, the equity risk premium the index level implies, and scenarios built from data.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="../assets/mono.css">
+<style>
+#sens td,#sens th,#sc td,#sc th,#gr td,#gr th,#et td,#et th{text-align:right;white-space:nowrap}
+#sens td:first-child,#sens th:first-child,#gr td:first-child,#gr th:first-child,#et td:first-child,#et th:first-child{text-align:left}
+#sc td:first-child,#sc th:first-child{text-align:left;white-space:normal;min-width:260px}
+#sens td.b{font-weight:700;background:#eee}
+#sc tr.on td{background:#f2f2f2}
+#warn{color:#111;font-size:12px;margin:0 0 16px}
+#warn:empty{display:none}
+</style>
+</head><body>
+<header><div class="mast"><a href="../"><svg class="logo" viewBox="0 0 32 32" aria-label="home"><rect width="32" height="32" fill="#111"/><path d="M7 11h18M12 11v13M20 11v9.5a3.5 3.5 0 0 0 3.5 3.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="square"/></svg></a><h1>S&amp;P 500 fair value</h1></div>
+<p class="tag">US equities · Valuation and scenarios · Weekly</p>
+<p class="sub" id="stamp">Loading.</p>
+<nav><a href="../">[home]</a><a href="../#lab">[lab]</a><a href="#read">[how to read]</a><a href="#now">[today]</a><a href="#scen">[scenarios]</a><a href="#hist">[history]</a><a href="#data">[data]</a><a href="#limits">[limits]</a></nav></header>
+<hr>
+<section id="read"><h2>How to read this page</h2>
+<p>A share is worth the cash it will pay its owner, discounted back to today. This page values the S&amp;P 500 on that principle, with inputs refreshed every week, and reports two readings.</p>
+<p>Run backwards, the valuation gives the <b>equity risk premium the index level implies</b>: the extra return over Treasuries that makes the value equal today's index. Run forwards, it gives the <b>value under a scenario</b>: what the index would be worth if one stated thing changed. Each scenario below is a rule applied to data, with the numbers shown, not a set of typed assumptions.</p>
+<p class="note">A fair value is not a forecast. Most of the value sits in the distant future, so small changes in the discount rate or in growth move the answer a lot. Read the scenarios as distances, not as targets. Not investment advice.</p>
+</section><hr>
+<section id="now"><h2>Today</h2>
+<div class="kpi" id="kp"></div>
+<p id="verdict" class="sub"></p>
+<div class="exh">Table <span>Earnings of the index, in index points, and the multiple each implies</span></div>
+<div class="scroll"><table id="et"></table></div>
+<p class="note" id="etn"></p>
+</section><hr>
+<section id="scen"><h2>Scenarios</h2>
+<div class="exh">Exhibit 1 <span>What the index would be worth if one thing changed</span></div>
+<div class="scroll"><table id="sc"></table></div>
+<p class="note" id="scn"></p>
+<div class="exh">Exhibit 2 <span>Index level by earnings and multiple. Multiples are percentiles of the trailing price to earnings ratio since 1990.</span></div>
+<div class="scroll"><table id="gr"></table></div>
+<p class="note" id="grn"></p>
+</section><hr>
+<section id="hist"><h2>History</h2>
+<div class="exh">Exhibit 3 <span>Earnings yield of the index, 10-year real Treasury yield, and the gap between them, percent, monthly</span></div>
+<div id="c3"></div>
+<p class="note" id="c3n"></p>
+<div class="exh">Exhibit 4 <span>Price to trailing earnings and price to ten-year average real earnings (CAPE), monthly</span></div>
+<div id="c4"></div>
+<p class="note">Multiples above 50 are left out: reported earnings collapsed in 2008 and 2009 and the trailing multiple passed 100.</p>
+</section><hr>
+<section id="data"><h2>Data</h2>
+<ul class="idx"><li><a href="data/scenarios.csv">scenarios.csv</a><br><span class="s">Each scenario: what it assumes, fair value, gap to the index and value in twelve months.</span></li>
+<li><a href="data/weekly.csv">weekly.csv</a><br><span class="s">One row a week from October 2026: index, earnings, premium and the fair value under each scenario.</span></li>
+<li><a href="data/meta.json">meta.json</a><br><span class="s">Everything on this page, with dates.</span></li></ul>
+</section><hr>
+<section id="limits"><h2>Limits</h2>
+<p>Analyst estimates are optimistic on average and are revised down more often than up; the valuation takes them as they are. Analyst earnings exclude items companies call non-recurring and run above reported (GAAP) earnings, shown beside them. Most of the value is in the distant future. The scenarios change one or a few things and hold the rest still, which markets do not do. The gap between the earnings yield and the real yield has a history that starts in 2003 and includes a decade of very low real yields, which makes today look expensive against it.</p>
+<p class="note">The methodology, inputs and code behind this page are not published.</p>
+<p class="note">Educational research. Not investment advice. This is not an official release of any institution.</p>
+</section>
+<script src="../assets/plot.js"></script><script src="spx.js"></script>
+</body></html>

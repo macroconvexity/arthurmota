@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Risk Model · Arthur Mota</title>
+<meta name="description" content="Daily US equity risk factors: market, size, value, momentum, profitability, investment, quality and more. Portfolios, regressions, risk metrics and free CSV downloads.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="../assets/mono.css">
+</head><body>
+<header><div class="mast"><a href="../"><svg class="logo" viewBox="0 0 32 32" aria-label="home"><rect width="32" height="32" fill="#111"/><path d="M7 11h18M12 11v13M20 11v9.5a3.5 3.5 0 0 0 3.5 3.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="square"/></svg></a><h1>Risk model</h1></div>
+<p class="tag">US equity risk factors and portfolios · Daily</p>
+<p class="sub" id="stamp">Loading.</p>
+<nav><a href="../">[home]</a><a href="#read">[how to read]</a><a href="#factors">[factors]</a><a href="#perf">[performance]</a><a href="#risk">[risk]</a><a href="#corr">[correlations]</a><a href="#reg">[regressions]</a><a href="#years">[years]</a><a href="#data">[data]</a><a href="#limits">[limits]</a></nav></header>
+<hr>
+<section id="read"><h2>How to read this page</h2>
+<p><b>What a factor is.</b> Stocks that share a trait tend to move together: small companies, cheap companies, companies that went up last year. A factor measures the return to that trait.</p>
+<p><b>How it is measured.</b> Each factor is a portfolio that buys the stocks with a lot of the trait and sells the stocks with little of it. Its return is the difference between the two sides:</p>
+<p class="eq">factor return = return of the long side &minus; return of the short side</p>
+<p><b>Read it against zero, not against the index.</b> Both sides hold stocks, so both rise in a bull market. A factor at zero means the two sides earned the same. A factor at minus 4% a year means the long side earned four points less than the short side, not that it lost money. Only MKT, the market itself, compares with the S&amp;P 500.</p>
+<p><b>What it is for.</b> Factors are a measuring tool, not a strategy. Regress any fund or portfolio on them and the coefficients say where its returns come from: how much is the market, how much is a tilt to small, cheap or trending stocks, and what is left over.</p>
+</section><hr>
+<section id="factors"><h2>Risk factors</h2>
+<p>Eighteen daily long-short factors for US equities. They are this site's own estimates: nothing here is taken from a published factor library.</p>
+<div class="tog" data-win></div>
+<div class="exh">Exhibit 1 <span>Cumulative long-minus-short return of each factor, rebased to 100. The grey line is zero return. Select one to open it below.</span></div>
+<div class="grid" id="grid"></div>
+<div class="scroll" style="margin-top:20px"><table id="fdef"></table></div>
+</section><hr>
+<section id="perf"><h2>Performance</h2>
+<div class="tog"><label>Series <select id="sel"></select></label></div>
+<p id="plain" class="sub"></p>
+<div class="exh">Exhibit 2 <span id="t2"></span></div>
+<div class="readout" id="r2"></div><div class="plot" id="c2"></div><div class="legend" id="l2"></div>
+<p class="note" id="n2"></p>
+<div id="fx"><div class="exh">Exhibit 2b <span>The factor itself: long side minus short side, rebased to 100. Above 100 the long side is ahead.</span></div>
+<div class="readout" id="r5"></div><div class="plot" id="c5"></div><div class="legend" id="l5"></div></div>
+<div class="exh">Exhibit 3 <span>Drawdown from running peak</span></div>
+<div class="readout" id="r3"></div><div class="plot" id="c3"></div><div class="legend" id="l3"></div>
+<div class="exh">Exhibit 4 <span>Rolling one-year beta to the S&amp;P 500</span></div>
+<div class="readout" id="r4"></div><div class="plot" id="c4"></div><div class="legend" id="l4"></div>
+<p class="note">The window buttons at the top apply to every exhibit and table on this page.</p>
+</section><hr>
+<section id="risk"><h2>Risk and return</h2>
+<div class="scroll"><table id="mt"></table></div>
+<p class="note">CAGR geometric. Sharpe and Sortino on excess returns over the T-bill, annualised; Sortino uses downside deviation. t is the t-statistic of the mean excess return. VaR and CVaR are historical, 95%, one day. Beta and information ratio are against the S&amp;P 500. Factor rows are zero-investment spreads, so Sharpe uses them as is.</p>
+</section><hr>
+<section id="corr"><h2>Factor correlations</h2>
+<div class="scroll"><table id="ct" class="cm"></table></div>
+<p class="note">Daily returns, selected window, times 100. Bold where the absolute correlation is 50 or more.</p>
+<div class="exh">Table <span>Is each factor spanned by the others? Regression on MKT, SMB, HML, RMW, CMA and MOM, full sample.</span></div>
+<div class="scroll"><table id="st"></table></div>
+</section><hr>
+<section id="reg"><h2>Factor regressions</h2>
+<p>Each row is a portfolio explained by the factors. The regression is</p>
+<p class="eq">R<sub>p</sub> &minus; R<sub>f</sub> = &alpha; + &beta;<sub>1</sub>&middot;MKT + &beta;<sub>2</sub>&middot;SMB + &beta;<sub>3</sub>&middot;HML + &hellip; + &epsilon;</p>
+<p>A beta of 1 on MKT means the portfolio moves one for one with the market. A positive beta on SMB means it behaves like small companies, on HML like cheap ones, and so on. Alpha is the return the factors do not explain. R² is the share of daily movement they do explain.</p>
+<div class="tog"><label>Model <select id="msel"></select></label></div>
+<div class="scroll"><table id="rt"></table></div>
+<p class="note" id="rnote"></p>
+</section><hr>
+<section id="years"><h2>Calendar-year returns</h2><div class="scroll"><table id="yt"></table></div></section><hr>
+<section id="data"><h2>Data</h2>
+<ul class="idx">
+<li><a href="data/factors_daily.csv">factors_daily.csv</a><br><span class="s">All eighteen factors and the risk-free rate, daily, decimal returns.</span></li>
+<li><a href="data/legs_daily.csv">legs_daily.csv</a><br><span class="s">The long side and the short side of every factor, separately.</span></li>
+<li><a href="data/portfolios_daily.csv">portfolios_daily.csv</a><br><span class="s">Twelve sorted portfolios (size, value, momentum, illiquidity), eleven sector portfolios and fifteen ETFs.</span></li>
+<li><a href="data/returns_daily.csv">returns_daily.csv</a><br><span class="s">Everything above plus the S&amp;P 500, one file.</span></li>
+<li><a href="data/metrics.csv">metrics.csv</a> · <a href="data/regressions.csv">regressions.csv</a> · <a href="data/meta.json">meta.json</a></li></ul>
+<pre>import pandas as pd
+f = pd.read_csv("https://macroconvexity.github.io/arthurmota/risk/data/factors_daily.csv", index_col=0, parse_dates=True)</pre>
+<pre>f &lt;- read.csv("https://macroconvexity.github.io/arthurmota/risk/data/factors_daily.csv")
+f$date &lt;- as.Date(f$date)</pre>
+<p class="note">Cite as Mota (2026), US Risk Model, macroconvexity.github.io/arthurmota/risk.</p>
+</section><hr>
+<section id="limits"><h2>Limits</h2>
+<p><b>Survivorship bias, the main limit.</b> The model holds companies that exist today, so companies that failed or were delisted are missing. This flatters long-only portfolios, small caps most of all, and it works against factors that short risky stocks (IVOL, MAX, QMJ, BAB), because the worst outcomes on the short side are absent. Use the sorted portfolios for exposures, not for the level of return. Long-short factors are less affected because both legs share the bias.</p>
+<p><b>Check against the academic library.</b> The table compares each factor with its Ken French counterpart as a diagnostic. The definitions differ, so the match is not expected to be exact.</p>
+<div class="scroll"><table id="ft"></table></div>
+<p class="note">The methodology, inputs and code behind this page are not published.</p>
+<p class="note">Educational research. Not investment advice. Past returns are not predictive. Prices can be revised.</p>
+</section>
+<script src="risk.js"></script>
+</body></html>

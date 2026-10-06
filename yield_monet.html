@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Global Yield Curve Shock Lab · Arthur Mota</title>
+<meta name="description" content="Shock a US, euro area or Brazil yield curve with policy, term premium, level and curvature factors and read the yield, price, carry and roll impact by maturity.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="assets/mono.css">
+<style>
+.nodes{grid-template-columns:repeat(auto-fill,minmax(84px,1fr))}
+.kpi b.w{font-size:13px;line-height:1.85}
+</style>
+</head><body>
+<header><div class="mast"><a href="./"><svg class="logo" viewBox="0 0 32 32" aria-label="home"><rect width="32" height="32" fill="#111"/><path d="M7 11h18M12 11v13M20 11v9.5a3.5 3.5 0 0 0 3.5 3.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="square"/></svg></a><h1>Global Yield Curve Shock Lab</h1></div>
+<p class="tag">Research lab · Rates</p>
+<p class="sub">A four-factor shock model for a government yield curve. Pick a region, edit the baseline curve, move the policy, term premium, level and curvature factors, and read the change in yields, bond prices, carry and roll by maturity.</p>
+<nav><a href="./">[home]</a><a href="./#lab">[lab]</a><a href="#model">[model]</a><a href="#results">[results]</a><a href="#method">[method]</a></nav></header>
+<hr>
+<section id="read"><h2>How to read this</h2>
+<p>A yield curve plots the interest rate a government pays against the maturity of the loan. Short rates follow the central bank. Long rates add what investors expect the central bank to do later, plus a term premium for holding a long bond. Each slider below moves one of those pieces. When a yield rises, the price of an existing bond falls, and it falls more the longer the bond: that sensitivity is called duration. The page shows how far each point of the curve moves and what a bond at that maturity gains or loses.</p>
+<p class="note">The baseline curves are illustrative shapes, not market quotes. Type current yields into the boxes before using any number from this page.</p>
+</section><hr>
+<section id="model"><h2>Inputs</h2>
+<div class="ctl">
+ <label>Region <select id="region"><option value="US">United States (USD)</option><option value="EZ">Euro area (EUR)</option><option value="BR">Brazil (BRL)</option></select></label>
+ <label>Coupons per year <select id="freq"><option value="1">1</option><option value="2">2</option></select></label>
+</div>
+<div class="exh">Baseline par curve <span>percent, illustrative, editable</span></div>
+<div class="ctl nodes" id="nodes"></div>
+<div class="exh">Shocks <span>basis points, 100 bp = 1 percentage point</span></div>
+<div class="ctl">
+ <label>Policy rate (short end) <span id="vpol">0</span><input type="range" id="pol" min="-200" max="200" step="5" value="0"></label>
+ <label>Term premium (long end) <span id="vtp">0</span><input type="range" id="tp" min="-200" max="200" step="5" value="0"></label>
+ <label>Level, expected inflation (parallel) <span id="vlev">0</span><input type="range" id="lev" min="-200" max="200" step="5" value="0"></label>
+ <label>Curvature (belly) <span id="vcur">0</span><input type="range" id="cur" min="-100" max="100" step="5" value="0"></label>
+ <label>Decay τ, years <span id="vtau">2.0</span><input type="range" id="tau" min="0.5" max="5" step="0.1" value="2"></label>
+ <label>Carry and roll horizon, months <span id="vhor">3</span><input type="range" id="hor" min="0" max="12" step="1" value="3"></label>
+ <label>Equity duration, years (assumption) <input type="number" id="eqd" value="15" min="0" max="40" step="1"></label>
+</div>
+<div class="tog"><span>Scenario:</span>
+ <button class="btn" data-s="100,0,0,0">bear flattener</button>
+ <button class="btn" data-s="-100,0,0,0">bull steepener</button>
+ <button class="btn" data-s="0,75,0,0">bear steepener</button>
+ <button class="btn" data-s="0,-75,0,0">bull flattener</button>
+ <button class="btn" data-s="0,0,100,0">parallel +100</button>
+ <button class="btn" data-s="0,0,0,50">belly cheapens</button>
+ <button class="btn" data-s="0,0,0,0">reset shocks</button>
+ <button class="btn" id="resetcurve">reset curve</button>
+</div>
+<div class="kpi">
+ <div><b id="k2">n/a</b>2Y yield change, bp</div>
+ <div><b id="k10">n/a</b>10Y yield change, bp</div>
+ <div><b id="ks">n/a</b>2s10s slope, bp, base to shocked</div>
+ <div><b id="kf">n/a</b>2s5s10s fly, bp, base to shocked</div>
+ <div><b id="kp">n/a</b>10Y par bond price change</div>
+ <div><b id="kfx" class="w">n/a</b><span id="kfxd">FX heuristic</span></div>
+ <div><b id="keq" class="w">n/a</b><span id="keqd">Equity multiple heuristic</span></div>
+</div>
+<p class="note">FX and equity lines are rules of thumb on the real (ex level shock) 2Y spread and 10Y yield. They are not fair value estimates.</p>
+</section><hr>
+<section id="results"><h2>Results</h2>
+<div class="exh">Exhibit 1 <span>Baseline and shocked curve, percent, by maturity in years</span></div>
+<div id="c1"></div>
+<div class="exh">Exhibit 2 <span>Yield change by maturity and by factor, basis points</span></div>
+<div id="c2"></div>
+<p class="note">Policy and term premium loadings sum to one at every maturity, so equal shocks to both are a parallel shift.</p>
+<div class="exh">Exhibit 3 <span>Price change of a par bond by maturity bucket, percent, split into duration and convexity terms</span></div>
+<div id="c3"></div>
+<div class="exh">Exhibit 4 <span>Risk and return by maturity bucket</span></div>
+<div class="scroll"><table id="t1"></table></div>
+<p class="note">Mod dur in years. DV01 per 100 face. Price is the exact repricing of a par bond at the shocked yield. Carry is yield over the 3M rate for the horizon, roll is the gain from sliding down the unchanged baseline curve. Total adds price, carry and roll. Breakeven is the yield rise at the horizon that erases carry plus roll.</p>
+<div class="exh">Exhibit 5 <span>Factor loadings by maturity, share of a 1 bp shock</span></div>
+<div id="c4"></div>
+</section><hr>
+<section id="method"><h2>Method and limits</h2>
+<p><b>Shocked curve.</b> The baseline is a par curve at seven maturities m (in years). The shock is a sum of four factors with Nelson-Siegel loadings, where x = m / τ.</p>
+<p class="eq">Δy(m) = S·L<sub>s</sub>(m) + T·(1 − L<sub>s</sub>(m)) + V + C·L<sub>c</sub>(m)<br>
+L<sub>s</sub>(m) = (1 − e<sup>−x</sup>) / x<br>
+L<sub>c</sub>(m) = [(1 − e<sup>−x</sup>) / x − e<sup>−x</sup>] / 0.2984</p>
+<p>S is the policy shock, T the term premium shock, V the level shock and C the curvature shock, all in basis points. L<sub>s</sub> starts at one and decays, so S moves the front end. Its complement rises with maturity, so T moves the long end. L<sub>c</sub> is the Nelson-Siegel hump divided by its peak value of 0.2984, so C is the move at the top of the hump, near m = 1.79·τ. A larger τ pushes all three shapes out the curve.</p>
+<p><b>Price impact.</b> Each maturity is a bond with coupon equal to the baseline yield, paid f times a year, so it starts at par. Maturities shorter than one coupon period are priced as bills. The yield shock at the node is applied to that bond's yield to maturity.</p>
+<p class="eq">P(y) = Σ CF<sub>i</sub> / (1 + y/f)<sup>f·t<sub>i</sub></sup><br>
+D = (1/P) · Σ t<sub>i</sub>·CF<sub>i</sub> / (1 + y/f)<sup>f·t<sub>i</sub> + 1</sup><br>
+K = (1/P) · Σ t<sub>i</sub>·(t<sub>i</sub> + 1/f)·CF<sub>i</sub> / (1 + y/f)<sup>f·t<sub>i</sub> + 2</sup><br>
+ΔP/P ≈ −D·Δy + ½·K·Δy<sup>2</sup>, with Δy in decimal (1 bp = 0.0001)<br>
+DV01 = D · P · 0.0001</p>
+<p>D is modified duration and K is convexity. The table reports the exact repricing P(y + Δy) / P(y) − 1. Exhibit 3 shows the two terms of the approximation, which track the exact number closely for moves under 200 bp.</p>
+<p><b>Carry and roll.</b> Over a horizon h (in years), with the baseline curve unchanged and funding at the 3M rate:</p>
+<p class="eq">carry = (y(m) − y(3M)) · h<br>
+roll = −D(m − h) · (y(m − h) − y(m))<br>
+breakeven = (carry + roll) / D(m − h)</p>
+<p>y(m − h) is linear interpolation on the baseline nodes, held flat below 3M. Carry and roll are computed on the baseline and added to the instantaneous shock, which ignores the small change in carry after the shock.</p>
+<p><b>FX and equity heuristics.</b> The level shock is read as a change in expected inflation that passes one for one into nominal yields (Fisher), so it leaves real yields unchanged. The FX line uses the change in the 2Y yield excluding the level shock, against the unshocked baseline of the other curve. The equity line uses the 10Y yield excluding the level shock.</p>
+<p class="eq">Δ real 2Y spread = Δy(2Y) − V<br>
+Δ P/E ≈ −D<sub>eq</sub> · (Δy(10Y) − V)</p>
+<p><b>Limits.</b> The factor shapes are imposed, not estimated from data. The four factors are treated as independent, though in practice a policy shock usually moves the term premium and expected inflation too. A pure parallel inflation shock assumes the central bank does not respond. Node shocks are applied to par yields, not to a zero curve, so the bond in each bucket is repriced on its own yield. Brazilian fixed-rate bonds are quoted on a 252 business day annual compounding basis, which the coupon frequency setting only approximates. Real-rate differentials explain only part of currency moves, and the equity duration is an assumption the reader sets. Credit, liquidity, taxes and bid-offer are ignored.</p>
+<p class="note">Educational tool. Illustrative inputs, not live data. Not investment advice.</p>
+</section>
+<script src="assets/plot.js"></script>
+<script>
+const M=[0.25,1,2,3,5,7,10],LAB=['3M','1Y','2Y','3Y','5Y','7Y','10Y'],I2=2,I5=4,I10=6,CMAX=0.29843;
+// Illustrative baseline shapes only. Not market quotes.
+const DEF={US:{ccy:'USD',f:2,y:[4.00,3.90,3.80,3.85,4.00,4.20,4.40]},
+ EZ:{ccy:'EUR',f:1,y:[2.00,2.00,2.10,2.20,2.40,2.60,2.80]},
+ BR:{ccy:'BRL',f:2,y:[14.00,13.75,13.50,13.40,13.50,13.60,13.70]}};
+const ST=JSON.parse(JSON.stringify(DEF));
+const $=id=>document.getElementById(id);
+const num=(id,d)=>{const v=parseFloat($(id).value);return v===v?v:d};
+const sg=(v,d)=>{const s=v.toFixed(d);return (+s>0?'+':'')+(+s===0?(0).toFixed(d):s)};
+
+const Ls=(m,tau)=>{const x=m/tau;return (1-Math.exp(-x))/x};
+const Lc=(m,tau)=>{const x=m/tau;return ((1-Math.exp(-x))/x-Math.exp(-x))/CMAX};
+
+// cash flows of a bond with coupon c (percent), maturity m (years), f payments a year
+function flows(m,c,f){if(m<1/f-1e-9)return[[m,100]];const a=[];for(let t=m;t>1e-9;t-=1/f)a.push([t,c/f+(a.length?0:100)]);return a}
+// price, modified duration, convexity at yield y (percent)
+function pdc(cf,y,f){const q=1+y/100/f;let p=0,d=0,k=0;cf.forEach(([t,v])=>{const z=v*Math.pow(q,-f*t);p+=z;d+=t*z/q;k+=t*(t+1/f)*z/(q*q)});return{p,d:d/p,k:k/p}}
+function interp(y,m){if(m<=M[0])return y[0];for(let i=1;i<M.length;i++)if(m<=M[i])return y[i-1]+(y[i]-y[i-1])*(m-M[i-1])/(M[i]-M[i-1]);return y[M.length-1]}
+
+function buildNodes(){$('nodes').innerHTML=LAB.map((l,i)=>`<label>${l} <input type="number" step="0.05" id="n${i}"></label>`).join('');
+ LAB.forEach((l,i)=>$('n'+i).addEventListener('input',()=>{const v=parseFloat($('n'+i).value);if(v===v){ST[$('region').value].y[i]=v;run()}}))}
+function loadRegion(){const r=ST[$('region').value];r.y.forEach((v,i)=>$('n'+i).value=v.toFixed(2));$('freq').value=r.f}
+
+function run(){
+ const key=$('region').value,r=ST[key],f=r.f,y0=r.y;
+ const S=num('pol',0),T=num('tp',0),V=num('lev',0),C=num('cur',0),tau=num('tau',2),hm=num('hor',3),h=hm/12,De=num('eqd',15);
+ $('vpol').textContent=sg(S,0);$('vtp').textContent=sg(T,0);$('vlev').textContent=sg(V,0);$('vcur').textContent=sg(C,0);$('vtau').textContent=tau.toFixed(1);$('vhor').textContent=hm;
+ const cS=M.map(m=>S*Ls(m,tau)),cT=M.map(m=>T*(1-Ls(m,tau))),cV=M.map(()=>V),cC=M.map(m=>C*Lc(m,tau));
+ const dy=M.map((m,i)=>cS[i]+cT[i]+cV[i]+cC[i]),y1=y0.map((v,i)=>v+dy[i]/100);
+ const rows=M.map((m,i)=>{const cf=flows(m,y0[i],f),a=pdc(cf,y0[i],f),b=pdc(cf,y1[i],f),d=dy[i]/1e4;
+  const o={dur:a.d,cvx:a.k,dv01:a.d*a.p*1e-4,px:(b.p/a.p-1)*100,pd:-a.d*d*100,pc:.5*a.k*d*d*100,carry:null,roll:null,be:null,tot:null};
+  const mh=m-h;if(mh>-1e-9){o.carry=(y0[i]-y0[0])*h;
+   if(mh>1e-9){const yh=interp(y0,mh),dh=pdc(flows(mh,y0[i],f),yh,f).d;o.roll=-dh*(yh-y0[i]);o.be=(o.carry+o.roll)/dh*100}else o.roll=0;
+   o.tot=o.px+o.carry+o.roll}
+  return o});
+
+ // headline numbers
+ const sl0=(y0[I10]-y0[I2])*100,sl1=(y1[I10]-y1[I2])*100,fl0=(2*y0[I5]-y0[I2]-y0[I10])*100,fl1=(2*y1[I5]-y1[I2]-y1[I10])*100;
+ $('k2').textContent=sg(dy[I2],0);$('k10').textContent=sg(dy[I10],0);
+ $('ks').textContent=sl0.toFixed(0)+' to '+sl1.toFixed(0);$('kf').textContent=fl0.toFixed(0)+' to '+fl1.toFixed(0);
+ $('kp').textContent=sg(rows[I10].px,2)+'%';
+ const r2=dy[I2]-V,r10=dy[I10]-V,ccy=r.ccy;
+ $('kfx').textContent=Math.abs(r2)<5?'Neutral':(r2>0?'Stronger ':'Weaker ')+ccy;
+ if(key==='US')$('kfxd').textContent='FX heuristic. Change in real 2Y spread vs EUR and BRL baselines '+sg(r2,0)+' bp (nominal '+sg(dy[I2],0)+')';
+ else{const b=(y0[I2]-ST.US.y[I2])*100;$('kfxd').textContent='FX heuristic. 2Y spread vs US baseline '+b.toFixed(0)+' bp, real change '+sg(r2,0)+' bp (nominal '+sg(dy[I2],0)+')'}
+ const pe=-De*r10/100;
+ $('keq').textContent=Math.abs(r10)<5?'Neutral':(r10>0?'Lower P/E ':'Higher P/E ')+sg(pe,1)+'%';
+ $('keqd').textContent='Equity multiple heuristic. Real 10Y '+sg(r10,0)+' bp times duration '+De.toFixed(0);
+
+ // charts
+ const yr=v=>(+v.toFixed(2))+'y';
+ Plot.line($('c1'),{x:M,xnum:true,xfmt:yr,dec:2,title:'Baseline and shocked yield curve',series:[{name:'Baseline (illustrative)',y:y0,dash:'5 3',color:'#777'},{name:'Shocked',y:y1,dash:'',width:1.8}]});
+ Plot.bar($('c2'),{x:LAB,stacked:true,dec:0,title:'Yield change by factor',series:[{name:'Policy',y:cS},{name:'Term premium',y:cT},{name:'Level',y:cV},{name:'Curvature',y:cC}]});
+ Plot.bar($('c3'),{x:LAB,stacked:true,dec:2,title:'Price change by maturity bucket',series:[{name:'Duration term',y:rows.map(o=>o.pd)},{name:'Convexity term',y:rows.map(o=>o.pc)}]});
+ const G=[];for(let m=0.25;m<=10.001;m+=0.25)G.push(m);
+ Plot.line($('c4'),{x:G,xnum:true,xfmt:yr,dec:2,ymin:0,ymax:1,title:'Factor loadings',series:[{name:'Policy',y:G.map(m=>Ls(m,tau))},{name:'Term premium',y:G.map(m=>1-Ls(m,tau))},{name:'Level',y:G.map(()=>1)},{name:'Curvature',y:G.map(m=>Lc(m,tau))}]});
+
+ // table
+ const c=(v,d)=>v==null?'n/a':sg(v,d);
+ $('t1').innerHTML='<tr><th>Bucket</th><th class="n">Base %</th><th class="n">Shocked %</th><th class="n">Δ bp</th><th class="n">Mod dur</th><th class="n">Convexity</th><th class="n">DV01</th><th class="n">Price %</th><th class="n">Carry %</th><th class="n">Roll %</th><th class="n">Total %</th><th class="n">Breakeven bp</th></tr>'+
+  rows.map((o,i)=>`<tr><td>${LAB[i]}</td><td class="n">${y0[i].toFixed(2)}</td><td class="n">${y1[i].toFixed(2)}</td><td class="n">${sg(dy[i],0)}</td><td class="n">${o.dur.toFixed(2)}</td><td class="n">${o.cvx.toFixed(1)}</td><td class="n">${o.dv01.toFixed(4)}</td><td class="n">${sg(o.px,2)}</td><td class="n">${c(o.carry,2)}</td><td class="n">${c(o.roll,2)}</td><td class="n">${c(o.tot,2)}</td><td class="n">${c(o.be,0)}</td></tr>`).join('');
+}
+
+buildNodes();loadRegion();
+$('region').addEventListener('change',()=>{loadRegion();run()});
+$('freq').addEventListener('change',()=>{ST[$('region').value].f=+$('freq').value;run()});
+['pol','tp','lev','cur','tau','hor','eqd'].forEach(id=>$(id).addEventListener('input',run));
+document.querySelectorAll('button[data-s]').forEach(b=>b.addEventListener('click',()=>{const v=b.dataset.s.split(',');['pol','tp','lev','cur'].forEach((id,i)=>$(id).value=v[i]);run()}));
+$('resetcurve').addEventListener('click',()=>{const k=$('region').value;ST[k]=JSON.parse(JSON.stringify(DEF[k]));loadRegion();run()});
+run();
+</script>
+</body></html>

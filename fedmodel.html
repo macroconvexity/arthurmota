@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Policy simulator · Arthur Mota</title>
+<meta name="description" content="A small New Keynesian model of the US economy, solved under rational expectations. Hit it with a government spending shock or a policy rate surprise and trace output, inflation, the policy rate, consumption and investment.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="assets/mono.css">
+<style>
+.ctl h3{grid-column:1/-1;font-size:12px;margin:8px 0 0;text-transform:uppercase;letter-spacing:.06em;border-top:1px solid #111;padding-top:4px}
+.ctl label em{display:block;font-style:normal;color:#666;font-size:11px;line-height:1.35}
+#warn{font-weight:700}
+</style>
+</head><body>
+<header><div class="mast"><a href="./"><svg class="logo" viewBox="0 0 32 32" aria-label="home"><rect width="32" height="32" fill="#111"/><path d="M7 11h18M12 11v13M20 11v9.5a3.5 3.5 0 0 0 3.5 3.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="square"/></svg></a><h1>Policy simulator</h1></div>
+<p class="tag">Research lab · New Keynesian model, fiscal and monetary shocks</p>
+<p class="sub">A small New Keynesian model with habits, investment adjustment costs, sticky prices and an inertial Taylor rule, solved under rational expectations in the browser. Choose a government spending shock and a policy rate surprise and read the response of output, inflation, rates, consumption and investment.</p>
+<nav><a href="./">[home]</a><a href="./#lab">[lab]</a><a href="#read">[how to read]</a><a href="#model">[inputs]</a><a href="#results">[results]</a><a href="#method">[method]</a></nav></header>
+<hr>
+<section id="read"><h2>How to read this</h2>
+<p>The economy starts at rest: output at potential, inflation at target, the policy rate at neutral. In quarter 0 it is hit by one or two surprises. A fiscal shock is extra government spending. A monetary shock is the central bank setting its rate above (or below) what its usual rule would prescribe. The charts show how far each variable moves away from rest and how long it takes to return. The output gap is output relative to potential, in percent: plus 1 means the economy runs 1% above its sustainable level. Inflation and interest rates are in percent a year. Nothing here is a forecast or a reading of today's economy. Every number on the page follows from the sliders, and the starting values are illustrative.</p>
+</section><hr>
+<section id="model"><h2>Inputs</h2>
+<div class="tog"><span>Scenario</span><span id="scn"></span></div>
+<div class="ctl" id="ctl"></div>
+<p class="note" id="warn"></p>
+<div class="kpi">
+ <div><b id="k_g">0</b>Fiscal shock, % of GDP</div>
+ <div><b id="k_y">0</b><span id="k_yq">Peak output gap</span></div>
+ <div><b id="k_pi">0</b><span id="k_piq">Peak inflation</span></div>
+ <div><b id="k_i">0</b><span id="k_iq">Peak policy rate</span></div>
+ <div><b id="k_m0">0</b>Spending multiplier, impact</div>
+ <div><b id="k_mc">0</b><span id="k_mcq">Spending multiplier, cumulative</span></div>
+</div>
+<p class="note">Peaks are the largest move away from rest in either direction, with the quarter in which it occurs. The multipliers are computed from the fiscal shock alone and do not depend on its size: output change divided by spending change, on impact and summed over the horizon.</p>
+</section><hr>
+<section id="results"><h2>Results</h2>
+<div class="exh">Exhibit 1 <span>Output gap (% of potential), inflation, policy rate and ex-ante real rate (% a year). Quarter 0 is the shock.</span></div>
+<div id="c1"></div>
+<div class="exh">Exhibit 2 <span>What moves output: contributions of consumption, investment and government spending to the output gap, percentage points</span></div>
+<div id="c2"></div>
+<div class="exh">Exhibit 3 <span>Consumption and investment, % deviation from their own steady-state levels</span></div>
+<div id="c3"></div>
+<div class="tog" style="margin-top:20px"><label>Split by shock <select id="dv"><option value="0">Output gap</option><option value="4">Inflation</option><option value="5">Policy rate</option><option value="1">Consumption</option><option value="2">Investment</option></select></label></div>
+<div class="exh">Exhibit 4 <span id="t4"></span></div>
+<div id="c4"></div>
+<p class="note">The model is linear, so the response to both shocks is the sum of the response to each. Exhibit 4 shows which one is doing the work.</p>
+<div class="exh">Table <span>Path by quarter</span></div>
+<div class="scroll"><table id="t1"></table></div>
+<p class="note" id="tn"></p>
+</section><hr>
+<section id="method"><h2>Method and limits</h2>
+<p><b>Model.</b> Nine linear equations in quarterly time. Lower-case variables are percent deviations from steady state. Inflation &pi; and the policy rate i are annualised, so the quarterly real rate is one quarter of their difference. E is the model-consistent expectation.</p>
+<p><b>Output.</b> Output is the sum of its parts. Government spending g is measured in percent of steady-state GDP, with consumption and investment shares s<sub>c</sub> = 0.64 and s<sub>i</sub> = 0.18.</p>
+<p class="eq">y<sub>t</sub> = s<sub>c</sub>&middot;c<sub>t</sub> + s<sub>i</sub>&middot;x<sub>t</sub> + g<sub>t</sub></p>
+<p><b>Consumption.</b> Households smooth spending, hold habits (h) and cut back when the real rate rises, with strength set by 1/&sigma;.</p>
+<p class="eq">c<sub>t</sub> = h/(1+h)&middot;c<sub>t&minus;1</sub> + 1/(1+h)&middot;E c<sub>t+1</sub> &minus; (1&minus;h)/((1+h)&sigma;)&middot;(i<sub>t</sub> &minus; E &pi;<sub>t+1</sub>)/4</p>
+<p><b>Investment.</b> Firms invest when the value of installed capital q is high. Changing the pace of investment is costly (&phi;), which produces the slow, hump-shaped response. q falls when the real rate rises and rises with the expected return on capital, which goes up with the output gap and down as the capital stock k builds. &beta; = 0.99, &delta; = 0.025.</p>
+<p class="eq">x<sub>t</sub> = 1/(1+&beta;)&middot;x<sub>t&minus;1</sub> + &beta;/(1+&beta;)&middot;E x<sub>t+1</sub> + q<sub>t</sub>/((1+&beta;)&phi;)</p>
+<p class="eq">q<sub>t</sub> = &beta;(1&minus;&delta;)&middot;E q<sub>t+1</sub> + (1&minus;&beta;(1&minus;&delta;))&middot;(E y<sub>t+1</sub> &minus; k<sub>t</sub>) &minus; (i<sub>t</sub> &minus; E &pi;<sub>t+1</sub>)/4</p>
+<p class="eq">k<sub>t</sub> = (1&minus;&delta;)&middot;k<sub>t&minus;1</sub> + &delta;&middot;x<sub>t</sub></p>
+<p><b>Inflation.</b> A hybrid Phillips curve. Prices respond to slack with slope &kappa;, and a share of firms index to past inflation (&iota;).</p>
+<p class="eq">&pi;<sub>t</sub> = &iota;/(1+&beta;&iota;)&middot;&pi;<sub>t&minus;1</sub> + &beta;/(1+&beta;&iota;)&middot;E &pi;<sub>t+1</sub> + &kappa;&middot;y<sub>t</sub></p>
+<p><b>Policy rule.</b> The central bank moves gradually (&rho;) toward a rate that responds to inflation and the output gap. The monetary shock m is the deviation from that rule.</p>
+<p class="eq">i<sub>t</sub> = &rho;&middot;i<sub>t&minus;1</sub> + (1&minus;&rho;)&middot;(&phi;<sub>&pi;</sub>&middot;&pi;<sub>t</sub> + &phi;<sub>y</sub>&middot;y<sub>t</sub>) + m<sub>t</sub></p>
+<p><b>Shocks.</b> Both decay geometrically after quarter 0.</p>
+<p class="eq">g<sub>t</sub> = &rho;<sub>g</sub>&middot;g<sub>t&minus;1</sub> + &epsilon;<sup>g</sup><sub>t</sub> &nbsp;&nbsp; m<sub>t</sub> = &rho;<sub>m</sub>&middot;m<sub>t&minus;1</sub> + &epsilon;<sup>m</sup><sub>t</sub></p>
+<p><b>Levels.</b> Reported inflation is the target plus &pi;. The reported policy rate is r* plus the target plus i. The ex-ante real rate is r* + i<sub>t</sub> &minus; E &pi;<sub>t+1</sub>. The fiscal shock in dollars is converted with the nominal GDP entered above: &epsilon;<sup>g</sup> = 100 &times; shock / GDP, both at annual rates.</p>
+<p><b>Solution.</b> Writing the system as A<sub>0</sub>z<sub>t</sub> = A<sub>1</sub>z<sub>t&minus;1</sub> + B&middot;E z<sub>t+1</sub> + C&epsilon;<sub>t</sub>, the page looks for the law of motion z<sub>t</sub> = P z<sub>t&minus;1</sub> + Q &epsilon;<sub>t</sub>, where P solves</p>
+<p class="eq">B&middot;P&sup2; &minus; A<sub>0</sub>&middot;P + A<sub>1</sub> = 0, &nbsp; Q = (A<sub>0</sub> &minus; B&middot;P)<sup>&minus;1</sup> C</p>
+<p>P is found by cyclic reduction, which doubles the time step at each pass. The solution is accepted only if all roots of P are inside the unit circle (the economy returns to rest) and all roots of (A<sub>0</sub> &minus; B&middot;P)<sup>&minus;1</sup>B are too (no second stable path exists). That is the usual Blanchard and Kahn condition. If it fails, the page says so and shows nothing.</p>
+<p><b>Calibration.</b> The default habit (0.71), investment adjustment cost (5.74), rule smoothing (0.81), response to inflation (2.04) and monetary shock persistence (0.15) equal the posterior means reported for the United States in Table 1 of Smets and Wouters (2007), a medium-scale model that this page simplifies. The default output coefficient of the rule (0.32) is their quarterly estimate of 0.08 quoted for an annualised rate, which is four times larger. Their rule also responds to the change in the output gap, a term left out here. Risk aversion (1.5) is a round illustrative value, a little above their estimate of about 1.4. The Phillips curve slope, indexation and fiscal persistence are round illustrative values in the range of estimated medium-scale models, not taken from that paper. The default shock sizes, r*, the inflation target and nominal GDP are illustrative, not current data.</p>
+<p><b>Limits.</b> This is the demand block of a New Keynesian model, not the full medium-scale system. There is no wage rigidity block, no labour market, no financial sector and no open economy. Potential output is held fixed: extra government spending does not raise labour supply and the capital stock affects the return on capital but not supply, so the output deviation equals the output gap. That is a fair shortcut over a few years and a poor one over decades. Spending is financed by lump-sum taxes and households are Ricardian, so deficits and debt do not matter by themselves. The model is linear: responses scale with the size of the shock, a cut is the mirror image of a hike, and the policy rate is allowed to go below zero. Agents learn of the shock in quarter 0 and know the model, which makes them react faster than the data usually show.</p>
+<p class="note">Educational tool. Illustrative inputs, not live data. Not a forecast and not investment advice.</p>
+</section>
+<script src="assets/plot.js"></script>
+<script>
+// ---------- engine ----------
+const N=9,Y=0,CN=1,IN=2,QK=3,PI=4,RN=5,GV=6,MS=7,KS=8;
+const BETA=0.99,DELTA=0.025,ZETA=1,SC=0.64,SI=0.18;
+const zeros=(r,c)=>Array.from({length:r},()=>new Array(c).fill(0));
+function mul(A,B){const r=A.length,c=B[0].length,m=B.length,O=zeros(r,c);for(let i=0;i<r;i++)for(let k=0;k<m;k++){const a=A[i][k];if(a)for(let j=0;j<c;j++)O[i][j]+=a*B[k][j]}return O}
+function solveLin(A,Bm){const n=A.length,c=Bm[0].length,M=A.map((r,i)=>r.concat(Bm[i]));
+ for(let k=0;k<n;k++){let p=k;for(let i=k+1;i<n;i++)if(Math.abs(M[i][k])>Math.abs(M[p][k]))p=i;if(Math.abs(M[p][k])<1e-14)return null;[M[k],M[p]]=[M[p],M[k]];
+  const d=M[k][k];for(let j=k;j<n+c;j++)M[k][j]/=d;for(let i=0;i<n;i++)if(i!==k){const f=M[i][k];if(f)for(let j=k;j<n+c;j++)M[i][j]-=f*M[k][j]}}
+ return M.map(r=>r.slice(n))}
+function build(p){const A0=zeros(N,N),A1=zeros(N,N),B=zeros(N,N),C=zeros(N,2);
+ A0[0][Y]=1;A0[0][CN]=-SC;A0[0][IN]=-SI;A0[0][GV]=-1;
+ const a=(1-p.h)/((1+p.h)*p.sigma);
+ A0[1][CN]=1;A0[1][RN]=a/4;A1[1][CN]=p.h/(1+p.h);B[1][CN]=1/(1+p.h);B[1][PI]=a/4;
+ A0[2][IN]=1;A0[2][QK]=-1/((1+BETA)*p.phi);A1[2][IN]=1/(1+BETA);B[2][IN]=BETA/(1+BETA);
+ const rk=1-BETA*(1-DELTA);
+ A0[3][QK]=1;A0[3][RN]=1/4;A0[3][KS]=rk;B[3][QK]=BETA*(1-DELTA);B[3][Y]=rk*ZETA;B[3][PI]=1/4;
+ A0[4][PI]=1;A0[4][Y]=-p.kappa;A1[4][PI]=p.iota/(1+BETA*p.iota);B[4][PI]=BETA/(1+BETA*p.iota);
+ A0[5][RN]=1;A0[5][PI]=-(1-p.rho)*p.fpi;A0[5][Y]=-(1-p.rho)*p.fy;A0[5][MS]=-1;A1[5][RN]=p.rho;
+ A0[6][GV]=1;A1[6][GV]=p.rhog;C[6][0]=1;
+ A0[7][MS]=1;A1[7][MS]=p.rhom;C[7][1]=1;
+ A0[8][KS]=1;A0[8][IN]=-DELTA;A1[8][KS]=1-DELTA;
+ return{A0,A1,B,C}}
+function solveRE(p){const{A0,A1,B,C}=build(p),sub=(X,Yv)=>X.map((r,i)=>r.map((v,j)=>v-Yv[i][j])),Id=zeros(N,N).map((r,i)=>{r[i]=1;return r}),
+  mx=X=>{let m=0;X.forEach(r=>r.forEach(v=>{m=Math.max(m,v===v?Math.abs(v):Infinity)}));return m};
+ // cyclic reduction on z(t) = E z(t-s) + F z(t+s), doubling s each pass. Eh converges to P.
+ let E=solveLin(A0,A1),F=solveLin(A0,B);if(!E||!F)return{ok:false};let Eh=E,Fh=F,ok=false;
+ for(let k=0;k<60;k++){const M1=sub(Id,mul(Fh,E)),Ehn=solveLin(M1,Eh),Fhn=solveLin(M1,mul(Fh,F));if(!Ehn||!Fhn)return{ok:false};
+  const EF=mul(E,F),FE=mul(F,E),M2=Id.map((r,i)=>r.map((v,j)=>v-EF[i][j]-FE[i][j])),En=solveLin(M2,mul(E,E)),Fn=solveLin(M2,mul(F,F));
+  const d=mx(sub(Ehn,Eh));Eh=Ehn;Fh=Fhn;if(!(d<Infinity))return{ok:false};if(d<1e-13){ok=true;break}if(!En||!Fn)return{ok:false};E=En;F=Fn}
+ const P=Eh,D=sub(A0,mul(B,P));if(!ok||mx(sub(mul(D,P),A1))>1e-8)return{ok:false};
+ const Q=solveLin(D,C),Fw=solveLin(D,B);if(!Q||!Fw)return{ok:false};
+ const rad=specRad(P),fwd=specRad(Fw);
+ return{ok,P,Q,rad,fwd,stable:rad<0.9999,unique:fwd<0.9999}}
+// spectral radius from the norm of A^(2^20), rescaled at each squaring
+function specRad(A){let S=A.map(r=>r.slice()),sc=0;for(let k=0;k<20;k++){S=mul(S,S);let m=0;S.forEach(r=>r.forEach(v=>m=Math.max(m,Math.abs(v))));if(!(m>0))return 0;if(!(m<Infinity))return Infinity;S=S.map(r=>r.map(v=>v/m));sc=sc*2+Math.log(m)}
+ return Math.exp(sc/1048576)}
+// path[t][var], t=0 is the pre-shock quarter (all zeros), t=1 is the shock quarter. Also returns E pi(t+1).
+function simulate(sol,eg,em,H){const path=[new Array(N).fill(0)],epi=[0];let z=sol.Q.map(r=>r[0]*eg+r[1]*em);
+ for(let t=0;t<=H;t++){path.push(z);const zn=sol.P.map(r=>r.reduce((s,v,j)=>s+v*z[j],0));epi.push(zn[PI]);z=zn}
+ return{path,epi}}
+
+// ---------- page ----------
+if(typeof document!=='undefined'){
+const $=id=>document.getElementById(id);
+const CT=[
+ {h:'Shocks in quarter 0'},
+ {id:'fis',l:'Government spending',u:' $bn',min:-1000,max:2000,step:50,v:450,dec:0,d:'Annual rate, first quarter. Negative is a cut.'},
+ {id:'rhog',l:'Spending persistence',u:'',min:0,max:0.99,step:0.01,v:0.90,dec:2,d:'Share of the shock still in place a quarter later.'},
+ {id:'mon',l:'Policy rate surprise',u:' pp',min:-2,max:4,step:0.25,v:1,dec:2,d:'Deviation from the rule, annualised. Negative is an easing.'},
+ {id:'rhom',l:'Surprise persistence',u:'',min:0,max:0.9,step:0.05,v:0.15,dec:2,d:'How long the central bank stays off its rule.'},
+ {h:'Steady state (illustrative, not current data)'},
+ {id:'rstar',l:'Neutral real rate r*',u:'%',min:0,max:4,step:0.1,v:1,dec:1,d:'Real policy rate at rest.'},
+ {id:'pistar',l:'Inflation target',u:'%',min:0,max:4,step:0.1,v:2,dec:1,d:'Inflation at rest.'},
+ {id:'gdp',l:'Nominal GDP, $tn',num:true,v:30,min:1,step:0.5,d:'Only converts the spending shock to % of GDP.'},
+ {id:'hor',l:'Horizon',sel:[[12,'12 quarters'],[20,'20 quarters'],[40,'40 quarters']],v:20,d:'Length of the simulation.'},
+ {h:'Policy rule'},
+ {id:'rule',l:'Preset',sel:[['est','Inertial, estimated'],['t93','Taylor 1993, no smoothing'],['bal','Balanced approach, inertial'],['hawk','Inflation hawk'],['cus','Custom']],v:'est',d:'Sets the three sliders that follow.'},
+ {id:'rho',l:'Smoothing ρ',u:'',min:0,max:0.95,step:0.01,v:0.81,dec:2,d:'Weight on last quarter\'s rate.'},
+ {id:'fpi',l:'Response to inflation φπ',u:'',min:1.1,max:3,step:0.01,v:2.04,dec:2,d:'Above 1 so that real rates rise with inflation.'},
+ {id:'fy',l:'Response to output gap φy',u:'',min:0,max:1.5,step:0.01,v:0.32,dec:2,d:'Annualised rate points per point of gap.'},
+ {h:'Economy'},
+ {id:'h',l:'Consumption habit h',u:'',min:0,max:0.9,step:0.01,v:0.71,dec:2,d:'Higher means slower, smoother consumption.'},
+ {id:'sigma',l:'Risk aversion σ',u:'',min:0.5,max:4,step:0.1,v:1.5,dec:1,d:'Higher means spending reacts less to rates.'},
+ {id:'phi',l:'Investment adjustment cost φ',u:'',min:1,max:12,step:0.01,v:5.74,dec:2,d:'Higher means investment reacts less and later.'},
+ {id:'kappa',l:'Phillips curve slope κ',u:'',min:0.01,max:0.5,step:0.01,v:0.10,dec:2,d:'Annualised inflation per point of output gap.'},
+ {id:'iota',l:'Price indexation ι',u:'',min:0,max:1,step:0.05,v:0.5,dec:2,d:'Higher means more inflation inertia.'}
+];
+const RULES={est:[0.81,2.04,0.32],t93:[0,1.5,0.5],bal:[0.85,1.5,1.0],hawk:[0.7,3,0]};
+const SCN=[['Stimulus and a hike',450,1],['Stimulus only',450,0],['Hike only',0,1],['Cut only',0,-1],['Spending cut',-450,0],['No shock',0,0]];
+$('ctl').innerHTML=CT.map(c=>c.h?`<h3>${c.h}</h3>`:
+ c.sel?`<label>${c.l}<select id="${c.id}">${c.sel.map(o=>`<option value="${o[0]}"${o[0]==c.v?' selected':''}>${o[1]}</option>`).join('')}</select><em>${c.d}</em></label>`:
+ c.num?`<label>${c.l}<input type="number" id="${c.id}" value="${c.v}" min="${c.min}" step="${c.step}"><em>${c.d}</em></label>`:
+ `<label>${c.l} <span id="v_${c.id}"></span><input type="range" id="${c.id}" min="${c.min}" max="${c.max}" step="${c.step}" value="${c.v}"><em>${c.d}</em></label>`).join('');
+$('scn').innerHTML=SCN.map((s,i)=>`<button class="btn" data-s="${i}">${s[0]}</button>`).join(' ')+' <button class="btn" id="reset">Reset all</button>';
+const sgn=(v,d)=>(v>0?'+':v<0?'−':'')+Math.abs(v).toFixed(d);
+const num=(v,d)=>(v<0?'−':'')+Math.abs(v).toFixed(d);
+function read(){const p={};CT.forEach(c=>{if(!c.id)return;const e=$(c.id);p[c.id]=c.sel&&c.id==='rule'?e.value:parseFloat(e.value);if(!c.sel&&!c.num)$('v_'+c.id).textContent=(c.id==='fis'||c.id==='mon'?sgn(p[c.id],c.dec):p[c.id].toFixed(c.dec))+c.u});
+ const ge=$('gdp').parentNode.querySelector('em'),gb=!(p.gdp>0);if(gb)p.gdp=30;
+ ge.textContent=gb?'Warning: nominal GDP must be above 0. This entry is ignored and the illustrative default of $30tn is used.':'Only converts the spending shock to % of GDP.';ge.style.color=gb?'#111':'';ge.style.fontWeight=gb?'700':'';return p}
+function extreme(a){let k=0;a.forEach((v,i)=>{if(Math.abs(v)>Math.abs(a[k])+1e-12)k=i});return k}
+function run(){const p=read(),H=p.hor,sol=solveRE(p),w=$('warn');
+ if(!sol.ok||!sol.stable||!sol.unique){w.textContent='No unique stable solution at these settings: the policy rule does not pin down a single path back to rest, so results are not shown. This happens with a very aggressive, unsmoothed response to inflation combined with a flat Phillips curve and cheap investment adjustment. Add smoothing or a response to the output gap, or raise the adjustment cost.';['k_g','k_y','k_pi','k_i','k_m0','k_mc'].forEach(i=>$(i).textContent='n/a');$('k_yq').textContent='Peak output gap';$('k_piq').textContent='Peak inflation';$('k_iq').textContent='Peak policy rate';$('k_mcq').textContent='Spending multiplier, cumulative';$('t4').textContent='Not shown: no unique stable solution';$('tn').textContent='';['c1','c2','c3','c4','t1'].forEach(i=>$(i).innerHTML='');return}
+ const eg=100*p.fis/(p.gdp*1000),em=p.mon;
+ const F=simulate(sol,eg,0,H),Mo=simulate(sol,0,em,H),U=simulate(sol,1,0,H);
+ const T=H+2,lab=[];for(let t=0;t<T;t++)lab.push(t===0?'pre':'q'+(t-1));
+ const col=(S,k)=>S.path.map(r=>r[k]),sum=(a,b)=>a.map((v,i)=>v+b[i]);
+ const tot=k=>sum(col(F,k),col(Mo,k)),epi=sum(F.epi,Mo.epi);
+ const y=tot(Y),c=tot(CN),x=tot(IN),g=tot(GV),pi=tot(PI),i=tot(RN);
+ const piL=pi.map(v=>p.pistar+v),iL=i.map(v=>p.rstar+p.pistar+v),rr=i.map((v,t)=>p.rstar+v-epi[t]);
+ // tiles
+ const ky=extreme(y),kp=extreme(pi),ki=extreme(i),word=v=>Math.abs(v)<5e-4?'Peak':v>0?'Peak':'Trough',at=k=>k===0?'':', q'+(k-1);
+ $('k_g').textContent=sgn(eg,2)+'%';
+ $('k_y').textContent=sgn(y[ky],2)+'%';$('k_yq').textContent=word(y[ky])+' output gap'+at(ky);
+ $('k_pi').textContent=num(piL[kp],2)+'%';$('k_piq').textContent=word(pi[kp])+' inflation'+at(kp);
+ $('k_i').textContent=num(iL[ki],2)+'%';$('k_iq').textContent=word(i[ki])+' policy rate'+at(ki);
+ const uy=col(U,Y),ug=col(U,GV);let sy=0,sg=0;for(let t=1;t<T;t++){sy+=uy[t];sg+=ug[t]}
+ $('k_m0').textContent=(uy[1]/ug[1]).toFixed(2);$('k_mc').textContent=(sy/sg).toFixed(2);$('k_mcq').textContent='Spending multiplier, cumulative '+H+'q';
+ const lo=Math.min(...iL);
+ w.textContent=lo<-1e-9?'The policy rate falls to '+num(lo,2)+'% in this run. The model has no lower bound on rates, so read the easing as larger than a central bank at zero could deliver with the rate alone.':'';
+ // charts
+ Plot.line($('c1'),{x:lab,series:[{name:'Output gap',y:y,width:2},{name:'Inflation',y:piL},{name:'Policy rate',y:iL},{name:'Real rate, ex ante',y:rr}],dec:2,zero:true,h:290,title:'Output gap, inflation, policy rate and real rate'});
+ Plot.stack($('c2'),{x:lab,series:[{name:'Consumption',y:c.map(v=>SC*v)},{name:'Investment',y:x.map(v=>SI*v)},{name:'Government',y:g}],total:{name:'Output gap',y:y},dec:2,title:'Contributions to the output gap'});
+ Plot.line($('c3'),{x:lab,series:[{name:'Consumption',y:c},{name:'Investment',y:x}],dec:2,zero:true,title:'Consumption and investment'});
+ const dv=+$('dv').value,dn=$('dv').selectedOptions[0].textContent;
+ $('t4').textContent=dn+': deviation from rest, split into the part due to the fiscal shock and the part due to the monetary shock'+(dv===PI||dv===RN?', percentage points a year':', percent');
+ Plot.stack($('c4'),{x:lab,series:[{name:'Fiscal shock',y:col(F,dv)},{name:'Monetary shock',y:col(Mo,dv)}],total:{name:dn+', both',y:tot(dv)},dec:2,h:240,title:dn+' by shock'});
+ // table
+ let h='<tr><th>Quarter</th><th class="n">Output gap</th><th class="n">Inflation</th><th class="n">Policy rate</th><th class="n">Real rate</th><th class="n">Consumption</th><th class="n">Investment</th><th class="n">Gov. spending</th></tr>';
+ for(let t=0;t<T;t++)h+=`<tr><td class="d">${lab[t]}</td><td class="n">${sgn(y[t],2)}</td><td class="n">${num(piL[t],2)}</td><td class="n">${num(iL[t],2)}</td><td class="n">${num(rr[t],2)}</td><td class="n">${sgn(c[t],2)}</td><td class="n">${sgn(x[t],2)}</td><td class="n">${sgn(g[t],2)}</td></tr>`;
+ $('t1').innerHTML=h;
+ $('tn').textContent='Output gap, consumption and investment in % deviation from steady state. Government spending in % of steady-state GDP. Inflation, policy rate and ex-ante real rate in % a year, as levels around a '+p.pistar.toFixed(1)+'% target and a '+(p.rstar+p.pistar).toFixed(1)+'% neutral nominal rate. Largest root of the solution: '+sol.rad.toFixed(3)+'.'}
+function setv(id,v){$(id).value=v}
+$('ctl').addEventListener('input',e=>{const id=e.target.id;
+ if(id==='rule'){const r=RULES[e.target.value];if(r){setv('rho',r[0]);setv('fpi',r[1]);setv('fy',r[2])}}
+ else if(id==='rho'||id==='fpi'||id==='fy')setv('rule','cus');
+ run()});
+$('dv').addEventListener('change',run);
+$('scn').addEventListener('click',e=>{const b=e.target;if(b.id==='reset'){CT.forEach(c=>{if(c.id)setv(c.id,c.v)});run();return}
+ if(b.dataset.s==null)return;const s=SCN[+b.dataset.s];setv('fis',s[1]);setv('mon',s[2]);run()});
+run();
+}
+</script>
+</body></html>

@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Global Asset Strategy Simulator · Arthur Mota</title>
+<meta name="description" content="Multi-asset allocation workbench: build expected returns from building blocks, set volatilities and correlations, and read return, risk, drawdown and wealth ranges for seven model profiles.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="assets/mono.css">
+<style>
+table.in input{width:62px;text-align:right;padding:1px 3px}
+table.in td,table.in th{text-align:right}table.in td:first-child,table.in th:first-child{text-align:left;white-space:nowrap}
+table.in th.sel{background:#111;color:#fff;padding-left:4px}
+table.cr input{width:60px}
+.warn{font-weight:700}
+h3{font-size:12px;margin:20px 0 6px;text-transform:uppercase;letter-spacing:.06em}
+</style>
+</head><body>
+<header><div class="mast"><a href="./"><svg class="logo" viewBox="0 0 32 32" aria-label="home"><rect width="32" height="32" fill="#111"/><path d="M7 11h18M12 11v13M20 11v9.5a3.5 3.5 0 0 0 3.5 3.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="square"/></svg></a><h1>Global Asset Strategy Simulator</h1></div>
+<p class="tag">Research lab · Asset allocation</p>
+<p class="sub">A mean-variance workbench for nine asset classes and seven model profiles. Build expected returns from building blocks, set volatilities and correlations, and read the return, risk and wealth range each mix implies.</p>
+<nav><a href="./">[home]</a><a href="./#lab">[lab]</a><a href="#read">[how to read]</a><a href="#model">[inputs]</a><a href="#results">[results]</a><a href="#method">[method]</a></nav></header>
+<hr>
+<section id="read"><h2>How to read this</h2>
+<p>A portfolio is a list of weights. Give each asset class an expected return, a volatility (how much its return swings in a typical year) and a correlation with every other asset (how much they move together), and arithmetic produces the expected return and the risk of any mix. Diversification shows up as portfolio volatility below the weighted average of the asset volatilities. Every number in the input tables is an illustrative assumption that you can overwrite. None of it is live market data, and none of the outputs is a forecast: they are what the assumptions imply, no more.</p>
+</section><hr>
+<section id="model"><h2>Inputs</h2>
+<div class="tabs" id="tabs"></div>
+<div class="ctl">
+ <label>Initial amount <input type="number" id="amt" value="1000000" min="0" step="10000"></label>
+ <label>Horizon, years <input type="number" id="hor" value="10" min="1" max="40" step="1"></label>
+ <label>Bear case, % of base premium <span id="vbear">70</span><input type="range" id="bear" min="0" max="100" step="5" value="70"></label>
+ <label>Bull case, % of base premium <span id="vbull">130</span><input type="range" id="bull" min="100" max="200" step="5" value="130"></label>
+</div>
+<p class="note">Bear and bull rescale each asset's expected return in excess of cash. At 70% an asset keeps 70% of its premium, at 130% it earns 130% of it. Cash itself is unchanged.</p>
+
+<h3>Allocation matrix, % of portfolio</h3>
+<div class="scroll"><table class="in" id="tw"></table></div>
+<p class="note" id="wnote">Select a profile with the buttons above. Weights are editable. A column that does not add to 100 is rescaled to 100 in the calculations.</p>
+
+<h3>Capital market assumptions (illustrative, editable)</h3>
+<div class="scroll"><table class="in" id="tcma"></table></div>
+<p class="note">Annual, nominal, in percent. Bond and equity expected returns are the sum of the building blocks below. Changing the cash rate shifts the risk-free block of every bond class by the same amount.</p>
+<div class="exh">Fixed income <span>building blocks, % a year</span></div>
+<div class="scroll"><table class="in" id="tfi"></table></div>
+<div class="exh">Equities <span>building blocks, % a year</span></div>
+<div class="scroll"><table class="in" id="teq"></table></div>
+
+<h3>Correlation matrix (illustrative, editable)</h3>
+<div class="scroll"><table class="in cr" id="tcr"></table></div>
+<p class="note"><span id="psd"></span> <button id="fix">[repair]</button> <button id="rst">[reset all inputs]</button></p>
+</section><hr>
+<section id="results"><h2>Results: <span id="pname"></span></h2>
+<div class="kpi">
+ <div><b id="k_ret">n/a</b>Expected return, arithmetic</div>
+ <div><b id="k_vol">n/a</b>Volatility, annual</div>
+ <div><b id="k_sh">n/a</b>Sharpe ratio over cash</div>
+ <div><b id="k_geo">n/a</b>Median compound return</div>
+ <div><b id="k_var">n/a</b>VaR 95%, one year</div>
+ <div><b id="k_es">n/a</b>Expected shortfall 95%, one year</div>
+ <div><b id="k_dd">n/a</b>Median max drawdown over horizon</div>
+ <div><b id="k_dd95">n/a</b>Max drawdown, 95th percentile</div>
+ <div><b id="k_pl">n/a</b>Chance of ending below start</div>
+</div>
+<p class="note">VaR and expected shortfall are losses on the initial amount over one year, net of the expected return. A negative value means the 5% tail still ends above the start.</p>
+
+<div class="exh">Exhibit 1 <span>Wealth over the horizon. Median path in the base, bear and bull cases, and the 5th to 95th percentile range of the base case.</span></div>
+<div id="c1"></div>
+<div class="scroll"><table id="tsc"></table></div>
+<p class="note">The median path compounds at the expected return less the drag from volatility, so it sits below a path compounded at the arithmetic mean. The percentile range comes from volatility alone, with the expected return held at the base case.</p>
+
+<div class="exh">Exhibit 2 <span>Expected return by asset class in the bear, base and bull cases, % a year</span></div>
+<div id="c2"></div>
+
+<div class="exh">Exhibit 3 <span>Contribution of each asset class to expected return, by profile, % a year (weight times expected return)</span></div>
+<div id="c3"></div>
+
+<div class="exh">Exhibit 4 <span>Risk and return of the seven profiles against the long-only efficient frontier implied by the inputs. Horizontal axis volatility, vertical axis expected return.</span></div>
+<div id="c4"></div>
+<p class="note">The frontier is the highest expected return available at each level of volatility with no shorting and no leverage. It moves a lot when the inputs move a little, so read it as a consistency check on the assumptions, not as a target.</p>
+
+<div class="exh">Exhibit 5 <span>All profiles under the current assumptions</span></div>
+<div class="scroll"><table id="tpf"></table></div>
+
+<div class="exh">Exhibit 6 <span id="t6"></span></div>
+<div class="scroll"><table id="tas"></table></div>
+<p class="note">Risk share is each asset's part of portfolio variance. It adds to 100% and can be negative for an asset that hedges the rest.</p>
+</section><hr>
+<section id="method"><h2>Method and limits</h2>
+<p><b>Expected returns.</b> Bonds and equities are built from additive blocks. Alternatives and cash are entered directly.</p>
+<p class="eq">bond return = risk-free yield + spread + roll-down + valuation (rates) + valuation (spread) + default loss<br>equity return = dividend yield + real earnings growth + inflation + valuation change + currency</p>
+<p><b>Portfolio.</b> With weights w (rescaled to sum to one), expected returns &mu;, volatilities &sigma; and correlations &rho;:</p>
+<p class="eq">&mu;<sub>p</sub> = &Sigma;<sub>i</sub> w<sub>i</sub> &mu;<sub>i</sub><br>&sigma;<sub>p</sub><sup>2</sup> = &Sigma;<sub>i</sub> &Sigma;<sub>j</sub> w<sub>i</sub> w<sub>j</sub> &sigma;<sub>i</sub> &sigma;<sub>j</sub> &rho;<sub>ij</sub><br>Sharpe = (&mu;<sub>p</sub> &minus; r<sub>cash</sub>) / &sigma;<sub>p</sub><br>risk share<sub>i</sub> = w<sub>i</sub> (&Sigma;w)<sub>i</sub> / &sigma;<sub>p</sub><sup>2</sup></p>
+<p><b>Scenarios.</b> Bear and bull change expected returns only. Volatilities and correlations stay put. With multiplier m (0.70 for a 70% bear case):</p>
+<p class="eq">&mu;<sub>i</sub>(m) = &mu;<sub>i</sub> + |&mu;<sub>i</sub> &minus; r<sub>cash</sub>| &middot; (m &minus; 1)</p>
+<p>The absolute value keeps the bear case below the base case for an asset whose premium over cash is negative.</p>
+<p><b>Wealth and tail risk.</b> The portfolio is held at constant weights, which means it is rebalanced back to target every period at no cost. Its annual gross return is taken as lognormal with the same mean and variance as above, independent from year to year:</p>
+<p class="eq">s<sup>2</sup> = ln(1 + &sigma;<sub>p</sub><sup>2</sup> / (1 + &mu;<sub>p</sub>)<sup>2</sup>), &nbsp; g = ln(1 + &mu;<sub>p</sub>) &minus; s<sup>2</sup>/2<br>median wealth<sub>t</sub> = W<sub>0</sub> &middot; exp(g t)<br>percentile q of wealth<sub>t</sub> = W<sub>0</sub> &middot; exp(g t + z<sub>q</sub> s &radic;t)<br>VaR<sub>95</sub> = 1 &minus; exp(g &minus; 1.645 s)<br>ES<sub>95</sub> = 1 &minus; (1 + &mu;<sub>p</sub>) &middot; &Phi;(&minus;1.645 &minus; s) / 0.05<br>P(wealth<sub>T</sub> &lt; W<sub>0</sub>) = &Phi;(&minus;g &radic;T / s)</p>
+<p><b>Drawdown.</b> 2,000 simulated paths of monthly log returns with mean g/12 and standard deviation s/&radic;12, from a fixed random seed so the same inputs always give the same answer. The maximum peak-to-trough loss is recorded on each path, and the median and 95th percentile across paths are reported.</p>
+<p><b>Frontier.</b> For a range of risk tolerances &lambda;, the weights solve the problem below. The correlation matrix must be positive semi-definite for any of this to be meaningful. The page checks its smallest eigenvalue and can repair it by lifting every eigenvalue below a small positive floor of 0.02 up to that floor, rescaling the diagonal back to one and rounding to two decimals. The floor is positive, not zero, so the repaired matrix stays invertible. If the rounding pushes an eigenvalue back to zero or below, the floor is raised in steps of 0.02 and the repair repeated.</p>
+<p class="eq">minimise &frac12; w&prime;&Sigma;w &minus; &lambda; &mu;&prime;w &nbsp; subject to &nbsp; w<sub>i</sub> &ge; 0, &Sigma;<sub>i</sub> w<sub>i</sub> = 1</p>
+<p><b>Limits.</b> Returns are not lognormal and not independent across years: real tails are fatter, volatility clusters and correlations rise in stress, so the tail and drawdown figures here are a floor more than an estimate. A single period model has no transaction costs, taxes, fees or liquidity limits. The two custom profiles are fixed example mixes, not the output of an optimiser. The building blocks treat valuation change as an annual average over the horizon, which hides its timing.</p>
+<p class="note">Educational tool. All inputs are illustrative assumptions, not live data and not a house view. Not investment advice.</p>
+</section>
+<script src="assets/plot.js"></script>
+<script>
+const A=[['Developed sovereign','SOV'],['Global investment grade','IG'],['Global high yield','HY'],['EM debt','EMD'],['US equities','US'],['DM ex-US equities','DM'],['EM equities','EM'],['Alternatives','ALT'],['Cash','CASH']];
+const N=A.length,FIK=['rf','spread','roll','val_rf','val_spr','def'],FIH=['Risk-free','Spread','Roll','Val. rates','Val. spread','Default'],EQK=['div','earn','infl','val','fx'],EQH=['Div. yield','Real earnings','Inflation','Valuation','FX'];
+const D0={
+ FI:[{rf:3.9,spread:0,roll:.5,val_rf:-.2,val_spr:0,def:0},{rf:3.9,spread:.85,roll:.8,val_rf:-.2,val_spr:-.3,def:0},{rf:3.7,spread:3.05,roll:.7,val_rf:-.1,val_spr:-.5,def:-.3},{rf:3.7,spread:2.5,roll:.5,val_rf:-.1,val_spr:-.4,def:-.2}],
+ EQ:[{div:1.5,earn:6,infl:2.5,val:-2.2,fx:0},{div:3.25,earn:3,infl:2,val:-1.4,fx:0},{div:2.75,earn:6,infl:3,val:-3.3,fx:0}],
+ alt:7,cash:3,
+ vol:[5,6.5,10,12,16,17,22,12,.5],
+ P:[['Fixed Income',[16.3,47.8,14.3,19.1,0,0,0,0,2.5]],['Conservative',[11.7,34.3,10.3,13.7,13.7,3.8,2.5,7.5,2.5]],['Balanced',[8.5,25,7.5,10,27.5,7.5,5,7.5,1.5]],['Growth',[4.8,14.2,4.3,5.7,41,11,8,10,1]],['Equities',[0,0,0,0,68,19,12,0,1]],['Custom A',[25,35,10,5,20,0,0,0,5]],['Custom B',[5,15,5,5,40,15,10,5,0]]],
+ C:[[1,.8,.1,.2,-.1,-.05,-.05,.1,0],[.8,1,.6,.6,.2,.25,.25,.3,0],[.1,.6,1,.7,.6,.6,.6,.5,0],[.2,.6,.7,1,.4,.45,.6,.4,0],[-.1,.2,.6,.4,1,.85,.75,.5,0],[-.05,.25,.6,.45,.85,1,.8,.5,0],[-.05,.25,.6,.6,.75,.8,1,.45,0],[.1,.3,.5,.4,.5,.5,.45,1,0],[0,0,0,0,0,0,0,0,1]]};
+let St,cur=2;
+const $=id=>document.getElementById(id),num=v=>{const x=parseFloat(v);return isFinite(x)?x:0},r2=x=>Math.round(x*100)/100;
+const pc=(v,d)=>v===v&&isFinite(v)?(v*100).toFixed(d==null?2:d)+'%':'n/a',f2=v=>v===v&&isFinite(v)?v.toFixed(2):'n/a';
+const money=v=>!isFinite(v)?'n/a':Math.abs(v)>=1e9?(v/1e9).toFixed(2)+'bn':Math.abs(v)>=1e6?(v/1e6).toFixed(2)+'m':Math.abs(v)>=1e3?(v/1e3).toFixed(0)+'k':v.toFixed(0);
+const inp=(k,a,b,v,step)=>`<input type="number" step="${step||.05}" data-k="${k}" data-a="${a}" data-b="${b}" value="${v}">`;
+
+/* ---------- math ---------- */
+function mus(){return A.map((_,i)=>(i<4?FIK.reduce((s,k)=>s+St.FI[i][k],0):i<7?EQK.reduce((s,k)=>s+St.EQ[i-4][k],0):i==7?St.alt:St.cash)/100)}
+function cov(){return St.C.map((r,i)=>r.map((c,j)=>c*St.vol[i]*St.vol[j]/1e4))}
+function scen(mu,m){const rc=mu[N-1];return mu.map(r=>r+Math.abs(r-rc)*(m-1))}
+function norm(w){const s=w.reduce((a,b)=>a+b,0);return w.map(x=>x/(Math.abs(s)>1e-9?s:1))}
+function Phi(x){const t=1/(1+.2316419*Math.abs(x)),d=.3989422804*Math.exp(-x*x/2),p=d*t*(.319381530+t*(-.356563782+t*(1.781477937+t*(-1.821255978+t*1.330274429))));return x>0?1-p:p}
+const Z=1.6448536;
+function port(w,mu,S){let r=0,v=0;const Sw=new Array(N).fill(0);for(let i=0;i<N;i++){r+=w[i]*mu[i];for(let j=0;j<N;j++)Sw[i]+=S[i][j]*w[j]}for(let i=0;i<N;i++)v+=w[i]*Sw[i];
+ const vol=Math.sqrt(Math.max(v,0)),s2=Math.log(1+Math.max(v,0)/((1+r)*(1+r))),s=1+r>0?Math.sqrt(s2):NaN,g=Math.log(1+r)-s2/2;
+ return{r,vol,v,Sw,s,g,sharpe:vol>1e-9?(r-mu[N-1])/vol:NaN,geo:Math.exp(g)-1,var95:1-Math.exp(g-Z*s),es95:1-(1+r)*Phi(-Z-s)/.05}}
+function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function mdd(g,s,T){const u=rng(20240101),n=2000,M=Math.round(T*12),dm=g/12,ds=s/Math.sqrt(12),out=new Float64Array(n);
+ for(let p=0;p<n;p++){let x=0,pk=0,dd=0;for(let t=0;t<M;t+=2){const a=Math.sqrt(-2*Math.log(1-u())),b=6.283185307*u();for(let q=0;q<2&&t+q<M;q++){x+=dm+ds*a*(q?Math.sin(b):Math.cos(b));if(x>pk)pk=x;else{const d=1-Math.exp(x-pk);if(d>dd)dd=d}}}out[p]=dd}
+ out.sort();return[out[n>>1],out[Math.floor(n*.95)]]}
+function jacobi(M){const n=M.length,a=M.map(r=>r.slice()),V=a.map((_,i)=>a.map((_,j)=>+(i==j)));
+ for(let sw=0;sw<80;sw++){let off=0;for(let p=0;p<n;p++)for(let q=p+1;q<n;q++)off+=a[p][q]*a[p][q];if(off<1e-22)break;
+  for(let p=0;p<n;p++)for(let q=p+1;q<n;q++){if(Math.abs(a[p][q])<1e-16)continue;const th=(a[q][q]-a[p][p])/(2*a[p][q]),t=(th>=0?1:-1)/(Math.abs(th)+Math.sqrt(th*th+1)),c=1/Math.sqrt(t*t+1),s=t*c;
+   for(let k=0;k<n;k++){const x=a[k][p],y=a[k][q];a[k][p]=c*x-s*y;a[k][q]=s*x+c*y}
+   for(let k=0;k<n;k++){const x=a[p][k],y=a[q][k];a[p][k]=c*x-s*y;a[q][k]=s*x+c*y}
+   for(let k=0;k<n;k++){const x=V[k][p],y=V[k][q];V[k][p]=c*x-s*y;V[k][q]=s*x+c*y}}}
+ return{val:a.map((r,i)=>r[i]),vec:V}}
+function repair(C){let M=C;for(let pass=0;pass<6;pass++){const e=jacobi(M),l=e.val.map(v=>Math.max(v,.02*(pass+1))),n=M.length;
+  let X=M.map((_,i)=>M.map((_,j)=>{let s=0;for(let k=0;k<n;k++)s+=e.vec[i][k]*l[k]*e.vec[j][k];return s}));
+  M=X.map((r,i)=>r.map((x,j)=>i==j?1:r2(X[i][j]/Math.sqrt(X[i][i]*X[j][j]))));M=M.map((r,i)=>r.map((x,j)=>i<=j?x:M[j][i]));
+  if(Math.min(...jacobi(M).val)>1e-6)break}return M}
+function frontier(mu,S){let w=new Array(N).fill(1/N);const pts=[];
+ for(let k=0;k<=36;k++){const lam=k?.004*Math.pow(1.3,k-1):0,g=new Array(N);for(let i=0;i<N;i++){g[i]=-lam*mu[i];for(let j=0;j<N;j++)g[i]+=S[i][j]*w[j]}
+  for(let it=0;it<300;it++){let mx=0;for(let i=0;i<N;i++)for(let j=i+1;j<N;j++){const d=S[i][i]+S[j][j]-2*S[i][j];if(d<1e-14)continue;let x=-(g[i]-g[j])/d;x=Math.max(-w[i],Math.min(w[j],x));if(!x)continue;w[i]+=x;w[j]-=x;for(let q=0;q<N;q++)g[q]+=x*(S[q][i]-S[q][j]);mx=Math.max(mx,Math.abs(x))}if(mx<1e-10)break}
+  const p=port(w,mu,S);if(!pts.length||p.vol>pts[pts.length-1][0]+1e-6)pts.push([p.vol,p.r])}
+ return pts}
+
+/* ---------- input tables ---------- */
+function build(){
+ $('tabs').innerHTML=St.P.map((p,i)=>`<button data-p="${i}">[${p[0]}]</button>`).join('');
+ $('tw').innerHTML='<tr><th>Asset class</th>'+St.P.map((p,i)=>`<th data-h="${i}">${p[0]}</th>`).join('')+'</tr>'+A.map((a,i)=>`<tr><td>${a[0]}</td>`+St.P.map((p,j)=>`<td>${inp('w',j,i,p[1][i],.5)}</td>`).join('')+'</tr>').join('')+'<tr><td><b>Total</b></td>'+St.P.map((p,j)=>`<td id="tot${j}"></td>`).join('')+'</tr>';
+ $('tcma').innerHTML='<tr><th>Asset class</th><th>Code</th><th>Expected return</th><th>Source</th><th>Volatility</th></tr>'+A.map((a,i)=>`<tr><td>${a[0]}</td><td>${a[1]}</td><td>${i==7?inp('alt',0,0,St.alt,.1):i==8?inp('cash',0,0,St.cash,.1):`<b id="mu${i}"></b>`}</td><td class="s">${i<7?'blocks':'direct'}</td><td>${inp('vol',i,0,St.vol[i],.5)}</td></tr>`).join('');
+ $('tfi').innerHTML='<tr><th>Asset class</th>'+FIH.map(h=>`<th>${h}</th>`).join('')+'<th>Total</th></tr>'+St.FI.map((d,i)=>`<tr><td>${A[i][0]}</td>`+FIK.map(k=>`<td>${inp('fi',i,k,d[k])}</td>`).join('')+`<td><b id="fit${i}"></b></td></tr>`).join('');
+ $('teq').innerHTML='<tr><th>Asset class</th>'+EQH.map(h=>`<th>${h}</th>`).join('')+'<th>Total</th></tr>'+St.EQ.map((d,i)=>`<tr><td>${A[i+4][0]}</td>`+EQK.map(k=>`<td>${inp('eq',i,k,d[k])}</td>`).join('')+`<td><b id="eqt${i}"></b></td></tr>`).join('');
+ $('tcr').innerHTML='<tr><th></th>'+A.map(a=>`<th>${a[1]}</th>`).join('')+'</tr>'+A.map((a,i)=>`<tr><td>${a[1]}</td>`+A.map((b,j)=>`<td>${i==j?'1.00':inp('c',i,j,St.C[i][j],.05)}</td>`).join('')+'</tr>').join('');
+ $('amt').value=St.amt;$('hor').value=St.T;$('bear').value=St.bear;$('bull').value=St.bull}
+function reset(){St=JSON.parse(JSON.stringify(D0));St.amt=1e6;St.T=10;St.bear=70;St.bull=130;build();calc()}
+
+/* ---------- scatter (profiles vs frontier) ---------- */
+function scatter(host,fr,pts,sel){const W=720,H=300,L=50,R=8,T=8,B=22;let x1=0,y0=1e9,y1=-1e9;fr.concat(pts.map(p=>[p.vol,p.r])).forEach(p=>{x1=Math.max(x1,p[0]);y0=Math.min(y0,p[1]);y1=Math.max(y1,p[1])});
+ x1=x1*1.06||.01;const pad=(y1-y0)*.08||.005;y0-=pad;y1+=pad;const X=v=>L+(W-L-R)*v/x1,Y=v=>T+(H-T-B)*(1-(v-y0)/(y1-y0));let g='';
+ for(let k=0;k<=4;k++){const v=y0+(y1-y0)*k/4,y=Y(v);g+=`<line x1="${L}" x2="${W-R}" y1="${y}" y2="${y}" stroke="#eee"/><text x="${L-5}" y="${y+3}" text-anchor="end" font-size="10" fill="#555">${(v*100).toFixed(1)}%</text>`}
+ for(let k=0;k<=5;k++){const v=x1*k/5;g+=`<text x="${X(v)}" y="${H-6}" text-anchor="${k==0?'start':k==5?'end':'middle'}" font-size="10" fill="#555">${(v*100).toFixed(1)}%</text>`}
+ if(fr.length>1)g+=`<path d="${fr.map((p,i)=>(i?'L':'M')+X(p[0]).toFixed(1)+' '+Y(p[1]).toFixed(1)).join('')}" fill="none" stroke="#777" stroke-width="1.4" stroke-dasharray="5 3"/>`;
+ pts.forEach((p,i)=>{const x=X(p.vol),y=Y(p.r),on=i==sel;g+=on?`<rect x="${x-5}" y="${y-5}" width="10" height="10" fill="#111"/>`:`<circle cx="${x}" cy="${y}" r="4" fill="#fff" stroke="#111" stroke-width="1.4"/>`;g+=`<text x="${x+8}" y="${y+11}" font-size="10" fill="#111"${on?' font-weight="700"':''}>${i+1}</text>`});
+ host.innerHTML=`<div class="plot"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="risk and return of profiles"><rect x="${L}" y="${T}" width="${W-L-R}" height="${H-T-B}" fill="none" stroke="#111"/>${g}</svg></div><div class="legend">`+pts.map((p,i)=>`<span>${i==sel?'<b>':''}${i+1} ${St.P[i][0]}${i==sel?'</b>':''}</span>`).join('')+'<span><svg viewBox="0 0 22 8"><line x1="0" x2="22" y1="4" y2="4" stroke="#777" stroke-width="2" stroke-dasharray="5 3"/></svg>Long-only frontier</span></div>'}
+
+/* ---------- compute and draw ---------- */
+function calc(){
+ const mu=mus(),S=cov(),mb=St.bear/100,mB=St.bull/100,muL=scen(mu,mb),muH=scen(mu,mB),T=St.T,W0=St.amt;
+ $('vbear').textContent=St.bear+'%';$('vbull').textContent=St.bull+'%';
+ for(let i=0;i<7;i++)$('mu'+i).textContent=(mu[i]*100).toFixed(2);
+ St.FI.forEach((d,i)=>$('fit'+i).textContent=(mu[i]*100).toFixed(2));St.EQ.forEach((d,i)=>$('eqt'+i).textContent=(mu[i+4]*100).toFixed(2));
+ let off=[];St.P.forEach((p,j)=>{const s=p[1].reduce((a,b)=>a+b,0),ok=Math.abs(s-100)<.05;$('tot'+j).innerHTML=ok?s.toFixed(1):`<span class="warn">${s.toFixed(1)} (!)</span>`;if(!ok)off.push(p[0])});
+ $('wnote').textContent=off.length?'Not adding to 100: '+off.join(', ')+'. These columns are rescaled to 100 in the calculations.':'Select a profile with the buttons above. Weights are editable. A column that does not add to 100 is rescaled to 100 in the calculations.';
+ document.querySelectorAll('#tabs button').forEach((b,i)=>b.className=i==cur?'on':'');document.querySelectorAll('#tw th[data-h]').forEach((h,i)=>h.className=i==cur?'sel':'');
+ const emin=Math.min(...jacobi(St.C).val),valid=emin>=-1e-9,ef=v=>Math.abs(v)<1e-9?'0.000':Math.abs(v)<5e-4?v.toExponential(1):v.toFixed(3);
+ $('psd').innerHTML=valid?`Valid correlation matrix: smallest eigenvalue ${ef(emin)}, not negative.`:`<span class="warn">Not a valid correlation matrix: smallest eigenvalue ${ef(emin)} is negative.</span> Some mixes would show negative variance. Risk figures are unreliable until it is repaired.`;
+ $('fix').style.display=valid?'none':'';
+ const W=St.P.map(p=>norm(p[1])),PF=W.map(w=>port(w,mu,S)),w=W[cur],b=PF[cur],lo=port(w,muL,S),hi=port(w,muH,S),name=St.P[cur][0];
+ $('pname').textContent=name;
+ const dd=b.g===b.g&&b.s===b.s?mdd(b.g,b.s,T):[NaN,NaN],pl=b.s!==b.s?NaN:b.s>1e-9?Phi(-b.g*Math.sqrt(T)/b.s):(b.g<0?1:0);
+ $('k_ret').textContent=pc(b.r);$('k_vol').textContent=pc(b.vol);$('k_sh').textContent=f2(b.sharpe);$('k_geo').textContent=pc(b.geo);$('k_var').textContent=pc(b.var95,1);$('k_es').textContent=pc(b.es95,1);$('k_dd').textContent=pc(dd[0],1);$('k_dd95').textContent=pc(dd[1],1);$('k_pl').textContent=pc(pl,1);
+ // Exhibit 1
+ const xs=[];for(let t=0;t<=T;t++)xs.push(t);const path=(p,z)=>xs.map(t=>W0*Math.exp(p.g*t+z*p.s*Math.sqrt(t)));
+ Plot.line($('c1'),{x:xs,xnum:true,yfmt:money,xfmt:v=>'y'+Math.round(v),title:'wealth projection',series:[{name:'Base median',y:path(b,0),dash:'',width:2},{name:'Bull median',y:path(hi,0),dash:'6 3'},{name:'Bear median',y:path(lo,0),dash:'2 3'},{name:'Base 95th pct',y:path(b,Z),dash:'8 3 2 3',color:'#888'},{name:'Base 5th pct',y:path(b,-Z),dash:'8 3 2 3',color:'#888'}]});
+ $('tsc').innerHTML='<tr><th>Scenario</th><th class="n">Exp. return</th><th class="n">Median compound</th><th class="n">Sharpe</th><th class="n">Median wealth, year '+T+'</th><th class="n">5th pct</th><th class="n">95th pct</th></tr>'+[['Bear ('+St.bear+'%)',lo],['Base',b],['Bull ('+St.bull+'%)',hi]].map(([n,p])=>`<tr><td>${n}</td><td class="n">${pc(p.r)}</td><td class="n">${pc(p.geo)}</td><td class="n">${f2(p.sharpe)}</td><td class="n">${money(W0*Math.exp(p.g*T))}</td><td class="n">${money(W0*Math.exp(p.g*T-Z*p.s*Math.sqrt(T)))}</td><td class="n">${money(W0*Math.exp(p.g*T+Z*p.s*Math.sqrt(T)))}</td></tr>`).join('');
+ // Exhibit 2, 3
+ const pf=v=>v.toFixed(1)+'%',h=x=>x.map(v=>v*100);
+ Plot.bar($('c2'),{x:A.map(a=>a[1]),yfmt:pf,title:'asset return ranges',series:[{name:'Bear',y:h(muL),fill:'#bbb'},{name:'Base',y:h(mu),fill:'#111'},{name:'Bull',y:h(muH),fill:'url(#p-diag)'}]});
+ Plot.bar($('c3'),{x:St.P.map(p=>p[0]),stacked:true,yfmt:pf,h:280,title:'return contribution by profile',series:A.map((a,i)=>({name:a[0],y:W.map(x=>x[i]*mu[i]*100)}))});
+ // Exhibit 4, 5, 6
+ const fr=valid?frontier(mu,S):[];scatter($('c4'),fr,PF,cur);
+ if(fr.length<2)$('c4').insertAdjacentHTML('beforeend','<p class="note" id="frnote">Frontier not drawn: '+(!valid?'the correlation matrix is not valid.':St.vol.every(v=>!(v>0))?'every volatility is zero, so all mixes carry the same risk and there is nothing to trade off.':'the inputs leave a single efficient point.')+'</p>');
+ $('tpf').innerHTML='<tr><th>#</th><th>Profile</th><th class="n">Exp. return</th><th class="n">Volatility</th><th class="n">Sharpe</th><th class="n">Median compound</th><th class="n">VaR 95%</th><th class="n">ES 95%</th></tr>'+PF.map((p,i)=>`<tr><td class="d">${i+1}</td><td>${i==cur?'<b>':''}${St.P[i][0]}${i==cur?'</b>':''}</td><td class="n">${pc(p.r)}</td><td class="n">${pc(p.vol)}</td><td class="n">${f2(p.sharpe)}</td><td class="n">${pc(p.geo)}</td><td class="n">${pc(p.var95,1)}</td><td class="n">${pc(p.es95,1)}</td></tr>`).join('');
+ $('t6').textContent=name+': where return and risk come from';
+ const wav=w.reduce((s,x,i)=>s+x*St.vol[i]/100,0);
+ $('tas').innerHTML='<tr><th>Asset class</th><th class="n">Weight</th><th class="n">Exp. return</th><th class="n">Volatility</th><th class="n">Return contribution</th><th class="n">Risk share</th></tr>'+A.map((a,i)=>`<tr><td>${a[0]}</td><td class="n">${pc(w[i],1)}</td><td class="n">${pc(mu[i])}</td><td class="n">${pc(St.vol[i]/100,1)}</td><td class="n">${pc(w[i]*mu[i])}</td><td class="n">${b.v>1e-12?pc(w[i]*b.Sw[i]/b.v,1):'n/a'}</td></tr>`).join('')+`<tr><td><b>Portfolio</b></td><td class="n">100.0%</td><td class="n"><b>${pc(b.r)}</b></td><td class="n"><b>${pc(b.vol,1)}</b></td><td class="n">${pc(b.r)}</td><td class="n">100.0%</td></tr><tr><td class="s">Weighted average of asset volatilities (no diversification)</td><td></td><td></td><td class="n">${pc(wav,1)}</td><td></td><td></td></tr>`}
+
+/* ---------- events ---------- */
+document.addEventListener('input',e=>{const t=e.target,k=t.dataset.k,a=t.dataset.a,b=t.dataset.b,v=num(t.value);
+ if(k=='w')St.P[a][1][b]=v;else if(k=='vol')St.vol[a]=Math.max(0,v);else if(k=='alt')St.alt=v;else if(k=='fi')St.FI[a][b]=v;else if(k=='eq')St.EQ[a][b]=v;
+ else if(k=='cash'){const d=v-St.cash;St.cash=v;St.FI.forEach((f,i)=>{f.rf=r2(f.rf+d);document.querySelector(`input[data-k="fi"][data-a="${i}"][data-b="rf"]`).value=f.rf})}
+ else if(k=='c'){const c=Math.max(-1,Math.min(1,v));St.C[a][b]=St.C[b][a]=c;document.querySelector(`input[data-k="c"][data-a="${b}"][data-b="${a}"]`).value=t.value}
+ else if(t.id=='amt')St.amt=Math.max(0,v);else if(t.id=='hor')St.T=Math.max(1,Math.min(40,Math.round(v)||1));else if(t.id=='bear')St.bear=v;else if(t.id=='bull')St.bull=v;else return;
+ calc()});
+$('tabs').addEventListener('click',e=>{const p=e.target.dataset.p;if(p!=null){cur=+p;calc()}});
+$('fix').addEventListener('click',()=>{St.C=repair(St.C);build();calc()});
+$('rst').addEventListener('click',reset);
+reset();
+</script>
+</body></html>

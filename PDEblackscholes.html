@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Black-Scholes PDE Lab · Arthur Mota</title>
+<meta name="description" content="Finite-difference solution of the Black-Scholes partial differential equation, checked against the closed-form price, with stability and convergence diagnostics.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="assets/mono.css">
+<style>
+.warn{border:1px solid #111;padding:6px 10px;font-size:12px;margin:0 0 16px}
+.warn b{text-transform:uppercase;letter-spacing:.06em;font-size:11px}
+.ok{font-size:12px;color:#555;margin:0 0 16px}
+</style>
+</head><body>
+<header><div class="mast"><a href="./"><svg class="logo" viewBox="0 0 32 32" aria-label="home"><rect width="32" height="32" fill="#111"/><path d="M7 11h18M12 11v13M20 11v9.5a3.5 3.5 0 0 0 3.5 3.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="square"/></svg></a><h1>Black-Scholes PDE Lab</h1></div>
+<p class="tag">Research lab · Derivatives pricing, numerical methods</p>
+<p class="sub">Solves the Black-Scholes partial differential equation on a grid with explicit, implicit and Crank-Nicolson finite differences, and checks every number against the closed-form price. Change the grid and watch the error, and the stability, respond.</p>
+<nav><a href="./">[home]</a><a href="./#lab">[lab]</a><a href="#model">[model]</a><a href="#results">[results]</a><a href="#method">[method]</a></nav></header>
+<hr>
+<section id="model"><h2>Inputs</h2>
+<p><b>How to read this.</b> An option's value depends on the price of the underlying asset and on the time left to expiry. At expiry the value is known: it is the payoff. The Black-Scholes equation says how that value changes as you step back in time, so a computer can start from the payoff and walk backwards, one small time step after another, on a grid of asset prices. For a plain European option there is also an exact formula, which makes it a clean test: the charts below show the grid answer, the exact answer and the gap between them. A finer grid shrinks the gap. One of the three methods (explicit) breaks down when the time step is too large for the price step, and the page tells you when that happens.</p>
+<div class="ctl">
+ <label>Spot S<sub>0</sub> <input type="number" id="S0" value="100" step="1" min="0"></label>
+ <label>Strike K <input type="number" id="K" value="100" step="1" min="0.01"></label>
+ <label>Time to expiry T (years) <input type="number" id="T" value="1" step="0.1" min="0.01"></label>
+ <label>Volatility &sigma; (decimal) <input type="number" id="sig" value="0.2" step="0.01" min="0.01"></label>
+ <label>Risk-free rate r (decimal) <input type="number" id="r" value="0.05" step="0.01"></label>
+ <label>Dividend yield q (decimal) <input type="number" id="q" value="0" step="0.01"></label>
+ <label>Option type <select id="type" style="width:100%"><option value="call">European call</option><option value="put">European put</option></select></label>
+ <label>Scheme <select id="scheme" style="width:100%"><option value="cn" selected>Crank-Nicolson</option><option value="cnr">Crank-Nicolson, Rannacher start</option><option value="implicit">Fully implicit</option><option value="explicit">Explicit</option></select></label>
+ <label>Price steps N<sub>S</sub> (10 to 500) <input type="number" id="Ns" value="150" min="10" max="500" step="10"></label>
+ <label>Time steps N<sub>t</sub> (10 to 2000) <input type="number" id="Nt" value="150" min="10" max="2000" step="10"></label>
+ <label>Grid ceiling S<sub>max</sub> <input type="number" id="Smax" value="300" step="10" min="1"></label>
+</div>
+<div id="msg"></div>
+<div class="kpi">
+ <div><b id="kfd">–</b>Grid value at S<sub>0</sub></div>
+ <div><b id="kbs">–</b>Closed-form value</div>
+ <div><b id="kerr">–</b>Error at S<sub>0</sub></div>
+ <div><b id="kmax">–</b>Largest error on grid</div>
+ <div><b id="kstab">–</b>Explicit stability ratio (needs &le; 1)</div>
+ <div><b id="kmin">–</b>Minimum N<sub>t</sub> for explicit</div>
+ <div><b id="kds">–</b>&Delta;S</div>
+ <div><b id="kdt">–</b>&Delta;t (years)</div>
+</div>
+<p class="note">Inputs are illustrative. The grid is uniform in S from 0 to S<sub>max</sub>. The value at S<sub>0</sub> is read off the grid by cubic interpolation, so S<sub>0</sub> need not sit on a node.</p>
+</section><hr>
+<section id="results"><h2>Results</h2>
+
+<div class="exh">Exhibit 1 <span>Option value against the underlying, at five times to expiry (grid solution)</span></div>
+<div id="c1"></div>
+<p class="note">The solid line is the payoff at expiry. Each dashed line is the value with more time left. The solver moves from the first line to the last. Vertical marks: strike and spot. This replaces the value surface V(S, t): each line is one time slice of it.</p>
+
+<div class="exh">Exhibit 2 <span>Today's value: grid solution against the closed form</span></div>
+<div id="c2"></div>
+<div class="exh">Exhibit 3 <span>Pricing error today: grid value minus closed form</span></div>
+<div id="c3"></div>
+<p class="note">The error peaks near the strike, where the payoff has a kink and curvature is highest. With a stable scheme it should be small and smooth. A saw-tooth pattern means the scheme is oscillating.</p>
+
+<div class="exh">Exhibit 4 <span>Sensitivities today, grid against closed form</span>
+ <select id="greek"><option value="delta">Delta &part;V/&part;S</option><option value="gamma">Gamma &part;&sup2;V/&part;S&sup2;</option><option value="theta">Theta &part;V/&part;t</option><option value="vega">Vega &part;V/&part;&sigma;</option><option value="rho">Rho &part;V/&part;r</option></select></div>
+<div id="c4"></div>
+<div class="scroll"><table id="tg"></table></div>
+<p class="note">Delta and gamma are central differences on the grid. Theta is the difference between the last two time levels, per year. Vega and rho come from re-solving the grid with &sigma; moved by &plusmn;0.01 and r by &plusmn;0.001, reported per unit (divide by 100 for a one point move).</p>
+
+<div class="exh">Exhibit 5 <span>PDE residual today</span></div>
+<div id="c5"></div>
+<p class="note">The left-hand side of the Black-Scholes equation evaluated on the grid solution with a forward time difference and central price differences. The exact solution gives zero. What is left is discretisation error, first order in &Delta;t for this stencil.</p>
+
+<div class="exh">Exhibit 6 <span>Convergence: absolute error at S<sub>0</sub> as the grid is refined (log scale)</span></div>
+<div id="c6"></div>
+<div class="scroll"><table id="tc"></table></div>
+<p class="note">Each row scales both N<sub>S</sub> and N<sub>t</sub> by the factor shown, starting from your grid. Errors are grid value minus closed form at S<sub>0</sub>. Halving both steps should cut the Crank-Nicolson error by about four and the implicit error by about two. The explicit stability ratio doubles on each refinement, because &Delta;t halves while &Delta;S&sup2; falls by four, so the explicit column is marked unstable once the ratio passes 1. The error ratio rows divide the absolute error on one grid by the error on the next finer one. They read n/a where either error is below 1e-7 of the strike or spot, where the error changes sign between the two grids, or where a run is unstable or skipped: the ratio of two near-zero errors carries no information.</p>
+</section><hr>
+<section id="method"><h2>Method and limits</h2>
+<p><b>Model.</b> The underlying follows geometric Brownian motion with constant volatility &sigma;, constant rate r and a continuous dividend yield q. Hedging the option with the underlying removes the randomness, and the hedged position must earn r. That gives the Black-Scholes equation for the value V(S, t):</p>
+<p class="eq">&part;V/&part;t + &frac12; &sigma;<sup>2</sup> S<sup>2</sup> &part;<sup>2</sup>V/&part;S<sup>2</sup> + (r &minus; q) S &part;V/&part;S &minus; r V = 0</p>
+<p><b>Conditions.</b> At expiry the value is the payoff. With time to expiry &tau; = T &minus; t the equation runs forward from that known start. At the edges of the grid the value is pinned to its known limit.</p>
+<p class="eq">V(S, T) = max(S &minus; K, 0) for a call, max(K &minus; S, 0) for a put<br>
+call: V(0, &tau;) = 0, V(S<sub>max</sub>, &tau;) = S<sub>max</sub> e<sup>&minus;q&tau;</sup> &minus; K e<sup>&minus;r&tau;</sup><br>
+put: V(0, &tau;) = K e<sup>&minus;r&tau;</sup>, V(S<sub>max</sub>, &tau;) = 0</p>
+<p><b>Payoff on the grid.</b> The payoff has a kink at the strike, and sampling it at the nodes makes the answer depend on where the strike falls between two nodes. The solver starts instead from the payoff averaged over each cell of width &Delta;S. That changes one node only, the one whose cell holds the strike, and removes most of the kink error. It is why the expiry line in Exhibit 1 is very slightly rounded at K.</p>
+<p><b>Discretisation.</b> On nodes S<sub>i</sub> = i &Delta;S, central differences in S turn the right-hand side into a tridiagonal operator L with entries</p>
+<p class="eq">a<sub>i</sub> = &frac12; (&sigma;<sup>2</sup> i<sup>2</sup> &minus; (r &minus; q) i), b<sub>i</sub> = &minus;(&sigma;<sup>2</sup> i<sup>2</sup> + r), c<sub>i</sub> = &frac12; (&sigma;<sup>2</sup> i<sup>2</sup> + (r &minus; q) i)<br>
+(L V)<sub>i</sub> = a<sub>i</sub> V<sub>i&minus;1</sub> + b<sub>i</sub> V<sub>i</sub> + c<sub>i</sub> V<sub>i+1</sub></p>
+<p><b>Time stepping.</b> All three schemes are one formula with a weight &theta;:</p>
+<p class="eq">(I &minus; &theta; &Delta;t L) V<sup>n+1</sup> = (I + (1 &minus; &theta;) &Delta;t L) V<sup>n</sup><br>
+&theta; = 0 explicit, &theta; = 1 fully implicit, &theta; = &frac12; Crank-Nicolson</p>
+<p>The explicit scheme needs no solve but is only conditionally stable. The implicit and Crank-Nicolson schemes solve a tridiagonal system at every step with the Thomas algorithm (forward elimination, back substitution), which costs a number of operations proportional to N<sub>S</sub>. Explicit and implicit are first order in &Delta;t, Crank-Nicolson is second order. All are second order in &Delta;S.</p>
+<p><b>Stability of the explicit scheme.</b> Each new value must be a non-negative weighting of the old ones. The binding node is the top of the grid:</p>
+<p class="eq">&Delta;t (&sigma;<sup>2</sup> N<sub>S</sub><sup>2</sup> + r) &le; 1, that is N<sub>t</sub> &ge; T (&sigma;<sup>2</sup> N<sub>S</sub><sup>2</sup> + r)</p>
+<p>Doubling the price resolution therefore needs four times as many time steps. Central differencing of the drift also needs &sigma;<sup>2</sup> &ge; |r &minus; q|, otherwise a<sub>i</sub> or c<sub>i</sub> turns negative at the nodes where &sigma;<sup>2</sup> i &lt; |r &minus; q|. With ordinary inputs that touches only the first node or two, where the value is nearly flat, and does no harm. With very low volatility it reaches further up the grid and values there can oscillate in any scheme, which the page flags.</p>
+<p><b>Rannacher start.</b> Crank-Nicolson does not damp the high-frequency error created by the kink in the payoff, which shows up as ripples in gamma near the strike when &Delta;t is large relative to &Delta;S&sup2;. Replacing the first two time steps with four implicit half-steps smooths the kink and keeps second-order convergence.</p>
+<p><b>Benchmark.</b> The closed-form price, with N the standard normal distribution function:</p>
+<p class="eq">C = S e<sup>&minus;qT</sup> N(d<sub>1</sub>) &minus; K e<sup>&minus;rT</sup> N(d<sub>2</sub>), P = K e<sup>&minus;rT</sup> N(&minus;d<sub>2</sub>) &minus; S e<sup>&minus;qT</sup> N(&minus;d<sub>1</sub>)<br>
+d<sub>1</sub> = (ln(S/K) + (r &minus; q + &frac12; &sigma;<sup>2</sup>) T) / (&sigma; &radic;T), d<sub>2</sub> = d<sub>1</sub> &minus; &sigma; &radic;T</p>
+<p><b>Limits.</b> European exercise only: an American option needs an early-exercise check at every step, which this page does not do. Volatility, rate and dividend yield are constant. The grid is uniform in S, which wastes nodes far from the strike (a log-price or stretched grid is the usual fix). The upper boundary sits at a finite S<sub>max</sub>, so a ceiling too close to the strike biases the answer, and a ceiling far above it stretches &Delta;S until the strike falls between nodes. The page caps S<sub>max</sub> at 50 times the larger of strike and spot, warns when fewer than 12 nodes span three standard deviations (K&sigma;&radic;T each) either side of the strike or when &Delta;S exceeds 10% of the strike, and always warns when the grid value at S<sub>0</sub> misses the closed form by more than 0.1% of the strike, or by more than 1% of the closed-form value once the gap exceeds 0.01% of the strike. Under an unstable explicit run the charts hide values that have left the plotting range.</p>
+<p class="note">Educational tool. Illustrative inputs, not live data. Not investment advice.</p>
+</section>
+<script src="assets/plot.js"></script>
+<script>
+const $=id=>document.getElementById(id);
+
+// Standard normal distribution function, double precision (Hart / West 2005).
+function cnd(x){const xa=Math.abs(x);let c;
+ if(xa>37)c=0;else{const e=Math.exp(-xa*xa/2);
+  if(xa<7.07106781186547){let b=3.52624965998911e-02*xa+0.700383064443688;b=b*xa+6.37396220353165;b=b*xa+33.912866078383;b=b*xa+112.079291497871;b=b*xa+221.213596169931;b=b*xa+220.206867912376;c=e*b;
+   b=8.83883476483184e-02*xa+1.75566716318264;b=b*xa+16.064177579207;b=b*xa+86.7807322029461;b=b*xa+296.564248779674;b=b*xa+637.333633378831;b=b*xa+793.826512519948;b=b*xa+440.413735824752;c=c/b}
+  else{let b=xa+0.65;b=xa+4/b;b=xa+3/b;b=xa+2/b;b=xa+1/b;c=e/b/2.506628274631}}
+ return x>0?1-c:c}
+const pdf=x=>Math.exp(-.5*x*x)/Math.sqrt(2*Math.PI);
+
+function bs(S,K,T,r,q,s,call){
+ if(S<=0)return call?0:K*Math.exp(-r*T);
+ if(T<=0)return Math.max(call?S-K:K-S,0);
+ const d1=(Math.log(S/K)+(r-q+.5*s*s)*T)/(s*Math.sqrt(T)),d2=d1-s*Math.sqrt(T);
+ return call?S*Math.exp(-q*T)*cnd(d1)-K*Math.exp(-r*T)*cnd(d2):K*Math.exp(-r*T)*cnd(-d2)-S*Math.exp(-q*T)*cnd(-d1)}
+
+// Closed-form sensitivities. theta is dV/dt per year, vega and rho per unit of sigma and r.
+function bsGreeks(S,K,T,r,q,s,call){const st=Math.sqrt(T),d1=(Math.log(S/K)+(r-q+.5*s*s)*T)/(s*st),d2=d1-s*st,eq=Math.exp(-q*T),er=Math.exp(-r*T),n1=pdf(d1);
+ const decay=-S*s*eq*n1/(2*st);
+ return call?{delta:eq*cnd(d1),gamma:eq*n1/(S*s*st),vega:S*eq*n1*st,theta:decay-r*K*er*cnd(d2)+q*S*eq*cnd(d1),rho:K*T*er*cnd(d2)}
+            :{delta:-eq*cnd(-d1),gamma:eq*n1/(S*s*st),vega:S*eq*n1*st,theta:decay+r*K*er*cnd(-d2)-q*S*eq*cnd(-d1),rho:-K*T*er*cnd(-d2)}}
+
+// Theta-scheme finite-difference solver in tau = T - t. keep: Set of time-level indices to return (level n is tau = n*dt).
+function solve(p,keep){const{K,T,sig,r,q,call,Ns,Nt,Smax,scheme}=p,dS=Smax/Ns,dt=T/Nt,m=Ns+1;
+ let V=new Float64Array(m),W=new Float64Array(m);
+ for(let i=0;i<m;i++){const s=i*dS,u=call?s+dS/2-K:K-(s-dS/2);V[i]=u>0&&u<dS?u*u/(2*dS):Math.max(call?s-K:K-s,0)} // payoff averaged over each cell: differs from the pointwise payoff only in the cell holding the strike
+ const a=new Float64Array(m),b=new Float64Array(m),c=new Float64Array(m),cp=new Float64Array(m),dp=new Float64Array(m);
+ for(let i=1;i<Ns;i++){const s2=sig*sig*i*i,mu=(r-q)*i;a[i]=.5*(s2-mu);b[i]=-(s2+r);c[i]=.5*(s2+mu)}
+ const out=new Map();if(keep&&keep.has(0))out.set(0,Float64Array.from(V));
+ function step(tau,h,th){
+  const dK=K*Math.exp(-r*tau),dF=Smax*Math.exp(-q*tau),b0=call?0:dK,b1=call?Math.max(dF-dK,0):Math.max(dK-dF,0);
+  W[0]=b0;W[Ns]=b1;
+  if(th===0){for(let i=1;i<Ns;i++)W[i]=h*a[i]*V[i-1]+(1+h*b[i])*V[i]+h*c[i]*V[i+1]}
+  else{const e=1-th;
+   for(let i=1;i<Ns;i++){let d=e*h*a[i]*V[i-1]+(1+e*h*b[i])*V[i]+e*h*c[i]*V[i+1];
+    const lo=-th*h*a[i],di=1-th*h*b[i],up=-th*h*c[i];
+    if(i===Ns-1)d-=up*b1;                       // known upper boundary moves to the right-hand side
+    if(i===1){d-=lo*b0;cp[i]=up/di;dp[i]=d/di}  // known lower boundary moves to the right-hand side, once
+    else{const den=di-lo*cp[i-1];cp[i]=up/den;dp[i]=(d-lo*dp[i-1])/den}}
+   W[Ns-1]=dp[Ns-1];for(let i=Ns-2;i>=1;i--)W[i]=dp[i]-cp[i]*W[i+1]}
+  const t=V;V=W;W=t}
+ const th=scheme==='explicit'?0:scheme==='implicit'?1:.5;
+ for(let n=0;n<Nt;n++){const t0=n*dt;
+  if(scheme==='cnr'&&n<2){step(t0+dt/2,dt/2,1);step(t0+dt,dt/2,1)}else step(t0+dt,dt,th);
+  if(keep&&keep.has(n+1))out.set(n+1,Float64Array.from(V))}
+ return{V,out,dS,dt}}
+
+// Cubic Lagrange interpolation on a uniform grid, using nodes lo..hi only.
+function interp(arr,dS,S,lo,hi){let i=Math.floor(S/dS)-1;i=Math.max(lo,Math.min(hi-3,i));const u=S/dS-i;
+ return arr[i]*(-(u-1)*(u-2)*(u-3)/6)+arr[i+1]*(u*(u-2)*(u-3)/2)+arr[i+2]*(-u*(u-1)*(u-3)/2)+arr[i+3]*(u*(u-1)*(u-2)/6)}
+
+const fx=(v,d)=>!isFinite(v)?'overflow':Math.abs(v)>=1e7?v.toExponential(1):v.toFixed(d);
+const clip=(arr,lo,hi)=>Array.from(arr,v=>v>=lo&&v<=hi?v:NaN);
+const NAMES={explicit:'Explicit',implicit:'Implicit',cn:'Crank-Nicolson',cnr:'CN, Rannacher'};
+let last=null;
+
+function read(){const num=id=>parseFloat($(id).value),cl=(v,a,b)=>Math.max(a,Math.min(b,v));
+ const p={S0:num('S0'),K:num('K'),T:num('T'),sig:num('sig'),r:num('r'),q:num('q'),call:$('type').value==='call',scheme:$('scheme').value,Ns:Math.round(num('Ns')),Nt:Math.round(num('Nt')),Smax:num('Smax')};
+ const bad=[];
+ if(!(p.K>0))bad.push('strike must be positive');if(!(p.T>0))bad.push('time to expiry must be positive');if(!(p.sig>0))bad.push('volatility must be positive');
+ if(!isFinite(p.r)||!isFinite(p.q))bad.push('rate and dividend yield must be numbers');
+ if(!(p.Ns>=10))bad.push('price steps must be at least 10');if(!(p.Nt>=10))bad.push('time steps must be at least 10');
+ if(!(p.Smax>p.K))bad.push('the grid ceiling must be above the strike');
+ if(!(p.S0>0&&p.S0<p.Smax))bad.push('spot must lie between 0 and the grid ceiling');
+ p.Ns=cl(p.Ns,10,500);p.Nt=cl(p.Nt,10,2000);
+ const cap=50*Math.max(p.K,p.S0);if(p.Smax>cap){p.SmaxIn=p.Smax;p.Smax=cap} // a ceiling beyond 50 times the strike or spot only wastes nodes
+ return{p,bad}}
+
+function run(){const{p,bad}=read(),msg=$('msg');
+ if(bad.length){msg.innerHTML='<p class="warn"><b>Check inputs.</b> '+bad.join('; ')+'. Results are cleared until the inputs are valid.</p>';
+  ['kfd','kbs','kerr','kmax','kstab','kmin','kds','kdt'].forEach(id=>$(id).textContent='n/a');
+  ['c1','c2','c3','c4','c5','c6','tg','tc'].forEach(id=>$(id).innerHTML='');last=null;return}
+ const{K,T,sig,r,q,call,Ns,Nt,Smax,S0}=p,dS=Smax/Ns,dt=T/Nt;
+ const lev=[0,1,2,3,4].map(k=>Math.round(k*Nt/4)),sol=solve(p,new Set([...lev,Nt-1]));
+ const V0=sol.out.get(Nt),V1=sol.out.get(Nt-1),S=Array.from({length:Ns+1},(_,i)=>i*dS),A=S.map(s=>bs(s,K,T,r,q,sig,call)),err=S.map((s,i)=>V0[i]-A[i]);
+ const ratio=dt*(sig*sig*Ns*Ns+r),minNt=Math.ceil(T*(sig*sig*Ns*Ns+r)),vFD=interp(V0,dS,S0,0,Ns),vBS=bs(S0,K,T,r,q,sig,call);
+ let emax=0;for(const e of err){const x=Math.abs(e);if(!isFinite(x)){emax=Infinity;break}if(x>emax)emax=x}
+
+ // sensitivities on the grid
+ const nan=()=>new Array(Ns+1).fill(NaN),G={delta:nan(),gamma:nan(),theta:nan(),vega:nan(),rho:nan()},AG={delta:nan(),gamma:nan(),theta:nan(),vega:nan(),rho:nan()},res=nan();
+ const hs=0.01,hr=0.001,vu=solve({...p,sig:sig+hs}).V,vd=solve({...p,sig:Math.max(sig-hs,1e-4)}).V,ru=solve({...p,r:r+hr}).V,rd=solve({...p,r:r-hr}).V,hsd=sig-Math.max(sig-hs,1e-4);
+ for(let i=1;i<Ns;i++){const d=(V0[i+1]-V0[i-1])/(2*dS),g=(V0[i+1]-2*V0[i]+V0[i-1])/(dS*dS),th=(V1[i]-V0[i])/dt;
+  G.delta[i]=d;G.gamma[i]=g;G.theta[i]=th;G.vega[i]=(vu[i]-vd[i])/(hs+hsd);G.rho[i]=(ru[i]-rd[i])/(2*hr);
+  res[i]=th+.5*sig*sig*S[i]*S[i]*g+(r-q)*S[i]*d-r*V0[i];
+  const ag=bsGreeks(S[i],K,T,r,q,sig,call);for(const k in ag)AG[k][i]=ag[k]}
+
+ // messages
+ const w=[];let blown=!isFinite(emax)||emax>Math.max(K,S0);
+ if(p.scheme==='explicit'&&ratio>1)w.push('<b>Unstable.</b> The explicit scheme needs &Delta;t(&sigma;&sup2;N<sub>S</sub>&sup2; + r) &le; 1. The ratio here is '+fx(ratio,2)+'. Raise N<sub>t</sub> to at least '+minNt+', lower N<sub>S</sub>, or switch scheme. The numbers below are not a price.');
+ else if(blown)w.push('<b>Diverged.</b> The grid solution is far from the closed form. Check the inputs.');
+ // benchmark check: the closed form is exact for a European option, so a large gap is always reported
+ const e0=Math.abs(vFD-vBS),rel=e0/Math.abs(vBS),off=!(e0<=1e-3*K)||(e0>1e-4*K&&!(rel<=.01));
+ if(off&&!w.length)w.push('<b>Grid value is off.</b> The grid value at S<sub>0</sub> misses the closed form by '+fx(e0,4)+(isFinite(rel)?' ('+(rel>=10?'more than 1000':(100*rel).toFixed(1))+'% of the closed-form value)':'')+'. The tolerance is 0.1% of the strike, or 1% of the closed-form value once the gap exceeds 0.01% of the strike. The grid number is not a price: use the closed form and fix the grid.');
+ // grid adequacy: nodes per standard deviation of the terminal price around the strike, and price step against the strike
+ const sd=K*sig*Math.sqrt(T),nsd=sd/dS,want=Math.max(K,S0)*Math.exp(4*sig*Math.sqrt(T)),sug=v=>+v.toPrecision(3);
+ if(p.SmaxIn)w.push('<b>Ceiling capped.</b> S<sub>max</sub> was entered as '+fx(p.SmaxIn,0)+' and is capped at 50 times the larger of strike and spot, '+fx(Smax,0)+'. About '+sug(want)+' is enough here.');
+ if(nsd<2||dS>.1*K)w.push('<b>Grid too coarse at the strike.</b> &Delta;S is '+fx(dS,4)+', which is '+(100*dS/K).toFixed(1)+'% of the strike and '+(dS/sd>=100?'more than 100':(dS/sd).toFixed(2))+' standard deviations of the price at expiry (K&sigma;&radic;T = '+(sd<.01?sd.toExponential(1):sd.toFixed(2))+'). That leaves '+(6*nsd<1?'less than one node':'about '+Math.round(6*nsd)+(Math.round(6*nsd)===1?' node':' nodes'))+' across three standard deviations either side of the strike. The page asks for at least 12, and for &Delta;S no larger than 10% of the strike. Raise N<sub>S</sub> or lower S<sub>max</sub>'+(Smax>want?' toward '+sug(want):'')+'.');
+ else if(!p.SmaxIn&&Smax>2*Math.max(K,S0)*Math.exp(6*sig*Math.sqrt(T)))w.push('<b>Ceiling is higher than needed.</b> S<sub>max</sub> is more than twice the level six standard deviations above the strike or spot, so most nodes sit where the value is a straight line. About '+sug(want)+' would put more of them near the strike.');
+ const nlow=Math.min(Ns-1,Math.ceil(Math.abs(r-q)/(sig*sig))-1);
+ if(nlow>.05*Ns)w.push('<b>Drift dominates at the low end.</b> At the lowest '+nlow+(nlow===1?' node':' nodes')+' &sigma;&sup2;i is below |r &minus; q|, so the central difference can oscillate there. Raise volatility or use fewer price steps.');
+ if(Smax<Math.max(K,S0)*Math.exp(3*sig*Math.sqrt(T)))w.push('<b>Ceiling is close.</b> S<sub>max</sub> is within three standard deviations of the strike or spot, so the upper boundary may bias the value. Try '+Math.ceil(Math.max(K,S0)*Math.exp(3*sig*Math.sqrt(T))/10)*10+' or more.');
+ msg.innerHTML=w.length?w.map(t=>'<p class="warn">'+t+'</p>').join(''):'<p class="ok">'+NAMES[p.scheme]+' on a '+Ns+' by '+Nt+' grid. No warnings: the value at S<sub>0</sub> is within tolerance of the closed form.</p>';
+
+ $('kfd').textContent=fx(vFD,4);$('kbs').textContent=fx(vBS,4);$('kerr').textContent=fx(vFD-vBS,5);$('kmax').textContent=fx(emax,5);
+ $('kstab').textContent=fx(ratio,2)+(ratio<=1?' ok':' fails');$('kmin').textContent=minNt;$('kds').textContent=fx(dS,4);$('kdt').textContent=fx(dt,5);
+
+ // charts: show the part of the grid around strike and spot
+ const top=Math.min(Smax,2*Math.max(K,S0)),iv=Math.max(4,Math.min(Ns,Math.round(top/dS))),xs=S.slice(0,iv+1),cut=a=>Array.from(a).slice(0,iv+1);
+ let M=0;for(let i=0;i<=iv;i++)M=Math.max(M,A[i],Math.abs(call?S[i]-K:K-S[i]));M=M||1;
+ const vl=[K,S0],xf=v=>'S '+(+v.toFixed(2));
+ Plot.line($('c1'),{x:xs,xnum:true,xfmt:xf,vline:vl,dec:2,title:'Option value by time to expiry',
+  series:lev.map((n,k)=>({name:k===0?'at expiry':'τ = '+(+(n*dt).toFixed(3))+'y'+(k===4?' (today)':''),y:clip(cut(sol.out.get(n)),-.25*M,1.5*M),width:k===0||k===4?1.8:1.1}))});
+ Plot.line($('c2'),{x:xs,xnum:true,xfmt:xf,vline:vl,dec:3,title:'Grid against closed form',
+  series:[{name:'Grid ('+NAMES[p.scheme]+')',y:clip(cut(V0),-.25*M,1.5*M)},{name:'Closed form',y:cut(A),color:'#777',width:2.2,dash:'2 4'}]});
+ Plot.line($('c3'),{x:xs,xnum:true,xfmt:xf,vline:vl,zero:true,legend:true,title:'Pricing error',yfmt:v=>Math.abs(v)<1e-12?'0':Math.abs(v)<.01?v.toExponential(1):v.toFixed(3),
+  series:[{name:'Grid minus closed form',y:clip(cut(err),-M,M)}]});
+ Plot.line($('c5'),{x:xs,xnum:true,xfmt:xf,vline:vl,zero:true,legend:true,title:'PDE residual',yfmt:v=>Math.abs(v)<1e-12?'0':Math.abs(v)<.01?v.toExponential(1):v.toFixed(3),
+  series:[{name:'Residual of the Black-Scholes equation at t = 0',y:clip(cut(res),-5*M,5*M)}]});
+ last={p,xs,cut,G,AG,vl,xf,dS,Ns,S0};drawGreek();
+
+ // sensitivities at spot
+ const row=(n,k,d)=>{const g=interp(G[k],dS,S0,1,Ns-1),t=bsGreeks(S0,K,T,r,q,sig,call)[k];return`<tr><td>${n}</td><td class="n">${fx(g,d)}</td><td class="n">${fx(t,d)}</td><td class="n">${fx(g-t,d+1)}</td></tr>`};
+ $('tg').innerHTML='<tr><th>At S<sub>0</sub></th><th class="n">Grid</th><th class="n">Closed form</th><th class="n">Difference</th></tr>'+row('Delta','delta',4)+row('Gamma','gamma',5)+row('Theta (per year)','theta',4)+row('Vega (per unit &sigma;)','vega',3)+row('Rho (per unit r)','rho',3);
+
+ // convergence
+ const fac=[.25,.5,1,2,4],sch=['explicit','implicit','cn','cnr'],E={},SG={},lab=[];let rows='';
+ sch.forEach(s=>{E[s]=[];SG[s]=[]});
+ fac.forEach(f=>{const ns=Math.max(6,Math.round(Ns*f)),nt=Math.max(4,Math.round(Nt*f)),rt=(T/nt)*(sig*sig*ns*ns+r);lab.push(ns+'x'+nt);
+  let cells='';sch.forEach(s=>{let e=NaN;if(ns*nt<=4e6){const o=solve({...p,Ns:ns,Nt:nt,scheme:s});e=interp(o.V,o.dS,S0,0,ns)-vBS}
+   const bad=!isFinite(e)||Math.abs(e)>Math.max(K,S0)||(s==='explicit'&&rt>1);E[s].push(bad?NaN:Math.abs(e));SG[s].push(Math.sign(e));
+   cells+=`<td class="n">${ns*nt>4e6?'skipped':bad?'unstable':(s===p.scheme&&f===1?'<b>'+e.toFixed(5)+'</b>':e.toFixed(5))}</td>`});
+  rows+=`<tr><td>&times;${f}</td><td class="n">${ns} &times; ${nt}</td><td class="n">${fx(Smax/ns,3)}</td><td class="n">${fx(T/nt,5)}</td><td class="n">${fx(rt,2)}</td>${cells}</tr>`});
+ const tiny=1e-7*Math.max(K,S0);
+ for(let j=1;j<fac.length;j++){let cells='';sch.forEach(s=>{const a=E[s][j-1],b=E[s][j],sa=SG[s][j-1],sb=SG[s][j];
+   cells+=`<td class="n">${a===a&&b===b&&a>tiny&&b>tiny&&sa===sb?(a/b).toFixed(2):'n/a'}</td>`});
+  rows+=`<tr><td>Error ratio</td><td class="n" colspan="4">&times;${fac[j-1]} over &times;${fac[j]}</td>${cells}</tr>`}
+ $('tc').innerHTML='<tr><th>Factor</th><th class="n">N<sub>S</sub> &times; N<sub>t</sub></th><th class="n">&Delta;S</th><th class="n">&Delta;t</th><th class="n">Explicit ratio</th><th class="n">Explicit</th><th class="n">Implicit</th><th class="n">Crank-Nicolson</th><th class="n">CN, Rannacher</th></tr>'+rows;
+ Plot.line($('c6'),{x:lab,log:true,title:'Convergence of the error',yfmt:v=>v.toExponential(0),series:sch.map(s=>({name:NAMES[s],y:E[s].map(v=>v>1e-14?v:NaN)}))});
+}
+
+function drawGreek(){if(!last)return;const k=$('greek').value,{xs,cut,G,AG,vl,xf}=last,a=cut(AG[k]),g=cut(G[k]);
+ let lo=1e99,hi=-1e99;a.forEach(v=>{if(v===v){lo=Math.min(lo,v);hi=Math.max(hi,v)}});const sp=Math.max(hi-lo,1e-9);
+ Plot.line($('c4'),{x:xs,xnum:true,xfmt:xf,vline:vl,zero:true,dec:k==='gamma'?4:k==='delta'?3:2,title:k+' profile',
+  series:[{name:'Grid',y:clip(g,lo-sp,hi+sp)},{name:'Closed form',y:a,color:'#777',width:2.2,dash:'2 4'}]})}
+
+let tmr;const queue=()=>{clearTimeout(tmr);tmr=setTimeout(run,120)};
+['S0','K','T','sig','r','q','Ns','Nt','Smax'].forEach(id=>$(id).addEventListener('input',queue));
+['type','scheme'].forEach(id=>$(id).addEventListener('change',run));
+$('greek').addEventListener('change',drawGreek);
+run();
+</script>
+</body></html>

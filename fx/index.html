@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FX Monitor · Arthur Mota</title>
+<meta name="description" content="Daily FX monitor: the dollar, euro, yen, pound and real against a short-run fair value, with carry, volatility and a long-run real exchange rate anchor.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="../assets/mono.css">
+</head><body>
+<header><div class="mast"><a href="../"><svg class="logo" viewBox="0 0 32 32" aria-label="home"><rect width="32" height="32" fill="#111"/><path d="M7 11h18M12 11v13M20 11v9.5a3.5 3.5 0 0 0 3.5 3.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="square"/></svg></a><h1>FX monitor</h1></div>
+<p class="tag">Dollar, euro, yen, pound, real · Rates, risk and valuation · Daily</p>
+<p class="sub" id="stamp">Loading.</p>
+<nav><a href="../">[home]</a><a href="../#lab">[lab]</a><a href="#read">[how to read]</a><a href="#board">[board]</a><a href="#pair">[pair]</a><a href="#move">[what moved]</a><a href="#long">[long run]</a><a href="#data">[data]</a><a href="#limits">[limits]</a></nav></header>
+<hr>
+<section id="read"><h2>How to read this page</h2>
+<p>Day to day, a currency follows three things more than any other: the gap between interest rates at home and abroad, the appetite for risk, and the price of oil. This page asks what the exchange rate would be if it followed only those three, and compares that with where it trades.</p>
+<p><b>Fair value</b> is that estimate. <b>Gap</b> is what is left: positive means the pair trades above what rates, risk and oil explain. The <b>z-score</b> expresses the gap in units of its own recent variation, so plus or minus two is unusual.</p>
+<p class="note">This is a description of the present, not a forecast. A gap can close because the currency moves or because the drivers do, and the relationship itself shifts over time.</p>
+</section><hr>
+<section id="board"><h2>Board</h2>
+<div class="scroll"><table id="bt"></table></div>
+<p class="note">Spot changes in percent. Rate gap in percentage points, first currency of the pair minus the second. Gap in percent of fair value. Carry to vol is the rate gap divided by three-month realised volatility. REER is the real effective exchange rate of the non-dollar currency (the dollar itself for DXY) against its own ten-year average.</p>
+</section><hr>
+<section id="pair"><h2>Pair</h2>
+<div class="tog" id="pt"></div>
+<div class="tog" id="wt">Window <button data-w="126">[6M]</button><button data-w="504">[2Y]</button><button data-w="1260">[5Y]</button><button data-w="0">[Full]</button></div>
+<div class="kpi" id="kp"></div>
+<div class="exh">Exhibit 1 <span>Spot and short-run fair value</span></div><div id="c1"></div>
+<div class="exh">Exhibit 2 <span>Gap between spot and fair value, z-score</span></div><div id="c2"></div>
+<div class="exh">Exhibit 3 <span id="t3"></span></div><div id="c3"></div>
+</section><hr>
+<section id="move"><h2>What moved the pair</h2>
+<div class="exh">Exhibit 4 <span id="t4"></span></div><div id="c4"></div>
+<p class="note">Change in the pair over the selected window, in percent, split by driver. Unexplained is the change in the gap.</p>
+</section><hr>
+<section id="long"><h2>Long-run anchor</h2>
+<div class="exh">Exhibit 5 <span id="t5"></span></div><div id="c5"></div>
+<p class="note">Real effective exchange rates, monthly, published with a lag of one to two months. Above zero the currency is dear against its own history after adjusting for inflation. This anchor works over years, not weeks.</p>
+</section><hr>
+<section id="data"><h2>Data</h2>
+<ul class="idx"><li><a href="data/EURUSD.csv">EURUSD.csv</a> · <a href="data/USDJPY.csv">USDJPY.csv</a> · <a href="data/GBPUSD.csv">GBPUSD.csv</a> · <a href="data/USDBRL.csv">USDBRL.csv</a> · <a href="data/DXY.csv">DXY.csv</a><br><span class="s">Daily since 2006: spot, rate differential, fair value, gap, z-score, volatility, carry to vol, REER deviation.</span></li>
+<li><a href="data/meta.json">meta.json</a><br><span class="s">Latest readings.</span></li></ul>
+</section><hr>
+<section id="limits"><h2>Limits</h2>
+<p>Three drivers do not explain a currency. Positioning, flows, fiscal news and intervention all sit in the gap. The link between a currency and its drivers changes with the regime and can take the opposite sign from the textbook for long stretches, as with the yen when its rate gap narrows while the currency keeps weakening. The relationship between rates and a currency is contemporaneous: it is positive day to day and tends to reverse at horizons of a year or more, so a rate gap is not a forecast of direction.</p>
+<p class="note">The methodology, inputs and code behind this page are not published.</p>
+<p class="note">Educational research. Not investment advice. No positions are recommended.</p>
+</section>
+<script src="../assets/plot.js"></script><script src="fx.js"></script>
+</body></html>
