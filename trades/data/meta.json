@@ -1,7 +1,7 @@
 {
- "updated": "2026-10-07T20:24:42Z",
+ "updated": "2026-10-07T21:13:28Z",
  "slot": "manual",
- "as_of_ny": "2026-10-07 16:23",
+ "as_of_ny": "2026-10-07 17:12",
  "last_close": "2026-10-06",
  "live_since": "2026-10-07",
  "in_sample": true,
@@ -24,12 +24,12 @@
    "t": "SOXX",
    "name": "iShares PHLX SOX Semiconductor Sector Index Fund",
    "lev": 1,
-   "w": 0.225589,
+   "w": 0.225598,
    "w_target": 0.226777,
    "px": 582.82,
    "chg_pct": -1.125,
    "since": "2026-10-07",
-   "pnl_pct": 1.034,
+   "pnl_pct": 1.038,
    "locked": true,
    "band_pct": 5.768,
    "breach": false
@@ -38,12 +38,12 @@
    "t": "TQQQ",
    "name": "ProShares UltraPro QQQ",
    "lev": 3,
-   "w": 0.177283,
+   "w": 0.177273,
    "w_target": 0.177338,
    "px": 83.62,
    "chg_pct": -0.748,
    "since": "2026-10-07",
-   "pnl_pct": 1.535,
+   "pnl_pct": 1.528,
    "locked": true,
    "band_pct": 7.491,
    "breach": false
@@ -140,7 +140,7 @@
  "stats": {
   "live": {
    "days": 1,
-   "sys_pct": 1.566,
+   "sys_pct": 1.5657,
    "spy_pct": 0.1869
   },
   "windows": [
@@ -148,50 +148,50 @@
     "label": "Since 2012",
     "start": "2012-01-03",
     "end": "2026-10-07",
-    "sys_cagr": 0.214981,
+    "sys_cagr": 0.230024,
     "spy_cagr": 0.151531,
-    "sys_maxdd": -0.524715,
-    "spy_maxdd": -0.337172,
-    "sys_sharpe": 0.6586,
+    "sys_maxdd": -0.522921,
+    "spy_maxdd": -0.337173,
+    "sys_sharpe": 0.6884,
     "spy_sharpe": 0.8372
    },
    {
     "label": "2012 to 2022-09",
     "start": "2012-01-03",
     "end": "2022-09-30",
-    "sys_cagr": 0.138667,
+    "sys_cagr": 0.13809,
     "spy_cagr": 0.123394,
-    "sys_maxdd": -0.524715,
-    "spy_maxdd": -0.337172,
-    "sys_sharpe": 0.5277,
+    "sys_maxdd": -0.522921,
+    "spy_maxdd": -0.337173,
+    "sys_sharpe": 0.5252,
     "spy_sharpe": 0.7402
    },
    {
     "label": "Since 2022-10",
     "start": "2022-10-03",
     "end": "2026-10-07",
-    "sys_cagr": 0.446263,
+    "sys_cagr": 0.515435,
     "spy_cagr": 0.230651,
     "sys_maxdd": -0.406124,
     "spy_maxdd": -0.187552,
-    "sys_sharpe": 0.9484,
+    "sys_sharpe": 1.0467,
     "spy_sharpe": 1.1166
    }
   ],
   "yearly": [
    {
     "year": 2012,
-    "sys": 0.107252,
-    "spy": 0.159904
+    "sys": 0.107251,
+    "spy": 0.159903
    },
    {
     "year": 2013,
-    "sys": 1.021605,
-    "spy": 0.323077
+    "sys": 1.021603,
+    "spy": 0.323078
    },
    {
     "year": 2014,
-    "sys": 0.260904,
+    "sys": 0.260903,
     "spy": 0.134638
    },
    {
@@ -201,23 +201,23 @@
    },
    {
     "year": 2016,
-    "sys": 0.180971,
+    "sys": 0.18097,
     "spy": 0.119979
    },
    {
     "year": 2017,
     "sys": 0.607549,
-    "spy": 0.217054
+    "spy": 0.217055
    },
    {
     "year": 2018,
-    "sys": -0.309937,
+    "sys": -0.307262,
     "spy": -0.04569
    },
    {
     "year": 2019,
-    "sys": 0.153516,
-    "spy": 0.312238
+    "sys": 0.1534,
+    "spy": 0.312239
    },
    {
     "year": 2020,
@@ -231,12 +231,12 @@
    },
    {
     "year": 2022,
-    "sys": -0.159503,
+    "sys": 0.003734,
     "spy": -0.181754
    },
    {
     "year": 2023,
-    "sys": 0.361131,
+    "sys": 0.361132,
     "spy": 0.261758
    },
    {
@@ -246,12 +246,12 @@
    },
    {
     "year": 2025,
-    "sys": 0.568602,
-    "spy": 0.177191
+    "sys": 0.568598,
+    "spy": 0.17719
    },
    {
     "year": 2026,
-    "sys": 0.480337,
+    "sys": 0.480332,
     "spy": 0.148655
    }
   ],
