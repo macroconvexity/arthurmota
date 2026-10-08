@@ -1,11 +1,11 @@
 {
- "updated": "2026-10-08 17:07 UTC",
+ "updated": "2026-10-08 18:06 UTC",
  "started": "2026-10-08",
  "through": "2026-10-08",
  "nav": [
   {
    "date": "2026-10-08",
-   "book": 0.981241,
+   "book": 0.969536,
    "model": 0.947595,
    "spy": 0.993425
   }
@@ -15,61 +15,61 @@
    "t": "ROM",
    "name": "ProShares Ultra Technology",
    "lev": 2,
-   "w": 0.2273,
+   "w": 0.2293,
    "avg_price": 165.4999,
-   "price": 161.615,
+   "price": 161.105,
    "since": "2026-10-08",
-   "pnl_pct": -2.35
+   "pnl_pct": -2.66
   },
   {
    "t": "SOXX",
    "name": "iShares PHLX SOX Semiconductor Sector Index Fund",
    "lev": 1,
-   "w": 0.2232,
+   "w": 0.226,
    "avg_price": 571.6596,
-   "price": 561.14,
+   "price": 561.255,
    "since": "2026-10-08",
-   "pnl_pct": -1.84
+   "pnl_pct": -1.82
   },
   {
    "t": "TQQQ",
    "name": "ProShares UltraPro QQQ",
    "lev": 3,
-   "w": 0.178,
+   "w": 0.1746,
    "avg_price": 82.1972,
-   "price": 82.1972,
+   "price": 79.6275,
    "since": "2026-10-08",
-   "pnl_pct": 0.0
+   "pnl_pct": -3.13
   },
   {
    "t": "TECL",
    "name": "Direxion Daily Technology Bull 3X ETF",
    "lev": 3,
-   "w": 0.1539,
+   "w": 0.1552,
    "avg_price": 245.9388,
-   "price": 237.45,
+   "price": 236.6013,
    "since": "2026-10-08",
-   "pnl_pct": -3.45
+   "pnl_pct": -3.8
   },
   {
    "t": "USD",
    "name": "ProShares Ultra Semiconductors",
    "lev": 2,
-   "w": 0.1308,
+   "w": 0.1316,
    "avg_price": 99.1699,
-   "price": 96.25,
+   "price": 95.65,
    "since": "2026-10-08",
-   "pnl_pct": -2.94
+   "pnl_pct": -3.55
   },
   {
    "t": "SOXL",
    "name": "Direxion Daily Semiconductor Bull 3X ETF",
    "lev": 3,
-   "w": 0.0766,
+   "w": 0.0731,
    "avg_price": 149.2665,
-   "price": 149.2665,
+   "price": 140.8348,
    "since": "2026-10-08",
-   "pnl_pct": 0.0
+   "pnl_pct": -5.65
   }
  ],
  "trades": [
@@ -125,11 +125,11 @@
  "held": [],
  "stats": {
   "days": 1,
-  "book_pct": -1.88,
+  "book_pct": -3.05,
   "model_pct": -5.24,
   "spy_pct": -0.66,
   "trades": 6,
-  "cash_w": 0.0102,
+  "cash_w": 0.0103,
   "days_purchases_held": 0
  }
 }
