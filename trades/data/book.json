@@ -1,10 +1,117 @@
 {
- "updated": "2026-10-08 13:08 UTC",
- "started": null,
- "through": null,
- "nav": [],
- "positions": [],
- "trades": [],
+ "updated": "2026-10-08 15:08 UTC",
+ "started": "2026-10-08",
+ "through": "2026-10-08",
+ "nav": [
+  {
+   "date": "2026-10-08",
+   "book": 1.003355,
+   "model": 0.980279,
+   "spy": 0.997266
+  }
+ ],
+ "positions": [
+  {
+   "t": "ROM",
+   "name": "ProShares Ultra Technology",
+   "lev": 2,
+   "w": 0.1234,
+   "avg_price": 165.4999,
+   "price": 166.38,
+   "since": "2026-10-08",
+   "pnl_pct": 0.53
+  },
+  {
+   "t": "SOXX",
+   "name": "iShares PHLX SOX Semiconductor Sector Index Fund",
+   "lev": 1,
+   "w": 0.1201,
+   "avg_price": 571.6596,
+   "price": 572.645,
+   "since": "2026-10-08",
+   "pnl_pct": 0.17
+  },
+  {
+   "t": "TQQQ",
+   "name": "ProShares UltraPro QQQ",
+   "lev": 3,
+   "w": 0.0941,
+   "avg_price": 82.1972,
+   "price": 82.375,
+   "since": "2026-10-08",
+   "pnl_pct": 0.22
+  },
+  {
+   "t": "TECL",
+   "name": "Direxion Daily Technology Bull 3X ETF",
+   "lev": 3,
+   "w": 0.0846,
+   "avg_price": 245.9388,
+   "price": 247.465,
+   "since": "2026-10-08",
+   "pnl_pct": 0.62
+  },
+  {
+   "t": "SOXL",
+   "name": "Direxion Daily Semiconductor Bull 3X ETF",
+   "lev": 3,
+   "w": 0.0406,
+   "avg_price": 149.2665,
+   "price": 150.075,
+   "since": "2026-10-08",
+   "pnl_pct": 0.54
+  }
+ ],
+ "trades": [
+  {
+   "date": "2026-10-08",
+   "t": "TQQQ",
+   "name": "ProShares UltraPro QQQ",
+   "side": "buy",
+   "price": 82.1972,
+   "w": 0.1747
+  },
+  {
+   "date": "2026-10-08",
+   "t": "TECL",
+   "name": "Direxion Daily Technology Bull 3X ETF",
+   "side": "buy",
+   "price": 245.9388,
+   "w": 0.1564
+  },
+  {
+   "date": "2026-10-08",
+   "t": "SOXX",
+   "name": "iShares PHLX SOX Semiconductor Sector Index Fund",
+   "side": "buy",
+   "price": 571.6596,
+   "w": 0.2231
+  },
+  {
+   "date": "2026-10-08",
+   "t": "SOXL",
+   "name": "Direxion Daily Semiconductor Bull 3X ETF",
+   "side": "buy",
+   "price": 149.2665,
+   "w": 0.0751
+  },
+  {
+   "date": "2026-10-08",
+   "t": "ROM",
+   "name": "ProShares Ultra Technology",
+   "side": "buy",
+   "price": 165.4999,
+   "w": 0.2284
+  }
+ ],
  "held": [],
- "stats": {}
+ "stats": {
+  "days": 1,
+  "book_pct": 0.34,
+  "model_pct": -1.97,
+  "spy_pct": -0.27,
+  "trades": 5,
+  "cash_w": 0.5373,
+  "days_purchases_held": 0
+ }
 }
