@@ -9,7 +9,7 @@
 <header><div class="mast"><a href="../"><svg class="logo" viewBox="0 0 32 32" aria-label="home"><rect width="32" height="32" fill="#111"/><path d="M7 11h18M12 11v13M20 11v9.5a3.5 3.5 0 0 0 3.5 3.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="square"/></svg></a><h1>Trades</h1></div>
 <p class="tag">Model portfolio on leveraged ETFs · Simulated</p>
 <p class="sub" id="stamp">Loading.</p>
-<nav><a href="../">[home]</a><a href="#orders">[orders]</a><a href="#alerts">[alerts]</a><a href="#pos">[positions]</a><a href="#preview">[preview]</a><a href="#live">[live]</a><a href="#equity">[equity]</a><a href="#stats">[statistics]</a><a href="#signals">[signals]</a></nav></header>
+<nav><a href="../">[home]</a><a href="#orders">[orders]</a><a href="#alerts">[alerts]</a><a href="#pos">[positions]</a><a href="#preview">[preview]</a><a href="#live">[live]</a><a href="#book">[book]</a><a href="#equity">[equity]</a><a href="#stats">[statistics]</a><a href="#signals">[signals]</a></nav></header>
 <p class="note" style="margin-top:16px">Results before <span id="ls">the first published signal</span> were seen while the system was being chosen, so only the record after that date is a clean test. The model portfolio fills at the open and is not advice. Maximum drawdown in the history is shown in the table below.</p>
 <hr>
 <section id="orders"><h2>Today's orders</h2><div id="od"></div></section><hr>
@@ -20,6 +20,14 @@
 </section><hr>
 <section id="preview"><h2 id="pvh">Preview</h2><div id="pv"></div></section><hr>
 <section id="live"><h2>Live result</h2><div class="kpi" id="kp"></div></section><hr>
+<section id="book"><h2>Executed book</h2>
+<p class="note">An actual account that follows the open signal, shown in weights, prices and returns. Days are marked at the close. The rest of this page is simulated.</p>
+<div class="kpi" id="bk"></div>
+<div id="bx"><div class="exh">Exhibit <span>Executed book against the model and SPY, all at 1 on the close before the first trade.</span></div><div id="c0"></div>
+<div class="exh">Table <span>Holdings</span></div><div class="scroll"><table id="bp"></table></div>
+<div class="exh">Table <span>Trades, newest first. Size is the trade as a share of the account.</span></div><div class="scroll"><table id="bt"></table></div>
+<div id="bhw"><div class="exh">Table <span>Days on which purchases were put off because the market opened sharply lower</span></div><div class="scroll"><table id="bh"></table></div></div></div>
+</section><hr>
 <section id="equity"><h2>Equity</h2>
 <div class="exh">Exhibit 1 <span>System against SPY, rebased to 1, log scale. The heavy line is the live record.</span></div><div id="c1"></div>
 </section><hr>
@@ -36,6 +44,6 @@
 <div class="exh">Table <span>Published target weights, last sessions</span></div>
 <div class="scroll"><table id="wg"></table></div>
 </section>
-<p class="note" style="margin-top:32px">Educational research. Simulated results have inherent limits and do not represent actual trading. Not investment advice.</p>
+<p class="note" style="margin-top:32px">Educational research. Simulated results have inherent limits and do not represent actual trading; the executed book is one account over a short period and proves nothing about the future. Not investment advice.</p>
 <script src="../assets/plot.js"></script><script src="trades.js"></script>
 </body></html>

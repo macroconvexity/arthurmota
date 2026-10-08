@@ -1,4 +1,4 @@
-/* Display only. Every number comes from data/meta.json, data/equity.csv and data/weights.csv. */
+/* Display only. Every number comes from data/meta.json, data/equity.csv, data/weights.csv and data/book.json. */
 const TradesPage=(()=>{
 const A=v=>Array.isArray(v)?v:[],M=s=>String(s).replace(/^-/,'−');
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -44,6 +44,21 @@ function wtable(rows,P){if(!rows.length)return '<tr><td class="t">No published w
  return '<tr><th>Date</th>'+ts.map(t=>`<th class="n">${esc(t)}</th>`).join('')+'</tr>'+ds.map(d=>`<tr><td class="d">${esc(d)}</td>`+ts.map(t=>`<td class="n">${g[d+'|'+t]==null?'–':pc(g[d+'|'+t],0)}</td>`).join('')+'</tr>').join('')}
 function costs(c){c=c||{};if(!num(c.slip_1x_bp)&&!num(c.slip_lev_bp))return '<tr><td class="t">Not published.</td></tr>';
  return `<tr><th>Unleveraged funds</th><th>Leveraged funds</th></tr><tr><td>${f2(c.slip_1x_bp,0)}</td><td>${f2(c.slip_lev_bp,0)}</td></tr>`}
+function book(b,$,Plot){b=b||{};const N=A(b.nav),s=b.stats||{};
+ if(!b.started||!N.length){$('bk').innerHTML='<p>No executed trade yet.</p>';$('bx').style.display='none';return}
+ const d=num(s.book_pct)&&num(s.model_pct)?s.book_pct-s.model_pct:null;
+ $('bk').innerHTML=[[sp(s.book_pct,2),'Executed'],[sp(s.model_pct,2),'Model'],[sp(s.spy_pct,2),'SPY'],[sp(d,2),'Executed less model, points'],[String(s.days||N.length),'Sessions since '+esc(b.started)]].map(v=>`<div><b>${v[0]}</b>${v[1]}</div>`).join('');
+ if(N.length>=2){const x=[b.started+' (start)'].concat(N.map(r=>r.date)),col=k=>[1].concat(N.map(r=>num(r[k])?r[k]:NaN)),ser=[{name:'Executed',y:col('book'),width:2.6,dash:'',color:'#111'}];
+  if(N.some(r=>num(r.model)))ser.push({name:'Model',y:col('model'),dash:'5 3',color:'#555'});if(N.some(r=>num(r.spy)))ser.push({name:'SPY',y:col('spy'),dash:'2 3',color:'#888'});
+  Plot.line($('c0'),{x,series:ser,dec:3,base:1,title:'Executed book against the model and SPY'})}
+ else $('c0').innerHTML='<p class="sub">The chart starts with the second session.</p>';
+ const P=A(b.positions);
+ $('bp').innerHTML='<tr><th>Fund</th><th>Name</th><th class="n">Lev.</th><th class="n">Weight</th><th class="n">Average price</th><th class="n">Price</th><th>Since</th><th class="n">P&amp;L</th></tr>'+
+  P.map(p=>`<tr><td><b>${esc(p.t)}</b></td><td>${esc(p.name)}</td><td class="n">${num(p.lev)?esc(p.lev)+'x':'–'}</td><td class="n">${pc(p.w)}</td><td class="n">${f2(p.avg_price)}</td><td class="n">${f2(p.price)}</td><td class="t">${esc(p.since)}</td><td class="n">${sp(p.pnl_pct)}</td></tr>`).join('')+
+  `<tr><td><b>Cash</b></td><td></td><td class="n"></td><td class="n">${pc(s.cash_w)}</td><td class="n"></td><td class="n"></td><td></td><td class="n"></td></tr>`;
+ const Tr=A(b.trades);
+ $('bt').innerHTML=Tr.length?'<tr><th>Date</th><th>Side</th><th>Fund</th><th>Name</th><th class="n">Price</th><th class="n">Size</th></tr>'+Tr.map(x=>`<tr><td class="d">${esc(x.date)}</td><td>${esc(String(x.side||'').toUpperCase())}</td><td><b>${esc(x.t)}</b></td><td>${esc(x.name)}</td><td class="n">${f2(x.price)}</td><td class="n">${pc(x.w)}</td></tr>`).join(''):'<tr><td class="t">No trades.</td></tr>';
+ const H=A(b.held);if(!H.length){$('bhw').style.display='none'}else $('bh').innerHTML='<tr><th>Date</th><th class="n">SPY against the previous close</th><th class="n">Limit</th><th>Purchases put off</th></tr>'+H.slice().reverse().map(x=>`<tr><td class="d">${esc(x.date)}</td><td class="n">${sp(x.spy_pct,2)}</td><td class="n">${sp(x.limit_pct,2)}</td><td>${A(x.funds).map(esc).join(', ')}</td></tr>`).join('')}
 function render(m,E,Wt,$,Plot){m=m||{};
  $('stamp').textContent=header(m);
  if(m.live_since)$('ls').textContent=m.live_since;
@@ -65,8 +80,9 @@ function render(m,E,Wt,$,Plot){m=m||{};
 async function run(doc,fetchFn,Plot){const $=id=>doc.getElementById(id);
  try{const get=u=>fetchFn(u).then(r=>{if(!r.ok)throw new Error(u+' '+r.status);return r});
   const[m,e,w]=await Promise.all([get('data/meta.json').then(r=>r.json()),get('data/equity.csv').then(r=>r.text()),get('data/weights.csv').then(r=>r.text()).catch(()=>'')]);
-  render(m,equity(e),weights(w),$,Plot)}
+  render(m,equity(e),weights(w),$,Plot);
+  try{book(await get('data/book.json').then(r=>r.json()),$,Plot)}catch(e){book(null,$,Plot)}}
  catch(err){$('stamp').textContent='The data files could not be loaded. Try again later.'}}
-return{run,render,equity,weights,chartSpec}})();
+return{run,render,book,equity,weights,chartSpec}})();
 if(typeof document!=='undefined')TradesPage.run(document,u=>fetch(u),Plot);
 if(typeof module!=='undefined')module.exports=TradesPage;
