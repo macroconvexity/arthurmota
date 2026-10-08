@@ -1,75 +1,75 @@
 {
- "updated": "2026-10-08 19:47 UTC",
+ "updated": "2026-10-08 20:28 UTC",
  "started": "2026-10-08",
  "through": "2026-10-08",
  "nav": [
   {
    "date": "2026-10-08",
-   "book": 0.98406,
-   "model": 0.945401,
-   "spy": 0.995046
+   "book": 0.975613,
+   "model": 0.951334,
+   "spy": 0.995818
   }
  ],
  "positions": [
   {
-   "t": "SOXX",
-   "name": "iShares PHLX SOX Semiconductor Sector Index Fund",
-   "lev": 1,
-   "w": 0.2267,
-   "avg_price": 571.6596,
-   "price": 571.6596,
-   "since": "2026-10-08",
-   "pnl_pct": 0.0
-  },
-  {
    "t": "ROM",
    "name": "ProShares Ultra Technology",
    "lev": 2,
-   "w": 0.2265,
+   "w": 0.2292,
    "avg_price": 165.4999,
-   "price": 161.57,
+   "price": 162.05,
    "since": "2026-10-08",
-   "pnl_pct": -2.37
+   "pnl_pct": -2.08
+  },
+  {
+   "t": "SOXX",
+   "name": "iShares PHLX SOX Semiconductor Sector Index Fund",
+   "lev": 1,
+   "w": 0.2254,
+   "avg_price": 571.6596,
+   "price": 563.28,
+   "since": "2026-10-08",
+   "pnl_pct": -1.47
   },
   {
    "t": "TQQQ",
    "name": "ProShares UltraPro QQQ",
    "lev": 3,
-   "w": 0.1775,
+   "w": 0.1748,
    "avg_price": 82.1972,
-   "price": 82.1972,
+   "price": 80.23,
    "since": "2026-10-08",
-   "pnl_pct": 0.0
+   "pnl_pct": -2.39
   },
   {
    "t": "TECL",
    "name": "Direxion Daily Technology Bull 3X ETF",
    "lev": 3,
-   "w": 0.1533,
+   "w": 0.1556,
    "avg_price": 245.9388,
-   "price": 237.225,
+   "price": 238.72,
    "since": "2026-10-08",
-   "pnl_pct": -3.54
+   "pnl_pct": -2.94
   },
   {
    "t": "USD",
    "name": "ProShares Ultra Semiconductors",
    "lev": 2,
-   "w": 0.1293,
+   "w": 0.1313,
    "avg_price": 99.1699,
-   "price": 95.4394,
+   "price": 96.03,
    "since": "2026-10-08",
-   "pnl_pct": -3.76
+   "pnl_pct": -3.17
   },
   {
    "t": "SOXL",
    "name": "Direxion Daily Semiconductor Bull 3X ETF",
    "lev": 3,
-   "w": 0.0763,
+   "w": 0.0735,
    "avg_price": 149.2665,
-   "price": 149.2665,
+   "price": 142.52,
    "since": "2026-10-08",
-   "pnl_pct": 0.0
+   "pnl_pct": -4.52
   }
  ],
  "trades": [
@@ -125,9 +125,9 @@
  "held": [],
  "stats": {
   "days": 1,
-  "book_pct": -1.59,
-  "model_pct": -5.46,
-  "spy_pct": -0.5,
+  "book_pct": -2.44,
+  "model_pct": -4.87,
+  "spy_pct": -0.42,
   "trades": 6,
   "cash_w": 0.0102,
   "days_purchases_held": 0
