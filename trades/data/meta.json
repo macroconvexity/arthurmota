@@ -1,8 +1,8 @@
 {
- "updated": "2026-10-08T00:26:20Z",
- "slot": "manual",
- "as_of_ny": "2026-10-07 20:25",
- "last_close": "2026-10-06",
+ "updated": "2026-10-08T13:08:39Z",
+ "slot": "open",
+ "as_of_ny": "2026-10-08 09:07",
+ "last_close": "2026-10-07",
  "live_since": "2026-10-07",
  "in_sample": true,
  "positions": [
@@ -10,183 +10,140 @@
    "t": "ROM",
    "name": "ProShares Ultra Technology",
    "lev": 2,
-   "w": 0.230196,
-   "w_target": 0.230211,
-   "px": 169.27,
+   "w": 0.229095,
+   "w_target": 0.230665,
+   "px": 168.38,
    "chg_pct": 0.0,
    "since": "2026-10-07",
-   "pnl_pct": -0.05,
-   "locked": true,
-   "band_pct": 5.788,
+   "pnl_pct": 1.073,
+   "locked": false,
+   "band_pct": 5.66,
    "breach": false
   },
   {
    "t": "SOXX",
    "name": "iShares PHLX SOX Semiconductor Sector Index Fund",
    "lev": 1,
-   "w": 0.22683,
-   "w_target": 0.226777,
-   "px": 589.45,
+   "w": 0.225592,
+   "w_target": 0.225385,
+   "px": 582.82,
    "chg_pct": 0.0,
    "since": "2026-10-07",
-   "pnl_pct": -0.02,
-   "locked": true,
-   "band_pct": 5.768,
+   "pnl_pct": 1.034,
+   "locked": false,
+   "band_pct": 5.687,
    "breach": false
   },
   {
    "t": "TQQQ",
    "name": "ProShares UltraPro QQQ",
    "lev": 3,
-   "w": 0.177326,
-   "w_target": 0.177338,
-   "px": 84.25,
+   "w": 0.177274,
+   "w_target": 0.176473,
+   "px": 83.62,
    "chg_pct": 0.0,
    "since": "2026-10-07",
-   "pnl_pct": -0.05,
-   "locked": true,
-   "band_pct": 7.491,
+   "pnl_pct": 1.528,
+   "locked": false,
+   "band_pct": 7.377,
    "breach": false
   },
   {
    "t": "TECL",
    "name": "Direxion Daily Technology Bull 3X ETF",
    "lev": 3,
-   "w": 0.156878,
-   "w_target": 0.156888,
-   "px": 254.4,
+   "w": 0.157177,
+   "w_target": 0.157996,
+   "px": 252.47,
    "chg_pct": 0.0,
    "since": "2026-10-07",
-   "pnl_pct": -0.05,
-   "locked": true,
-   "band_pct": 8.618,
+   "pnl_pct": 1.752,
+   "locked": false,
+   "band_pct": 8.386,
    "breach": false
   },
   {
    "t": "USD",
    "name": "ProShares Ultra Semiconductors",
    "lev": 2,
-   "w": 0.132512,
-   "w_target": 0.132521,
-   "px": 103.77,
+   "w": 0.133266,
+   "w_target": 0.13359,
+   "px": 102.77,
    "chg_pct": 0.0,
    "since": "2026-10-07",
-   "pnl_pct": -0.05,
-   "locked": true,
-   "band_pct": 9.703,
+   "pnl_pct": 2.136,
+   "locked": false,
+   "band_pct": 9.432,
    "breach": false
   },
   {
    "t": "SOXL",
    "name": "Direxion Daily Semiconductor Bull 3X ETF",
    "lev": 3,
-   "w": 0.076259,
-   "w_target": 0.076264,
-   "px": 164.26,
+   "w": 0.077596,
+   "w_target": 0.075891,
+   "px": 158.91,
    "chg_pct": 0.0,
    "since": "2026-10-07",
-   "pnl_pct": -0.05,
-   "locked": true,
-   "band_pct": 16.455,
+   "pnl_pct": 3.338,
+   "locked": false,
+   "band_pct": 16.204,
    "breach": false
   }
  ],
- "orders": [
-  {
-   "t": "ROM",
-   "name": "ProShares Ultra Technology",
-   "side": "buy",
-   "w_from": 0.0,
-   "w_to": 0.230196
-  },
-  {
-   "t": "SOXX",
-   "name": "iShares PHLX SOX Semiconductor Sector Index Fund",
-   "side": "buy",
-   "w_from": 0.0,
-   "w_to": 0.22683
-  },
-  {
-   "t": "TQQQ",
-   "name": "ProShares UltraPro QQQ",
-   "side": "buy",
-   "w_from": 0.0,
-   "w_to": 0.177326
-  },
-  {
-   "t": "TECL",
-   "name": "Direxion Daily Technology Bull 3X ETF",
-   "side": "buy",
-   "w_from": 0.0,
-   "w_to": 0.156878
-  },
-  {
-   "t": "USD",
-   "name": "ProShares Ultra Semiconductors",
-   "side": "buy",
-   "w_from": 0.0,
-   "w_to": 0.132512
-  },
-  {
-   "t": "SOXL",
-   "name": "Direxion Daily Semiconductor Bull 3X ETF",
-   "side": "buy",
-   "w_from": 0.0,
-   "w_to": 0.076259
-  }
- ],
+ "orders": [],
  "preview": [],
  "alerts": [],
  "stats": {
   "live": {
-   "days": 0,
-   "sys_pct": 0.0,
-   "spy_pct": 0.0
+   "days": 1,
+   "sys_pct": 1.5649,
+   "spy_pct": 0.1869
   },
   "windows": [
    {
     "label": "Since 2012",
     "start": "2012-01-03",
-    "end": "2026-10-06",
-    "sys_cagr": 0.214599,
-    "spy_cagr": 0.151763,
-    "sys_maxdd": -0.523593,
+    "end": "2026-10-07",
+    "sys_cagr": 0.230022,
+    "spy_cagr": 0.151531,
+    "sys_maxdd": -0.522921,
     "spy_maxdd": -0.337173,
-    "sys_sharpe": 0.6577,
-    "spy_sharpe": 0.8384
+    "sys_sharpe": 0.6884,
+    "spy_sharpe": 0.8372
    },
    {
     "label": "2012 to 2022-09",
     "start": "2012-01-03",
     "end": "2022-09-30",
-    "sys_cagr": 0.139742,
-    "spy_cagr": 0.123394,
-    "sys_maxdd": -0.523593,
+    "sys_cagr": 0.13809,
+    "spy_cagr": 0.123395,
+    "sys_maxdd": -0.522921,
     "spy_maxdd": -0.337173,
-    "sys_sharpe": 0.5304,
+    "sys_sharpe": 0.5252,
     "spy_sharpe": 0.7402
    },
    {
     "label": "Since 2022-10",
     "start": "2022-10-03",
-    "end": "2026-10-06",
-    "sys_cagr": 0.441172,
-    "spy_cagr": 0.231646,
+    "end": "2026-10-07",
+    "sys_cagr": 0.515425,
+    "spy_cagr": 0.230651,
     "sys_maxdd": -0.406124,
     "spy_maxdd": -0.187552,
-    "sys_sharpe": 0.9403,
-    "spy_sharpe": 1.1213
+    "sys_sharpe": 1.0467,
+    "spy_sharpe": 1.1166
    }
   ],
   "yearly": [
    {
     "year": 2012,
-    "sys": 0.107251,
+    "sys": 0.107252,
     "spy": 0.159903
    },
    {
     "year": 2013,
-    "sys": 1.021606,
+    "sys": 1.021605,
     "spy": 0.323078
    },
    {
@@ -201,37 +158,37 @@
    },
    {
     "year": 2016,
-    "sys": 0.190187,
+    "sys": 0.18097,
     "spy": 0.119979
    },
    {
     "year": 2017,
-    "sys": 0.607549,
+    "sys": 0.607548,
     "spy": 0.217054
    },
    {
     "year": 2018,
-    "sys": -0.308308,
+    "sys": -0.307262,
     "spy": -0.04569
    },
    {
     "year": 2019,
-    "sys": 0.153518,
+    "sys": 0.1534,
     "spy": 0.312239
    },
    {
     "year": 2020,
-    "sys": 0.430776,
+    "sys": 0.430777,
     "spy": 0.183316
    },
    {
     "year": 2021,
-    "sys": 0.219713,
+    "sys": 0.219714,
     "spy": 0.287288
    },
    {
     "year": 2022,
-    "sys": -0.159503,
+    "sys": 0.003718,
     "spy": -0.181754
    },
    {
@@ -241,18 +198,18 @@
    },
    {
     "year": 2024,
-    "sys": 0.361583,
+    "sys": 0.36158,
     "spy": 0.248865
    },
    {
     "year": 2025,
-    "sys": 0.568599,
+    "sys": 0.568595,
     "spy": 0.177191
    },
    {
     "year": 2026,
-    "sys": 0.457511,
-    "spy": 0.151418
+    "sys": 0.480321,
+    "spy": 0.148655
    }
   ],
   "cost": {
@@ -302,6 +259,11 @@
      "w_to": 0.076259
     }
    ]
+  },
+  {
+   "date": "2026-10-08",
+   "slot": "open",
+   "orders": []
   }
  ]
 }
