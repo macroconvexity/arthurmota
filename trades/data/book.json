@@ -1,5 +1,5 @@
 {
- "updated": "2026-10-09 18:06 UTC",
+ "updated": "2026-10-09 18:43 UTC",
  "started": "2026-10-08",
  "through": "2026-10-09",
  "nav": [
@@ -11,7 +11,7 @@
   },
   {
    "date": "2026-10-09",
-   "book": 0.973543,
+   "book": 0.973679,
    "model": 0.953432,
    "spy": 1.001107
   }
@@ -21,61 +21,61 @@
    "t": "ROM",
    "name": "ProShares Ultra Technology",
    "lev": 2,
-   "w": 0.2317,
+   "w": 0.2322,
    "avg_price": 165.4999,
-   "price": 163.48,
+   "price": 163.86,
    "since": "2026-10-08",
-   "pnl_pct": -1.22
+   "pnl_pct": -0.99
   },
   {
    "t": "SOXX",
    "name": "iShares PHLX SOX Semiconductor Sector Index Fund",
    "lev": 1,
-   "w": 0.2243,
+   "w": 0.2241,
    "avg_price": 571.6596,
-   "price": 559.46,
+   "price": 559.035,
    "since": "2026-10-08",
-   "pnl_pct": -2.13
+   "pnl_pct": -2.21
   },
   {
    "t": "ERX",
    "name": "Direxion Energy Bull 2X ETF",
    "lev": 2,
-   "w": 0.1742,
+   "w": 0.1736,
    "avg_price": 114.2699,
-   "price": 112.88,
+   "price": 112.5,
    "since": "2026-10-09",
-   "pnl_pct": -1.22
+   "pnl_pct": -1.55
   },
   {
    "t": "TECL",
    "name": "Direxion Daily Technology Bull 3X ETF",
    "lev": 3,
-   "w": 0.1577,
+   "w": 0.1581,
    "avg_price": 245.9388,
-   "price": 241.465,
+   "price": 242.04,
    "since": "2026-10-08",
-   "pnl_pct": -1.82
+   "pnl_pct": -1.59
   },
   {
    "t": "USD",
    "name": "ProShares Ultra Semiconductors",
    "lev": 2,
-   "w": 0.13,
+   "w": 0.1301,
    "avg_price": 99.1699,
-   "price": 94.89,
+   "price": 95.0,
    "since": "2026-10-08",
-   "pnl_pct": -4.32
+   "pnl_pct": -4.2
   },
   {
    "t": "SOXL",
    "name": "Direxion Daily Semiconductor Bull 3X ETF",
    "lev": 3,
-   "w": 0.072,
+   "w": 0.0719,
    "avg_price": 149.2665,
-   "price": 139.345,
+   "price": 139.02,
    "since": "2026-10-08",
-   "pnl_pct": -6.65
+   "pnl_pct": -6.86
   }
  ],
  "trades": [
@@ -147,7 +147,7 @@
  "held": [],
  "stats": {
   "days": 2,
-  "book_pct": -2.65,
+  "book_pct": -2.63,
   "model_pct": -4.66,
   "spy_pct": 0.11,
   "trades": 8,
