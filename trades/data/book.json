@@ -1,5 +1,5 @@
 {
- "updated": "2026-10-13 19:49 UTC",
+ "updated": "2026-10-13 20:10 UTC",
  "started": "2026-10-08",
  "through": "2026-10-13",
  "nav": [
@@ -23,9 +23,9 @@
   },
   {
    "date": "2026-10-13",
-   "book": 0.944475,
-   "model": 0.921909,
-   "spy": 1.001402
+   "book": 0.946704,
+   "model": 0.923749,
+   "spy": 1.001068
   }
  ],
  "positions": [
@@ -35,59 +35,59 @@
    "lev": 2,
    "w": 0.2324,
    "avg_price": 165.4999,
-   "price": 159.07,
+   "price": 159.484,
    "since": "2026-10-08",
-   "pnl_pct": -3.89
+   "pnl_pct": -3.63
   },
   {
    "t": "SOXX",
    "name": "iShares PHLX SOX Semiconductor Sector Index Fund",
    "lev": 1,
-   "w": 0.224,
+   "w": 0.2242,
    "avg_price": 571.6596,
-   "price": 542.07,
+   "price": 543.9,
    "since": "2026-10-08",
-   "pnl_pct": -5.18
+   "pnl_pct": -4.86
   },
   {
    "t": "ERX",
    "name": "Direxion Energy Bull 2X ETF",
    "lev": 2,
-   "w": 0.19,
+   "w": 0.1895,
    "avg_price": 114.2699,
-   "price": 119.4,
+   "price": 119.35,
    "since": "2026-10-09",
-   "pnl_pct": 4.49
+   "pnl_pct": 4.45
   },
   {
    "t": "TECL",
    "name": "Direxion Daily Technology Bull 3X ETF",
    "lev": 3,
-   "w": 0.1561,
+   "w": 0.1564,
    "avg_price": 245.9388,
-   "price": 231.77,
+   "price": 232.78,
    "since": "2026-10-08",
-   "pnl_pct": -5.76
+   "pnl_pct": -5.35
   },
   {
    "t": "CURE",
    "name": "Direxion Daily Healthcare Bull 3X ETF",
    "lev": 3,
-   "w": 0.1205,
+   "w": 0.1199,
    "avg_price": 132.34,
-   "price": 131.675,
+   "price": 131.36,
    "since": "2026-10-13",
-   "pnl_pct": -0.5
+   "pnl_pct": -0.74
   },
   {
    "t": "SOXL",
    "name": "Direxion Daily Semiconductor Bull 3X ETF",
    "lev": 3,
-   "w": 0.0673,
+   "w": 0.0679,
    "avg_price": 149.2665,
-   "price": 126.33,
+   "price": 127.6201,
    "since": "2026-10-08",
-   "pnl_pct": -15.37
+   "pnl_pct": -14.5
   }
  ],
  "trades": [
@@ -191,9 +191,9 @@
  "held": [],
  "stats": {
   "days": 4,
-  "book_pct": -5.55,
-  "model_pct": -7.81,
-  "spy_pct": 0.14,
+  "book_pct": -5.33,
+  "model_pct": -7.63,
+  "spy_pct": 0.11,
   "trades": 12,
   "cash_w": 0.0097,
   "days_purchases_held": 0
