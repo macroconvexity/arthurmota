@@ -1,7 +1,7 @@
 {
- "updated": "2026-10-12T23:32:55Z",
+ "updated": "2026-10-13T00:32:04Z",
  "slot": "manual",
- "as_of_ny": "2026-10-12 19:31",
+ "as_of_ny": "2026-10-12 20:30",
  "last_close": "2026-10-09",
  "live_since": "2026-10-07",
  "in_sample": true,
@@ -10,12 +10,12 @@
    "t": "SOXX",
    "name": "iShares PHLX SOX Semiconductor Sector Index Fund",
    "lev": 1,
-   "w": 0.250901,
+   "w": 0.249903,
    "w_target": 0.249881,
-   "px": 544.85,
-   "chg_pct": -2.601,
+   "px": 559.4,
+   "chg_pct": 0.0,
    "since": "2026-10-07",
-   "pnl_pct": -5.282,
+   "pnl_pct": -2.833,
    "locked": true,
    "band_pct": 6.377,
    "breach": false
@@ -24,12 +24,12 @@
    "t": "ROM",
    "name": "ProShares Ultra Technology",
    "lev": 2,
-   "w": 0.228257,
+   "w": 0.22799,
    "w_target": 0.227972,
-   "px": 159.77,
-   "chg_pct": -2.347,
+   "px": 163.61,
+   "chg_pct": 0.0,
    "since": "2026-10-07",
-   "pnl_pct": -3.987,
+   "pnl_pct": -1.709,
    "locked": true,
    "band_pct": 7.12,
    "breach": false
@@ -38,13 +38,13 @@
    "t": "ERX",
    "name": "Direxion Energy Bull 2X ETF",
    "lev": 2,
-   "w": 0.199691,
+   "w": 0.19521,
    "w_target": 0.195189,
-   "px": 115.08,
-   "chg_pct": 2.649,
+   "px": 112.11,
+   "chg_pct": 0.0,
    "since": "2026-10-09",
-   "pnl_pct": 2.993,
-   "locked": false,
+   "pnl_pct": 0.326,
+   "locked": true,
    "band_pct": 7.47,
    "breach": false
   },
@@ -52,26 +52,26 @@
    "t": "TECL",
    "name": "Direxion Daily Technology Bull 3X ETF",
    "lev": 3,
-   "w": 0.154889,
+   "w": 0.156462,
    "w_target": 0.15645,
-   "px": 233.13,
-   "chg_pct": -3.804,
+   "px": 242.35,
+   "chg_pct": 0.0,
    "since": "2026-10-07",
-   "pnl_pct": -5.883,
+   "pnl_pct": -2.219,
    "locked": true,
-   "band_pct": 10.528,
+   "band_pct": 10.529,
    "breach": false
   },
   {
    "t": "LABU",
    "name": "Direxion Daily S&P Biotech Bull 3X ETF",
    "lev": 3,
-   "w": 0.085105,
+   "w": 0.087,
    "w_target": 0.087076,
-   "px": 231.99,
-   "chg_pct": -4.566,
+   "px": 243.09,
+   "chg_pct": 0.0,
    "since": "2026-10-12",
-   "pnl_pct": -3.994,
+   "pnl_pct": -0.05,
    "locked": true,
    "band_pct": 16.078,
    "breach": false
@@ -80,12 +80,12 @@
    "t": "SOXL",
    "name": "Direxion Daily Semiconductor Bull 3X ETF",
    "lev": 3,
-   "w": 0.081156,
+   "w": 0.083435,
    "w_target": 0.083432,
-   "px": 128.4,
-   "chg_pct": -8.128,
+   "px": 139.76,
+   "chg_pct": 0.0,
    "since": "2026-10-07",
-   "pnl_pct": -15.089,
+   "pnl_pct": -8.195,
    "locked": true,
    "band_pct": 18.324,
    "breach": false
@@ -96,7 +96,7 @@
    "t": "USD",
    "name": "ProShares Ultra Semiconductors",
    "side": "sell",
-   "w_from": 0.129051,
+   "w_from": 0.130477,
    "w_to": 0.0
   },
   {
@@ -110,134 +110,79 @@
    "t": "SOXX",
    "name": "iShares PHLX SOX Semiconductor Sector Index Fund",
    "side": "buy",
-   "w_from": 0.235375,
-   "w_to": 0.249902
+   "w_from": 0.236608,
+   "w_to": 0.249903
   },
   {
    "t": "ROM",
    "name": "ProShares Ultra Technology",
    "side": "buy",
-   "w_from": 0.217141,
+   "w_from": 0.217097,
    "w_to": 0.22799
   },
   {
-   "t": "SOXL",
-   "name": "Direxion Daily Semiconductor Bull 3X ETF",
-   "side": "buy",
-   "w_from": 0.073597,
-   "w_to": 0.083432
-  },
-  {
    "t": "TECL",
    "name": "Direxion Daily Technology Bull 3X ETF",
    "side": "buy",
-   "w_from": 0.148348,
-   "w_to": 0.156461
-  }
- ],
- "preview": [
-  {
-   "t": "CURE",
-   "name": "Direxion Daily Healthcare Bull 3X ETF",
-   "side": "buy",
-   "w_from": 0.0,
-   "w_to": 0.191234
-  },
-  {
-   "t": "LABU",
-   "name": "Direxion Daily S&P Biotech Bull 3X ETF",
-   "side": "sell",
-   "w_from": 0.085105,
-   "w_to": 0.0
-  },
-  {
-   "t": "SOXX",
-   "name": "iShares PHLX SOX Semiconductor Sector Index Fund",
-   "side": "sell",
-   "w_from": 0.250901,
-   "w_to": 0.218473
-  },
-  {
-   "t": "ROM",
-   "name": "ProShares Ultra Technology",
-   "side": "sell",
-   "w_from": 0.228257,
-   "w_to": 0.20025
-  },
-  {
-   "t": "TECL",
-   "name": "Direxion Daily Technology Bull 3X ETF",
-   "side": "sell",
-   "w_from": 0.154889,
-   "w_to": 0.134677
-  },
-  {
-   "t": "ERX",
-   "name": "Direxion Energy Bull 2X ETF",
-   "side": "sell",
-   "w_from": 0.199691,
-   "w_to": 0.182906
+   "w_from": 0.148879,
+   "w_to": 0.156462
   },
   {
    "t": "SOXL",
    "name": "Direxion Daily Semiconductor Bull 3X ETF",
-   "side": "sell",
-   "w_from": 0.081156,
-   "w_to": 0.07246
+   "side": "buy",
+   "w_from": 0.07599,
+   "w_to": 0.083435
   }
  ],
- "alerts": [
-  {
-   "level": "info",
-   "text": "7 order(s) the next open signal would give at current prices."
-  }
- ],
+ "preview": [],
+ "alerts": [],
  "stats": {
   "live": {
-   "days": 4,
-   "sys_pct": -5.4578,
-   "spy_pct": 0.3003
+   "days": 3,
+   "sys_pct": -3.0406,
+   "spy_pct": 0.3609
   },
   "windows": [
    {
     "label": "Since 2012",
     "start": "2012-01-03",
-    "end": "2026-10-12",
-    "sys_cagr": 0.208441,
-    "spy_cagr": 0.151489,
-    "sys_maxdd": -0.524716,
+    "end": "2026-10-09",
+    "sys_cagr": 0.211034,
+    "spy_cagr": 0.15158,
+    "sys_maxdd": -0.524715,
     "spy_maxdd": -0.337173,
-    "sys_sharpe": 0.6443,
-    "spy_sharpe": 0.8371
+    "sys_sharpe": 0.65,
+    "spy_sharpe": 0.8375
    },
    {
     "label": "2012 to 2022-09",
     "start": "2012-01-03",
     "end": "2022-09-30",
-    "sys_cagr": 0.138075,
-    "spy_cagr": 0.123395,
-    "sys_maxdd": -0.524716,
+    "sys_cagr": 0.138667,
+    "spy_cagr": 0.123394,
+    "sys_maxdd": -0.524715,
     "spy_maxdd": -0.337173,
-    "sys_sharpe": 0.5262,
+    "sys_sharpe": 0.5277,
     "spy_sharpe": 0.7402
    },
    {
     "label": "Since 2022-10",
     "start": "2022-10-03",
-    "end": "2026-10-12",
-    "sys_cagr": 0.419077,
-    "spy_cagr": 0.23024,
+    "end": "2026-10-09",
+    "sys_cagr": 0.428548,
+    "spy_cagr": 0.230678,
     "sys_maxdd": -0.406124,
     "spy_maxdd": -0.187552,
-    "sys_sharpe": 0.9059,
-    "spy_sharpe": 1.1157
+    "sys_sharpe": 0.9207,
+    "spy_sharpe": 1.1175
    }
   ],
   "yearly": [
    {
     "year": 2012,
-    "sys": 0.107251,
-    "spy": 0.159904
+    "sys": 0.107253,
+    "spy": 0.159903
    },
    {
     "year": 2013,
@@ -251,22 +196,22 @@
    },
    {
     "year": 2015,
-    "sys": -0.349608,
+    "sys": -0.345965,
     "spy": 0.012343
    },
    {
     "year": 2016,
-    "sys": 0.18097,
+    "sys": 0.180969,
     "spy": 0.119979
    },
    {
     "year": 2017,
-    "sys": 0.607547,
+    "sys": 0.607549,
     "spy": 0.217054
    },
    {
     "year": 2018,
-    "sys": -0.309938,
+    "sys": -0.309937,
     "spy": -0.04569
    },
    {
@@ -276,7 +221,7 @@
    },
    {
     "year": 2020,
-    "sys": 0.430776,
+    "sys": 0.430777,
     "spy": 0.183316
    },
    {
@@ -286,28 +231,28 @@
    },
    {
     "year": 2022,
-    "sys": -0.159503,
+    "sys": -0.159502,
     "spy": -0.181754
    },
    {
     "year": 2023,
-    "sys": 0.361131,
+    "sys": 0.361132,
     "spy": 0.261758
    },
    {
     "year": 2024,
-    "sys": 0.361581,
+    "sys": 0.361582,
     "spy": 0.248865
    },
    {
     "year": 2025,
-    "sys": 0.568601,
+    "sys": 0.5686,
     "spy": 0.177191
    },
    {
     "year": 2026,
-    "sys": 0.377964,
-    "spy": 0.149955
+    "sys": 0.413195,
+    "spy": 0.15065
    }
   ],
   "cost": {
@@ -406,7 +351,7 @@
     {
      "t": "USD",
      "side": "sell",
-     "w_from": 0.129051,
+     "w_from": 0.130477,
      "w_to": 0.0
     },
     {
@@ -418,26 +363,26 @@
     {
      "t": "SOXX",
      "side": "buy",
-     "w_from": 0.235375,
-     "w_to": 0.249902
+     "w_from": 0.236608,
+     "w_to": 0.249903
     },
     {
      "t": "ROM",
      "side": "buy",
-     "w_from": 0.217141,
+     "w_from": 0.217097,
      "w_to": 0.22799
-    },
-    {
-     "t": "SOXL",
-     "side": "buy",
-     "w_from": 0.073597,
-     "w_to": 0.083432
     },
     {
      "t": "TECL",
      "side": "buy",
-     "w_from": 0.148348,
-     "w_to": 0.156461
+     "w_from": 0.148879,
+     "w_to": 0.156462
+    },
+    {
+     "t": "SOXL",
+     "side": "buy",
+     "w_from": 0.07599,
+     "w_to": 0.083435
     }
    ]
   }
