@@ -1,5 +1,5 @@
 {
- "updated": "2026-10-13 15:09 UTC",
+ "updated": "2026-10-13 16:08 UTC",
  "started": "2026-10-08",
  "through": "2026-10-13",
  "nav": [
@@ -23,7 +23,7 @@
   },
   {
    "date": "2026-10-13",
-   "book": 0.933995,
+   "book": 0.934846,
    "model": 0.911577,
    "spy": 0.999781
   }
@@ -33,64 +33,80 @@
    "t": "ROM",
    "name": "ProShares Ultra Technology",
    "lev": 2,
-   "w": 0.2338,
+   "w": 0.2228,
    "avg_price": 165.4999,
-   "price": 158.24,
+   "price": 157.37,
    "since": "2026-10-08",
-   "pnl_pct": -4.39
+   "pnl_pct": -4.91
   },
   {
    "t": "SOXX",
    "name": "iShares PHLX SOX Semiconductor Sector Index Fund",
    "lev": 1,
-   "w": 0.2231,
+   "w": 0.215,
    "avg_price": 571.6596,
-   "price": 533.79,
+   "price": 536.735,
    "since": "2026-10-08",
-   "pnl_pct": -6.62
+   "pnl_pct": -6.11
   },
   {
    "t": "ERX",
    "name": "Direxion Energy Bull 2X ETF",
    "lev": 2,
-   "w": 0.1901,
+   "w": 0.182,
    "avg_price": 114.2699,
-   "price": 118.12,
+   "price": 118.03,
    "since": "2026-10-09",
-   "pnl_pct": 3.37
+   "pnl_pct": 3.29
   },
   {
    "t": "TECL",
    "name": "Direxion Daily Technology Bull 3X ETF",
    "lev": 3,
-   "w": 0.1557,
+   "w": 0.1496,
    "avg_price": 245.9388,
-   "price": 228.67,
+   "price": 229.3279,
    "since": "2026-10-08",
-   "pnl_pct": -7.02
+   "pnl_pct": -6.75
   },
   {
-   "t": "LABU",
-   "name": "Direxion Daily S&P Biotech Bull 3X ETF",
+   "t": "CURE",
+   "name": "Direxion Daily Healthcare Bull 3X ETF",
    "lev": 3,
-   "w": 0.08,
-   "avg_price": 237.5699,
-   "price": 217.21,
-   "since": "2026-10-12",
-   "pnl_pct": -8.57
+   "w": 0.117,
+   "avg_price": 132.34,
+   "price": 132.0,
+   "since": "2026-10-13",
+   "pnl_pct": -0.26
   },
   {
    "t": "SOXL",
    "name": "Direxion Daily Semiconductor Bull 3X ETF",
    "lev": 3,
-   "w": 0.0649,
+   "w": 0.0633,
    "avg_price": 149.2665,
-   "price": 120.475,
+   "price": 122.615,
    "since": "2026-10-08",
-   "pnl_pct": -19.29
+   "pnl_pct": -17.85
   }
  ],
  "trades": [
+  {
+   "date": "2026-10-13",
+   "t": "LABU",
+   "name": "Direxion Daily S&P Biotech Bull 3X ETF",
+   "side": "sell",
+   "price": 216.7301,
+   "w": 0.0787
+  },
+  {
+   "date": "2026-10-13",
+   "t": "CURE",
+   "name": "Direxion Daily Healthcare Bull 3X ETF",
+   "side": "buy",
+   "price": 132.34,
+   "w": 0.1207
+  },
   {
    "date": "2026-10-12",
    "t": "USD",
@@ -175,11 +191,11 @@
  "held": [],
  "stats": {
   "days": 4,
-  "book_pct": -6.6,
+  "book_pct": -6.52,
   "model_pct": -8.84,
   "spy_pct": -0.02,
-  "trades": 10,
-  "cash_w": 0.0525,
+  "trades": 12,
+  "cash_w": 0.0503,
   "days_purchases_held": 0
  }
 }
