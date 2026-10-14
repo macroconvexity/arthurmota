@@ -1,5 +1,5 @@
 {
- "updated": "2026-10-14 19:07 UTC",
+ "updated": "2026-10-14 20:09 UTC",
  "started": "2026-10-08",
  "through": "2026-10-14",
  "nav": [
@@ -29,9 +29,9 @@
   },
   {
    "date": "2026-10-14",
-   "book": 0.90178,
-   "model": 0.888888,
-   "spy": 0.989848
+   "book": 0.906723,
+   "model": 0.880509,
+   "spy": 0.990286
   }
  ],
  "positions": [
@@ -41,59 +41,59 @@
    "lev": 2,
    "w": 0.2282,
    "avg_price": 165.4999,
-   "price": 149.12,
+   "price": 149.96,
    "since": "2026-10-08",
-   "pnl_pct": -9.9
+   "pnl_pct": -9.39
   },
   {
    "t": "SOXX",
    "name": "iShares PHLX SOX Semiconductor Sector Index Fund",
    "lev": 1,
-   "w": 0.2243,
+   "w": 0.2236,
    "avg_price": 571.6596,
-   "price": 518.32,
+   "price": 519.42,
    "since": "2026-10-08",
-   "pnl_pct": -9.33
+   "pnl_pct": -9.14
   },
   {
    "t": "ERX",
    "name": "Direxion Energy Bull 2X ETF",
    "lev": 2,
-   "w": 0.201,
+   "w": 0.2001,
    "avg_price": 114.2699,
-   "price": 120.59,
+   "price": 120.755,
    "since": "2026-10-09",
-   "pnl_pct": 5.53
+   "pnl_pct": 5.68
   },
   {
    "t": "TECL",
    "name": "Direxion Daily Technology Bull 3X ETF",
    "lev": 3,
-   "w": 0.148,
+   "w": 0.1487,
    "avg_price": 245.9388,
-   "price": 209.83,
+   "price": 212.03,
    "since": "2026-10-08",
-   "pnl_pct": -14.68
+   "pnl_pct": -13.79
   },
   {
    "t": "USD",
    "name": "ProShares Ultra Semiconductors",
    "lev": 2,
-   "w": 0.1267,
+   "w": 0.1273,
    "avg_price": 86.7599,
-   "price": 83.63,
+   "price": 84.51,
    "since": "2026-10-14",
-   "pnl_pct": -3.61
+   "pnl_pct": -2.59
   },
   {
    "t": "SOXL",
    "name": "Direxion Daily Semiconductor Bull 3X ETF",
    "lev": 3,
-   "w": 0.0612,
+   "w": 0.0614,
    "avg_price": 149.2665,
-   "price": 109.575,
+   "price": 110.58,
    "since": "2026-10-08",
-   "pnl_pct": -26.59
+   "pnl_pct": -25.92
   }
  ],
  "trades": [
@@ -220,11 +220,11 @@
  ],
  "stats": {
   "days": 5,
-  "book_pct": -9.82,
-  "model_pct": -11.11,
-  "spy_pct": -1.02,
+  "book_pct": -9.33,
+  "model_pct": -11.95,
+  "spy_pct": -0.97,
   "trades": 14,
-  "cash_w": 0.0107,
+  "cash_w": 0.0106,
   "days_purchases_held": 1
  }
 }
