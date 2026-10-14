@@ -1,5 +1,5 @@
 {
- "updated": "2026-10-14 17:54 UTC",
+ "updated": "2026-10-14 18:06 UTC",
  "started": "2026-10-08",
  "through": "2026-10-14",
  "nav": [
@@ -29,7 +29,7 @@
   },
   {
    "date": "2026-10-14",
-   "book": 0.905883,
+   "book": 0.906912,
    "model": 0.888888,
    "spy": 0.989848
   }
@@ -39,7 +39,7 @@
    "t": "ROM",
    "name": "ProShares Ultra Technology",
    "lev": 2,
-   "w": 0.2283,
+   "w": 0.228,
    "avg_price": 165.4999,
    "price": 149.89,
    "since": "2026-10-08",
@@ -49,51 +49,51 @@
    "t": "SOXX",
    "name": "iShares PHLX SOX Semiconductor Sector Index Fund",
    "lev": 1,
-   "w": 0.2239,
+   "w": 0.224,
    "avg_price": 571.6596,
-   "price": 519.6,
+   "price": 520.43,
    "since": "2026-10-08",
-   "pnl_pct": -9.11
+   "pnl_pct": -8.96
   },
   {
    "t": "ERX",
    "name": "Direxion Energy Bull 2X ETF",
    "lev": 2,
-   "w": 0.2002,
+   "w": 0.2,
    "avg_price": 114.2699,
-   "price": 120.67,
+   "price": 120.7099,
    "since": "2026-10-09",
-   "pnl_pct": 5.6
+   "pnl_pct": 5.64
   },
   {
    "t": "TECL",
    "name": "Direxion Daily Technology Bull 3X ETF",
    "lev": 3,
-   "w": 0.1485,
+   "w": 0.1487,
    "avg_price": 245.9388,
-   "price": 211.5783,
+   "price": 212.065,
    "since": "2026-10-08",
-   "pnl_pct": -13.97
+   "pnl_pct": -13.77
   },
   {
    "t": "USD",
    "name": "ProShares Ultra Semiconductors",
    "lev": 2,
-   "w": 0.1271,
+   "w": 0.127,
    "avg_price": 86.7599,
-   "price": 84.255,
+   "price": 84.295,
    "since": "2026-10-14",
-   "pnl_pct": -2.89
+   "pnl_pct": -2.84
   },
   {
    "t": "SOXL",
    "name": "Direxion Daily Semiconductor Bull 3X ETF",
    "lev": 3,
-   "w": 0.0614,
+   "w": 0.0616,
    "avg_price": 149.2665,
-   "price": 110.48,
+   "price": 111.0372,
    "since": "2026-10-08",
-   "pnl_pct": -25.98
+   "pnl_pct": -25.61
   }
  ],
  "trades": [
@@ -220,7 +220,7 @@
  ],
  "stats": {
   "days": 5,
-  "book_pct": -9.41,
+  "book_pct": -9.31,
   "model_pct": -11.11,
   "spy_pct": -1.02,
   "trades": 14,
