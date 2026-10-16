@@ -1,11 +1,11 @@
 {
- "updated": "2026-10-16 19:30 UTC",
+ "updated": "2026-10-16 19:51 UTC",
  "started": "2026-10-08",
  "through": "2026-10-14",
  "nav": [
   {
    "date": "2026-10-08",
-   "book": 0.979795,
+   "book": 0.975613,
    "model": 0.951334,
    "spy": 0.995767
   },
@@ -151,7 +151,7 @@
    "name": "ProShares UltraPro QQQ",
    "side": "sell",
    "price": 80.6601,
-   "w": 0.175
+   "w": 0.1757
   },
   {
    "date": "2026-10-09",
@@ -159,7 +159,7 @@
    "name": "Direxion Energy Bull 2X ETF",
    "side": "buy",
    "price": 114.2699,
-   "w": 0.1753
+   "w": 0.176
   },
   {
    "date": "2026-10-08",
