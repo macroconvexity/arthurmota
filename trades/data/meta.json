@@ -1,7 +1,7 @@
 {
- "updated": "2026-10-19T20:21:07Z",
+ "updated": "2026-10-19T21:00:46Z",
  "slot": "manual",
- "as_of_ny": "2026-10-19 16:19",
+ "as_of_ny": "2026-10-19 16:59",
  "last_close": "2026-10-16",
  "live_since": "2026-10-07",
  "in_sample": true,
@@ -110,42 +110,42 @@
    "t": "SOXX",
    "name": "iShares PHLX SOX Semiconductor Sector Index Fund",
    "side": "sell",
-   "w_from": 0.225992,
+   "w_from": 0.226069,
    "w_to": 0.0
   },
   {
    "t": "ROM",
    "name": "ProShares Ultra Technology",
    "side": "sell",
-   "w_from": 0.169724,
+   "w_from": 0.169707,
    "w_to": 0.0
   },
   {
    "t": "ERX",
    "name": "Direxion Energy Bull 2X ETF",
    "side": "sell",
-   "w_from": 0.221933,
+   "w_from": 0.221911,
    "w_to": 0.151687
   },
   {
    "t": "TECL",
    "name": "Direxion Daily Technology Bull 3X ETF",
    "side": "sell",
-   "w_from": 0.113993,
+   "w_from": 0.113982,
    "w_to": 0.069744
   },
   {
    "t": "CURE",
    "name": "Direxion Daily Healthcare Bull 3X ETF",
    "side": "sell",
-   "w_from": 0.19012,
+   "w_from": 0.190101,
    "w_to": 0.15152
   },
   {
    "t": "SOXL",
    "name": "Direxion Daily Semiconductor Bull 3X ETF",
    "side": "sell",
-   "w_from": 0.078238,
+   "w_from": 0.078231,
    "w_to": 0.04992
   }
  ],
@@ -154,7 +154,7 @@
  "stats": {
   "live": {
    "days": 9,
-   "sys_pct": -14.1865,
+   "sys_pct": -14.178,
    "spy_pct": -1.1975
   },
   "windows": [
@@ -162,33 +162,33 @@
     "label": "Since 2012",
     "start": "2012-01-03",
     "end": "2026-10-19",
-    "sys_cagr": 0.200686,
+    "sys_cagr": 0.200886,
     "spy_cagr": 0.150097,
-    "sys_maxdd": -0.524715,
+    "sys_maxdd": -0.523593,
     "spy_maxdd": -0.337173,
-    "sys_sharpe": 0.6274,
+    "sys_sharpe": 0.6278,
     "spy_sharpe": 0.8297
    },
    {
     "label": "2012 to 2022-09",
     "start": "2012-01-03",
     "end": "2022-09-30",
-    "sys_cagr": 0.138667,
-    "spy_cagr": 0.123395,
-    "sys_maxdd": -0.524715,
+    "sys_cagr": 0.138917,
+    "spy_cagr": 0.123394,
+    "sys_maxdd": -0.523593,
     "spy_maxdd": -0.337173,
-    "sys_sharpe": 0.5277,
+    "sys_sharpe": 0.5283,
     "spy_sharpe": 0.7402
    },
    {
     "label": "Since 2022-10",
     "start": "2022-10-03",
     "end": "2026-10-19",
-    "sys_cagr": 0.382968,
+    "sys_cagr": 0.383002,
     "spy_cagr": 0.224402,
     "sys_maxdd": -0.406124,
     "spy_maxdd": -0.187552,
-    "sys_sharpe": 0.8485,
+    "sys_sharpe": 0.8486,
     "spy_sharpe": 1.0864
    }
   ],
@@ -200,17 +200,17 @@
    },
    {
     "year": 2013,
-    "sys": 1.021605,
+    "sys": 1.021604,
     "spy": 0.323078
    },
    {
     "year": 2014,
-    "sys": 0.260905,
-    "spy": 0.134639
+    "sys": 0.260904,
+    "spy": 0.134638
    },
    {
     "year": 2015,
-    "sys": -0.345965,
+    "sys": -0.345964,
     "spy": 0.012343
    },
    {
@@ -220,17 +220,17 @@
    },
    {
     "year": 2017,
-    "sys": 0.607548,
+    "sys": 0.607547,
     "spy": 0.217054
    },
    {
     "year": 2018,
-    "sys": -0.309937,
+    "sys": -0.308307,
     "spy": -0.04569
    },
    {
     "year": 2019,
-    "sys": 0.153517,
+    "sys": 0.153516,
     "spy": 0.312239
    },
    {
@@ -240,7 +240,7 @@
    },
    {
     "year": 2021,
-    "sys": 0.219713,
+    "sys": 0.219714,
     "spy": 0.287288
    },
    {
@@ -255,7 +255,7 @@
    },
    {
     "year": 2024,
-    "sys": 0.36158,
+    "sys": 0.361579,
     "spy": 0.248865
    },
    {
@@ -265,7 +265,7 @@
    },
    {
     "year": 2026,
-    "sys": 0.250741,
+    "sys": 0.250866,
     "spy": 0.132782
    }
   ],
@@ -550,37 +550,37 @@
     {
      "t": "SOXX",
      "side": "sell",
-     "w_from": 0.225992,
+     "w_from": 0.226069,
      "w_to": 0.0
     },
     {
      "t": "ROM",
      "side": "sell",
-     "w_from": 0.169724,
+     "w_from": 0.169707,
      "w_to": 0.0
     },
     {
      "t": "ERX",
      "side": "sell",
-     "w_from": 0.221933,
+     "w_from": 0.221911,
      "w_to": 0.151687
     },
     {
      "t": "TECL",
      "side": "sell",
-     "w_from": 0.113993,
+     "w_from": 0.113982,
      "w_to": 0.069744
     },
     {
      "t": "CURE",
      "side": "sell",
-     "w_from": 0.19012,
+     "w_from": 0.190101,
      "w_to": 0.15152
     },
     {
      "t": "SOXL",
      "side": "sell",
-     "w_from": 0.078238,
+     "w_from": 0.078231,
      "w_to": 0.04992
     }
    ]
