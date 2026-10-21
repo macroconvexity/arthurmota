@@ -1,98 +1,83 @@
 {
- "updated": "2026-10-20T21:31:21Z",
- "slot": "manual",
- "as_of_ny": "2026-10-20 17:29",
- "last_close": "2026-10-19",
+ "updated": "2026-10-21T13:13:49Z",
+ "slot": "open",
+ "as_of_ny": "2026-10-21 09:12",
+ "last_close": "2026-10-20",
  "live_since": "2026-10-07",
  "in_sample": true,
  "positions": [
   {
-   "t": "XLE",
-   "name": "State Street Energy Select Sector SPDR ETF",
-   "lev": 1,
-   "w": 0.320072,
-   "w_target": 0.321394,
-   "px": 67.97,
-   "chg_pct": 0.251,
-   "since": "2026-10-19",
-   "pnl_pct": 0.009,
-   "locked": false,
-   "band_pct": 3.77,
-   "breach": false
-  },
-  {
-   "t": "XOP",
-   "name": "State Street SPDR S&P Oil & Gas Exploration & Production ETF",
-   "lev": 1,
-   "w": 0.254283,
-   "w_target": 0.256341,
-   "px": 200.05,
-   "chg_pct": 0.291,
-   "since": "2026-10-19",
-   "pnl_pct": 0.331,
-   "locked": false,
-   "band_pct": 4.764,
+   "t": "ERX",
+   "name": "Direxion Energy Bull 2X ETF",
+   "lev": 2,
+   "w": 0.312568,
+   "w_target": 0.312555,
+   "px": 121.92,
+   "chg_pct": 0.0,
+   "since": "2026-10-09",
+   "pnl_pct": 3.824,
+   "locked": true,
+   "band_pct": 7.555,
    "breach": false
   },
   {
    "t": "CURE",
    "name": "Direxion Daily Healthcare Bull 3X ETF",
    "lev": 3,
-   "w": 0.160717,
-   "w_target": 0.149285,
+   "w": 0.302525,
+   "w_target": 0.302502,
    "px": 154.99,
-   "chg_pct": 6.816,
+   "chg_pct": 0.0,
    "since": "2026-10-15",
-   "pnl_pct": 5.397,
-   "locked": false,
+   "pnl_pct": 2.773,
+   "locked": true,
    "band_pct": 8.207,
-   "breach": false
-  },
-  {
-   "t": "ERX",
-   "name": "Direxion Energy Bull 2X ETF",
-   "lev": 2,
-   "w": 0.150935,
-   "w_target": 0.150201,
-   "px": 121.92,
-   "chg_pct": 0.594,
-   "since": "2026-10-09",
-   "pnl_pct": 8.316,
-   "locked": false,
-   "band_pct": 7.758,
    "breach": false
   },
   {
    "t": "TECL",
    "name": "Direxion Daily Technology Bull 3X ETF",
    "lev": 3,
-   "w": 0.067452,
-   "w_target": 0.07198,
+   "w": 0.154001,
+   "w_target": 0.153999,
    "px": 194.53,
-   "chg_pct": -0.735,
+   "chg_pct": 0.0,
    "since": "2026-10-07",
-   "pnl_pct": -20.869,
-   "locked": false,
-   "band_pct": 18.288,
+   "pnl_pct": -10.381,
+   "locked": true,
+   "band_pct": 17.323,
+   "breach": false
+  },
+  {
+   "t": "LABU",
+   "name": "Direxion Daily S&P Biotech Bull 3X ETF",
+   "lev": 3,
+   "w": 0.123501,
+   "w_target": 0.123538,
+   "px": 235.99,
+   "chg_pct": 0.0,
+   "since": "2026-10-21",
+   "pnl_pct": -0.05,
+   "locked": true,
+   "band_pct": 18.354,
    "breach": false
   },
   {
    "t": "SOXL",
    "name": "Direxion Daily Semiconductor Bull 3X ETF",
    "lev": 3,
-   "w": 0.046542,
-   "w_target": 0.050799,
+   "w": 0.107405,
+   "w_target": 0.107405,
    "px": 97.55,
-   "chg_pct": -1.115,
+   "chg_pct": 0.0,
    "since": "2026-10-07",
-   "pnl_pct": -33.069,
-   "locked": false,
-   "band_pct": 24.051,
+   "pnl_pct": -17.659,
+   "locked": true,
+   "band_pct": 23.052,
    "breach": false
   }
  ],
- "orders": [],
- "preview": [
+ "orders": [
   {
    "t": "XLE",
    "name": "State Street Energy Select Sector SPDR ETF",
@@ -126,14 +111,14 @@
    "name": "Direxion Daily S&P Biotech Bull 3X ETF",
    "side": "buy",
    "w_from": 0.0,
-   "w_to": 0.123502
+   "w_to": 0.123501
   },
   {
    "t": "TECL",
    "name": "Direxion Daily Technology Bull 3X ETF",
    "side": "buy",
    "w_from": 0.067452,
-   "w_to": 0.154
+   "w_to": 0.154001
   },
   {
    "t": "SOXL",
@@ -143,12 +128,8 @@
    "w_to": 0.107405
   }
  ],
- "alerts": [
-  {
-   "level": "info",
-   "text": "7 order(s) the next open signal would give at current prices."
-  }
- ],
+ "preview": [],
+ "alerts": [],
  "stats": {
   "live": {
    "days": 10,
@@ -160,22 +141,22 @@
     "label": "Since 2012",
     "start": "2012-01-03",
     "end": "2026-10-20",
-    "sys_cagr": 0.201818,
+    "sys_cagr": 0.20218,
     "spy_cagr": 0.150315,
     "sys_maxdd": -0.523327,
     "spy_maxdd": -0.337173,
-    "sys_sharpe": 0.6298,
+    "sys_sharpe": 0.6306,
     "spy_sharpe": 0.8309
    },
    {
     "label": "2012 to 2022-09",
     "start": "2012-01-03",
     "end": "2022-09-30",
-    "sys_cagr": 0.138977,
-    "spy_cagr": 0.123395,
+    "sys_cagr": 0.139448,
+    "spy_cagr": 0.123394,
     "sys_maxdd": -0.523327,
     "spy_maxdd": -0.337173,
-    "sys_sharpe": 0.5285,
+    "sys_sharpe": 0.5296,
     "spy_sharpe": 0.7402
    },
    {
@@ -198,8 +179,8 @@
    },
    {
     "year": 2013,
-    "sys": 1.021606,
-    "spy": 0.323078
+    "sys": 1.021604,
+    "spy": 0.323077
    },
    {
     "year": 2014,
@@ -213,8 +194,8 @@
    },
    {
     "year": 2016,
-    "sys": 0.18097,
-    "spy": 0.119979
+    "sys": 0.18623,
+    "spy": 0.119978
    },
    {
     "year": 2017,
@@ -233,7 +214,7 @@
    },
    {
     "year": 2020,
-    "sys": 0.430776,
+    "sys": 0.430775,
     "spy": 0.183316
    },
    {
@@ -258,7 +239,7 @@
    },
    {
     "year": 2025,
-    "sys": 0.568601,
+    "sys": 0.568602,
     "spy": 0.177191
    },
    {
@@ -587,6 +568,54 @@
    "date": "2026-10-20",
    "slot": "open",
    "orders": []
+  },
+  {
+   "date": "2026-10-21",
+   "slot": "open",
+   "orders": [
+    {
+     "t": "XLE",
+     "side": "sell",
+     "w_from": 0.320072,
+     "w_to": 0.0
+    },
+    {
+     "t": "XOP",
+     "side": "sell",
+     "w_from": 0.254283,
+     "w_to": 0.0
+    },
+    {
+     "t": "ERX",
+     "side": "buy",
+     "w_from": 0.150935,
+     "w_to": 0.312568
+    },
+    {
+     "t": "CURE",
+     "side": "buy",
+     "w_from": 0.160717,
+     "w_to": 0.302525
+    },
+    {
+     "t": "LABU",
+     "side": "buy",
+     "w_from": 0.0,
+     "w_to": 0.123501
+    },
+    {
+     "t": "TECL",
+     "side": "buy",
+     "w_from": 0.067452,
+     "w_to": 0.154001
+    },
+    {
+     "t": "SOXL",
+     "side": "buy",
+     "w_from": 0.046542,
+     "w_to": 0.107405
+    }
+   ]
   }
  ]
 }
