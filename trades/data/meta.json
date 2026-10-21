@@ -1,7 +1,7 @@
 {
- "updated": "2026-10-21T13:13:49Z",
- "slot": "open",
- "as_of_ny": "2026-10-21 09:12",
+ "updated": "2026-10-21T15:10:35Z",
+ "slot": "midday",
+ "as_of_ny": "2026-10-21 11:09",
  "last_close": "2026-10-20",
  "live_since": "2026-10-07",
  "in_sample": true,
@@ -10,26 +10,26 @@
    "t": "ERX",
    "name": "Direxion Energy Bull 2X ETF",
    "lev": 2,
-   "w": 0.312568,
+   "w": 0.313444,
    "w_target": 0.312555,
-   "px": 121.92,
-   "chg_pct": 0.0,
+   "px": 122.41,
+   "chg_pct": 0.402,
    "since": "2026-10-09",
-   "pnl_pct": 3.824,
+   "pnl_pct": 4.44,
    "locked": true,
-   "band_pct": 7.555,
+   "band_pct": 7.556,
    "breach": false
   },
   {
    "t": "CURE",
    "name": "Direxion Daily Healthcare Bull 3X ETF",
    "lev": 3,
-   "w": 0.302525,
+   "w": 0.30346,
    "w_target": 0.302502,
-   "px": 154.99,
-   "chg_pct": 0.0,
+   "px": 151.74,
+   "chg_pct": -2.097,
    "since": "2026-10-15",
-   "pnl_pct": 2.773,
+   "pnl_pct": 1.997,
    "locked": true,
    "band_pct": 8.207,
    "breach": false
@@ -38,12 +38,12 @@
    "t": "TECL",
    "name": "Direxion Daily Technology Bull 3X ETF",
    "lev": 3,
-   "w": 0.154001,
+   "w": 0.153568,
    "w_target": 0.153999,
-   "px": 194.53,
-   "chg_pct": 0.0,
+   "px": 201.36,
+   "chg_pct": 3.511,
    "since": "2026-10-07",
-   "pnl_pct": -10.381,
+   "pnl_pct": -9.03,
    "locked": true,
    "band_pct": 17.323,
    "breach": false
@@ -52,12 +52,12 @@
    "t": "LABU",
    "name": "Direxion Daily S&P Biotech Bull 3X ETF",
    "lev": 3,
-   "w": 0.123501,
+   "w": 0.123861,
    "w_target": 0.123538,
-   "px": 235.99,
-   "chg_pct": 0.0,
+   "px": 239.465,
+   "chg_pct": 1.473,
    "since": "2026-10-21",
-   "pnl_pct": -0.05,
+   "pnl_pct": 0.735,
    "locked": true,
    "band_pct": 18.354,
    "breach": false
@@ -66,12 +66,12 @@
    "t": "SOXL",
    "name": "Direxion Daily Semiconductor Bull 3X ETF",
    "lev": 3,
-   "w": 0.107405,
+   "w": 0.105666,
    "w_target": 0.107405,
-   "px": 97.55,
-   "chg_pct": 0.0,
+   "px": 101.685,
+   "chg_pct": 4.239,
    "since": "2026-10-07",
-   "pnl_pct": -17.659,
+   "pnl_pct": -17.005,
    "locked": true,
    "band_pct": 23.052,
    "breach": false
@@ -82,29 +82,29 @@
    "t": "XLE",
    "name": "State Street Energy Select Sector SPDR ETF",
    "side": "sell",
-   "w_from": 0.320072,
+   "w_from": 0.320073,
    "w_to": 0.0
   },
   {
    "t": "XOP",
    "name": "State Street SPDR S&P Oil & Gas Exploration & Production ETF",
    "side": "sell",
-   "w_from": 0.254283,
+   "w_from": 0.254021,
    "w_to": 0.0
   },
   {
    "t": "ERX",
    "name": "Direxion Energy Bull 2X ETF",
    "side": "buy",
-   "w_from": 0.150935,
-   "w_to": 0.312568
+   "w_from": 0.150622,
+   "w_to": 0.312567
   },
   {
    "t": "CURE",
    "name": "Direxion Daily Healthcare Bull 3X ETF",
    "side": "buy",
-   "w_from": 0.160717,
-   "w_to": 0.302525
+   "w_from": 0.156345,
+   "w_to": 0.302522
   },
   {
    "t": "LABU",
@@ -117,58 +117,58 @@
    "t": "TECL",
    "name": "Direxion Daily Technology Bull 3X ETF",
    "side": "buy",
-   "w_from": 0.067452,
-   "w_to": 0.154001
+   "w_from": 0.069787,
+   "w_to": 0.154002
   },
   {
    "t": "SOXL",
    "name": "Direxion Daily Semiconductor Bull 3X ETF",
    "side": "buy",
-   "w_from": 0.046542,
-   "w_to": 0.107405
+   "w_from": 0.049152,
+   "w_to": 0.107407
   }
  ],
  "preview": [],
  "alerts": [],
  "stats": {
   "live": {
-   "days": 10,
-   "sys_pct": -13.1746,
-   "spy_pct": -0.8662
+   "days": 11,
+   "sys_pct": -12.9238,
+   "spy_pct": -0.62
   },
   "windows": [
    {
     "label": "Since 2012",
     "start": "2012-01-03",
-    "end": "2026-10-20",
-    "sys_cagr": 0.20218,
-    "spy_cagr": 0.150315,
-    "sys_maxdd": -0.523327,
+    "end": "2026-10-21",
+    "sys_cagr": 0.201756,
+    "spy_cagr": 0.150465,
+    "sys_maxdd": -0.524716,
     "spy_maxdd": -0.337173,
-    "sys_sharpe": 0.6306,
-    "spy_sharpe": 0.8309
+    "sys_sharpe": 0.6297,
+    "spy_sharpe": 0.8318
    },
    {
     "label": "2012 to 2022-09",
     "start": "2012-01-03",
     "end": "2022-09-30",
-    "sys_cagr": 0.139448,
-    "spy_cagr": 0.123394,
-    "sys_maxdd": -0.523327,
+    "sys_cagr": 0.138667,
+    "spy_cagr": 0.123395,
+    "sys_maxdd": -0.524716,
     "spy_maxdd": -0.337173,
-    "sys_sharpe": 0.5296,
+    "sys_sharpe": 0.5277,
     "spy_sharpe": 0.7402
    },
    {
     "label": "Since 2022-10",
     "start": "2022-10-03",
-    "end": "2026-10-20",
-    "sys_cagr": 0.386552,
-    "spy_cagr": 0.225175,
+    "end": "2026-10-21",
+    "sys_cagr": 0.387098,
+    "spy_cagr": 0.225684,
     "sys_maxdd": -0.406124,
     "spy_maxdd": -0.187552,
-    "sys_sharpe": 0.8545,
-    "spy_sharpe": 1.0909
+    "sys_sharpe": 0.8556,
+    "spy_sharpe": 1.094
    }
   ],
   "yearly": [
@@ -179,42 +179,42 @@
    },
    {
     "year": 2013,
-    "sys": 1.021604,
-    "spy": 0.323077
+    "sys": 1.021602,
+    "spy": 0.323078
    },
    {
     "year": 2014,
     "sys": 0.260904,
-    "spy": 0.134638
+    "spy": 0.134637
    },
    {
     "year": 2015,
-    "sys": -0.345965,
+    "sys": -0.345964,
     "spy": 0.012343
    },
    {
     "year": 2016,
-    "sys": 0.18623,
-    "spy": 0.119978
+    "sys": 0.18097,
+    "spy": 0.119979
    },
    {
     "year": 2017,
-    "sys": 0.607548,
+    "sys": 0.607547,
     "spy": 0.217054
    },
    {
     "year": 2018,
-    "sys": -0.30792,
+    "sys": -0.309937,
     "spy": -0.04569
    },
    {
     "year": 2019,
     "sys": 0.153516,
-    "spy": 0.312239
+    "spy": 0.312238
    },
    {
     "year": 2020,
-    "sys": 0.430775,
+    "sys": 0.430776,
     "spy": 0.183316
    },
    {
@@ -229,23 +229,23 @@
    },
    {
     "year": 2023,
-    "sys": 0.361132,
+    "sys": 0.361131,
     "spy": 0.261758
    },
    {
     "year": 2024,
-    "sys": 0.36158,
+    "sys": 0.361578,
     "spy": 0.248865
    },
    {
     "year": 2025,
-    "sys": 0.568602,
+    "sys": 0.568603,
     "spy": 0.177191
    },
    {
     "year": 2026,
-    "sys": 0.265489,
-    "spy": 0.13658
+    "sys": 0.269146,
+    "spy": 0.139403
    }
   ],
   "cost": {
@@ -576,26 +576,26 @@
     {
      "t": "XLE",
      "side": "sell",
-     "w_from": 0.320072,
+     "w_from": 0.320073,
      "w_to": 0.0
     },
     {
      "t": "XOP",
      "side": "sell",
-     "w_from": 0.254283,
+     "w_from": 0.254021,
      "w_to": 0.0
     },
     {
      "t": "ERX",
      "side": "buy",
-     "w_from": 0.150935,
-     "w_to": 0.312568
+     "w_from": 0.150622,
+     "w_to": 0.312567
     },
     {
      "t": "CURE",
      "side": "buy",
-     "w_from": 0.160717,
-     "w_to": 0.302525
+     "w_from": 0.156345,
+     "w_to": 0.302522
     },
     {
      "t": "LABU",
@@ -606,14 +606,14 @@
     {
      "t": "TECL",
      "side": "buy",
-     "w_from": 0.067452,
-     "w_to": 0.154001
+     "w_from": 0.069787,
+     "w_to": 0.154002
     },
     {
      "t": "SOXL",
      "side": "buy",
-     "w_from": 0.046542,
-     "w_to": 0.107405
+     "w_from": 0.049152,
+     "w_to": 0.107407
     }
    ]
   }
