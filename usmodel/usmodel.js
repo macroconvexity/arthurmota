@@ -76,7 +76,7 @@ function setPolicy(p){st.policy=p;$('pr').className=p==='rule'?'on':'';$('pm').c
 fetch('data/model.json').then(r=>r.json()).then(m=>{
  M=m;const S=M.start,last=qlab(S.q,0);
  $('q0').textContent=S.q;$('q1').textContent=S.q;
- $('intro').textContent='Starting point, '+S.q+': core PCE '+f(S.core4)+'% over four quarters, headline '+f(S.head4)+'%, expected inflation '+f(S.exp4)+'%, output gap '+sg(S.h)+', fed funds upper bound '+f(S.i)+'%, neutral real rate '+f(S.rstar)+'%. Data through '+M.data_through+'; model and futures strip as of '+M.updated+'.';
+ const L=M.live;$('intro').textContent='Starting point, '+S.q+': core PCE '+f(S.core4)+'% over four quarters, headline '+f(S.head4)+'%, expected inflation '+f(S.exp4)+'%, output gap '+sg(S.h)+'. Estimated on data through '+M.data_through+'. '+(L?'Refreshed '+L.refreshed+': fed funds upper bound '+f(S.i)+'% (target range as of '+L.policy_asof+'), futures path as of '+L.futures_asof+', neutral real rate '+f(S.rstar)+'% (r-star page, '+L.rstar_asof+').'+(L.bea?' BEA latest quarter: '+L.bea.latest+', core PCE '+f(L.bea.core4)+'% over four quarters.':'')+(L.panel_stale?' The BEA has published a quarter later than the panel: re-estimation is due.':''):'Fed funds upper bound '+f(S.i)+'%, neutral real rate '+f(S.rstar)+'%. Model and futures strip as of '+M.updated+'.');
  Object.entries({bp:0,dm:0,rp:0,im:0,oi:0}).forEach(([k,v])=>$(k).value=v);$('rs').value=S.rstar;
  ['bp','dm','rp','im','oi','rs'].forEach(k=>$(k).addEventListener('input',runScenario));
  $('pr').onclick=()=>setPolicy('rule');$('pm').onclick=()=>setPolicy('market');$('ph').onclick=()=>setPolicy('hold');
