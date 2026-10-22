@@ -6,7 +6,7 @@ this file: write here only what a stranger may read.
 ## What is here
 
 Pages and results. Each lab page (`/risk/`, `/yields/`, `/curve/`, `/fx/`, `/quant/`, `/rstar/`, `/spx/`,
-`/inflation/`) is an `index.html`, one script and a `data/` folder of results. The models that produce the results,
+`/inflation/`, `/usmodel/`) is an `index.html`, one script and a `data/` folder of results. The models that produce the results,
 their inputs and the paper sources live in Arthur's private models repository, and work on any of them belongs in a
 session opened there. The `data/` folders are written by jobs in that repository every day: read them, never edit them.
 

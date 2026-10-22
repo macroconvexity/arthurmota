@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>US Small Model · Arthur Mota</title>
+<meta name="description" content="Interactive US semi-structural model in the style of the Banco Central do Brasil small model: Phillips curves, IS curve, policy rule and expectations, with scenarios from the last observed quarter, impulse responses, estimates and an out-of-sample record.">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="../assets/mono.css">
+<style>
+h3{font-size:12px;margin:18px 0 8px;font-weight:700}
+.ctl label .s{float:none;font-weight:400;display:block}
+td.n,th.n{text-align:right;white-space:nowrap}td.w{white-space:normal;min-width:230px}
+.edge{color:#777;font-size:11px}
+#warn{font-size:12px;margin:0 0 16px}
+details{margin:0 0 16px}summary{cursor:pointer;font-size:12px;margin:0 0 10px}
+</style></head><body>
+<header><div class="mast"><a href="../"><svg class="logo" viewBox="0 0 32 32" aria-label="home"><rect width="32" height="32" fill="#111"/><path d="M7 11h18M12 11v13M20 11v9.5a3.5 3.5 0 0 0 3.5 3.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="square"/></svg></a><h1>US small model</h1></div>
+<p class="tag">Research lab · Interactive models · Monetary policy</p>
+<p class="sub">The semi-structural model that the Banco Central do Brasil publishes in its inflation report, carried to the US: Phillips curves for core, goods, food and services, an IS curve on a clean output gap, a policy rule on a time-varying neutral rate and an expectations block. Run a scenario from the last observed quarter, trace impulse responses, read the estimates and the out-of-sample record.</p>
+<nav><a href="../">[home]</a><a href="../#lab">[lab]</a><a href="#scenario">[scenario]</a><a href="#irf">[impulse responses]</a><a href="#est">[estimates]</a><a href="#oos">[record]</a><a href="#gap">[output gap]</a><a href="#limits">[limits]</a></nav></header>
+<hr>
+<section id="scenario"><h2>Scenario from <span id="q0">the last quarter</span></h2>
+<p class="s" id="intro"></p>
+<div class="tog"><span>Policy path:</span><button id="pr" class="on">model rule</button><button id="pm">futures strip</button><button id="ph">held flat</button><span class="t">|</span><button id="reset">reset</button></div>
+<div class="ctl">
+ <label>Policy shock <span id="v_bp"></span><input type="range" id="bp" min="-100" max="100" step="25"><span class="s">Basis points. Rule: one-off in the first quarter, then smoothed. Strip and flat: level shift.</span></label>
+ <label>Demand shock <span id="v_dm"></span><input type="range" id="dm" min="-2" max="2" step="0.25"><span class="s">Points of output gap, first quarter.</span></label>
+ <label>Fiscal drag <span id="v_rp"></span><input type="range" id="rp" min="-2" max="2" step="0.25"><span class="s">Structural primary balance, points of GDP, held. Positive tightens.</span></label>
+ <label>Import prices <span id="v_im"></span><input type="range" id="im" min="-10" max="20" step="1"><span class="s">% rise in the first quarter, fading by 65% a quarter.</span></label>
+ <label>Oil <span id="v_oi"></span><input type="range" id="oi" min="-30" max="50" step="5"><span class="s">% change in the first quarter.</span></label>
+ <label>Neutral real rate <span id="v_rs"></span><input type="range" id="rs" min="0" max="3" step="0.01"><span class="s">Starts at the median of the suite of measures.</span></label>
+</div>
+<div class="kpi">
+ <div><b id="k1">–</b>Core PCE, four quarters, end of 2027</div>
+ <div><b id="k2">–</b>Core PCE, four quarters, end of 2028</div>
+ <div><b id="k3">–</b>Policy rate, peak</div>
+ <div><b id="k4">–</b>Policy rate, end of 2028</div>
+ <div><b id="k5">–</b>Output gap, end of 2027</div>
+ <div><b id="k6">–</b>Expected inflation, peak</div>
+</div>
+<div class="exh">Exhibit 1 <span>Core PCE inflation over four quarters, %. Dashed: no shocks, model rule.</span></div><div id="c1"></div>
+<div class="exh">Exhibit 2 <span>Policy rate (upper bound of the target range), %. Grey: nominal neutral, r* plus 2.</span></div><div id="c2"></div>
+<div class="exh">Exhibit 3 <span>Output gap, % of potential, and expected inflation over four quarters, %</span></div><div class="two"><div id="c3"></div><div id="c4"></div></div>
+<div class="exh">Table 1 <span>Scenario path by quarter</span></div>
+<div class="scroll"><table id="tb1"></table></div>
+<div class="exh">Table 2 <span>Scenario minus the no-shock run on the same policy path, points</span></div>
+<div class="scroll"><table id="tb2"></table></div>
+<p class="note" id="warn"></p>
+</section><hr>
+<section id="irf"><h2>Impulse responses</h2>
+<p class="s">The three experiments of the Banco Central do Brasil box, on the US estimates. Deviations from steady state, four-quarter accumulated inflation in points.</p>
+<div class="tog"><span>Shock:</span><button id="sm" class="on">policy rate</button><button id="sg">output gap</button><button id="si">import prices</button><span class="t">|</span><span>Model:</span><button id="ma" class="on">aggregate</button><button id="md">disaggregated</button></div>
+<div class="ctl">
+ <label>Size <span id="v_sz"></span><input type="range" id="sz" min="0.25" max="2" step="0.25"><span class="s" id="sz_s"></span></label>
+ <label id="hl">Hold <span id="v_hd"></span><input type="range" id="hd" min="1" max="8" step="1"><span class="s">Quarters the rate stays at the shock, then the rule.</span></label>
+ <label class="tg"><input type="checkbox" id="fe"> Expectations fixed <span class="s">Switches off the expectations channel.</span></label>
+ <label class="tg"><input type="checkbox" id="fi"> Import channel off <span class="s">Switches off the dollar and import price channel.</span></label>
+</div>
+<div class="exh">Exhibit 4 <span id="e4">Inflation</span></div><div id="i1"></div>
+<div class="exh">Exhibit 5 <span>Policy rate, output gap and expected inflation</span></div><div class="two"><div id="i2"></div><div id="i3"></div></div>
+<div class="exh">Exhibit 6 <span>Sectoral responses, disaggregated model</span></div><div id="i4"></div>
+<div class="exh">Table 3 <span>Peak effect on four-quarter inflation, points, against the Brazilian estimates in the box</span></div>
+<div class="scroll"><table id="pk"></table></div>
+</section><hr>
+<section id="est"><h2>Estimates</h2>
+<p class="s">Posterior mode and 90% interval, 2003Q4 to 2026Q3, with the Brazilian reference values from the central bank's box. Pandemic variance scaling downweights 2008Q4 to 2009Q4 and 2020 in the IS curve, and 2020Q2 to 2022Q4 in the Phillips curves. Parameters estimated on the edge of their support are marked: there the prior and the bound, not the data, set the value.</p>
+<div class="exh">Table 4 <span>Aggregate model</span></div><div class="scroll"><table id="t1"></table></div>
+<div class="exh">Table 5 <span>Disaggregated model: core goods, food at home, core services</span></div><div class="scroll"><table id="t2"></table></div>
+<p class="note" id="edgen"></p>
+</section><hr>
+<section id="oos"><h2>Out-of-sample record</h2>
+<p class="s">Expanding-window walk-forward, 2010Q2 to 2026Q3, re-estimated at each origin. Forecast of core PCE inflation over four quarters. Relative RMSE below 1 beats the benchmark.</p>
+<div class="tog"><span>Sample:</span><span id="smp"></span></div>
+<div class="exh">Table 6 <span>Forecast accuracy by horizon</span></div><div class="scroll"><table id="bt"></table></div>
+<div class="exh">Exhibit 7 <span>Twelve-month-ahead forecasts against the outcome, core PCE four quarters, %</span></div><div id="w4"></div>
+</section><hr>
+<section id="gap"><h2>Output gap</h2>
+<p class="s">The gap is built from real GDP and private domestic demand with the unemployment gap, without the payroll cycle. Does the choice matter for the Phillips curve? Slope of core services and core PCE inflation four quarters ahead on each measure.</p>
+<div class="exh">Exhibit 8 <span>Output gap, % of potential, and the policy rate with the shadow rate, %</span></div><div class="two"><div id="g1"></div><div id="g2"></div></div>
+<div class="exh">Table 7 <span>Phillips slope on alternative slack measures</span></div><div class="scroll"><table id="sk"></table></div>
+</section><hr>
+<section id="limits"><h2>Limits</h2>
+<p><b>What the scenario engine is.</b> The equations of the estimation, run forward from <span id="q1">the last quarter</span>. Core PCE: q/q = a1L &middot; own lag + a1I &middot; four-quarter mean of headline + (1 &minus; a1L &minus; a1I) &middot; expectation/4 + a2 &middot; imports + a3 &middot; oil + a4 &middot; gap. Gap: h = b1 &middot; h(&minus;1) &minus; b2 &middot; (real rate gap)/4 &minus; b3 &middot; fiscal drag. Rule: i = th1 &middot; i(&minus;1) + th2 &middot; i(&minus;2) + (1 &minus; th1 &minus; th2) &middot; [r* + 2 + th3 &middot; (expectation &minus; 2) + th4 &middot; h]. Expectation: phi1 &middot; own lag + (phi2 + phi3) &middot; past four-quarter headline + remainder &middot; 2. The model-consistent term of the estimation is replaced by past headline inflation, and headline is core plus a gap that halves each quarter. Both are simplifications of mine.</p>
+<p><b>Weak slope.</b> The output gap coefficient in the aggregate Phillips curve (0.04) sits on the lower edge of its support, and in the slack test the slope is not statistically different from zero for services. Inflation in the scenarios therefore moves mostly through inertia and expectations. Import prices barely matter for US core (a2 on its lower edge), against 0.96 points per 10% in Brazil.</p>
+<p><b>Record.</b> At twelve months the aggregate model’s RMSE is 8% below the random walk and 9% below the AR(4) over the full sample, and 5% below the AR(4) outside 2021 to 2022. The gain is larger at three and six months. Table 6 has every sample and horizon.</p>
+<p><b>Policy path.</b> Fed funds upper bound. The futures strip is the one in the estimation package as of 16 October 2026, held at its last value after 2028Q4. The estimation uses the shadow rate in the IS curve and the rule. Starting values are the last observed quarter, not a nowcast.</p>
+<p class="note">Levels sourced from public providers and survey data through 2026Q3; expectations from a state-space aggregation of market and survey measures. Views, not trade recommendations. Not investment advice.</p>
+</section>
+<script src="engine.js"></script>
+<script src="../assets/plot.js"></script>
+<script src="usmodel.js"></script>
+</body></html>
