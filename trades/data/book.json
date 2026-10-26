@@ -1,35 +1,35 @@
 {
- "updated": "2026-10-26 15:17 UTC",
+ "updated": "2026-10-26 16:11 UTC",
  "started": "2026-10-08",
  "through": "2026-10-14",
  "nav": [
   {
    "date": "2026-10-08",
-   "book": 0.975613,
+   "book": 0.980374,
    "model": 0.951334,
    "spy": 0.995767
   },
   {
    "date": "2026-10-09",
-   "book": 0.973247,
+   "book": 0.975854,
    "model": 0.954655,
    "spy": 1.001737
   },
   {
    "date": "2026-10-12",
-   "book": 0.947765,
+   "book": 0.955671,
    "model": 0.930856,
    "spy": 1.001132
   },
   {
    "date": "2026-10-13",
-   "book": 0.946866,
+   "book": 0.95502,
    "model": 0.923813,
    "spy": 1.001016
   },
   {
    "date": "2026-10-14",
-   "book": 0.906481,
+   "book": 0.927937,
    "model": 0.880275,
    "spy": 0.990196
   }
@@ -39,17 +39,17 @@
    "t": "ROM",
    "name": "ProShares Ultra Technology",
    "lev": 2,
-   "w": 0.2282,
+   "w": 0.2461,
    "avg_price": 165.4999,
-   "price": 149.95,
+   "price": 165.4999,
    "since": "2026-10-08",
-   "pnl_pct": -9.4
+   "pnl_pct": 0.0
   },
   {
    "t": "SOXX",
    "name": "iShares PHLX SOX Semiconductor Sector Index Fund",
    "lev": 1,
-   "w": 0.2237,
+   "w": 0.2185,
    "avg_price": 571.6596,
    "price": 519.42,
    "since": "2026-10-08",
@@ -59,7 +59,7 @@
    "t": "ERX",
    "name": "Direxion Energy Bull 2X ETF",
    "lev": 2,
-   "w": 0.2001,
+   "w": 0.1955,
    "avg_price": 114.2699,
    "price": 120.71,
    "since": "2026-10-09",
@@ -69,7 +69,7 @@
    "t": "TECL",
    "name": "Direxion Daily Technology Bull 3X ETF",
    "lev": 3,
-   "w": 0.1485,
+   "w": 0.1451,
    "avg_price": 245.9388,
    "price": 211.68,
    "since": "2026-10-08",
@@ -79,7 +79,7 @@
    "t": "USD",
    "name": "ProShares Ultra Semiconductors",
    "lev": 2,
-   "w": 0.1275,
+   "w": 0.1245,
    "avg_price": 86.7599,
    "price": 84.57,
    "since": "2026-10-14",
@@ -89,7 +89,7 @@
    "t": "SOXL",
    "name": "Direxion Daily Semiconductor Bull 3X ETF",
    "lev": 3,
-   "w": 0.0614,
+   "w": 0.06,
    "avg_price": 149.2665,
    "price": 110.54,
    "since": "2026-10-08",
@@ -103,7 +103,7 @@
    "name": "ProShares Ultra Semiconductors",
    "side": "buy",
    "price": 86.7599,
-   "w": 0.1252
+   "w": 0.1241
   },
   {
    "date": "2026-10-14",
@@ -111,7 +111,7 @@
    "name": "Direxion Daily Healthcare Bull 3X ETF",
    "side": "sell",
    "price": 137.6701,
-   "w": 0.1256
+   "w": 0.1246
   },
   {
    "date": "2026-10-13",
@@ -119,7 +119,7 @@
    "name": "Direxion Daily S&P Biotech Bull 3X ETF",
    "side": "sell",
    "price": 216.7301,
-   "w": 0.0787
+   "w": 0.078
   },
   {
    "date": "2026-10-13",
@@ -127,7 +127,7 @@
    "name": "Direxion Daily Healthcare Bull 3X ETF",
    "side": "buy",
    "price": 132.34,
-   "w": 0.1207
+   "w": 0.1197
   },
   {
    "date": "2026-10-12",
@@ -135,7 +135,7 @@
    "name": "ProShares Ultra Semiconductors",
    "side": "sell",
    "price": 90.7426,
-   "w": 0.1243
+   "w": 0.124
   },
   {
    "date": "2026-10-12",
@@ -143,7 +143,7 @@
    "name": "Direxion Daily S&P Biotech Bull 3X ETF",
    "side": "buy",
    "price": 237.5699,
-   "w": 0.084
+   "w": 0.0838
   },
   {
    "date": "2026-10-09",
@@ -151,7 +151,7 @@
    "name": "ProShares UltraPro QQQ",
    "side": "sell",
    "price": 80.6601,
-   "w": 0.1757
+   "w": 0.1749
   },
   {
    "date": "2026-10-09",
@@ -159,7 +159,7 @@
    "name": "Direxion Energy Bull 2X ETF",
    "side": "buy",
    "price": 114.2699,
-   "w": 0.176
+   "w": 0.1752
   },
   {
    "date": "2026-10-08",
@@ -220,11 +220,11 @@
  ],
  "stats": {
   "days": 5,
-  "book_pct": -9.35,
+  "book_pct": -7.21,
   "model_pct": -11.97,
   "spy_pct": -0.98,
   "trades": 14,
-  "cash_w": 0.0106,
+  "cash_w": 0.0104,
   "days_purchases_held": 1
  }
 }
