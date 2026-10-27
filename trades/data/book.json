@@ -1,5 +1,5 @@
 {
- "updated": "2026-10-27 16:09 UTC",
+ "updated": "2026-10-27 17:09 UTC",
  "started": "2026-10-08",
  "through": "2026-10-14",
  "nav": [
@@ -23,7 +23,7 @@
   },
   {
    "date": "2026-10-13",
-   "book": 0.94786,
+   "book": 0.946866,
    "model": 0.923813,
    "spy": 1.001016
   },
@@ -103,7 +103,7 @@
    "name": "ProShares Ultra Semiconductors",
    "side": "buy",
    "price": 86.7599,
-   "w": 0.1251
+   "w": 0.1252
   },
   {
    "date": "2026-10-14",
@@ -111,7 +111,7 @@
    "name": "Direxion Daily Healthcare Bull 3X ETF",
    "side": "sell",
    "price": 137.6701,
-   "w": 0.1255
+   "w": 0.1256
   },
   {
    "date": "2026-10-13",
