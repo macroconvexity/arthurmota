@@ -10,6 +10,10 @@ Pages and results. Each lab page (`/risk/`, `/yields/`, `/curve/`, `/fx/`, `/qua
 their inputs and the paper sources live in Arthur's private models repository, and work on any of them belongs in a
 session opened there. The `data/` folders are written by jobs in that repository every day: read them, never edit them.
 
+## Home page
+
+Reorganised 2026-10-28 for a macro-strategy reader: Markets (live pages), Macro models, Portfolio & quantitative research, Research & writing, Other work (collectibles, games, literature) last and visually quiet. The title is "Global Macro Strategist", never PM or investor. Options and Black-Scholes pages were removed at Arthur's request (git history). The word "simulated" does not appear on the home page. List only pages that exist.
+
 ## Page style
 
 Arthur's rule, 2026-10-06: a page is exhibits, tables and tools, with short captions and a short Limits section.
