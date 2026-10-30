@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="card-art">
+  <!-- Left piece (Pawn) -->
+  <circle cx="28" cy="44" r="8" fill="currentColor"/>
+  <path d="M22 52 C22 48 34 48 34 52 C34 58 38 64 40 70 H16 C18 64 22 58 22 52 Z" fill="currentColor"/>
+  <rect x="14" y="70" width="28" height="5" rx="1.5" fill="currentColor"/>
+  <!-- Right piece (Rook) -->
+  <path d="M66 40 H82 V47 H79 V44 H75 V47 H73 V44 H69 V47 H66 Z" fill="currentColor"/>
+  <rect x="68" y="47" width="12" height="17" fill="currentColor"/>
+  <rect x="62" y="64" width="24" height="6" rx="2" fill="currentColor"/>
+  <rect x="60" y="70" width="28" height="5" rx="1.5" fill="currentColor"/>
+  <!-- Top curved swap arrow (left to right) -->
+  <path d="M34 32 C42 22 58 22 66 32" fill="none" stroke="var(--gc, #e9b44c)" stroke-width="3.5" stroke-linecap="round"/>
+  <polygon points="69,30 67,38 60,34" fill="var(--gc, #e9b44c)"/>
+  <!-- Bottom curved swap arrow (right to left) -->
+  <path d="M66 78 C58 88 42 88 34 78" fill="none" stroke="var(--gc, #e9b44c)" stroke-width="3.5" stroke-linecap="round"/>
+  <polygon points="31,80 33,72 40,76" fill="var(--gc, #e9b44c)"/>
+  <!-- Central energy spark -->
+  <circle cx="50" cy="55" r="3.5" fill="var(--gc, #e9b44c)"/>
+  <circle cx="50" cy="55" r="7" fill="none" stroke="var(--gc, #e9b44c)" stroke-width="1.5" stroke-dasharray="2 2"/>
+</svg>

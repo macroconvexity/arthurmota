@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="card-art">
+  <!-- Three fanned cards beneath -->
+  <rect x="22" y="52" width="22" height="34" rx="3" transform="rotate(-20 33 69)" fill="none" stroke="currentColor" stroke-width="2"/>
+  <rect x="39" y="48" width="22" height="34" rx="3" fill="none" stroke="currentColor" stroke-width="2"/>
+  <rect x="56" y="52" width="22" height="34" rx="3" transform="rotate(20 67 69)" fill="none" stroke="currentColor" stroke-width="2"/>
+  <!-- Mystic Eye Outlines -->
+  <path d="M18 36 C32 20 68 20 82 36 C68 52 32 52 18 36 Z" fill="none" stroke="currentColor" stroke-width="3"/>
+  <circle cx="50" cy="36" r="10" fill="currentColor"/>
+  <circle cx="50" cy="36" r="5" fill="var(--gc, #e9b44c)"/>
+  <circle cx="52" cy="34" r="2" fill="#fff"/>
+  <!-- Radiating Revelation Rays -->
+  <line x1="50" y1="18" x2="50" y2="10" stroke="var(--gc, #e9b44c)" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="32" y1="22" x2="26" y2="16" stroke="var(--gc, #e9b44c)" stroke-width="2" stroke-linecap="round"/>
+  <line x1="68" y1="22" x2="74" y2="16" stroke="var(--gc, #e9b44c)" stroke-width="2" stroke-linecap="round"/>
+  <line x1="20" y1="36" x2="10" y2="36" stroke="var(--gc, #e9b44c)" stroke-width="2" stroke-linecap="round"/>
+  <line x1="80" y1="36" x2="90" y2="36" stroke="var(--gc, #e9b44c)" stroke-width="2" stroke-linecap="round"/>
+</svg>

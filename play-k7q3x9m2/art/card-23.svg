@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="card-art">
+  <!-- Arched Crypt Tombstone -->
+  <path d="M26 84 V38 C26 24 36 14 50 14 C64 14 74 24 74 38 V84 Z" fill="none" stroke="currentColor" stroke-width="3"/>
+  <rect x="20" y="84" width="60" height="8" rx="2" fill="currentColor"/>
+  <!-- Inscribed Cross on Tombstone -->
+  <line x1="50" y1="24" x2="50" y2="44" stroke="currentColor" stroke-width="2.5"/>
+  <line x1="40" y1="32" x2="60" y2="32" stroke="currentColor" stroke-width="2.5"/>
+  <!-- Ethereal Rising Bishop Silhouette -->
+  <circle cx="50" cy="48" r="6" fill="var(--gc, #e9b44c)"/>
+  <path d="M42 58 C42 52 58 52 58 58 C58 66 64 74 66 80 H34 C36 74 42 66 42 58 Z" fill="var(--gc, #e9b44c)" opacity="0.85"/>
+  <!-- Rising Radiance Rays -->
+  <line x1="36" y1="46" x2="28" y2="40" stroke="var(--gc, #e9b44c)" stroke-width="2" stroke-linecap="round"/>
+  <line x1="64" y1="46" x2="72" y2="40" stroke="var(--gc, #e9b44c)" stroke-width="2" stroke-linecap="round"/>
+  <line x1="50" y1="38" x2="50" y2="34" stroke="var(--gc, #e9b44c)" stroke-width="2" stroke-linecap="round"/>
+  <!-- Life sparks -->
+  <circle cx="38" cy="62" r="2" fill="var(--gc, #e9b44c)"/>
+  <circle cx="62" cy="62" r="2" fill="var(--gc, #e9b44c)"/>
+</svg>

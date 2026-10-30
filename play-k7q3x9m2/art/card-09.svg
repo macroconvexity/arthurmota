@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="card-art">
+  <!-- Trapped Knight -->
+  <path d="M36 78 C37 62 42 54 48 48 C44 48 38 50 35 54 L30 50 C34 40 42 32 52 30 L54 22 L60 30 C68 36 70 50 66 62 C64 68 64 72 66 78 Z" fill="currentColor"/>
+  <rect x="32" y="78" width="36" height="5" rx="1.5" fill="currentColor"/>
+  <!-- Ice Crystals overlay -->
+  <polygon points="50,14 55,25 50,36 45,25" fill="var(--gc, #e9b44c)" opacity="0.9"/>
+  <polygon points="24,36 34,40 32,50 22,46" fill="var(--gc, #e9b44c)" opacity="0.8"/>
+  <polygon points="76,36 86,46 76,50 74,40" fill="var(--gc, #e9b44c)" opacity="0.8"/>
+  <polygon points="20,62 30,64 26,74 16,72" fill="var(--gc, #e9b44c)" opacity="0.7"/>
+  <polygon points="80,62 84,72 74,74 70,64" fill="var(--gc, #e9b44c)" opacity="0.7"/>
+  <polygon points="50,70 58,80 50,90 42,80" fill="var(--gc, #e9b44c)" opacity="0.85"/>
+  <!-- Snowflake sparks -->
+  <line x1="50" y1="20" x2="50" y2="30" stroke="currentColor" stroke-width="1.5"/>
+  <line x1="45" y1="25" x2="55" y2="25" stroke="currentColor" stroke-width="1.5"/>
+  <circle cx="50" cy="48" r="2.5" fill="var(--gc, #e9b44c)"/>
+</svg>

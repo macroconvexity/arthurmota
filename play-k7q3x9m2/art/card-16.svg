@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="card-art">
+  <!-- Target card being extracted -->
+  <g transform="rotate(-15 50 40)">
+    <rect x="34" y="16" width="32" height="48" rx="4" fill="none" stroke="var(--gc, #e9b44c)" stroke-width="3"/>
+    <circle cx="50" cy="40" r="6" fill="var(--gc, #e9b44c)" opacity="0.8"/>
+  </g>
+  <!-- Background cards -->
+  <rect x="18" y="32" width="24" height="40" rx="3" transform="rotate(-35 30 52)" fill="currentColor" opacity="0.25"/>
+  <rect x="56" y="32" width="24" height="40" rx="3" transform="rotate(15 68 52)" fill="currentColor" opacity="0.25"/>
+  <!-- Grasping hand silhouette -->
+  <path d="M88 84 C76 80 66 74 60 62 L54 64 C50 64 48 60 52 56 L62 50 C66 48 70 52 68 56 L66 62 C72 68 80 72 88 74 Z" fill="currentColor"/>
+  <!-- Thumb -->
+  <path d="M52 50 C48 50 46 46 50 44 L60 42 C64 42 66 46 62 48 Z" fill="currentColor"/>
+  <!-- Speed lines -->
+  <line x1="28" y1="18" x2="38" y2="14" stroke="var(--gc, #e9b44c)" stroke-width="2" stroke-linecap="round"/>
+  <line x1="24" y1="26" x2="32" y2="22" stroke="var(--gc, #e9b44c)" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="48" cy="22" r="2.5" fill="var(--gc, #e9b44c)"/>
+</svg>

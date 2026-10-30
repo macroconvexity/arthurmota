@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="card-art">
+  <!-- Pawn body -->
+  <circle cx="50" cy="52" r="10" fill="currentColor"/>
+  <path d="M42 64 C42 58 58 58 58 64 C58 72 64 78 66 84 H34 C36 78 42 72 42 64 Z" fill="currentColor"/>
+  <rect x="30" y="84" width="40" height="6" rx="2" fill="currentColor"/>
+  <!-- Chevrons (double advance) -->
+  <path d="M36 34 L50 20 L64 34" fill="none" stroke="var(--gc, #e9b44c)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M38 43 L50 31 L62 43" fill="none" stroke="var(--gc, #e9b44c)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>
+  <circle cx="50" cy="14" r="3" fill="var(--gc, #e9b44c)"/>
+  <!-- Side speed streaks -->
+  <line x1="22" y1="56" x2="22" y2="76" stroke="var(--gc, #e9b44c)" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+  <line x1="26" y1="46" x2="26" y2="68" stroke="var(--gc, #e9b44c)" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+  <line x1="78" y1="56" x2="78" y2="76" stroke="var(--gc, #e9b44c)" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+  <line x1="74" y1="46" x2="74" y2="68" stroke="var(--gc, #e9b44c)" stroke-width="2" stroke-linecap="round" opacity="0.8"/>
+  <path d="M46 50 H54" stroke="var(--gc, #e9b44c)" stroke-width="2" stroke-linecap="round"/>
+</svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="card-art">
+  <!-- Starting pawn -->
+  <circle cx="36" cy="38" r="9" fill="currentColor"/>
+  <path d="M29 48 C29 43 43 43 43 48 C43 56 48 62 50 68 H22 C24 62 29 56 29 48 Z" fill="currentColor"/>
+  <rect x="18" y="68" width="36" height="5" rx="2" fill="currentColor"/>
+  <!-- Target square -->
+  <rect x="56" y="52" width="28" height="28" rx="4" fill="none" stroke="var(--gc, #e9b44c)" stroke-width="2" stroke-dasharray="3 3"/>
+  <!-- Stepping curved arrow -->
+  <path d="M42 54 C54 48 64 46 70 56" fill="none" stroke="var(--gc, #e9b44c)" stroke-width="3.5" stroke-linecap="round"/>
+  <polygon points="73,53 72,62 64,58" fill="var(--gc, #e9b44c)"/>
+  <!-- Footprints / sparkles on destination -->
+  <ellipse cx="68" cy="68" rx="4" ry="7" transform="rotate(25 68 68)" fill="var(--gc, #e9b44c)" opacity="0.9"/>
+  <circle cx="73" cy="61" r="1.8" fill="var(--gc, #e9b44c)"/>
+  <circle cx="71" cy="59" r="1.5" fill="var(--gc, #e9b44c)"/>
+  <circle cx="68" cy="58" r="1.5" fill="var(--gc, #e9b44c)"/>
+  <circle cx="36" cy="22" r="3" fill="var(--gc, #e9b44c)" opacity="0.75"/>
+</svg>

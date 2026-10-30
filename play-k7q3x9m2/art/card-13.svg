@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="card-art">
+  <!-- Mana Crystal Upper Half -->
+  <polygon points="50,14 74,40 50,52 26,40" fill="currentColor"/>
+  <!-- Mana Crystal Lower Half -->
+  <polygon points="26,40 50,52 50,72" fill="currentColor" opacity="0.7"/>
+  <polygon points="74,40 50,52 50,72" fill="currentColor" opacity="0.85"/>
+  <!-- Fracture crack -->
+  <path d="M50 24 L56 38 L46 46 L50 62" stroke="var(--gc, #e9b44c)" stroke-width="2.5" fill="none"/>
+  <!-- Siphoned dripping droplets -->
+  <circle cx="50" cy="74" r="3.5" fill="var(--gc, #e9b44c)"/>
+  <circle cx="50" cy="84" r="2.5" fill="var(--gc, #e9b44c)"/>
+  <circle cx="50" cy="91" r="1.5" fill="var(--gc, #e9b44c)"/>
+  <!-- Downward energy arrows -->
+  <path d="M30 52 L26 66" stroke="var(--gc, #e9b44c)" stroke-width="2" stroke-linecap="round"/>
+  <polygon points="23,64 26,72 29,66" fill="var(--gc, #e9b44c)"/>
+  <path d="M70 52 L74 66" stroke="var(--gc, #e9b44c)" stroke-width="2" stroke-linecap="round"/>
+  <polygon points="71,66 74,72 77,64" fill="var(--gc, #e9b44c)"/>
+</svg>

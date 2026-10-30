@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="card-art">
+  <!-- Ascension Steps -->
+  <rect x="18" y="76" width="64" height="6" rx="1.5" fill="currentColor"/>
+  <rect x="28" y="66" width="44" height="6" rx="1.5" fill="currentColor"/>
+  <rect x="38" y="56" width="24" height="6" rx="1.5" fill="currentColor"/>
+  <!-- Ascending Pawn Base -->
+  <circle cx="50" cy="46" r="6" fill="currentColor"/>
+  <path d="M44 52 C44 48 56 48 56 52 V56 H44 Z" fill="currentColor"/>
+  <!-- Promotion Crown / Helm hovering above -->
+  <polygon points="34,26 40,32 50,22 60,32 66,26 62,38 38,38" fill="var(--gc, #e9b44c)"/>
+  <rect x="38" y="38" width="24" height="4" rx="1" fill="var(--gc, #e9b44c)"/>
+  <!-- Ascension Aura & Light Beams -->
+  <line x1="50" y1="18" x2="50" y2="10" stroke="var(--gc, #e9b44c)" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="36" y1="18" x2="30" y2="12" stroke="var(--gc, #e9b44c)" stroke-width="2" stroke-linecap="round"/>
+  <line x1="64" y1="18" x2="70" y2="12" stroke="var(--gc, #e9b44c)" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="50" cy="22" r="2" fill="#fff"/>
+  <circle cx="40" cy="30" r="1.5" fill="#fff"/>
+  <circle cx="60" cy="30" r="1.5" fill="#fff"/>
+</svg>

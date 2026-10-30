@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="card-art">
+  <!-- Bishop target silhouette -->
+  <path d="M34 50 C36 40 44 34 54 36 C50 44 44 48 42 56 H30 Z" fill="currentColor" opacity="0.6"/>
+  <path d="M50 56 C54 64 58 70 60 76 H32 C34 70 38 64 42 56 Z" fill="currentColor"/>
+  <rect x="28" y="76" width="38" height="5" rx="1.5" fill="currentColor"/>
+  <!-- Giant Executioner Broadsword (diagonal cleave) -->
+  <line x1="82" y1="14" x2="26" y2="70" stroke="var(--gc, #e9b44c)" stroke-width="5" stroke-linecap="round"/>
+  <!-- Crossguard -->
+  <line x1="70" y1="18" x2="84" y2="32" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+  <!-- Hilt & Pommel -->
+  <line x1="78" y1="18" x2="88" y2="8" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="90" cy="6" r="3" fill="var(--gc, #e9b44c)"/>
+  <!-- Cleave sparks / impact burst -->
+  <line x1="38" y1="46" x2="30" y2="40" stroke="var(--gc, #e9b44c)" stroke-width="2" stroke-linecap="round"/>
+  <line x1="48" y1="58" x2="54" y2="66" stroke="var(--gc, #e9b44c)" stroke-width="2" stroke-linecap="round"/>
+  <polygon points="46,42 52,48 42,52" fill="var(--gc, #e9b44c)"/>
+  <circle cx="34" cy="56" r="2.5" fill="var(--gc, #e9b44c)"/>
+</svg>

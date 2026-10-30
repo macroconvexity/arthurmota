@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="card-art">
+  <!-- Defending Piece -->
+  <circle cx="50" cy="34" r="9" fill="currentColor"/>
+  <path d="M42 44 C42 39 58 39 58 44 C58 52 64 58 66 64 H34 C36 58 42 52 42 44 Z" fill="currentColor"/>
+  <rect x="30" y="64" width="40" height="6" rx="2" fill="currentColor"/>
+  <!-- Looping backward arrow -->
+  <path d="M64 42 C78 42 84 56 80 68 C76 78 64 82 54 82" fill="none" stroke="var(--gc, #e9b44c)" stroke-width="3.5" stroke-linecap="round"/>
+  <polygon points="52,82 60,77 60,87" fill="var(--gc, #e9b44c)"/>
+  <!-- Safety home rank line -->
+  <line x1="20" y1="88" x2="80" y2="88" stroke="var(--gc, #e9b44c)" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="28" y1="92" x2="72" y2="92" stroke="var(--gc, #e9b44c)" stroke-width="1.5" stroke-linecap="round" opacity="0.7"/>
+  <!-- Retreat dust clouds -->
+  <circle cx="38" cy="74" r="2.5" fill="var(--gc, #e9b44c)" opacity="0.6"/>
+  <circle cx="44" cy="76" r="3" fill="var(--gc, #e9b44c)" opacity="0.8"/>
+  <circle cx="50" cy="20" r="2" fill="var(--gc, #e9b44c)"/>
+</svg>

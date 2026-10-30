@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="card-art">
+  <!-- Tilted enemy pawn -->
+  <g transform="rotate(18 50 60)">
+    <circle cx="50" cy="38" r="9" fill="currentColor"/>
+    <path d="M42 48 C42 43 58 43 58 48 C58 56 64 62 66 68 H34 C36 62 42 56 42 48 Z" fill="currentColor"/>
+    <rect x="30" y="68" width="40" height="6" rx="2" fill="currentColor"/>
+  </g>
+  <!-- Hand / Shoving force arc -->
+  <path d="M16 46 C24 40 32 42 36 48" fill="none" stroke="var(--gc, #e9b44c)" stroke-width="4" stroke-linecap="round"/>
+  <!-- Kinetic impact waves -->
+  <path d="M22 34 C32 30 40 34 44 42" fill="none" stroke="var(--gc, #e9b44c)" stroke-width="2" stroke-linecap="round" opacity="0.7"/>
+  <path d="M26 24 C38 20 48 24 54 34" fill="none" stroke="var(--gc, #e9b44c)" stroke-width="1.5" stroke-linecap="round" opacity="0.4"/>
+  <!-- Impact star and displacement arrow -->
+  <polygon points="38,44 48,46 42,54 44,62 36,56 28,60 30,52 24,46 32,46" fill="var(--gc, #e9b44c)"/>
+  <path d="M68 46 L86 52" stroke="var(--gc, #e9b44c)" stroke-width="3" stroke-linecap="round"/>
+  <polygon points="86,47 92,54 84,57" fill="var(--gc, #e9b44c)"/>
+</svg>

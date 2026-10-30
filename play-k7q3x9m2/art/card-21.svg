@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="card-art">
+  <!-- Surrounding Ritual Magic Ring -->
+  <circle cx="50" cy="50" r="36" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="6 4"/>
+  <!-- Faceted Mana Crystal (Octahedron) -->
+  <polygon points="50,22 72,48 50,58 28,48" fill="currentColor"/>
+  <polygon points="28,48 50,58 50,78" fill="currentColor" opacity="0.75"/>
+  <polygon points="72,48 50,58 50,78" fill="currentColor" opacity="0.9"/>
+  <!-- Brilliant Sunburst Energy Beams -->
+  <line x1="50" y1="16" x2="50" y2="4" stroke="var(--gc, #e9b44c)" stroke-width="3" stroke-linecap="round"/>
+  <line x1="50" y1="84" x2="50" y2="96" stroke="var(--gc, #e9b44c)" stroke-width="3" stroke-linecap="round"/>
+  <line x1="16" y1="50" x2="4" y2="50" stroke="var(--gc, #e9b44c)" stroke-width="3" stroke-linecap="round"/>
+  <line x1="84" y1="50" x2="96" y2="50" stroke="var(--gc, #e9b44c)" stroke-width="3" stroke-linecap="round"/>
+  <line x1="26" y1="26" x2="16" y2="16" stroke="var(--gc, #e9b44c)" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="74" y1="26" x2="84" y2="16" stroke="var(--gc, #e9b44c)" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="26" y1="74" x2="16" y2="84" stroke="var(--gc, #e9b44c)" stroke-width="2.5" stroke-linecap="round"/>
+  <line x1="74" y1="74" x2="84" y2="84" stroke="var(--gc, #e9b44c)" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Core Diamond Glint -->
+  <polygon points="50,42 54,48 50,54 46,48" fill="var(--gc, #e9b44c)"/>
+</svg>

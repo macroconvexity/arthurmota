@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="card-art">
+  <!-- Open Book Spines & Pages -->
+  <path d="M50 72 C40 68 26 70 16 76 V52 C26 46 40 46 50 50 C60 46 74 46 84 52 V76 C74 70 60 68 50 72 Z" fill="none" stroke="currentColor" stroke-width="2.5"/>
+  <path d="M50 50 V72" stroke="currentColor" stroke-width="2"/>
+  <path d="M22 56 C30 52 40 52 46 54" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M54 54 C60 52 70 52 78 56" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  <!-- Card 1 Rising (Left) -->
+  <g transform="rotate(-14 36 32)">
+    <rect x="24" y="16" width="22" height="32" rx="3" fill="none" stroke="var(--gc, #e9b44c)" stroke-width="2.5"/>
+    <circle cx="35" cy="32" r="4" fill="var(--gc, #e9b44c)"/>
+  </g>
+  <!-- Card 2 Rising (Right) -->
+  <g transform="rotate(14 64 32)">
+    <rect x="54" y="16" width="22" height="32" rx="3" fill="none" stroke="var(--gc, #e9b44c)" stroke-width="2.5"/>
+    <circle cx="65" cy="32" r="4" fill="var(--gc, #e9b44c)"/>
+  </g>
+  <!-- Magic sparkles -->
+  <circle cx="50" cy="24" r="2.5" fill="var(--gc, #e9b44c)"/>
+  <circle cx="38" cy="12" r="1.5" fill="var(--gc, #e9b44c)"/>
+  <circle cx="62" cy="12" r="1.5" fill="var(--gc, #e9b44c)"/>
+</svg>

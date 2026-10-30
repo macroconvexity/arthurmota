@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="card-art">
+  <!-- Left Half Solid -->
+  <path d="M50 32 A8 8 0 0 0 50 48 V68 H34 C36 62 42 56 42 48 C42 43 48 41 50 32 Z" fill="currentColor"/>
+  <rect x="30" y="68" width="20" height="6" rx="1" fill="currentColor"/>
+  <!-- Right Half Highlight -->
+  <path d="M50 32 A8 8 0 0 1 50 48 C52 41 58 43 58 48 C58 56 64 62 66 68 H50 V48 Z" fill="var(--gc, #e9b44c)"/>
+  <rect x="50" y="68" width="20" height="6" rx="1" fill="var(--gc, #e9b44c)"/>
+  <!-- Dividing central seam -->
+  <line x1="50" y1="28" x2="50" y2="76" stroke="#fff" stroke-width="1.5" stroke-dasharray="2 2"/>
+  <!-- Circular conversion arrows -->
+  <path d="M26 38 C22 48 24 60 30 68" fill="none" stroke="var(--gc, #e9b44c)" stroke-width="3" stroke-linecap="round"/>
+  <polygon points="26,34 32,40 24,42" fill="var(--gc, #e9b44c)"/>
+  <path d="M74 62 C78 52 76 40 70 32" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+  <polygon points="74,66 68,60 76,58" fill="currentColor"/>
+  <!-- Crown of new allegiance -->
+  <polygon points="44,24 50,18 56,24 54,26 46,26" fill="var(--gc, #e9b44c)"/>
+</svg>

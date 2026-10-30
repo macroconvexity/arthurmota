@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="card-art">
+  <!-- Card base -->
+  <rect x="30" y="20" width="40" height="60" rx="6" fill="none" stroke="currentColor" stroke-width="3"/>
+  <rect x="36" y="26" width="28" height="48" rx="4" fill="currentColor" opacity="0.15"/>
+  <!-- Padlock body -->
+  <rect x="40" y="48" width="20" height="16" rx="3" fill="currentColor"/>
+  <path d="M44 48 V40 C44 36 56 36 56 40 V48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="50" cy="55" r="2" fill="var(--gc, #e9b44c)"/>
+  <line x1="50" y1="57" x2="50" y2="61" stroke="var(--gc, #e9b44c)" stroke-width="1.5"/>
+  <!-- Golden Prohibition Cross (X) -->
+  <line x1="24" y1="24" x2="76" y2="76" stroke="var(--gc, #e9b44c)" stroke-width="4.5" stroke-linecap="round"/>
+  <line x1="76" y1="24" x2="24" y2="76" stroke="var(--gc, #e9b44c)" stroke-width="4.5" stroke-linecap="round"/>
+  <circle cx="24" cy="24" r="3" fill="var(--gc, #e9b44c)"/>
+  <circle cx="76" cy="24" r="3" fill="var(--gc, #e9b44c)"/>
+  <circle cx="24" cy="76" r="3" fill="var(--gc, #e9b44c)"/>
+  <circle cx="76" cy="76" r="3" fill="var(--gc, #e9b44c)"/>
+</svg>

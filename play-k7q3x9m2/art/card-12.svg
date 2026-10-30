@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="card-art">
+  <!-- Outer Shield Contour -->
+  <path d="M50 16 C68 16 82 24 82 46 C82 66 66 80 50 86 C34 80 18 66 18 46 C18 24 32 16 50 16 Z" fill="none" stroke="currentColor" stroke-width="3.5"/>
+  <!-- Inner Shield Fill -->
+  <path d="M50 22 C64 22 76 28 76 46 C76 62 62 74 50 80 C38 74 24 62 24 46 C24 28 36 22 50 22 Z" fill="currentColor" opacity="0.15"/>
+  <!-- Pawn protected inside -->
+  <circle cx="50" cy="44" r="6" fill="currentColor"/>
+  <path d="M44 52 C44 48 56 48 56 52 C56 58 60 62 62 66 H38 C40 62 44 58 44 52 Z" fill="currentColor"/>
+  <rect x="36" y="66" width="28" height="4" rx="1" fill="currentColor"/>
+  <!-- Golden Shield Cross & Crest -->
+  <path d="M50 22 V80" stroke="var(--gc, #e9b44c)" stroke-width="3" stroke-linecap="round"/>
+  <path d="M26 44 H74" stroke="var(--gc, #e9b44c)" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="50" cy="32" r="3" fill="var(--gc, #e9b44c)"/>
+  <!-- Deflection glint -->
+  <polygon points="70,30 74,38 78,34 76,26" fill="var(--gc, #e9b44c)"/>
+</svg>

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="card-art">
+  <!-- Sacrificial Altar Base -->
+  <rect x="24" y="74" width="52" height="10" rx="2" fill="currentColor"/>
+  <rect x="30" y="68" width="40" height="6" fill="currentColor" opacity="0.8"/>
+  <!-- Dissolving Pawn Silhouette -->
+  <circle cx="50" cy="50" r="7" fill="currentColor" opacity="0.6"/>
+  <path d="M44 58 C44 54 56 54 56 58 C56 62 58 64 60 68 H40 C42 64 44 62 44 58 Z" fill="currentColor" opacity="0.6"/>
+  <!-- Ceremonial Flames -->
+  <path d="M40 68 C34 56 42 46 46 36 C48 42 52 46 50 54" fill="var(--gc, #e9b44c)" opacity="0.9"/>
+  <path d="M50 68 C46 54 54 42 58 30 C62 40 66 50 60 68" fill="var(--gc, #e9b44c)"/>
+  <path d="M54 68 C58 58 66 52 64 42 C68 48 70 58 62 68" fill="var(--gc, #e9b44c)" opacity="0.8"/>
+  <!-- Rising Draw Cards in Smoke -->
+  <rect x="32" y="16" width="14" height="20" rx="2" transform="rotate(-15 39 26)" fill="none" stroke="var(--gc, #e9b44c)" stroke-width="2"/>
+  <rect x="54" y="16" width="14" height="20" rx="2" transform="rotate(15 61 26)" fill="none" stroke="var(--gc, #e9b44c)" stroke-width="2"/>
+  <circle cx="50" cy="26" r="2" fill="var(--gc, #e9b44c)"/>
+</svg>

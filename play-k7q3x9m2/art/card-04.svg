@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="card-art">
+  <!-- Center triad base circle -->
+  <circle cx="50" cy="50" r="32" fill="none" stroke="var(--gc, #e9b44c)" stroke-width="2" stroke-dasharray="4 4"/>
+  <!-- Bishop mitre top-left -->
+  <path d="M28 32 C35 22 43 22 42 34 C44 42 38 46 36 50 H24 C22 46 20 40 28 32 Z" fill="currentColor"/>
+  <circle cx="34" cy="20" r="3" fill="var(--gc, #e9b44c)"/>
+  <!-- Rook battlement top-right -->
+  <path d="M60 26 H78 V34 H74 V30 H68 V34 H64 V30 H60 Z" fill="currentColor"/>
+  <rect x="62" y="34" width="14" height="16" fill="currentColor"/>
+  <!-- Knight profile bottom-center -->
+  <path d="M42 66 C44 58 50 56 56 60 L62 62 C58 72 56 76 56 82 H42 Z" fill="currentColor"/>
+  <!-- Cycle arrows -->
+  <path d="M46 22 C52 20 56 22 58 24" fill="none" stroke="var(--gc, #e9b44c)" stroke-width="2.5" stroke-linecap="round"/>
+  <polygon points="60,22 60,28 54,26" fill="var(--gc, #e9b44c)"/>
+  <path d="M74 54 C72 62 66 68 62 70" fill="none" stroke="var(--gc, #e9b44c)" stroke-width="2.5" stroke-linecap="round"/>
+  <polygon points="61,66 59,73 66,72" fill="var(--gc, #e9b44c)"/>
+  <path d="M34 68 C28 62 26 56 26 50" fill="none" stroke="var(--gc, #e9b44c)" stroke-width="2.5" stroke-linecap="round"/>
+  <polygon points="29,52 24,47 23,54" fill="var(--gc, #e9b44c)"/>
+</svg>

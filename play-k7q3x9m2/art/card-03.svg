@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="card-art">
+  <!-- Knight silhouette -->
+  <path d="M26 80 C27 60 33 50 42 42 C38 42 32 45 28 50 L20 46 C25 34 35 25 48 22 L51 14 L58 23 C70 30 73 48 67 62 C65 69 65 74 67 80 Z" fill="currentColor"/>
+  <rect x="22" y="80" width="48" height="6" rx="2" fill="currentColor"/>
+  <circle cx="51" cy="34" r="3" fill="var(--gc, #e9b44c)"/>
+  <!-- First Leap Arc -->
+  <path d="M46 28 C56 12 70 12 76 26" fill="none" stroke="var(--gc, #e9b44c)" stroke-width="3" stroke-linecap="round"/>
+  <polygon points="78,24 78,32 71,28" fill="var(--gc, #e9b44c)"/>
+  <!-- Second Leap Arc -->
+  <path d="M74 34 C82 26 92 34 90 48" fill="none" stroke="var(--gc, #e9b44c)" stroke-width="2.5" stroke-linecap="round"/>
+  <polygon points="93,45 88,52 86,44" fill="var(--gc, #e9b44c)"/>
+  <!-- Impact stars -->
+  <circle cx="76" cy="30" r="2.5" fill="var(--gc, #e9b44c)"/>
+  <circle cx="89" cy="52" r="3" fill="var(--gc, #e9b44c)"/>
+  <circle cx="82" cy="16" r="2" fill="var(--gc, #e9b44c)" opacity="0.8"/>
+  <circle cx="94" cy="30" r="1.5" fill="var(--gc, #e9b44c)" opacity="0.6"/>
+</svg>

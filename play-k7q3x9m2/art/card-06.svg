@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" class="card-art">
+  <!-- First piece silhouette -->
+  <circle cx="32" cy="50" r="7" fill="currentColor"/>
+  <path d="M26 58 C26 54 38 54 38 58 C38 64 41 68 43 74 H21 C23 68 26 64 26 58 Z" fill="currentColor"/>
+  <rect x="18" y="74" width="28" height="5" rx="1.5" fill="currentColor"/>
+  <!-- Second piece silhouette -->
+  <circle cx="68" cy="46" r="7" fill="currentColor"/>
+  <path d="M62 54 C62 50 74 50 74 54 C74 60 77 64 79 70 H57 C59 64 62 60 62 54 Z" fill="currentColor"/>
+  <rect x="54" y="70" width="28" height="5" rx="1.5" fill="currentColor"/>
+  <!-- Move 1 Arrow -->
+  <path d="M32 40 V18" stroke="var(--gc, #e9b44c)" stroke-width="4" stroke-linecap="round"/>
+  <polygon points="32,12 26,22 38,22" fill="var(--gc, #e9b44c)"/>
+  <!-- Move 2 Arrow -->
+  <path d="M68 36 V14" stroke="var(--gc, #e9b44c)" stroke-width="4" stroke-linecap="round"/>
+  <polygon points="68,8 62,18 74,18" fill="var(--gc, #e9b44c)"/>
+  <!-- Motion pips -->
+  <circle cx="32" cy="28" r="2" fill="currentColor"/>
+  <circle cx="68" cy="24" r="2" fill="currentColor"/>
+  <circle cx="50" cy="20" r="3" fill="var(--gc, #e9b44c)"/>
+</svg>
