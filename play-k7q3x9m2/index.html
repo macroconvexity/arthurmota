@@ -671,7 +671,7 @@ body.pieces-solid .pc.b, body.pieces-solid #promoBtns.blk svg {
     <button class="btn homeBtn" id="hmTwo"><b>Two players, one phone</b><span>Pass the phone after each turn</span></button>
     <div class="row" style="margin-top:10px;justify-content:center"><button class="btn sm" id="hmCards">Cards</button><button class="btn sm" id="hmHow">How to play</button><button class="btn sm" id="hmSet">Settings</button></div>
     <div id="hmRecord" class="small" style="text-align:center;margin-top:10px;color:#cdbf98"></div>
-    <div class="small" style="text-align:center;margin-top:4px;color:#8f8a7a;font-size:11px">Build v91</div>
+    <div class="small" style="text-align:center;margin-top:4px;color:#8f8a7a;font-size:11px">Build v92</div>
   </div>
 </div>
 
@@ -755,7 +755,7 @@ body.pieces-solid .pc.b, body.pieces-solid #promoBtns.blk svg {
     <label class="l">Pieces</label>
     <div class="seg" id="segPieces"><button data-v="flat" class="on">Flat</button><button data-v="toy">Toy</button><button data-v="3d">Glossy</button><button data-v="solid">Solid</button></div>
     </details>
-    <div style="margin-top:10px;font-size:11px;color:var(--mute)">Build v91</div>
+    <div style="margin-top:10px;font-size:11px;color:var(--mute)">Build v92</div>
     <div class="row" style="margin-top:16px"><button class="btn" id="setCopyBtn" style="flex:1">Copy game</button><button class="btn primary" data-close="setDlg">Done</button></div>
   </div>
 </div>
@@ -1234,7 +1234,7 @@ async function startGame(){
   let r; try { r = await api("/api/new", les ? {mode:"ai", colour:"white", ai:"beginner", lesson:{fen:les.fen, hand:les.hand, mana:les.mana, goal:les.goal}, cards_after:!!les.after} : learn ? {mode:"ai", colour:"white", ai:"easy", puzzle:learnId} : Object.assign({}, cfg, {cards_after: SET.cardsAfter})); } catch(e) { setBusy(false); toast("Cannot reach the server."); return; }
   setBusy(false);
   if (!r.json || !r.json.ok) { toast((r.json && r.json.error) || "Could not start."); return; }
-  ["menu","overDlg","home"].forEach(hide);
+  ["menu","overDlg","home","revealDlg"].forEach(hide);
   resetSel(); S = r.json.state; UI.previewId = null; lastAI = null; overShown = null; anim = null;
   animatedEvents.clear();
   gameCardsPlayed = 0; newThisGame = [];
@@ -1272,7 +1272,7 @@ $("againBtn").onclick = () => {
   startGame();
 };
 function showHome(){
-  updateStatsUI(); hide("menu"); hide("overDlg"); hide("lessonDlg");
+  updateStatsUI(); hide("menu"); hide("overDlg"); hide("lessonDlg"); hide("revealDlg");
   const live = !!(S && !S.over);
   $("hmContinue").classList.toggle("hidden", !live);
   if (live) $("hmContinueSub").textContent = S.puzzle ? (S.puzzle.lesson ? "Back to your lesson" : "Back to your puzzle") : (S.mode === "ai" ? "Against the computer" : "Two players") + ", move " + Math.floor((S.plies || 0) / 2 + 1);
@@ -1396,12 +1396,13 @@ async function send(body){
       if (ownCard){ gameCardsPlayed++; markSeen(ownCard.card); }
       (r.json.events || []).forEach(e => { if (e.kind === "card" && e.who !== S.human) gameCardsPlayed++; });
       if (S && S.game) try { localStorage.setItem("ctg_cards_" + S.game, String(gameCardsPlayed)); } catch(e){}
-      prepAnim(old, S, ownMoves, ownCard);
+      if (body.kind === "undo"){ lastAI = null; anim = null; if (aiHl && aiHl.clear) aiHl.clear(); overShown = null; toast("Took back your last turn."); }
+      else prepAnim(old, S, ownMoves, ownCard);
     }
   }
   if (!r.json || !r.json.ok) toast((r.json && r.json.error) || "Rejected.");
   render();
-  if (r.json && r.json.ok) {
+  if (r.json && r.json.ok && body.kind !== "undo") {
     processEvents(r.json.events || []);
     replayAI(r.json.events || [], old);
   }
@@ -2248,10 +2249,11 @@ function renderControls(){
   if (UI.card || UI.moves.length || UI.from !== null) add(window.matchMedia("(pointer:coarse)").matches ? "Cancel" : "Cancel (Esc)", () => { resetSel(); render(); });
   if (UI.moves.length && moveState().complete) add("Done", () => send({kind:"move", moves:UI.moves}), "primary");
   if (S.can_accept_no_moves) add("No legal move: accept result", () => send({kind:"end"}));
-  if (S.post_move) { add("End turn", () => { resetSel(); send({kind:"endturn"}); }, "primary"); if (S.opp_hand && !S.puzzle) add("Opp. hand", showReveal); add("Menu", openMenu); return; }
+  if (S.post_move) { add("End turn", () => { resetSel(); send({kind:"endturn"}); }, "primary"); if (S.opp_hand && !S.puzzle) add("Opp. hand", showReveal); if (S.can_undo && !S.puzzle) add("Undo", () => send({kind:"undo"})); add("Menu", openMenu); return; }
   if (inLesson()) add("Lesson", openLessonDlg); else
   add("Hint", requestHint, hintUsedThisTurn ? "disabled" : "", hintUsedThisTurn);
   if (S.opp_hand && !S.puzzle) add("Opp. hand", showReveal);
+  if (S.can_undo && !S.puzzle) add("Undo", () => send({kind:"undo"}));
   add("Menu", openMenu);
 }
 const GLABEL = {move:"Movement", ctrl:"Control", info:"Intel", rem:"Removal", rec:"Resource"};
@@ -2534,7 +2536,7 @@ function renderSide(){
   S.effects.forEach(x => { h += '<span class="e ' + ({freeze:"fz",shield:"sh",wall:"wl"}[x.kind] || "") + '">' + esc(x.label) + '</span>'; });
   e.innerHTML = h;
   const op = $("oppHandPanel");
-  if (S.opp_hand && S.mode === "ai" && !S.puzzle){ const k = S.game + ":" + S.opp_hand.join(","); if (k !== revealKey){ revealKey = k; setTimeout(showReveal, 700); } } else if (!S.opp_hand) revealKey = "";
+  if (S.opp_hand && S.mode === "ai" && !S.puzzle){ const k = S.game + ":" + S.opp_hand.join(","); if (k !== revealKey){ revealKey = k; setTimeout(() => { if ($("home").classList.contains("hidden") && S && S.game === k.split(":")[0]) showReveal(); }, 700); } } else if (!S.opp_hand) revealKey = "";
   if (S.opp_hand){
     op.classList.remove("hidden");
     op.innerHTML = '<h3>Opponent hand (revealed)</h3>' + (S.opp_hand.length ? S.opp_hand.map(id =>
@@ -2741,6 +2743,7 @@ updateStatsUI();
       if (r.json && r.json.ok){
         S = r.json.state;
         overShown = S.over ? S.game : null;
+        revealKey = S.opp_hand ? S.game + ":" + S.opp_hand.join(",") : "";   // a restored game does not pop the reveal again
         try { gameCardsPlayed = Number(localStorage.getItem("ctg_cards_" + S.game)) || 0; } catch(e){}
         render();
       }

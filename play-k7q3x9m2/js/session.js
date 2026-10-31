@@ -940,6 +940,8 @@ export class Session {
   puzzle_data                = null;
   puzzle_solved                 = null;
   lessonGoal                = null;
+  snaps                        = [];   // snapshots for Undo: the state before each of the human's turns
+  lastKey                = null;
   lessonPieces = 0;
 
   constructor(
@@ -1415,6 +1417,7 @@ export class Session {
       board,
       can_accept_no_moves: Boolean(cards_phase && !post_move && actions.length === 0),
       ...(post_move ? { post_move: true } : {}),
+      ...(this.mode === "ai" && this.puzzle == null && g.result === null && this.snaps.length > 0 ? { can_undo: true } : {}),
       cards: cstate,
       check,
       colour: COLOUR[v],
@@ -1449,6 +1452,21 @@ export class Session {
   }
 
   act(body                     )       {
+    const g = this.g;
+    const track =
+      this.mode === "ai" && this.puzzle == null && g.result === null && !this.cover &&
+      g.toMove === this.viewer() && (body.kind === "move" || body.kind === "card");
+    const pre = track ? this.snapshot(false) : null;
+    const key = g.plies + ":" + g.toMove;
+    this._act(body);
+    if (pre && key !== this.lastKey) {
+      this.snaps.push(pre);
+      if (this.snaps.length > 4) this.snaps.shift();
+      this.lastKey = key;
+    }
+  }
+
+  _act(body                     )       {
     const g = this.g;
     const kind = body.kind;
     if (g.result !== null) {
@@ -1621,9 +1639,10 @@ export class Session {
     this._postMove();
   }
 
-  snapshot()                      {
+  snapshot(withUndo          = true)                      {
     const g = this.g;
     return {
+      ...(withUndo ? { undo: this.snaps, last_key: this.lastKey } : {}),
       id: this.id,
       mode: this.mode,
       human: this.human,
@@ -1835,6 +1854,8 @@ export class Session {
     s.cover = snap.cover ?? false;
     s.pending_discard = snap.pending_discard ?? false;
     s.cards_after = snap.cards_after ?? false;
+    s.snaps = snap.undo ? snap.undo.slice() : [];
+    s.lastKey = snap.last_key ?? null;
     s.last_ai_seconds = snap.last_ai_seconds ?? 0.0;
 
     const gSnap = snap.game_state;
@@ -2135,6 +2156,23 @@ export function handle(
       }
       if (!s) {
         return { status: 404, json: { ok: false, error: "Unknown game." } };
+      }
+      if (b.kind === "undo") {
+        if (s.mode !== "ai" || s.puzzle != null) return { status: 400, json: { ok: false, error: "Undo is only for games against the computer.", state: s.view() } };
+        if (s.g.result !== null) return { status: 400, json: { ok: false, error: "The game is over.", state: s.view() } };
+        if (!s.snaps.length) return { status: 400, json: { ok: false, error: "Nothing to undo.", state: s.view() } };
+        const rest = s.snaps.slice();
+        const target = rest.pop() ;
+        const back = Session.restore(target);
+        back.snaps = rest;
+        back.lastKey = null;
+        SESSIONS.set(gid, back);
+        if (persistFn) {
+          try {
+            persistFn(back.id, back.snapshot());
+          } catch {}
+        }
+        return { status: 200, json: { ok: true, state: back.view(), events: [] } };
       }
       const start = s.events.length;
       try {
