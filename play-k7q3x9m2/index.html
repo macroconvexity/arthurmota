@@ -516,6 +516,7 @@ body.dragging.armed #board{box-shadow:0 0 0 4px var(--gold2),0 0 46px rgba(255,2
 
 /* ---- overlays ---- */
 .overlay{position:fixed;inset:0;background:rgba(6,7,9,.9);display:flex;align-items:center;justify-content:center;z-index:60;padding:14px;overflow:auto}
+.overlay#home{background:radial-gradient(900px 600px at 50% 0%,#262b33 0,#121316 70%)}
 .homeDlg .homeBtn{display:flex;flex-direction:column;align-items:flex-start;width:100%;margin:0 0 8px;padding:12px 14px;text-align:left;gap:2px;min-height:56px}
 .homeDlg .homeBtn b{font-size:16px} .homeDlg .homeBtn span{font-size:12.5px;font-weight:400;opacity:.8}
 #hand{--cw:var(--hcw,84px)}
@@ -746,7 +747,7 @@ body.pieces-solid .pc.b, body.pieces-solid #promoBtns.blk svg {
     <label class="l">Pieces</label>
     <div class="seg" id="segPieces"><button data-v="flat" class="on">Flat</button><button data-v="toy">Toy</button><button data-v="3d">Glossy</button><button data-v="solid">Solid</button></div>
     </details>
-    <div style="margin-top:10px;font-size:11px;color:var(--mute)">Build v84</div>
+    <div style="margin-top:10px;font-size:11px;color:var(--mute)">Build v85</div>
     <div class="row" style="margin-top:16px"><button class="btn" id="setCopyBtn" style="flex:1">Copy game</button><button class="btn primary" data-close="setDlg">Done</button></div>
   </div>
 </div>
@@ -1352,7 +1353,8 @@ $("cardsBtn").onclick = () => {
   show("cardsDlg");
 };
 $("resignBtn").onclick = () => show("resignDlg");
-$("resignYes").onclick = () => { hide("resignDlg"); send({kind:"resign"}); };
+let resignedGame = null;
+$("resignYes").onclick = async () => { hide("resignDlg"); resignedGame = S && S.game; await send({kind:"resign"}); showHome(); };   // resigning leaves the board for the home screen
 
 /* ---------- actions ---------- */
 async function send(body){
@@ -2572,7 +2574,7 @@ function renderOverlays(){
 
     const mateWait = S.termination === "checkmate" ? 1900 : 450;
     const humanWon = S.mode === "ai" && S.result === (S.human === 0 ? "white" : "black");
-    setTimeout(() => { if (S && S.over){ show("overDlg"); if (humanWon){ confettiFx(); beep("win"); } else beep(S.result === "draw" ? "draw" : (S.mode === "ai" ? "lose" : "win")); } }, SET.anim ? mateWait : 0);
+    setTimeout(() => { if (S && S.over && S.game !== resignedGame){ show("overDlg"); if (humanWon){ confettiFx(); beep("win"); } else beep(S.result === "draw" ? "draw" : (S.mode === "ai" ? "lose" : "win")); } }, SET.anim ? mateWait : 0);
   }
 }
 $("coverBtn").onclick = () => send({kind:"ready"});
