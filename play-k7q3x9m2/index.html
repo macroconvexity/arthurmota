@@ -667,11 +667,11 @@ body.pieces-solid .pc.b, body.pieces-solid #promoBtns.blk svg {
     <div class="small" style="text-align:center;margin:2px 0 12px;color:#cdbf98">Chess with power cards</div>
     <button class="btn primary homeBtn" id="hmContinue"><b>Continue game</b><span id="hmContinueSub"></span></button>
     <button class="btn homeBtn" id="hmLearn"><b>Learn to play</b><span id="hmLearnSub"></span></button>
-    <button class="btn homeBtn" id="hmPlay"><b>Play against the computer</b><span>Beginner, Easy, Casual or Hard</span></button>
+    <button class="btn homeBtn" id="hmPlay"><b>Play against the computer</b><span>Beginner (computer plays without its queen), Easy, Casual or Hard</span></button>
     <button class="btn homeBtn" id="hmTwo"><b>Two players, one phone</b><span>Pass the phone after each turn</span></button>
     <div class="row" style="margin-top:10px;justify-content:center"><button class="btn sm" id="hmCards">Cards</button><button class="btn sm" id="hmHow">How to play</button><button class="btn sm" id="hmSet">Settings</button></div>
     <div id="hmRecord" class="small" style="text-align:center;margin-top:10px;color:#cdbf98"></div>
-    <div class="small" style="text-align:center;margin-top:4px;color:#8f8a7a;font-size:11px">Build v90</div>
+    <div class="small" style="text-align:center;margin-top:4px;color:#8f8a7a;font-size:11px">Build v91</div>
   </div>
 </div>
 
@@ -755,7 +755,7 @@ body.pieces-solid .pc.b, body.pieces-solid #promoBtns.blk svg {
     <label class="l">Pieces</label>
     <div class="seg" id="segPieces"><button data-v="flat" class="on">Flat</button><button data-v="toy">Toy</button><button data-v="3d">Glossy</button><button data-v="solid">Solid</button></div>
     </details>
-    <div style="margin-top:10px;font-size:11px;color:var(--mute)">Build v90</div>
+    <div style="margin-top:10px;font-size:11px;color:var(--mute)">Build v91</div>
     <div class="row" style="margin-top:16px"><button class="btn" id="setCopyBtn" style="flex:1">Copy game</button><button class="btn primary" data-close="setDlg">Done</button></div>
   </div>
 </div>
@@ -1283,7 +1283,11 @@ function showHome(){
   show("home");
 }
 const openMenu = showHome;
-const toMenu = mode => { hide("home"); const b = document.querySelector('#menu .seg[data-k="mode"] button[data-v="' + mode + '"]'); if (b) b.click(); show("menu"); };
+const toMenu = mode => {
+  hide("home"); const b = document.querySelector('#menu .seg[data-k="mode"] button[data-v="' + mode + '"]'); if (b) b.click();
+  try { if (mode === "ai" && loadStats().wins === 0){ const nb = document.querySelector('#menu .seg[data-k="ai"] button[data-v="beginner"]'); if (nb) nb.click(); } } catch(e) {}   // nobody has won yet: start on the gentlest level
+  show("menu");
+};
 $("hmContinue").onclick = () => hide("home");
 $("hmLearn").onclick = () => { hide("home"); cfgLearn(); };
 $("hmPlay").onclick = () => toMenu("ai");

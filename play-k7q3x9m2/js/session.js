@@ -676,7 +676,7 @@ export class BeginnerPolicy extends RandomPolicy {
 
            chooseAction(g      , actions          )         {
     if (!actions.length) return [];
-    if (this.rng.random() < 0.3) {
+    if (this.rng.random() < 0.15) {
       const caps = actions.filter((a) => a.length > 0 && g.pos.board[a[0][1]] !== 0);
       if (caps.length) return this.rng.choice(caps);
     }
@@ -980,11 +980,16 @@ export class Session {
       this.g.mana = [pz.mana, 0];
       this.lessonPieces = this._countPieces();
     } else {
+      // Beginner plays a handicap game: the computer starts without its queen
+      const handicap = ai_level === "beginner" && mode === "ai"
+        ? (this.human === WHITE ? "rnb1kbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" : "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNB1KBNR w KQkq - 0 1")
+        : undefined;
       this.g = new Game({
         seed,
         cardsOn: true,
         rng: newRng(seed),
         pool: deck === "starter" ? STARTER_IDS : undefined,
+        fen: handicap,
       });
       this.mana_max = [0, 0];
     }
