@@ -196,6 +196,8 @@ body.view-tilt #board{position:absolute;left:0;bottom:0;width:var(--bs);height:c
 .pc{width:92%;height:92%;position:relative;z-index:5;pointer-events:none;transform:rotateX(var(--up));transform-origin:50% 86%;
   filter:drop-shadow(-1px -1px 0 rgba(255,255,255,.28)) drop-shadow(1px 3px 2px rgba(0,0,0,.6));transition:transform .16s cubic-bezier(.2,.9,.3,1.3)}
 .psh{position:absolute;left:16%;width:68%;bottom:6%;height:15%;border-radius:50%;background:radial-gradient(ellipse,rgba(0,0,0,.5),transparent 70%);z-index:4;pointer-events:none;transition:transform .16s,opacity .16s}
+.sq.mov:active,.sq.tgt:active{filter:brightness(1.18)}
+.card:active{filter:brightness(1.1)}
 .sq.mov .pc{animation:bob 1.7s ease-in-out infinite}
 .sq.mov:hover .pc,.sq.mov:active .pc{animation:none;transform:rotateX(var(--up)) translateY(-14%) scale(1.12)}
 .sq.mov:hover .psh,.sq.mov:active .psh,.sq.sel .psh{transform:scale(.8);opacity:.6}
@@ -671,7 +673,7 @@ body.pieces-solid .pc.b, body.pieces-solid #promoBtns.blk svg {
     <button class="btn homeBtn" id="hmTwo"><b>Two players, one phone</b><span>Pass the phone after each turn</span></button>
     <div class="row" style="margin-top:10px;justify-content:center"><button class="btn sm" id="hmCards">Cards</button><button class="btn sm" id="hmHow">How to play</button><button class="btn sm" id="hmSet">Settings</button></div>
     <div id="hmRecord" class="small" style="text-align:center;margin-top:10px;color:#cdbf98"></div>
-    <div class="small" style="text-align:center;margin-top:4px;color:#8f8a7a;font-size:11px">Build v92</div>
+    <div class="small" style="text-align:center;margin-top:4px;color:#8f8a7a;font-size:11px">Build v93</div>
   </div>
 </div>
 
@@ -755,7 +757,7 @@ body.pieces-solid .pc.b, body.pieces-solid #promoBtns.blk svg {
     <label class="l">Pieces</label>
     <div class="seg" id="segPieces"><button data-v="flat" class="on">Flat</button><button data-v="toy">Toy</button><button data-v="3d">Glossy</button><button data-v="solid">Solid</button></div>
     </details>
-    <div style="margin-top:10px;font-size:11px;color:var(--mute)">Build v92</div>
+    <div style="margin-top:10px;font-size:11px;color:var(--mute)">Build v93</div>
     <div class="row" style="margin-top:16px"><button class="btn" id="setCopyBtn" style="flex:1">Copy game</button><button class="btn primary" data-close="setDlg">Done</button></div>
   </div>
 </div>
@@ -1836,8 +1838,10 @@ function cardStep(){
 function pickCard(cid){
   if (S.status === "discard" && !busy){ discardPick = discardPick === cid ? null : cid; beep("cardpick"); render(); return; }
   UI.previewId = cid;
-  const el = document.querySelector('#hand .card[data-cid="' + cid + '"]'); if (el) showZoom(el, true);
+  // a tap reads the card in the status line (nothing to close); press and hold shows it large
+  peek = {cid, until: Date.now() + 5000}; renderStatus(); clearTimeout(peekT); peekT = setTimeout(() => { if (S) renderStatus(); }, 5100); beep("cardpick");
 }
+let peek = null, peekT = 0;
 const COACH = {card:false, move:false};
 try { const j = JSON.parse(localStorage.getItem("ctg_coach") || "null"); if (j){ COACH.card = !!j.card; COACH.move = !!j.move; } } catch(e) {}
 function coachDone(k){ if (COACH[k]) return; COACH[k] = true; try { localStorage.setItem("ctg_coach", JSON.stringify(COACH)); } catch(e) {} coachUpdate(); }
@@ -1922,6 +1926,27 @@ function moveState(){
   if (from === null && k > 0 && froms.length === 1) from = froms[0];
   const dests = from === null ? [] : [...new Set(next.filter(a => a[k][0] === from).map(a => a[k][1]))];
   return {k, next, complete, froms, from, dests};
+}
+/* A 3D piece rises over the square behind it, so a finger on its head lands on that square. If the touch is in the near
+   part of a square and the square in front of it holds something that can be picked, the touch belongs to that piece. */
+function tapAccepts(sq){
+  if (!S || busy || S.status !== "your_turn") return false;
+  if (UI.card){ if (UI.confirm) return false; const st = cardStep(); return st.kind === "sq" && st.vals.includes(sq); }
+  if (!S.actions.length) return false;
+  const ms = moveState();
+  return ms.froms.includes(sq) || (ms.from !== null && ms.dests.includes(sq));
+}
+function resolveSq(e, sq){
+  try {
+    const el = e.target && e.target.closest ? e.target.closest(".sq") : null; if (!el) return sq;
+    const r = el.getBoundingClientRect(), py = (e.clientY - r.top) / r.height;
+    if (py < .6) return sq;
+    const idx = Array.prototype.indexOf.call(el.parentNode.children, el), below = el.parentNode.children[idx + 8];
+    if (!below || !below.dataset || below.dataset.sq === undefined) return sq;
+    const bq = +below.dataset.sq;
+    if (S.board[bq] && tapAccepts(bq)) return bq;
+  } catch(_) {}
+  return sq;
 }
 function onSquare(sq){
   if (busy || S.status !== "your_turn") return;
@@ -2116,7 +2141,7 @@ function renderBoard(){
     if ((i & 7) === 0) h += '<span class="co r">' + ((sq >> 3) + 1) + '</span>';
     if ((i >> 3) === 7) h += '<span class="co f">' + "abcdefgh"[sq & 7] + '</span>';
     d.innerHTML = h;
-    d.onclick = () => { if (performance.now() - lastPieceDrag < 350) return; onSquare(sq); };
+    d.onclick = e => { if (performance.now() - lastPieceDrag < 350) return; onSquare(resolveSq(e, sq)); };
     el.appendChild(d);
   }
 }
@@ -2173,6 +2198,12 @@ function renderStatus0(){
   if (S.puzzle && !hintStatusText){
     b.classList.add("mine");
     b.textContent = pzSolved() ? "Solved!" : pzFailed() ? "Not the mate. Retry from the dialog." : "Play the card, then the move.";
+    return;
+  }
+  if (peek && Date.now() < peek.until && S.status === "your_turn" && !UI.card && !UI.moves.length && UI.from === null && CARDS[peek.cid]){
+    const k = CARDS[peek.cid], st = S.cards && S.cards[peek.cid];
+    b.classList.add("mine"); b.style.whiteSpace = "normal";
+    b.textContent = k.name + " (" + k.cost + " mana): " + (k.short || k.text) + ". " + (st && st.playable ? "Drag it onto the board to play." : ((st && st.reason) || "Not playable now."));
     return;
   }
   b.style.whiteSpace = S.status === "discard" ? "normal" : "";
@@ -2634,7 +2665,8 @@ $("coverBtn").onclick = () => send({kind:"ready"});
   let down = null, drag = null, over = null;
   bd.addEventListener("pointerdown", e => {
     if (busy || !S || S.status !== "your_turn" || UI.card) return;
-    const sqEl = e.target.closest(".sq"); if (!sqEl) return;
+    let sqEl = e.target.closest(".sq"); if (!sqEl) return;
+    const rq = resolveSq(e, +sqEl.dataset.sq); if (rq !== +sqEl.dataset.sq) sqEl = bd.querySelector('[data-sq="' + rq + '"]') || sqEl;
     const sq = +sqEl.dataset.sq, ms = moveState();
     if (!(ms.froms.includes(sq) || ms.from === sq)) return;
     down = {x: e.clientX, y: e.clientY, sq, id: e.pointerId, el: sqEl, touch: e.pointerType === "touch"};
@@ -2645,7 +2677,7 @@ $("coverBtn").onclick = () => send({kind:"ready"});
     d.sh.style.left = (e.clientX - d.size * .37 + d.size * .07) + "px"; d.sh.style.top = (e.clientY - d.size * .12 + d.size * .06) + "px";
     const dt = Math.max(8, now - d.lt), vx = (e.clientX - d.lx) / dt; d.lx = e.clientX; d.lt = now;
     d.target = Math.max(-22, Math.min(22, -vx * 24));
-    const t = document.elementFromPoint(e.clientX, e.clientY), sqn = t && t.closest ? t.closest(".sq") : null;
+    const t = document.elementFromPoint(e.clientX, e.clientY - (d.touch ? d.size * .6 : d.size * .2)), sqn = t && t.closest ? t.closest(".sq") : null;
     const hit = sqn && moveState().dests.includes(+sqn.dataset.sq) ? sqn : null;
     if (hit !== over){ if (over) over.classList.remove("dropover"); over = hit; if (over){ over.classList.add("dropover"); beep("tick"); } }
   }
@@ -2669,7 +2701,7 @@ $("coverBtn").onclick = () => send({kind:"ready"});
     document.body.appendChild(g);
     const sh = mkShadow(r.left + r.width / 2, r.top + r.height * .74, size);
     sh.style.transition = "left .16s ease-out, top .16s ease-out";
-    drag = {g, sh, size, sq: down.sq, tilt: 0, target: 0, lx: e.clientX, lt: performance.now()};
+    drag = {g, sh, size, touch: down.touch, sq: down.sq, tilt: 0, target: 0, lx: e.clientX, lt: performance.now()};
     const d0 = drag; setTimeout(() => { if (drag === d0){ g.style.transition = "none"; sh.style.transition = "none"; } }, 190);
     try { bd.setPointerCapture(down.id); } catch(_) {}
     beep("pick"); place(e); carryLoop(drag);
@@ -2677,7 +2709,7 @@ $("coverBtn").onclick = () => send({kind:"ready"});
   function finish(e, cancel){
     const d = drag; drag = null; lastPieceDrag = performance.now();
     if (over){ over.classList.remove("dropover"); }
-    const t = cancel ? null : document.elementFromPoint(e.clientX, e.clientY), tn = t && t.closest ? t.closest(".sq") : null;
+    const t = cancel ? null : document.elementFromPoint(e.clientX, e.clientY - (d.touch ? d.size * .6 : d.size * .2)), tn = t && t.closest ? t.closest(".sq") : null;
     const to = tn ? +tn.dataset.sq : null;
     d.g.style.transition = "none";
     if (to !== null && moveState().dests.includes(to)){
