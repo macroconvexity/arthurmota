@@ -397,6 +397,9 @@ body.pieces-mesh #board{border-color:#566b91 #475a80 #3a4a68 #475a80;z-index:1}
   #boardCol{display:flex;flex-direction:column;flex:0 0 auto;justify-content:flex-start}
   /* the room a tall phone leaves between board and cards shows what just happened */
   #feed{display:flex;flex-direction:column;justify-content:flex-end;flex:1 1 auto;min-height:0;overflow:hidden;padding:0 14px 4px;font-size:13px;line-height:1.4;color:var(--mute);-webkit-mask-image:linear-gradient(transparent,#000 45%);mask-image:linear-gradient(transparent,#000 45%)}
+  #feed.tipmode{justify-content:flex-start;-webkit-mask-image:linear-gradient(#000 72%,transparent);mask-image:linear-gradient(#000 72%,transparent)}
+  #feed .tip{margin:0 0 8px;padding:9px 12px;border:1px dashed #9a7430;border-radius:12px;background:rgba(255,226,154,.06);color:#e9e2c8;font-size:13px}
+  #feed .tip b{display:block;color:#ffe29a;margin-bottom:3px} #feed .tip ol{margin:0;padding-left:18px} #feed .tip span{display:block;margin-top:4px;color:#b9b3a0;font-size:12px}
   #feed div{padding:1px 0} #feed .w0{color:#e9e2c8} #feed .w1{color:#a9b4d6}
 }
 /* ---- dialogs in the same gold-and-navy look ---- */
@@ -747,7 +750,7 @@ body.pieces-solid .pc.b, body.pieces-solid #promoBtns.blk svg {
     <label class="l">Pieces</label>
     <div class="seg" id="segPieces"><button data-v="flat" class="on">Flat</button><button data-v="toy">Toy</button><button data-v="3d">Glossy</button><button data-v="solid">Solid</button></div>
     </details>
-    <div style="margin-top:10px;font-size:11px;color:var(--mute)">Build v85</div>
+    <div style="margin-top:10px;font-size:11px;color:var(--mute)">Build v86</div>
     <div class="row" style="margin-top:16px"><button class="btn" id="setCopyBtn" style="flex:1">Copy game</button><button class="btn primary" data-close="setDlg">Done</button></div>
   </div>
 </div>
@@ -1997,7 +2000,7 @@ function fitBoard(){
     const spare = vh - (wrap.getBoundingClientRect().bottom + window.scrollY + tray.offsetHeight + 24) + (cur - 84) * 1.4;
     const n = S.hand.length, fit = (root.clientWidth - 36) / (1 + .52 * (n - 1));
     let target = 84 + Math.max(0, spare - 130) / 1.4 * .85;
-    target = Math.round(Math.max(84, Math.min(target, fit, 124)));
+    target = Math.round(Math.max(84, Math.min(target, fit, 132)));
     if (Math.abs(target - cur) > 1) root.style.setProperty("--hcw", target + "px");
   }
 }
@@ -2496,7 +2499,10 @@ function renderSide(){
       '<span class="e" title="' + esc(CARDS[id].text) + '">' + esc(CARDS[id].name) + ' (' + CARDS[id].cost + ')</span>').join("") :
       '<span class="small">Empty.</span>');
   } else op.classList.add("hidden");
-  $("feed").innerHTML = S.log.slice(-10).map(x => '<div class="w' + x.who + '">' + esc(x.text) + '</div>').join("");
+  const tip = (!S.puzzle && S.mode === "ai" && (S.plies || 0) < 8)
+    ? '<div class="tip"><b>How a turn goes</b><ol><li>Play a card by dragging it onto the board (optional).</li><li>Move one piece: tap it, then tap a dot.</li><li>Spend spare mana on more cards, then press End turn.</li></ol><span>Tap a card to read it. Hold it to see it large.</span></div>' : "";
+  $("feed").classList.toggle("tipmode", !!tip);
+  $("feed").innerHTML = tip + S.log.slice(-10).map(x => '<div class="w' + x.who + '">' + esc(x.text) + '</div>').join("");
   $("log").innerHTML = S.log.slice().reverse().map(x => '<div class="w' + x.who + (flashNs.has(x.n) ? ' fl' : '') + '">' + esc(x.text) + '</div>').join("") || '<span class="small">No events yet.</span>';
 }
 function renderOverlays(){
