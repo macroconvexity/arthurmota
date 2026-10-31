@@ -1,5 +1,5 @@
-// Chess the Gathering Service Worker (Cache-first offline cache with dynamic content hash)
-const CACHE_NAME = "ctg-0f5d7571";
+// Chess the Gathering Service Worker (network-first with an offline cache fallback and a content-hash cache name)
+const CACHE_NAME = "ctg-d2642608";
 const ASSETS = [
   "./",
   "./index.html",
@@ -53,7 +53,7 @@ const ASSETS = [
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS.map((u) => new Request(u, { cache: "reload" }))))
   );
   self.skipWaiting();
 });
@@ -74,21 +74,17 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
+  if (event.request.method !== "GET") return;
+  // network first (revalidated, so a new build shows up on the next open), the cache only when offline
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      if (cached) {
-        return cached;
-      }
-      return fetch(event.request).then((response) => {
-        if (!response || response.status !== 200 || response.type !== "basic") {
-          return response;
+    fetch(event.request, { cache: "no-cache" })
+      .then((response) => {
+        if (response && response.status === 200 && response.type === "basic") {
+          const toCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, toCache));
         }
-        const toCache = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, toCache);
-        });
         return response;
-      });
-    })
+      })
+      .catch(() => caches.match(event.request).then((cached) => cached || caches.match("./index.html")))
   );
 });

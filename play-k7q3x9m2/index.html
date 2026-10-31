@@ -668,6 +668,7 @@ body.pieces-solid .pc.b, body.pieces-solid #promoBtns.blk svg {
     <button class="btn homeBtn" id="hmTwo"><b>Two players, one phone</b><span>Pass the phone after each turn</span></button>
     <div class="row" style="margin-top:10px;justify-content:center"><button class="btn sm" id="hmCards">Cards</button><button class="btn sm" id="hmHow">How to play</button><button class="btn sm" id="hmSet">Settings</button></div>
     <div id="hmRecord" class="small" style="text-align:center;margin-top:10px;color:#cdbf98"></div>
+    <div class="small" style="text-align:center;margin-top:4px;color:#8f8a7a;font-size:11px">Build v89</div>
   </div>
 </div>
 
@@ -751,7 +752,7 @@ body.pieces-solid .pc.b, body.pieces-solid #promoBtns.blk svg {
     <label class="l">Pieces</label>
     <div class="seg" id="segPieces"><button data-v="flat" class="on">Flat</button><button data-v="toy">Toy</button><button data-v="3d">Glossy</button><button data-v="solid">Solid</button></div>
     </details>
-    <div style="margin-top:10px;font-size:11px;color:var(--mute)">Build v88</div>
+    <div style="margin-top:10px;font-size:11px;color:var(--mute)">Build v89</div>
     <div class="row" style="margin-top:16px"><button class="btn" id="setCopyBtn" style="flex:1">Copy game</button><button class="btn primary" data-close="setDlg">Done</button></div>
   </div>
 </div>
@@ -2739,7 +2740,7 @@ if ("serviceWorker" in navigator) {
     }
   });
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("./sw.js").catch(() => {});
+    navigator.serviceWorker.register("./sw.js", { updateViaCache: "none" }).then((reg) => { reg.update().catch(() => {}); }).catch(() => {});
   });
 }
 </script>
