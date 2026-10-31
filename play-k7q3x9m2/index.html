@@ -34,7 +34,7 @@ button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 svg.i{width:1.15em;height:1.15em;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-.2em}
 
 /* ---- top bar ---- */
-header{height:var(--top);display:flex;align-items:center;gap:8px;padding:0 10px;border-bottom:1px solid var(--line);background:rgba(18,19,22,.85)}
+header{height:calc(var(--top) + env(safe-area-inset-top, 0px));display:flex;align-items:center;gap:8px;padding:env(safe-area-inset-top, 0px) max(10px, env(safe-area-inset-right, 0px)) 0 max(10px, env(safe-area-inset-left, 0px));border-bottom:1px solid var(--line);background:rgba(18,19,22,.85)}
 header h1{font-size:16px;margin:0;letter-spacing:.4px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 header h1 b{color:var(--gold)}
 .btn{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:7px 12px;min-height:36px;display:inline-flex;align-items:center;gap:6px;transition:border-color .15s,background .15s}
@@ -182,7 +182,9 @@ body.noanim .pip.spent,body.noanim .pip.gain,body.noanim #status.turnpulse{anima
 body.noanim .chkBanner{animation:none;opacity:1}
 /* ---- board ---- */
 body.view-tilt{--tilt:26deg;--up:-26deg}
-body.view-tilt #boardWrap{perspective:calc(var(--bs) * 2.5);perspective-origin:50% 140%;height:var(--wh, calc(var(--bs)*.8));margin:calc(var(--bs) * .085) auto 14px}
+body.view-tilt{--hr:calc(var(--bs) * .16)}
+body.view-tilt #boardWrap{perspective:calc(var(--bs) * 2.5);perspective-origin:50% 140%;height:calc(var(--wh, calc(var(--bs)*.8)) + var(--hr));margin:calc(var(--bs) * .085 - var(--hr)) auto 14px;pointer-events:none}
+body.view-tilt #board{pointer-events:auto}
 body.view-tilt #board{position:absolute;left:0;bottom:0;width:var(--bs);height:var(--bs);box-shadow:0 0 0 2px var(--gold),0 8px 0 2px #2a1d07,0 14px 0 2px #120d03,0 30px 40px rgba(0,0,0,.7)}
 #boardWrap{position:relative;width:var(--bs);height:var(--bs);margin:4px auto 14px}
 #board{width:100%;height:100%;display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);
@@ -385,7 +387,7 @@ body.pieces-mesh #board{border-color:#566b91 #475a80 #3a4a68 #475a80;z-index:1}
   :root{--top:50px}
   header .logo{height:42px}
   header .btn.sm{min-height:36px;width:36px}
-  #boardWrap{margin-top:calc(var(--bs) * .06)!important;margin-bottom:6px!important}
+  #boardWrap{margin-top:calc(var(--bs) * .06 - var(--hr, 0px))!important;margin-bottom:6px!important}
   #tray{clip-path:inset(-400px -20px 0 -20px);padding-top:4px;gap:3px 6px;margin-top:auto}
   #tray #hand{padding:18px 18px 0;height:calc(var(--cw) * 1.4 + 6px - var(--cw) * .08)}
   #tray #controls button{min-height:38px;padding:4px 10px}
@@ -411,6 +413,7 @@ body.pieces-mesh #board{border-color:#566b91 #475a80 #3a4a68 #475a80;z-index:1}
 #cover h2{color:#ffe29a;text-shadow:0 2px 0 rgba(10,6,20,.85);font-size:26px}
 #cover .btn.primary{background:linear-gradient(180deg,#ffe58a,#e0a42a 55%,#b9791a);color:#3a2406;border:2px solid #6e4710;box-shadow:inset 0 2px 0 rgba(255,255,255,.55),0 3px 0 #4a2a05;border-radius:14px}
 /* ---- game over art ---- */
+#overArt:empty{display:none}
 #overArt{height:120px;margin:-6px auto 4px;display:flex;align-items:center;justify-content:center}
 #overArt svg{height:120px;width:auto;overflow:visible}
 #overArt .rays{transform-origin:60px 52px;animation:spinRays 14s linear infinite}
@@ -654,7 +657,7 @@ body.pieces-solid .pc.b, body.pieces-solid #promoBtns.blk svg {
       <label class="l">Your colour</label>
       <div class="seg" data-k="colour"><button data-v="white" class="on">White</button><button data-v="black">Black</button><button data-v="random">Random</button></div>
       <label class="l">AI strength</label>
-      <div class="seg" data-k="ai"><button data-v="easy">Easy</button><button data-v="casual" class="on">Casual</button><button data-v="normal">Hard</button></div>
+      <div class="seg" data-k="ai"><button data-v="beginner">Beginner</button><button data-v="easy">Easy</button><button data-v="casual" class="on">Casual</button><button data-v="normal">Hard</button></div>
     </div>
     <label class="l">Cards</label>
     <div class="seg" data-k="deck"><button data-v="starter">Lighter (16)</button><button data-v="full" class="on">All 24</button></div>
@@ -723,7 +726,7 @@ body.pieces-solid .pc.b, body.pieces-solid #promoBtns.blk svg {
     <label class="l">Pieces</label>
     <div class="seg" id="segPieces"><button data-v="flat" class="on">Flat</button><button data-v="toy">Toy</button><button data-v="3d">Glossy</button><button data-v="solid">Solid</button></div>
     </details>
-    <div style="margin-top:10px;font-size:11px;color:var(--mute)">Build v80</div>
+    <div style="margin-top:10px;font-size:11px;color:var(--mute)">Build v81</div>
     <div class="row" style="margin-top:16px"><button class="btn" id="setCopyBtn" style="flex:1">Copy game</button><button class="btn primary" data-close="setDlg">Done</button></div>
   </div>
 </div>
@@ -731,6 +734,16 @@ body.pieces-solid .pc.b, body.pieces-solid #promoBtns.blk svg {
 <div class="overlay hidden" id="resignDlg">
   <div class="dlg"><h2>Resign?</h2><p>You will lose this game.</p>
   <div class="row"><button class="btn danger" id="resignYes">Resign</button><button class="btn" data-close="resignDlg">Keep playing</button></div></div>
+</div>
+
+<div class="overlay hidden" id="lessonDlg">
+  <div class="dlg" style="max-width:420px">
+    <div class="small" id="lsStep" style="letter-spacing:.1em;text-transform:uppercase;color:#cdbf98"></div>
+    <h2 id="lsTitle" style="margin:4px 0 10px"></h2>
+    <div id="lsBody" style="font-size:15px;line-height:1.45"></div>
+    <div id="lsTask" style="margin:14px 0 12px;padding:10px 12px;border:1px solid #c99a3a;border-radius:10px;background:rgba(255,226,154,.1);font-weight:700;font-size:14.5px"></div>
+    <div class="row" style="justify-content:space-between"><button class="btn" id="lsSkip">Skip lessons</button><button class="btn primary" id="lsGo">Got it</button></div>
+  </div>
 </div>
 
 <div class="overlay hidden" id="overDlg">
@@ -1092,6 +1105,69 @@ document.querySelectorAll("#menu .seg").forEach(seg => {
     $("aiOpts").classList.toggle("hidden", cfg.mode !== "ai");
   });
 });
+/* Lessons: a guided start for people who have never played chess or a card game. They run before the 17 puzzles. */
+const LESSONS = [
+  {t:"Your first move", fen:"4k3/8/8/8/8/8/4P3/4K3 w - - 0 1", hand:[], mana:0, goal:"to:e4", show:["e4"],
+   body:["Chess is a duel on a board of 64 squares. You play the cream pieces at the bottom. Your opponent plays the dark pieces at the top.", "You take turns, one move each. To win, you trap the enemy King. That is called checkmate.", "Here only a King and a Pawn are left on each side, so you can learn the controls."],
+   task:"Tap your pawn, then tap the glowing square.",
+   ok:"That is how every move works: tap a piece, then tap a dot. A pawn may jump two squares on its first move, and one square after that.", bad:"Tap the pawn, then the glowing square two steps ahead."},
+  {t:"Pawns capture sideways", fen:"4k3/8/8/3p4/4P3/8/8/4K3 w - - 0 1", hand:[], mana:0, goal:"capture", show:["d5"],
+   body:["A pawn walks straight ahead and never backwards. But it captures one step diagonally forward.", "To capture, move onto an enemy piece. The captured piece leaves the board for good."],
+   task:"Capture the dark pawn on d5 with your pawn.",
+   ok:"Diagonal forward is the only way a pawn captures. It cannot capture a piece standing right in front of it.", bad:"The pawn captures diagonally. Take the dark pawn on d5."},
+  {t:"The rook", fen:"4k3/8/8/p7/8/8/8/R3K3 w - - 0 1", hand:[], mana:0, goal:"capture", show:["a5"],
+   body:["The rook moves in straight lines, any distance: forward, backward, left or right.", "It cannot jump over other pieces. It can capture the first enemy piece in its way."],
+   task:"Capture the dark pawn on a5 with your rook.",
+   ok:"Rooks are strong on open lines. A rook is worth about 5 pawns.", bad:"Slide the rook straight up to the dark pawn on a5."},
+  {t:"The bishop", fen:"4k3/8/8/8/8/p7/8/2B1K3 w - - 0 1", hand:[], mana:0, goal:"capture", show:["a3"],
+   body:["The bishop moves along diagonals, any distance. It always stays on squares of the same colour.", "It cannot jump over pieces either."],
+   task:"Capture the dark pawn on a3 with your bishop.",
+   ok:"A bishop is worth about 3 pawns. You start with two, one for each square colour.", bad:"Move the bishop along the diagonal to a3."},
+  {t:"The knight", fen:"4k3/8/8/8/8/8/PPP5/1N2K3 w - - 0 1", hand:[], mana:0, goal:"to:c3", show:["c3"],
+   body:["The knight moves in an L: two squares one way, then one square to the side.", "It is the only piece that jumps over others."],
+   task:"Jump the knight to c3, over your own pawns.",
+   ok:"Knights are at their best in crowded positions. A knight is worth about 3 pawns, like a bishop.", bad:"The knight has a few squares. This time pick the glowing one, c3."},
+  {t:"The queen", fen:"4k3/8/8/7p/8/8/8/3QK3 w - - 0 1", hand:[], mana:0, goal:"capture", show:["h5"],
+   body:["The queen is your strongest piece. She moves like a rook and a bishop together, any distance.", "She is worth about 9 pawns, so keep her safe."],
+   task:"Capture the dark pawn on h5 with your queen.",
+   ok:"The queen can go almost anywhere, so she is often the piece that finishes the game.", bad:"Use the diagonal from d1 up to the dark pawn on h5."},
+  {t:"The king and check", fen:"4k3/8/8/8/8/8/8/r3K3 w - - 0 1", hand:[], mana:0, goal:"move", show:[],
+   body:["The king moves one square in any direction. If you lose your king, you lose the game, so the rules protect it.", "When an enemy piece attacks your king, that is called check. On your move you must get out of check: move the king, block, or capture the attacker.", "Your king is in check right now from the dark rook."],
+   task:"Move your king out of check.",
+   ok:"Check is not the end. If you cannot escape it, that is checkmate, and you lose.", bad:"Move the king off the rook's line."},
+  {t:"Checkmate", fen:"6k1/5ppp/8/8/8/8/8/R6K w - - 0 1", hand:[], mana:0, goal:"mate", show:["a8"],
+   body:["Checkmate means the king is in check and has no escape. The game ends and the side that delivered it wins.", "The dark king is stuck behind its own pawns. One rook move gives check, and there is no way out."],
+   task:"Move your rook to a8 for checkmate.",
+   ok:"That is a back rank checkmate, one of the most common ways games end.", bad:"That was not checkmate. The rook goes to a8, the top left corner."},
+  {t:"Mana and cards", fen:"4k3/8/8/8/8/8/4P3/4K3 w - - 0 1", hand:[14], mana:2, goal:"card", show:[],
+   body:["In this game you also hold cards. A card is a one-time power: an extra step, a freeze, a capture and more.", "Each card costs mana, shown as gold diamonds under your name. You get 2 mana at the start of every turn. Mana you do not spend is kept, up to 5.", "Tap a card to read it, or press and hold it to see it large."],
+   task:"Drag the Reveal card up onto the board. It costs 1 mana.",
+   ok:"Reveal shows the opponent's hand. You always drag a card onto the board to play it, so you never play one by accident.", bad:"Drag the card from your hand up onto the board."},
+  {t:"Cards with a target", fen:"4k3/p7/8/4p3/8/8/8/4K3 w - - 0 1", hand:[17], mana:2, goal:"card", show:[],
+   body:["Some cards need a target. Ambush destroys an enemy pawn.", "Drag it onto the board, tap the pawn you want gone, then confirm. Mana is only spent when you confirm."],
+   task:"Play Ambush (2 mana) on any dark pawn.",
+   ok:"You draw one new card at the start of each turn, and you can hold at most 7.", bad:"Drag Ambush onto the board, tap a dark pawn, then confirm."},
+  {t:"Cards, then a move", fen:"6k1/5ppp/3P4/8/8/8/8/7K w - - 0 1", hand:[1], mana:1, goal:"mate", show:["d6"],
+   body:["Each turn you may play cards and then make one chess move. Cards played first can change what the move can do.", "Pawn Rush lets a pawn advance two squares. Your pawn on d6 can reach d8, and a pawn that reaches the last row becomes a queen."],
+   task:"Play Pawn Rush on the d6 pawn, then move it to d8 for checkmate.",
+   ok:"Cards first, then your move: that is the rhythm of every turn. Lessons complete! Next come 17 one-turn puzzles. For your first real game, open New game and pick Beginner.", bad:"Play Pawn Rush on the d6 pawn first, then move that pawn to d8."}
+];
+const lessonsDone = () => { try { return Math.min(LESSONS.length, +(localStorage.getItem("ctg_lessons") || 0)); } catch(e) { return 0; } };
+const lessonSet = n => { try { localStorage.setItem("ctg_lessons", String(Math.max(lessonsDone(), n))); } catch(e) {} };
+let lessonIdx = lessonsDone();
+const inLesson = () => !!(S && S.puzzle && S.puzzle.lesson);
+const sqIdx = name => (name.charCodeAt(1) - 49) * 8 + (name.charCodeAt(0) - 97);
+function openLessonDlg(){
+  const L = LESSONS[lessonIdx]; if (!L) return;
+  $("lsStep").textContent = "Lesson " + (lessonIdx + 1) + " of " + LESSONS.length;
+  $("lsTitle").textContent = L.t;
+  $("lsBody").innerHTML = L.body.map(x => "<p style='margin:0 0 8px'>" + esc(x) + "</p>").join("");
+  $("lsTask").textContent = L.task;
+  show("lessonDlg");
+}
+$("lsGo").onclick = () => hide("lessonDlg");
+$("lsSkip").onclick = () => { lessonSet(LESSONS.length); lessonIdx = LESSONS.length; hide("lessonDlg"); startGame(); };
+
 /* Learn mode: 17 one-move puzzles, one per board card; progress in localStorage "ctg_learn" */
 const learnDone = () => { try { return JSON.parse(localStorage.getItem("ctg_learn") || "{}").done || []; } catch(e) { return []; } };
 let learn = false, learnId = (() => { const d = learnDone(); for (let i = 1; i <= 17; i++) if (!d.includes(i)) return i; return 1; })();   // start at the first puzzle not solved yet
@@ -1100,7 +1176,8 @@ const pzSolved = () => !!(S && S.puzzle && S.over && S.result === "white");
 const pzFailed = () => !!(S && S.puzzle && !pzSolved() && (S.over || S.plies > 0));
 async function startGame(){
   setBusy(true, "Starting...");
-  let r; try { r = await api("/api/new", learn ? {mode:"ai", colour:"white", ai:"easy", puzzle:learnId} : Object.assign({}, cfg, {cards_after: SET.cardsAfter})); } catch(e) { setBusy(false); toast("Cannot reach the server."); return; }
+  const les = learn && lessonIdx < LESSONS.length ? LESSONS[lessonIdx] : null;
+  let r; try { r = await api("/api/new", les ? {mode:"ai", colour:"white", ai:"beginner", lesson:{fen:les.fen, hand:les.hand, mana:les.mana, goal:les.goal}} : learn ? {mode:"ai", colour:"white", ai:"easy", puzzle:learnId} : Object.assign({}, cfg, {cards_after: SET.cardsAfter})); } catch(e) { setBusy(false); toast("Cannot reach the server."); return; }
   setBusy(false);
   if (!r.json || !r.json.ok) { toast((r.json && r.json.error) || "Could not start."); return; }
   ["menu","overDlg"].forEach(hide);
@@ -1114,15 +1191,20 @@ async function startGame(){
     else { localStorage.setItem("ctg_game", S.game); localStorage.setItem("ctg_cards_" + S.game, String(gameCardsPlayed)); }
   } catch(e) {}
   render();
+  if (les){ hintSquares.clear(); les.show.forEach(n => hintSquares.add(sqIdx(n))); render(); openLessonDlg(); }
   replayAI(r.json.events || [], null);
 }
 $("startBtn").onclick = () => {
   learn = cfg.mode === "learn";
+  if (learn) lessonIdx = lessonsDone();
   if (learn) { const d = learnDone(); learnId = Array.from({length: 17}, (_, i) => i + 1).find(i => !d.includes(i)) || 1; }
   startGame();
 };
+/* first visit (no lessons done, no saved game): the menu opens on Learn so a newcomer lands in the lessons */
+try { if (!localStorage.getItem("ctg_lessons") && !localStorage.getItem("ctg_game") && !localStorage.getItem("ctg_stats")) { const b = document.querySelector('.seg[data-k="mode"] button[data-v="learn"]'); if (b) b.click(); } } catch(e) {}
 $("againBtn").onclick = () => {
-  if (learn && S && S.puzzle && pzSolved()) learnId = S.puzzle.id % S.puzzle.total + 1;
+  if (learn && inLesson() && pzSolved()){ lessonIdx++; lessonSet(lessonIdx); }
+  else if (learn && S && S.puzzle && !S.puzzle.lesson && pzSolved()) learnId = S.puzzle.id % S.puzzle.total + 1;
   startGame();
 };
 $("newBtn").onclick = () => { updateStatsUI(); $("menuClose").classList.toggle("hidden", !S); show("menu"); };
@@ -1938,7 +2020,7 @@ function renderBars(){
   const side = c => '<span class="dot ' + (c ? "b" : "w") + '"></span>';
   const counts = c => ' <span>Hand ' + S.hand_sizes[c] + '</span><span>Draw ' + S.deck_sizes[c] + '</span><span class="dc">Discard ' + S.discard_sizes[c] + '</span>' + capHtml(c);
   $("selfbar").innerHTML = side(v) + '<b>' + (S.mode === "ai" ? "You" : nm[v]) + '<span class="pn"> (' + nm[v] + ')</span></b>' + counts(v) + '<span class="mana" id="manaSelf" role="meter" aria-label="Mana" aria-valuemin="0" aria-valuemax="' + (S.mana_max === null ? 0 : Math.max(5, S.mana_max)) + '" aria-valuenow="' + (S.mana === null ? 0 : S.mana) + '">' + manaHtml() + '</span>';
-  if (S.puzzle) $("oppbar").innerHTML = "<b>Puzzle " + S.puzzle.id + " of " + S.puzzle.total + "</b> <span>" + esc(S.puzzle.card) + "</span><span style='flex-basis:100%;font-size:11.5px;line-height:1.25;white-space:normal'>" + esc(S.puzzle.hint) + "</span>"; else
+  if (inLesson()) $("oppbar").innerHTML = "<b>Lesson " + (lessonIdx + 1) + " of " + LESSONS.length + "</b> <span>" + esc(LESSONS[lessonIdx].t) + "</span>"; else if (S.puzzle) $("oppbar").innerHTML = "<b>Puzzle " + S.puzzle.id + " of " + S.puzzle.total + "</b> <span>" + esc(S.puzzle.card) + "</span><span style='flex-basis:100%;font-size:11.5px;line-height:1.25;white-space:normal'>" + esc(S.puzzle.hint) + "</span>"; else
   $("oppbar").innerHTML = side(o) + '<b>' + (S.mode === "ai" ? "Opponent" : nm[o]) + '<span class="pn"> (' + nm[o] + ')</span></b>' + counts(o);
   $("manaBox").innerHTML = manaHtml() || '<span class="small">Mana hidden.</span>';
   manaFx();
@@ -1967,6 +2049,11 @@ function renderStatus(){
 }
 function renderStatus0(){
   const b = $("status"); b.className = "";
+  if (inLesson() && !S.over){
+    b.classList.add("mine"); b.style.whiteSpace = "normal";
+    b.textContent = S.post_move ? "Moved." : LESSONS[lessonIdx].task;
+    return;
+  }
   if (S.puzzle && !hintStatusText){
     b.classList.add("mine");
     b.textContent = pzSolved() ? "Solved!" : pzFailed() ? "Not the mate. Retry from the dialog." : "Play the card, then the move.";
@@ -2046,6 +2133,7 @@ function renderControls(){
   if (UI.moves.length && moveState().complete) add("Done", () => send({kind:"move", moves:UI.moves}), "primary");
   if (S.can_accept_no_moves) add("No legal move: accept result", () => send({kind:"end"}));
   if (S.post_move) { add("End turn", () => { resetSel(); send({kind:"endturn"}); }, "primary"); return; }
+  if (inLesson()) add("Lesson", openLessonDlg); else
   add("Hint", requestHint, hintUsedThisTurn ? "disabled" : "", hintUsedThisTurn);
 }
 const GLABEL = {move:"Movement", ctrl:"Control", info:"Intel", rem:"Removal", rec:"Resource"};
@@ -2335,6 +2423,18 @@ function renderOverlays(){
     $("coverBtn").textContent = "I am " + S.to_move_name + ": show my hand";
   } else hide("cover");
   hide("discardDlg");
+  if (inLesson()) {
+    if ((pzSolved() || pzFailed()) && overShown !== S.game) {
+      overShown = S.game; const ok = pzSolved(), L = LESSONS[lessonIdx];
+      $("overArt").innerHTML = "";
+      $("overTitle").textContent = ok ? "Well done" : "Not quite";
+      $("overSub").textContent = ok ? L.ok : L.bad;
+      $("overStats").textContent = "Lesson " + (lessonIdx + 1) + " of " + LESSONS.length;
+      $("againBtn").textContent = ok ? (lessonIdx + 1 < LESSONS.length ? "Next lesson" : "Finish") : "Try again";
+      setTimeout(() => { if (S && S.puzzle) show("overDlg"); }, SET.anim ? 600 : 0);
+    }
+    return;
+  }
   if (S.puzzle) {
     if ((pzSolved() || pzFailed()) && overShown !== S.game) {
       overShown = S.game; const ok = pzSolved(); if (ok) learnMark(S.puzzle.id);
@@ -2372,7 +2472,7 @@ function renderOverlays(){
         }
         curStats = recordResult(curStats, {
           result: res,
-          level: S.ai_level === "easy" || S.ai_level === "casual" ? "easy" : "normal",
+          level: S.ai_level === "beginner" || S.ai_level === "easy" || S.ai_level === "casual" ? "easy" : "normal",
           deck: S.deck === "starter" ? "starter" : "full",
           plies: S.plies || 0,
           cardsPlayed: gameCardsPlayed,

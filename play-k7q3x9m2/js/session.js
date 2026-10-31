@@ -661,6 +661,29 @@ export class CasualPolicy extends TimedSearch {
   }
 }
 
+/** For people who have never played: mostly random moves, a free piece is taken about a third of the time, and the only cards played are harmless ones. */
+export class BeginnerPolicy extends RandomPolicy {
+           name         = "beginner";
+
+           playCards(g      )       {
+    if (this.rng.random() >= 0.12) return;
+    const ids = g.affordableCards().filter((id) => id === 14 || id === 20 || id === 21);
+    if (!ids.length) return;
+    const cid = this.rng.choice(ids);
+    const opts = g.cardOptions(cid);
+    if (opts.length) g.playCard(cid, this.rng.choice(opts));
+  }
+
+           chooseAction(g      , actions          )         {
+    if (!actions.length) return [];
+    if (this.rng.random() < 0.3) {
+      const caps = actions.filter((a) => a.length > 0 && g.pos.board[a[0][1]] !== 0);
+      if (caps.length) return this.rng.choice(caps);
+    }
+    return this.rng.choice(actions);
+  }
+}
+
 export class EasyPolicy extends SearchPolicy {
            name         = "easy";
   errorRate        ;
@@ -899,7 +922,7 @@ export class Session {
   id        ;
   mode                             ;
   human               ;
-  ai_level                              ;
+  ai_level                                           ;
   deck_name                    ;
   seed        ;
   g      ;
@@ -911,20 +934,23 @@ export class Session {
   pending_discard         ;
   cards_after         ;
   ai_rng             ;
-  policy                                         ;
+  policy                                                          ;
   last_ai_seconds        ;
   puzzle                = null;
   puzzle_data                = null;
   puzzle_solved                 = null;
+  lessonGoal                = null;
+  lessonPieces = 0;
 
   constructor(
     mode                             ,
     human               ,
-    ai_level                              ,
+    ai_level                                           ,
     seed        ,
     deck                     = "full",
     puzzle                = null,
-    cardsAfter          = false
+    cardsAfter          = false,
+    lesson                                                                     = null
   ) {
     // crypto.randomUUID exists only in secure contexts (https or localhost); a phone opening http://<mac-ip> needs the fallback.
     this.id = Array.from(crypto.getRandomValues(new Uint8Array(6)), b => b.toString(16).padStart(2, "0")).join("");
@@ -933,7 +959,10 @@ export class Session {
     this.ai_level = ai_level;
     this.deck_name = deck;
     this.seed = seed;
-    const pz = puzzle !== null ? PUZZLES.find(p => p.id === puzzle) : undefined;
+    const pz                     = lesson
+      ? { id: 0, card: "Lesson", fen: lesson.fen, hand: lesson.hand, mana: lesson.mana, goal: lesson.goal, solution: { action: [] }, hint: "" }
+      : puzzle !== null ? PUZZLES.find(p => p.id === puzzle) : undefined;
+    this.lessonGoal = lesson ? lesson.goal : null;
     this.puzzle = pz ? pz.id : null;
     this.puzzle_data = pz || null;
     this.puzzle_solved = null;
@@ -949,6 +978,7 @@ export class Session {
       });
       this.mana_max = [pz.mana, 0];
       this.g.mana = [pz.mana, 0];
+      this.lessonPieces = this._countPieces();
     } else {
       this.g = new Game({
         seed,
@@ -971,6 +1001,8 @@ export class Session {
         ? new TimedSearch(newRng((seed ^ 0x1234567) >>> 0))
         : ai_level === "casual"
         ? new CasualPolicy(newRng((seed ^ 0x2468ace) >>> 0))
+        : ai_level === "beginner"
+        ? new BeginnerPolicy(newRng((seed ^ 0x1357bdf) >>> 0))
         : new EasyPolicy(newRng((seed ^ 0x7654321) >>> 0));
     this.last_ai_seconds = 0.0;
 
@@ -1111,8 +1143,33 @@ export class Session {
     this.logExport(c, `has no legal move (${g.termination})`);
   }
 
+  _countPieces()         {
+    let n = 0;
+    for (const p of this.g.pos.board) if (p) n++;
+    return n;
+  }
+
+  /** Did the move just made reach the goal of the current lesson step? */
+  _lessonMet()          {
+    const goal = this.lessonGoal || "";
+    if (goal === "move") return true;
+    if (goal.startsWith("to:")) {
+      const sq = (goal.charCodeAt(4) - 49) * 8 + (goal.charCodeAt(3) - 97);
+      return this.last_move.length > 0 && this.last_move[this.last_move.length - 1] === sq;
+    }
+    if (goal === "capture") return this._countPieces() < this.lessonPieces;
+    if (goal === "check") return this.g.inCheck(BLACK);
+    return false;
+  }
+
   _finishTurn()       {
     const g = this.g;
+    if (this.lessonGoal && this.lessonGoal !== "mate" && g.result === null) {
+      const ok = this._lessonMet();
+      g.finish(ok ? "white" : "black", ok ? "lesson" : "lesson_fail");
+      this.cover = false;
+      return;
+    }
     g.endTurn();
     if (g.result === null && g.plies >= MAX_PLIES) {
       g.finish("draw", "max_plies");
@@ -1150,7 +1207,7 @@ export class Session {
     const t0 = Date.now();
     const deadline = t0 + AI_TIME_CAP * 1000;
     const c = g.toMove;
-    if (this.ai_level !== "easy") {
+    if (this.ai_level !== "easy" && this.ai_level !== "beginner") {
       (this.policy               ).playCardsTimed(g, deadline);
     } else {
       this.policy.playCards(g);
@@ -1348,7 +1405,7 @@ export class Session {
       actions,
       ai_level: this.ai_level,
       deck: this.deck_name,
-      ...(this.puzzle != null ? { puzzle: (() => { const p = PUZZLES.find(q => q.id === this.puzzle) ; return { id: p.id, total: PUZZLES.length, card: p.card, hint: p.hint }; })() } : {}),
+      ...(this.puzzle != null ? { puzzle: (() => { const p = this.puzzle_data ; return { id: p.id, total: PUZZLES.length, card: p.card, hint: p.hint, ...(this.lessonGoal ? { lesson: true } : {}) }; })() } : {}),
       board,
       can_accept_no_moves: Boolean(cards_phase && !post_move && actions.length === 0),
       ...(post_move ? { post_move: true } : {}),
@@ -1503,6 +1560,10 @@ export class Session {
     }
     if (!g.playCard(cid, p)) {
       throw new Reject("That card cannot be played.");
+    }
+    if (this.lessonGoal === "card") {
+      g.finish("white", "lesson");
+      return;
     }
     if (g.phase === "moved") {
       if (g.result === null && !this._hasCardPlay()) {
@@ -1835,6 +1896,8 @@ export class Session {
         ? new TimedSearch(polRng)
         : s.ai_level === "casual"
         ? new CasualPolicy(polRng)
+        : s.ai_level === "beginner"
+        ? new BeginnerPolicy(polRng)
         : new EasyPolicy(polRng);
 
     s._wrapPlayCard();
@@ -1887,7 +1950,7 @@ export function newSession(body                      = {})          {
     throw new Reject("Bad colour.");
   }
   const ai = body.ai !== undefined ? body.ai : "normal";
-  if (ai !== "easy" && ai !== "casual" && ai !== "normal") {
+  if (ai !== "beginner" && ai !== "easy" && ai !== "casual" && ai !== "normal") {
     throw new Reject("Bad AI strength.");
   }
   let seed = body.seed;
@@ -1910,12 +1973,25 @@ export function newSession(body                      = {})          {
   if (deck !== "starter" && deck !== "full") {
     throw new Reject("Bad deck.");
   }
+  let lesson                                                                     = null;
+  if (body.lesson !== undefined) {
+    const l = body.lesson;
+    if (
+      !l || typeof l.fen !== "string" || l.fen.length > 100 ||
+      !Array.isArray(l.hand) || l.hand.length > 7 || l.hand.some((c     ) => !Number.isInteger(c) || !CARDS[c]) ||
+      !Number.isInteger(l.mana) || l.mana < 0 || l.mana > 9 ||
+      typeof l.goal !== "string" || !/^(move|capture|check|card|mate|to:[a-h][1-8])$/.test(l.goal)
+    ) {
+      throw new Reject("Bad lesson.");
+    }
+    lesson = { fen: l.fen, hand: l.hand.slice(), mana: l.mana, goal: l.goal };
+  }
   let puzzle                = null;
   if (body.puzzle !== undefined) {
     if (!PUZZLES.some(p => p.id === body.puzzle)) throw new Reject("Bad puzzle.");
     puzzle = body.puzzle;
   }
-  const s = puzzle !== null ? new Session("puzzle", WHITE, "easy", seed, "full", puzzle) : new Session(mode, human, ai, seed, deck, null, body.cards_after === true);
+  const s = lesson ? new Session("puzzle", WHITE, "easy", seed, "full", null, false, lesson) : puzzle !== null ? new Session("puzzle", WHITE, "easy", seed, "full", puzzle) : new Session(mode, human, ai, seed, deck, null, body.cards_after === true);
   SESSIONS.set(s.id, s);
   while (SESSIONS.size > MAX_SESSIONS) {
     const firstKey = SESSIONS.keys().next().value;
