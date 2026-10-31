@@ -184,7 +184,8 @@ body.noanim .chkBanner{animation:none;opacity:1}
 body.view-tilt{--tilt:26deg;--up:-26deg}
 body.view-tilt #boardWrap{perspective:calc(var(--bs) * 2.5);perspective-origin:50% 140%;height:var(--wh, calc(var(--bs)*.8));margin:calc(var(--bs) * .085) auto 14px}
 @supports (-webkit-touch-callout:none){ body.view-tilt #board .pc{filter:none;will-change:transform} }
-body.view-tilt #board{position:absolute;left:0;bottom:0;width:var(--bs);height:var(--bs);box-shadow:0 0 0 2px var(--gold),0 8px 0 2px #2a1d07,0 14px 0 2px #120d03,0 30px 40px rgba(0,0,0,.7)}
+body.view-tilt #board .pc{height:auto;aspect-ratio:1;align-self:flex-end}
+body.view-tilt #board{position:absolute;left:0;bottom:0;width:var(--bs);height:calc(var(--bs) * var(--rat, 1));box-shadow:0 0 0 2px var(--gold),0 8px 0 2px #2a1d07,0 14px 0 2px #120d03,0 30px 40px rgba(0,0,0,.7)}
 #boardWrap{position:relative;width:var(--bs);height:var(--bs);margin:4px auto 14px}
 #board{width:100%;height:100%;display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);
   border:3px solid #08090b;border-radius:6px;box-shadow:0 0 0 2px var(--gold),0 5px 0 2px #2a1d07,0 9px 0 2px #120d03,0 22px 34px rgba(0,0,0,.6);user-select:none;-webkit-user-select:none;touch-action:none;position:relative;
@@ -396,7 +397,7 @@ body.pieces-mesh #board{border-color:#566b91 #475a80 #3a4a68 #475a80;z-index:1}
   #game{gap:4px}
   #boardCol{display:flex;flex-direction:column;flex:0 0 auto;justify-content:flex-start}
   /* the room a tall phone leaves between board and cards shows what just happened */
-  #feed{display:flex;flex-direction:column;justify-content:flex-end;flex:1 1 auto;min-height:0;overflow:hidden;padding:0 14px 4px;font-size:13px;line-height:1.4;color:var(--mute);-webkit-mask-image:linear-gradient(transparent,#000 45%);mask-image:linear-gradient(transparent,#000 45%)}
+  #feed{display:none;flex-direction:column;justify-content:flex-end;flex:1 1 auto;min-height:0;overflow:hidden;padding:0 14px 4px;font-size:13px;line-height:1.4;color:var(--mute);-webkit-mask-image:linear-gradient(transparent,#000 45%);mask-image:linear-gradient(transparent,#000 45%)}
   #feed.tipmode{justify-content:flex-start;-webkit-mask-image:linear-gradient(#000 72%,transparent);mask-image:linear-gradient(#000 72%,transparent)}
   #feed .tip{margin:0 0 8px;padding:9px 12px;border:1px dashed #9a7430;border-radius:12px;background:rgba(255,226,154,.06);color:#e9e2c8;font-size:13px}
   #feed .tip b{display:block;color:#ffe29a;margin-bottom:3px} #feed .tip ol{margin:0;padding-left:18px} #feed .tip span{display:block;margin-top:4px;color:#b9b3a0;font-size:12px}
@@ -750,7 +751,7 @@ body.pieces-solid .pc.b, body.pieces-solid #promoBtns.blk svg {
     <label class="l">Pieces</label>
     <div class="seg" id="segPieces"><button data-v="flat" class="on">Flat</button><button data-v="toy">Toy</button><button data-v="3d">Glossy</button><button data-v="solid">Solid</button></div>
     </details>
-    <div style="margin-top:10px;font-size:11px;color:var(--mute)">Build v86</div>
+    <div style="margin-top:10px;font-size:11px;color:var(--mute)">Build v88</div>
     <div class="row" style="margin-top:16px"><button class="btn" id="setCopyBtn" style="flex:1">Copy game</button><button class="btn primary" data-close="setDlg">Done</button></div>
   </div>
 </div>
@@ -1992,7 +1993,20 @@ function fitBoard(){
     root.style.setProperty("--bs", bs + "px");
   }
   tightWrap();
-  // a tall phone has room to spare: grow the cards into it (never so wide that the hand stops fitting)
+  // a tall phone has room to spare: first lay the board flatter (tilt 26 to 12 degrees), then make its squares a little taller than wide (up to 1.22), then grow the cards
+  { const wrapEl = document.getElementById("boardWrap") || board, trayEl = document.getElementById("tray"), bodyEl = document.body;
+    let tilt = parseFloat(bodyEl.style.getPropertyValue("--tilt")) || 26, rat = parseFloat(root.style.getPropertyValue("--rat")) || 1;
+    for (let k = 0; k < 6; k++){
+      tightWrap();
+      const err = vh - (wrapEl.getBoundingClientRect().bottom + window.scrollY + trayEl.offsetHeight + 24) - 30;
+      if (Math.abs(err) < 6) break;
+      if (err > 0){ if (tilt > 12) tilt = Math.max(12, tilt - err / 9); else rat = Math.min(1.22, rat + err / (bs * .6)); }
+      else { if (rat > 1) rat = Math.max(1, rat + err / (bs * .6)); else tilt = Math.min(26, tilt - err / 9); }
+      bodyEl.style.setProperty("--tilt", tilt.toFixed(1) + "deg"); bodyEl.style.setProperty("--up", (-tilt).toFixed(1) + "deg");
+      root.style.setProperty("--rat", rat.toFixed(3));
+    }
+    tightWrap(); }
+  // grow the cards into what is left (never so wide that the hand stops fitting)
   const tray = document.getElementById("tray"), hand = document.getElementById("hand");
   if (tray && hand && S && S.hand && S.hand.length){
     const cur = parseFloat(getComputedStyle(hand).getPropertyValue("--cw")) || 84;
@@ -2004,12 +2018,13 @@ function fitBoard(){
     if (Math.abs(target - cur) > 1) root.style.setProperty("--hcw", target + "px");
   }
 }
-const queueFit = () => { if (!fitQueued){ fitQueued = true; requestAnimationFrame(fitBoard); } };
+const queueFit = () => { if (!fitQueued){ fitQueued = true; requestAnimationFrame(fitBoard); setTimeout(() => { if (fitQueued) fitBoard(); }, 150); } };   // the timer covers a background page, where animation frames pause
 window.addEventListener("resize", queueFit); window.addEventListener("orientationchange", queueFit);
 if (window.visualViewport) window.visualViewport.addEventListener("resize", queueFit);
 if (window.ResizeObserver) new ResizeObserver(queueFit).observe(document.getElementById("tray"));
+let refitT = 0;
 function render(){
-  queueFit();
+  queueFit(); clearTimeout(refitT); refitT = setTimeout(queueFit, 450);
   if (S && S.status !== "discard") discardPick = null;
   document.body.classList.toggle("puzzle", !!(S && S.puzzle));
   if (!S) return;
@@ -2499,8 +2514,7 @@ function renderSide(){
       '<span class="e" title="' + esc(CARDS[id].text) + '">' + esc(CARDS[id].name) + ' (' + CARDS[id].cost + ')</span>').join("") :
       '<span class="small">Empty.</span>');
   } else op.classList.add("hidden");
-  const tip = (!S.puzzle && S.mode === "ai" && (S.plies || 0) < 8)
-    ? '<div class="tip"><b>How a turn goes</b><ol><li>Play a card by dragging it onto the board (optional).</li><li>Move one piece: tap it, then tap a dot.</li><li>Spend spare mana on more cards, then press End turn.</li></ol><span>Tap a card to read it. Hold it to see it large.</span></div>' : "";
+  const tip = "";
   $("feed").classList.toggle("tipmode", !!tip);
   $("feed").innerHTML = tip + S.log.slice(-10).map(x => '<div class="w' + x.who + '">' + esc(x.text) + '</div>').join("");
   $("log").innerHTML = S.log.slice().reverse().map(x => '<div class="w' + x.who + (flashNs.has(x.n) ? ' fl' : '') + '">' + esc(x.text) + '</div>').join("") || '<span class="small">No events yet.</span>';
