@@ -68,7 +68,7 @@ header h1 b{color:var(--gold)}
 }
 @media (max-width:899px){
   #logPanel,#effects,#aiBanner{display:none!important}
-  header{padding:0 8px;gap:6px}
+  header{padding:env(safe-area-inset-top, 0px) max(8px, env(safe-area-inset-right, 0px)) 0 max(8px, env(safe-area-inset-left, 0px));gap:6px}
   header h1{white-space:normal;overflow:visible;text-overflow:clip;font-size:15px;line-height:1.08;letter-spacing:0}
   header .btn.sm{padding:5px 8px;min-height:34px}
   #handhint{display:none}
@@ -94,7 +94,7 @@ header h1 b{color:var(--gold)}
   header .btn{padding:7px 9px}
   #preview{position:fixed;left:0;right:0;bottom:0;z-index:45;border-radius:16px 16px 0 0;margin:0;box-shadow:0 -10px 30px rgba(0,0,0,.6);padding-bottom:calc(14px + env(safe-area-inset-bottom));display:none}
   #preview.show{display:block}
-  #game{min-height:calc(100vh - var(--top))}
+  #game{min-height:calc(100vh - var(--top) - env(safe-area-inset-top, 0px))}
 }
 
 /* ---- bars, mana ---- */
@@ -182,9 +182,8 @@ body.noanim .pip.spent,body.noanim .pip.gain,body.noanim #status.turnpulse{anima
 body.noanim .chkBanner{animation:none;opacity:1}
 /* ---- board ---- */
 body.view-tilt{--tilt:26deg;--up:-26deg}
-body.view-tilt{--hr:calc(var(--bs) * .16)}
-body.view-tilt #boardWrap{perspective:calc(var(--bs) * 2.5);perspective-origin:50% 140%;height:calc(var(--wh, calc(var(--bs)*.8)) + var(--hr));margin:calc(var(--bs) * .085 - var(--hr)) auto 14px;pointer-events:none}
-body.view-tilt #board{pointer-events:auto}
+body.view-tilt #boardWrap{perspective:calc(var(--bs) * 2.5);perspective-origin:50% 140%;height:var(--wh, calc(var(--bs)*.8));margin:calc(var(--bs) * .085) auto 14px}
+@supports (-webkit-touch-callout:none){ body.view-tilt #board .pc{filter:none;will-change:transform} }
 body.view-tilt #board{position:absolute;left:0;bottom:0;width:var(--bs);height:var(--bs);box-shadow:0 0 0 2px var(--gold),0 8px 0 2px #2a1d07,0 14px 0 2px #120d03,0 30px 40px rgba(0,0,0,.7)}
 #boardWrap{position:relative;width:var(--bs);height:var(--bs);margin:4px auto 14px}
 #board{width:100%;height:100%;display:grid;grid-template-columns:repeat(8,1fr);grid-template-rows:repeat(8,1fr);
@@ -387,7 +386,7 @@ body.pieces-mesh #board{border-color:#566b91 #475a80 #3a4a68 #475a80;z-index:1}
   :root{--top:50px}
   header .logo{height:42px}
   header .btn.sm{min-height:36px;width:36px}
-  #boardWrap{margin-top:calc(var(--bs) * .06 - var(--hr, 0px))!important;margin-bottom:6px!important}
+  #boardWrap{margin-top:calc(var(--bs) * .06)!important;margin-bottom:6px!important}
   #tray{clip-path:inset(-400px -20px 0 -20px);padding-top:4px;gap:3px 6px;margin-top:auto}
   #tray #hand{padding:18px 18px 0;height:calc(var(--cw) * 1.4 + 6px - var(--cw) * .08)}
   #tray #controls button{min-height:38px;padding:4px 10px}
@@ -395,7 +394,7 @@ body.pieces-mesh #board{border-color:#566b91 #475a80 #3a4a68 #475a80;z-index:1}
   #tray #selfbar{min-height:20px}
   #oppbar{min-height:20px}
   #game{gap:4px}
-  #boardCol{display:flex;flex-direction:column;flex:1 1 auto;justify-content:center}
+  #boardCol{display:flex;flex-direction:column;flex:0 0 auto;justify-content:flex-start}
 }
 /* ---- dialogs in the same gold-and-navy look ---- */
 .dlg{background:linear-gradient(180deg,#252d49,#141829);border:2px solid #c99a3a;border-radius:18px;box-shadow:0 0 0 2px #4a3410,inset 0 0 0 1px rgba(255,255,255,.08),inset 0 0 40px rgba(0,0,0,.45),0 24px 70px rgba(0,0,0,.7);color:#f1e7cc}
@@ -663,6 +662,7 @@ body.pieces-solid .pc.b, body.pieces-solid #promoBtns.blk svg {
     <div class="seg" data-k="deck"><button data-v="starter">Lighter (16)</button><button data-v="full" class="on">All 24</button></div>
     <p class="small">Both players start with 4 cards and hold at most 7. You draw 1 card per turn and gain 2 mana per turn on top of what you saved (up to 5). Play cards before or after your chess move; after the move, End turn finishes it (Settings can switch this off).</p>
     <div class="row"><button class="btn primary" id="startBtn" style="flex:1;justify-content:center">Start game</button><button class="btn hidden" id="menuClose">Back to game</button></div>
+    <div class="row" style="margin-top:8px"><button class="btn sm" id="replayLessons">Replay lessons</button></div>
   </div>
 </div>
 
@@ -726,7 +726,7 @@ body.pieces-solid .pc.b, body.pieces-solid #promoBtns.blk svg {
     <label class="l">Pieces</label>
     <div class="seg" id="segPieces"><button data-v="flat" class="on">Flat</button><button data-v="toy">Toy</button><button data-v="3d">Glossy</button><button data-v="solid">Solid</button></div>
     </details>
-    <div style="margin-top:10px;font-size:11px;color:var(--mute)">Build v81</div>
+    <div style="margin-top:10px;font-size:11px;color:var(--mute)">Build v82</div>
     <div class="row" style="margin-top:16px"><button class="btn" id="setCopyBtn" style="flex:1">Copy game</button><button class="btn primary" data-close="setDlg">Done</button></div>
   </div>
 </div>
@@ -736,8 +736,8 @@ body.pieces-solid .pc.b, body.pieces-solid #promoBtns.blk svg {
   <div class="row"><button class="btn danger" id="resignYes">Resign</button><button class="btn" data-close="resignDlg">Keep playing</button></div></div>
 </div>
 
-<div class="overlay hidden" id="lessonDlg">
-  <div class="dlg" style="max-width:420px">
+<div class="overlay hidden" id="lessonDlg" style="background:rgba(6,7,9,.5);align-items:flex-end">
+  <div class="dlg" style="max-width:420px;max-height:72vh;overflow:auto">
     <div class="small" id="lsStep" style="letter-spacing:.1em;text-transform:uppercase;color:#cdbf98"></div>
     <h2 id="lsTitle" style="margin:4px 0 10px"></h2>
     <div id="lsBody" style="font-size:15px;line-height:1.45"></div>
@@ -1107,50 +1107,62 @@ document.querySelectorAll("#menu .seg").forEach(seg => {
 });
 /* Lessons: a guided start for people who have never played chess or a card game. They run before the 17 puzzles. */
 const LESSONS = [
-  {t:"Your first move", fen:"4k3/8/8/8/8/8/4P3/4K3 w - - 0 1", hand:[], mana:0, goal:"to:e4", show:["e4"],
-   body:["Chess is a duel on a board of 64 squares. You play the cream pieces at the bottom. Your opponent plays the dark pieces at the top.", "You take turns, one move each. To win, you trap the enemy King. That is called checkmate.", "Here only a King and a Pawn are left on each side, so you can learn the controls."],
-   task:"Tap your pawn, then tap the glowing square.",
-   ok:"That is how every move works: tap a piece, then tap a dot. A pawn may jump two squares on its first move, and one square after that.", bad:"Tap the pawn, then the glowing square two steps ahead."},
-  {t:"Pawns capture sideways", fen:"4k3/8/8/3p4/4P3/8/8/4K3 w - - 0 1", hand:[], mana:0, goal:"capture", show:["d5"],
-   body:["A pawn walks straight ahead and never backwards. But it captures one step diagonally forward.", "To capture, move onto an enemy piece. The captured piece leaves the board for good."],
-   task:"Capture the dark pawn on d5 with your pawn.",
-   ok:"Diagonal forward is the only way a pawn captures. It cannot capture a piece standing right in front of it.", bad:"The pawn captures diagonally. Take the dark pawn on d5."},
+  {t:"The board and your first move", fen:"4k3/8/8/8/8/8/4P3/4K3 w - - 0 1", hand:[], mana:0, goal:"to:e4", show:["e4"],
+   body:["Chess is played on a board of 64 squares. You are White, at the bottom. The computer is Black, at the top.", "You take turns. You move one piece, then the computer moves one. You win by trapping the enemy king.", "The small piece in front of your king is a pawn."],
+   task:"Tap your pawn. Then tap the glowing square.",
+   ok:"That is every move: tap a piece, then tap a dot. On its first move a pawn may go 1 or 2 squares. After that, only 1.", bad:"Tap the small piece in front of your king. Then tap the glowing square."},
+  {t:"Capture", fen:"4k3/8/8/3p4/4P3/8/8/4K3 w - - 0 1", hand:[], mana:0, goal:"capture", show:["d5"],
+   body:["To capture is to move onto an enemy piece. That piece leaves the board for good.", "A pawn moves straight ahead. But it captures one square diagonally forward."],
+   task:"Capture the black pawn with your pawn.",
+   ok:"Pawns capture on the diagonal only. A pawn cannot capture the piece right in front of it.", bad:"Pawns capture on the diagonal. Tap your pawn, then the black pawn."},
   {t:"The rook", fen:"4k3/8/8/p7/8/8/8/R3K3 w - - 0 1", hand:[], mana:0, goal:"capture", show:["a5"],
-   body:["The rook moves in straight lines, any distance: forward, backward, left or right.", "It cannot jump over other pieces. It can capture the first enemy piece in its way."],
-   task:"Capture the dark pawn on a5 with your rook.",
-   ok:"Rooks are strong on open lines. A rook is worth about 5 pawns.", bad:"Slide the rook straight up to the dark pawn on a5."},
+   body:["The rook looks like a tower. It moves in a straight line, any distance: up, down, left or right.", "It cannot jump over pieces."],
+   task:"Capture the black pawn with your rook.",
+   ok:"Rooks love open lines. A rook is worth about 5 pawns.", bad:"Slide the rook straight up to the black pawn."},
   {t:"The bishop", fen:"4k3/8/8/8/8/p7/8/2B1K3 w - - 0 1", hand:[], mana:0, goal:"capture", show:["a3"],
-   body:["The bishop moves along diagonals, any distance. It always stays on squares of the same colour.", "It cannot jump over pieces either."],
-   task:"Capture the dark pawn on a3 with your bishop.",
-   ok:"A bishop is worth about 3 pawns. You start with two, one for each square colour.", bad:"Move the bishop along the diagonal to a3."},
+   body:["The bishop has a pointed hat. It moves on diagonals, any distance, and always stays on one square colour.", "It cannot jump over pieces."],
+   task:"Capture the black pawn with your bishop.",
+   ok:"A bishop is worth about 3 pawns. You start with two, one for each colour.", bad:"Move the bishop along the diagonal to the black pawn."},
   {t:"The knight", fen:"4k3/8/8/8/8/8/PPP5/1N2K3 w - - 0 1", hand:[], mana:0, goal:"to:c3", show:["c3"],
-   body:["The knight moves in an L: two squares one way, then one square to the side.", "It is the only piece that jumps over others."],
-   task:"Jump the knight to c3, over your own pawns.",
-   ok:"Knights are at their best in crowded positions. A knight is worth about 3 pawns, like a bishop.", bad:"The knight has a few squares. This time pick the glowing one, c3."},
+   body:["The knight looks like a horse. It moves in an L: 2 squares one way, then 1 to the side.", "It is the only piece that jumps over others."],
+   task:"Jump the knight to the glowing square, over your pawns.",
+   ok:"A knight is worth about 3 pawns, like a bishop.", bad:"The knight has 3 squares here. Pick the glowing one."},
   {t:"The queen", fen:"4k3/8/8/7p/8/8/8/3QK3 w - - 0 1", hand:[], mana:0, goal:"capture", show:["h5"],
-   body:["The queen is your strongest piece. She moves like a rook and a bishop together, any distance.", "She is worth about 9 pawns, so keep her safe."],
-   task:"Capture the dark pawn on h5 with your queen.",
-   ok:"The queen can go almost anywhere, so she is often the piece that finishes the game.", bad:"Use the diagonal from d1 up to the dark pawn on h5."},
+   body:["The queen is your strongest piece. She moves like a rook and a bishop together.", "She is worth about 9 pawns, so keep her safe."],
+   task:"Capture the black pawn with your queen.",
+   ok:"The queen often finishes the game.", bad:"Follow the diagonal up and to the right, to the black pawn."},
   {t:"The king and check", fen:"4k3/8/8/8/8/8/8/r3K3 w - - 0 1", hand:[], mana:0, goal:"move", show:[],
-   body:["The king moves one square in any direction. If you lose your king, you lose the game, so the rules protect it.", "When an enemy piece attacks your king, that is called check. On your move you must get out of check: move the king, block, or capture the attacker.", "Your king is in check right now from the dark rook."],
-   task:"Move your king out of check.",
-   ok:"Check is not the end. If you cannot escape it, that is checkmate, and you lose.", bad:"Move the king off the rook's line."},
+   body:["The king moves 1 square in any direction.", "When a piece attacks a king, that king is in check. A king in check must escape on the next move.", "The black rook gives check to your king now."],
+   task:"Move your king off the rook's row.",
+   ok:"Safe. You can also escape check by capturing the attacker or by putting a piece in the way.", bad:"Your king is still on the rook's row. Step up, off that row."},
   {t:"Checkmate", fen:"6k1/5ppp/8/8/8/8/8/R6K w - - 0 1", hand:[], mana:0, goal:"mate", show:["a8"],
-   body:["Checkmate means the king is in check and has no escape. The game ends and the side that delivered it wins.", "The dark king is stuck behind its own pawns. One rook move gives check, and there is no way out."],
-   task:"Move your rook to a8 for checkmate.",
-   ok:"That is a back rank checkmate, one of the most common ways games end.", bad:"That was not checkmate. The rook goes to a8, the top left corner."},
+   body:["Checkmate: the king is in check and has no way out. The game ends and the player who gave it wins.", "Careful: if a player is not in check but has no legal move, the game is a draw. That is called stalemate.", "Here the black king is boxed in by its own pawns."],
+   task:"Move your rook to the glowing corner for checkmate.",
+   ok:"Checkmate! This one is called a back rank mate.", bad:"Not checkmate yet. Slide the rook all the way up to the glowing corner."},
+  {t:"Promotion", fen:"4k3/1P6/8/8/8/8/8/4K3 w - - 0 1", hand:[], mana:0, goal:"to:b8", show:["b8"],
+   body:["A pawn that reaches the far row turns into a stronger piece. This is called promotion.", "A window asks which piece you want. Almost always pick the queen."],
+   task:"Push your pawn to the last row. Then pick the queen.",
+   ok:"One pawn became a queen. Pushing a pawn to the end is a common way to win.", bad:"Move the pawn 1 square up to the glowing square."},
+  {t:"Castling", fen:"4k3/8/8/8/8/8/5PPP/4K2R w K - 0 1", hand:[], mana:0, goal:"to:g1", show:["g1"],
+   body:["Once per game your king can castle. The king moves 2 squares toward a rook, and the rook jumps to its other side.", "You can castle only if the king and that rook have never moved and nothing stands between them."],
+   task:"Tap your king. Then tap the glowing square 2 steps to the right.",
+   ok:"Your king now hides behind pawns, where it is safer. The computer may castle too.", bad:"Tap the king, then the glowing square 2 steps toward the rook."},
   {t:"Mana and cards", fen:"4k3/8/8/8/8/8/4P3/4K3 w - - 0 1", hand:[14], mana:2, goal:"card", show:[],
-   body:["In this game you also hold cards. A card is a one-time power: an extra step, a freeze, a capture and more.", "Each card costs mana, shown as gold diamonds under your name. You get 2 mana at the start of every turn. Mana you do not spend is kept, up to 5.", "Tap a card to read it, or press and hold it to see it large."],
-   task:"Drag the Reveal card up onto the board. It costs 1 mana.",
-   ok:"Reveal shows the opponent's hand. You always drag a card onto the board to play it, so you never play one by accident.", bad:"Drag the card from your hand up onto the board."},
+   body:["You also hold cards, below the board. Each card is a one-time power.", "A card costs mana. Its cost is the number in the gem on the card. Your mana is the gold diamonds under your name.", "You get 2 mana every turn. Mana you do not spend is saved, up to 5."],
+   task:"Tap the card to read it. Then drag it up onto the board.",
+   ok:"Reveal cost 1 mana. You can see the computer's cards until your next turn. A tap reads a card. A drag plays it.", bad:"Press on the card, slide your finger up onto the board, and let go."},
   {t:"Cards with a target", fen:"4k3/p7/8/4p3/8/8/8/4K3 w - - 0 1", hand:[17], mana:2, goal:"card", show:[],
-   body:["Some cards need a target. Ambush destroys an enemy pawn.", "Drag it onto the board, tap the pawn you want gone, then confirm. Mana is only spent when you confirm."],
-   task:"Play Ambush (2 mana) on any dark pawn.",
-   ok:"You draw one new card at the start of each turn, and you can hold at most 7.", bad:"Drag Ambush onto the board, tap a dark pawn, then confirm."},
-  {t:"Cards, then a move", fen:"6k1/5ppp/3P4/8/8/8/8/7K w - - 0 1", hand:[1], mana:1, goal:"mate", show:["d6"],
-   body:["Each turn you may play cards and then make one chess move. Cards played first can change what the move can do.", "Pawn Rush lets a pawn advance two squares. Your pawn on d6 can reach d8, and a pawn that reaches the last row becomes a queen."],
-   task:"Play Pawn Rush on the d6 pawn, then move it to d8 for checkmate.",
-   ok:"Cards first, then your move: that is the rhythm of every turn. Lessons complete! Next come 17 one-turn puzzles. For your first real game, open New game and pick Beginner.", bad:"Play Pawn Rush on the d6 pawn first, then move that pawn to d8."}
+   body:["Some cards need a target. Ambush removes one enemy pawn.", "Drag the card onto the board. The pawns you can pick light up. Tap one, then press Confirm."],
+   task:"Play Ambush on a black pawn.",
+   ok:"Ambush cost 2. You had 2 mana, so now you have 0. Next turn you get 2 more.", bad:"Drag Ambush onto the board, tap a lit black pawn, then press Confirm."},
+  {t:"A card, then a move", fen:"6k1/5ppp/3P4/8/8/8/8/7K w - - 0 1", hand:[1], mana:1, goal:"mate", show:["d8"],
+   body:["On your turn you can play cards first. Then you make one move.", "Pawn Rush lets one pawn move 2 squares this turn."],
+   task:"Play Pawn Rush on your pawn. Push it 2 squares to the last row and pick the queen.",
+   ok:"Checkmate! A card first, then a move: that is a turn in this game.", bad:"Play Pawn Rush first. Then move the same pawn 2 squares up and pick the queen."},
+  {t:"Your hand and End turn", fen:"4k3/8/8/8/8/8/4P3/4K3 w - - 0 1", hand:[14], mana:1, goal:"move", show:[], after:true,
+   body:["Each turn you draw 1 card from your deck. Under your name, Hand is the cards you hold and Deck is the cards left to draw.", "You can hold up to 7 cards. If you end a turn with more, you pick one to throw away.", "You can play cards after your move too. Then press End turn."],
+   task:"Move your pawn. Then press End turn.",
+   ok:"Lessons done! Next, start a New game against Beginner. Press Hint when you are stuck.", bad:"Make one pawn move first. Then press End turn below the board."}
 ];
 const lessonsDone = () => { try { return Math.min(LESSONS.length, +(localStorage.getItem("ctg_lessons") || 0)); } catch(e) { return 0; } };
 const lessonSet = n => { try { localStorage.setItem("ctg_lessons", String(Math.max(lessonsDone(), n))); } catch(e) {} };
@@ -1166,7 +1178,11 @@ function openLessonDlg(){
   show("lessonDlg");
 }
 $("lsGo").onclick = () => hide("lessonDlg");
-$("lsSkip").onclick = () => { lessonSet(LESSONS.length); lessonIdx = LESSONS.length; hide("lessonDlg"); startGame(); };
+let skipArmed = false;
+$("lsSkip").onclick = () => {
+  if (!skipArmed){ skipArmed = true; $("lsSkip").textContent = "Tap again to skip"; setTimeout(() => { skipArmed = false; $("lsSkip").textContent = "Skip lessons"; }, 3000); return; }
+  skipArmed = false; $("lsSkip").textContent = "Skip lessons"; lessonSet(LESSONS.length); lessonIdx = LESSONS.length; hide("lessonDlg"); startGame();
+};
 
 /* Learn mode: 17 one-move puzzles, one per board card; progress in localStorage "ctg_learn" */
 const learnDone = () => { try { return JSON.parse(localStorage.getItem("ctg_learn") || "{}").done || []; } catch(e) { return []; } };
@@ -1177,7 +1193,7 @@ const pzFailed = () => !!(S && S.puzzle && !pzSolved() && (S.over || S.plies > 0
 async function startGame(){
   setBusy(true, "Starting...");
   const les = learn && lessonIdx < LESSONS.length ? LESSONS[lessonIdx] : null;
-  let r; try { r = await api("/api/new", les ? {mode:"ai", colour:"white", ai:"beginner", lesson:{fen:les.fen, hand:les.hand, mana:les.mana, goal:les.goal}} : learn ? {mode:"ai", colour:"white", ai:"easy", puzzle:learnId} : Object.assign({}, cfg, {cards_after: SET.cardsAfter})); } catch(e) { setBusy(false); toast("Cannot reach the server."); return; }
+  let r; try { r = await api("/api/new", les ? {mode:"ai", colour:"white", ai:"beginner", lesson:{fen:les.fen, hand:les.hand, mana:les.mana, goal:les.goal}, cards_after:!!les.after} : learn ? {mode:"ai", colour:"white", ai:"easy", puzzle:learnId} : Object.assign({}, cfg, {cards_after: SET.cardsAfter})); } catch(e) { setBusy(false); toast("Cannot reach the server."); return; }
   setBusy(false);
   if (!r.json || !r.json.ok) { toast((r.json && r.json.error) || "Could not start."); return; }
   ["menu","overDlg"].forEach(hide);
@@ -1203,11 +1219,19 @@ $("startBtn").onclick = () => {
 /* first visit (no lessons done, no saved game): the menu opens on Learn so a newcomer lands in the lessons */
 try { if (!localStorage.getItem("ctg_lessons") && !localStorage.getItem("ctg_game") && !localStorage.getItem("ctg_stats")) { const b = document.querySelector('.seg[data-k="mode"] button[data-v="learn"]'); if (b) b.click(); } } catch(e) {}
 $("againBtn").onclick = () => {
-  if (learn && inLesson() && pzSolved()){ lessonIdx++; lessonSet(lessonIdx); }
+  if (learn && inLesson() && pzSolved()){
+    lessonIdx++; lessonSet(lessonIdx);
+    if (lessonIdx >= LESSONS.length){   // lessons done: open the menu on a gentle first real game (Vs AI, Beginner, lighter deck)
+      ["mode:ai", "ai:beginner", "deck:starter"].forEach(kv => { const [k, v] = kv.split(":"); const b = document.querySelector('#menu .seg[data-k="' + k + '"] button[data-v="' + v + '"]'); if (b) b.click(); });
+      hide("overDlg"); openMenu(); return;
+    }
+  }
   else if (learn && S && S.puzzle && !S.puzzle.lesson && pzSolved()) learnId = S.puzzle.id % S.puzzle.total + 1;
   startGame();
 };
-$("newBtn").onclick = () => { updateStatsUI(); $("menuClose").classList.toggle("hidden", !S); show("menu"); };
+const openMenu = () => { updateStatsUI(); $("menuClose").classList.toggle("hidden", !S); show("menu"); };
+$("newBtn").onclick = openMenu;
+$("replayLessons").onclick = () => { try { localStorage.setItem("ctg_lessons", "0"); } catch(e) {} lessonIdx = 0; const b = document.querySelector('#menu .seg[data-k="mode"] button[data-v="learn"]'); if (b) b.click(); learn = true; startGame(); };
 $("menuClose").onclick = () => hide("menu");
 $("overMenu").onclick = () => { updateStatsUI(); hide("overDlg"); $("menuClose").classList.remove("hidden"); show("menu"); };
 $("overView").onclick = () => hide("overDlg");
@@ -2018,7 +2042,7 @@ function capHtml(c){ const i = capInfo(c); return (i.g || i.lead > 0) ? '<span c
 function renderBars(){
   const v = S.viewer, o = v ^ 1, nm = ["White","Black"];
   const side = c => '<span class="dot ' + (c ? "b" : "w") + '"></span>';
-  const counts = c => ' <span>Hand ' + S.hand_sizes[c] + '</span><span>Draw ' + S.deck_sizes[c] + '</span><span class="dc">Discard ' + S.discard_sizes[c] + '</span>' + capHtml(c);
+  const counts = c => ' <span>Hand ' + S.hand_sizes[c] + '</span><span>Deck ' + S.deck_sizes[c] + '</span><span class="dc">Discard ' + S.discard_sizes[c] + '</span>' + capHtml(c);
   $("selfbar").innerHTML = side(v) + '<b>' + (S.mode === "ai" ? "You" : nm[v]) + '<span class="pn"> (' + nm[v] + ')</span></b>' + counts(v) + '<span class="mana" id="manaSelf" role="meter" aria-label="Mana" aria-valuemin="0" aria-valuemax="' + (S.mana_max === null ? 0 : Math.max(5, S.mana_max)) + '" aria-valuenow="' + (S.mana === null ? 0 : S.mana) + '">' + manaHtml() + '</span>';
   if (inLesson()) $("oppbar").innerHTML = "<b>Lesson " + (lessonIdx + 1) + " of " + LESSONS.length + "</b> <span>" + esc(LESSONS[lessonIdx].t) + "</span>"; else if (S.puzzle) $("oppbar").innerHTML = "<b>Puzzle " + S.puzzle.id + " of " + S.puzzle.total + "</b> <span>" + esc(S.puzzle.card) + "</span><span style='flex-basis:100%;font-size:11.5px;line-height:1.25;white-space:normal'>" + esc(S.puzzle.hint) + "</span>"; else
   $("oppbar").innerHTML = side(o) + '<b>' + (S.mode === "ai" ? "Opponent" : nm[o]) + '<span class="pn"> (' + nm[o] + ')</span></b>' + counts(o);
@@ -2051,7 +2075,7 @@ function renderStatus0(){
   const b = $("status"); b.className = "";
   if (inLesson() && !S.over){
     b.classList.add("mine"); b.style.whiteSpace = "normal";
-    b.textContent = S.post_move ? "Moved." : LESSONS[lessonIdx].task;
+    b.textContent = S.post_move ? "Moved. Now press End turn." : LESSONS[lessonIdx].task;
     return;
   }
   if (S.puzzle && !hintStatusText){
@@ -2132,9 +2156,10 @@ function renderControls(){
   if (UI.card || UI.moves.length || UI.from !== null) add(window.matchMedia("(pointer:coarse)").matches ? "Cancel" : "Cancel (Esc)", () => { resetSel(); render(); });
   if (UI.moves.length && moveState().complete) add("Done", () => send({kind:"move", moves:UI.moves}), "primary");
   if (S.can_accept_no_moves) add("No legal move: accept result", () => send({kind:"end"}));
-  if (S.post_move) { add("End turn", () => { resetSel(); send({kind:"endturn"}); }, "primary"); return; }
+  if (S.post_move) { add("End turn", () => { resetSel(); send({kind:"endturn"}); }, "primary"); add("Menu", openMenu); return; }
   if (inLesson()) add("Lesson", openLessonDlg); else
   add("Hint", requestHint, hintUsedThisTurn ? "disabled" : "", hintUsedThisTurn);
+  add("Menu", openMenu);
 }
 const GLABEL = {move:"Movement", ctrl:"Control", info:"Intel", rem:"Removal", rec:"Resource"};
 function cardFace(info, why, text){
@@ -2424,8 +2449,9 @@ function renderOverlays(){
   } else hide("cover");
   hide("discardDlg");
   if (inLesson()) {
-    if ((pzSolved() || pzFailed()) && overShown !== S.game) {
-      overShown = S.game; const ok = pzSolved(), L = LESSONS[lessonIdx];
+    const LL = LESSONS[lessonIdx], lFailed = !pzSolved() && (S.over || (LL.goal === "mate" && S.plies > 0));
+    if ((pzSolved() || lFailed) && overShown !== S.game) {
+      overShown = S.game; const ok = pzSolved(), L = LL;
       $("overArt").innerHTML = "";
       $("overTitle").textContent = ok ? "Well done" : "Not quite";
       $("overSub").textContent = ok ? L.ok : L.bad;

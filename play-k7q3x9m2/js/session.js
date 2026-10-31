@@ -988,7 +988,7 @@ export class Session {
       });
       this.mana_max = [0, 0];
     }
-    this.cards_after = cardsAfter && !pz;
+    this.cards_after = cardsAfter && (!pz || !!lesson);
     this.g.cardsAfter = this.cards_after;
     this.events = [];
     this.export_log = [];
@@ -1155,7 +1155,8 @@ export class Session {
     if (goal === "move") return true;
     if (goal.startsWith("to:")) {
       const sq = (goal.charCodeAt(4) - 49) * 8 + (goal.charCodeAt(3) - 97);
-      return this.last_move.length > 0 && this.last_move[this.last_move.length - 1] === sq;
+      for (let i = 1; i < this.last_move.length; i += 2) if (this.last_move[i] === sq) return true;
+      return false;
     }
     if (goal === "capture") return this._countPieces() < this.lessonPieces;
     if (goal === "check") return this.g.inCheck(BLACK);
@@ -1991,7 +1992,7 @@ export function newSession(body                      = {})          {
     if (!PUZZLES.some(p => p.id === body.puzzle)) throw new Reject("Bad puzzle.");
     puzzle = body.puzzle;
   }
-  const s = lesson ? new Session("puzzle", WHITE, "easy", seed, "full", null, false, lesson) : puzzle !== null ? new Session("puzzle", WHITE, "easy", seed, "full", puzzle) : new Session(mode, human, ai, seed, deck, null, body.cards_after === true);
+  const s = lesson ? new Session("puzzle", WHITE, "easy", seed, "full", null, body.cards_after === true, lesson) : puzzle !== null ? new Session("puzzle", WHITE, "easy", seed, "full", puzzle) : new Session(mode, human, ai, seed, deck, null, body.cards_after === true);
   SESSIONS.set(s.id, s);
   while (SESSIONS.size > MAX_SESSIONS) {
     const firstKey = SESSIONS.keys().next().value;
