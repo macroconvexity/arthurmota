@@ -1,5 +1,5 @@
 // Chess the Gathering Service Worker (network-first with an offline cache fallback and a content-hash cache name)
-const CACHE_NAME = "ctg-d2642608";
+const CACHE_NAME = "ctg-cfc84249";
 const ASSETS = [
   "./",
   "./index.html",

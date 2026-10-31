@@ -521,6 +521,9 @@ body.dragging.armed #board{box-shadow:0 0 0 4px var(--gold2),0 0 46px rgba(255,2
 /* ---- overlays ---- */
 .overlay{position:fixed;inset:0;background:rgba(6,7,9,.9);display:flex;align-items:center;justify-content:center;z-index:60;padding:14px;overflow:auto}
 .overlay#home{background:radial-gradient(900px 600px at 50% 0%,#262b33 0,#121316 70%)}
+.rv{display:flex;align-items:center;gap:10px;padding:8px 10px;margin:0 0 6px;border:1px solid #6e4710;border-radius:10px;background:rgba(255,226,154,.06)}
+.rv .rc{flex:0 0 28px;height:28px;border-radius:50%;background:linear-gradient(180deg,#ffe58a,#e0a42a);color:#3a2406;font-weight:800;display:flex;align-items:center;justify-content:center}
+.rv b{display:block;font-size:15px} .rv span.t{font-size:12.5px;color:#cdbf98}
 .homeDlg .homeBtn{display:flex;flex-direction:column;align-items:flex-start;width:100%;margin:0 0 8px;padding:12px 14px;text-align:left;gap:2px;min-height:56px}
 .homeDlg .homeBtn b{font-size:16px} .homeDlg .homeBtn span{font-size:12.5px;font-weight:400;opacity:.8}
 #hand{--cw:var(--hcw,84px)}
@@ -668,7 +671,7 @@ body.pieces-solid .pc.b, body.pieces-solid #promoBtns.blk svg {
     <button class="btn homeBtn" id="hmTwo"><b>Two players, one phone</b><span>Pass the phone after each turn</span></button>
     <div class="row" style="margin-top:10px;justify-content:center"><button class="btn sm" id="hmCards">Cards</button><button class="btn sm" id="hmHow">How to play</button><button class="btn sm" id="hmSet">Settings</button></div>
     <div id="hmRecord" class="small" style="text-align:center;margin-top:10px;color:#cdbf98"></div>
-    <div class="small" style="text-align:center;margin-top:4px;color:#8f8a7a;font-size:11px">Build v89</div>
+    <div class="small" style="text-align:center;margin-top:4px;color:#8f8a7a;font-size:11px">Build v90</div>
   </div>
 </div>
 
@@ -752,7 +755,7 @@ body.pieces-solid .pc.b, body.pieces-solid #promoBtns.blk svg {
     <label class="l">Pieces</label>
     <div class="seg" id="segPieces"><button data-v="flat" class="on">Flat</button><button data-v="toy">Toy</button><button data-v="3d">Glossy</button><button data-v="solid">Solid</button></div>
     </details>
-    <div style="margin-top:10px;font-size:11px;color:var(--mute)">Build v89</div>
+    <div style="margin-top:10px;font-size:11px;color:var(--mute)">Build v90</div>
     <div class="row" style="margin-top:16px"><button class="btn" id="setCopyBtn" style="flex:1">Copy game</button><button class="btn primary" data-close="setDlg">Done</button></div>
   </div>
 </div>
@@ -760,6 +763,15 @@ body.pieces-solid .pc.b, body.pieces-solid #promoBtns.blk svg {
 <div class="overlay hidden" id="resignDlg">
   <div class="dlg"><h2>Resign?</h2><p>You will lose this game.</p>
   <div class="row"><button class="btn danger" id="resignYes">Resign</button><button class="btn" data-close="resignDlg">Keep playing</button></div></div>
+</div>
+
+<div class="overlay hidden" id="revealDlg">
+  <div class="dlg" style="max-width:420px">
+    <h2 style="margin:0 0 4px">Opponent's hand</h2>
+    <div class="small" id="rvSub" style="margin-bottom:10px;color:#cdbf98"></div>
+    <div id="rvList"></div>
+    <div class="row" style="margin-top:12px;justify-content:flex-end"><button class="btn primary" id="rvClose">Got it</button></div>
+  </div>
 </div>
 
 <div class="overlay hidden" id="lessonDlg" style="background:rgba(6,7,9,.5);align-items:flex-end">
@@ -2232,9 +2244,10 @@ function renderControls(){
   if (UI.card || UI.moves.length || UI.from !== null) add(window.matchMedia("(pointer:coarse)").matches ? "Cancel" : "Cancel (Esc)", () => { resetSel(); render(); });
   if (UI.moves.length && moveState().complete) add("Done", () => send({kind:"move", moves:UI.moves}), "primary");
   if (S.can_accept_no_moves) add("No legal move: accept result", () => send({kind:"end"}));
-  if (S.post_move) { add("End turn", () => { resetSel(); send({kind:"endturn"}); }, "primary"); add("Menu", openMenu); return; }
+  if (S.post_move) { add("End turn", () => { resetSel(); send({kind:"endturn"}); }, "primary"); if (S.opp_hand && !S.puzzle) add("Opp. hand", showReveal); add("Menu", openMenu); return; }
   if (inLesson()) add("Lesson", openLessonDlg); else
   add("Hint", requestHint, hintUsedThisTurn ? "disabled" : "", hintUsedThisTurn);
+  if (S.opp_hand && !S.puzzle) add("Opp. hand", showReveal);
   add("Menu", openMenu);
 }
 const GLABEL = {move:"Movement", ctrl:"Control", info:"Intel", rem:"Removal", rec:"Resource"};
@@ -2502,6 +2515,14 @@ function renderPreview(){
       '</span><span class="tag" style="--gc:var(--g-' + GROUP[id] + ')">' + c.cost + ' mana</span></div><div class="scroll"><div class="pt">' + esc(c.text) + '</div>' + (c.edge ? '<div class="pe">' + esc(c.edge) + '</div>' : '') + '</div>';
   } else p.innerHTML = '<span class="small">Hover or press and hold a card to read it here.</span>';
 }
+let revealKey = "";
+function showReveal(){
+  if (!S || !S.opp_hand) return;
+  $("rvSub").textContent = S.opp_hand.length ? "You can see these " + S.opp_hand.length + " cards until your next turn." : "Their hand is empty.";
+  $("rvList").innerHTML = S.opp_hand.map(id => '<div class="rv"><span class="rc">' + CARDS[id].cost + '</span><div><b>' + esc(CARDS[id].name) + '</b><span class="t">' + esc(CARDS[id].short || CARDS[id].text) + '</span></div></div>').join("");
+  show("revealDlg");
+}
+$("rvClose").onclick = () => hide("revealDlg");
 function renderSide(){
   const e = $("effects");
   let h = '<h3>Active effects</h3>';
@@ -2509,6 +2530,7 @@ function renderSide(){
   S.effects.forEach(x => { h += '<span class="e ' + ({freeze:"fz",shield:"sh",wall:"wl"}[x.kind] || "") + '">' + esc(x.label) + '</span>'; });
   e.innerHTML = h;
   const op = $("oppHandPanel");
+  if (S.opp_hand && S.mode === "ai" && !S.puzzle){ const k = S.game + ":" + S.opp_hand.join(","); if (k !== revealKey){ revealKey = k; setTimeout(showReveal, 700); } } else if (!S.opp_hand) revealKey = "";
   if (S.opp_hand){
     op.classList.remove("hidden");
     op.innerHTML = '<h3>Opponent hand (revealed)</h3>' + (S.opp_hand.length ? S.opp_hand.map(id =>
