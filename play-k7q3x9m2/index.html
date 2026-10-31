@@ -48,7 +48,7 @@ header h1 b{color:var(--gold)}
 #game{display:flex;flex-direction:column;gap:8px;padding:8px}
 #boardCol{order:1}
 #side{display:contents}
-#status{order:2} #aiBanner{order:3} #choices{order:4} #controls{order:5}
+#feed{display:none;order:1} #status{order:2} #aiBanner{order:3} #choices{order:4} #controls{order:5}
 #manaSide{display:none}
 #effects{order:6;display:flex;flex-wrap:wrap;align-items:center;gap:2px 6px}
 #effects h3{margin:0 4px 0 0} #oppHandPanel{order:6} #logPanel{order:7} #preview{order:8}
@@ -395,6 +395,9 @@ body.pieces-mesh #board{border-color:#566b91 #475a80 #3a4a68 #475a80;z-index:1}
   #oppbar{min-height:20px}
   #game{gap:4px}
   #boardCol{display:flex;flex-direction:column;flex:0 0 auto;justify-content:flex-start}
+  /* the room a tall phone leaves between board and cards shows what just happened */
+  #feed{display:flex;flex-direction:column;justify-content:flex-end;flex:1 1 auto;min-height:0;overflow:hidden;padding:0 14px 4px;font-size:13px;line-height:1.4;color:var(--mute);-webkit-mask-image:linear-gradient(transparent,#000 45%);mask-image:linear-gradient(transparent,#000 45%)}
+  #feed div{padding:1px 0} #feed .w0{color:#e9e2c8} #feed .w1{color:#a9b4d6}
 }
 /* ---- dialogs in the same gold-and-navy look ---- */
 .dlg{background:linear-gradient(180deg,#252d49,#141829);border:2px solid #c99a3a;border-radius:18px;box-shadow:0 0 0 2px #4a3410,inset 0 0 0 1px rgba(255,255,255,.08),inset 0 0 40px rgba(0,0,0,.45),0 24px 70px rgba(0,0,0,.7);color:#f1e7cc}
@@ -633,6 +636,7 @@ body.pieces-solid .pc.b, body.pieces-solid #promoBtns.blk svg {
     <div class="bar" id="selfbar"></div>
   </section>
   <aside id="side">
+    <div id="feed" aria-live="off"></div>
     <div id="status" role="status" aria-live="polite"></div>
     <div id="aiBanner" class="hidden"></div>
     <div id="choices" class="hidden"></div>
@@ -726,7 +730,7 @@ body.pieces-solid .pc.b, body.pieces-solid #promoBtns.blk svg {
     <label class="l">Pieces</label>
     <div class="seg" id="segPieces"><button data-v="flat" class="on">Flat</button><button data-v="toy">Toy</button><button data-v="3d">Glossy</button><button data-v="solid">Solid</button></div>
     </details>
-    <div style="margin-top:10px;font-size:11px;color:var(--mute)">Build v82</div>
+    <div style="margin-top:10px;font-size:11px;color:var(--mute)">Build v83</div>
     <div class="row" style="margin-top:16px"><button class="btn" id="setCopyBtn" style="flex:1">Copy game</button><button class="btn primary" data-close="setDlg">Done</button></div>
   </div>
 </div>
@@ -2137,6 +2141,7 @@ function renderChoices(){
 }
 function renderControls(){
   const c = $("controls"); c.innerHTML = "";
+  if (S.over){ const b = document.createElement("button"); b.className = "btn sm primary"; b.textContent = "Menu"; b.onclick = openMenu; c.appendChild(b); return; }
   if (S.status === "discard" && !busy){
     const b = document.createElement("button");
     b.className = "btn sm danger"; b.textContent = discardPick ? "Discard" : "Pick a card";
@@ -2439,6 +2444,7 @@ function renderSide(){
       '<span class="e" title="' + esc(CARDS[id].text) + '">' + esc(CARDS[id].name) + ' (' + CARDS[id].cost + ')</span>').join("") :
       '<span class="small">Empty.</span>');
   } else op.classList.add("hidden");
+  $("feed").innerHTML = S.log.slice(-10).map(x => '<div class="w' + x.who + '">' + esc(x.text) + '</div>').join("");
   $("log").innerHTML = S.log.slice().reverse().map(x => '<div class="w' + x.who + (flashNs.has(x.n) ? ' fl' : '') + '">' + esc(x.text) + '</div>').join("") || '<span class="small">No events yet.</span>';
 }
 function renderOverlays(){
