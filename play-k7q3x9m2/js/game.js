@@ -35,6 +35,10 @@ function openingFix(hand          , deck          )       {
 
 export const HAND_START                   = [4, 4];
 export const HAND_MAX = 7;
+/** Cards that need an enemy piece or a pawn of yours: when none is left they cannot come back to life soon. */
+const TARGET_BOUND = [9, 10, 17, 18, 19, 22, 24];
+/** Cards that are dead only until something happens (a capture, a card in the rival's hand): never swapped away. */
+const WAITS_FOR_EVENTS = [15, 16, 23];
 /** Cards that only change the next chess move; they cannot be played after it. */
 export const PRE_MOVE_ONLY = [1, 2, 3, 4, 6];
 export const MANA_CAP = 5;
@@ -125,6 +129,9 @@ export class Game {
   cardsAfter          = false;
   plies        ;
   result                                   ;
+  refillTo        ;
+  autoReplace        ;   // "" off, "refined" (default for the game), "all", or "1" (only target-bound cards)
+  replaced           = [];
   termination               ;
   cardsPlayed                      ;
   onCardPlayed                                                               ;
@@ -137,6 +144,8 @@ export class Game {
     this.seed = opts?.seed || 0;
     this.rng = opts?.rng || new SimpleRng(this.seed);
     this.cardsOn = opts?.cardsOn !== undefined ? opts.cardsOn : true;
+    this.refillTo = typeof process !== "undefined" && process.env && process.env.CTG_REFILL ? Number(process.env.CTG_REFILL) : 0;
+    this.autoReplace = typeof process !== "undefined" && process.env && process.env.CTG_AUTOREPLACE ? process.env.CTG_AUTOREPLACE : "";
     this.pos = new Position(opts?.fen || START_FEN);
     this.pos.legalFilter = (p          , m      ) => this._engineFilter(p, m);
     this.toMove = this.pos.turn;
@@ -485,7 +494,11 @@ export class Game {
       (e) => !(e.kind === "choke" && e.target === c)
     );
     if (this.cardsOn && draw) {
-      this.draw(c, 1);
+      if (this.refillTo > 0) {
+        for (let k = 0; k < 3 && this.hand[c].length < this.refillTo; k++) this.draw(c, 1);
+      } else {
+        this.draw(c, 1);
+      }
     }
     if (MANA_RULES.mode === "pool") {
       const inc = this.turnNo[c] === 1 ? MANA_RULES.first[c] : MANA_RULES.income;
@@ -496,6 +509,26 @@ export class Game {
     this.ritualUsed = false;
     this.phase = "cards";
     this._actions = null;
+    if (this.autoReplace && this.cardsOn && draw && !this.inCheck(c)) this._replaceDeadCards(c);
+  }
+
+  /** Experiment (off by default): a hand card whose targets are gone for good goes to the discard and is replaced. */
+  _replaceDeadCards(c        )       {
+    for (let pass = 0; pass < 3; pass++) {
+      const mode = this.autoReplace;
+      const dead = this.hand[c].filter((id) => {
+        if (mode === "refined" && WAITS_FOR_EVENTS.includes(id)) return false;
+        if (mode === "1" && !TARGET_BOUND.includes(id)) return false;
+        try { return CARDS[id].options(this, c).length === 0; } catch { return false; }
+      });
+      if (!dead.length) return;
+      for (const id of dead) {
+        this.hand[c].splice(this.hand[c].indexOf(id), 1);
+        this.discard[c].push(id);
+        this.replaced.push(id);
+        this.draw(c, 1);
+      }
+    }
   }
 
   endTurn(discardFn                                          )       {

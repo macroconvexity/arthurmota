@@ -900,6 +900,8 @@ export function cloneGame(src      )       {
   g.turnNo = [src.turnNo[0], src.turnNo[1]];
   g.phase = src.phase;
   g.cardsAfter = src.cardsAfter;
+  g.refillTo = src.refillTo;
+  g.autoReplace = src.autoReplace;
   g.mana = [src.mana[0], src.mana[1]];
   g.ritualUsed = src.ritualUsed;
   g.cardsPlayed = [[...src.cardsPlayed[0]], [...src.cardsPlayed[1]]];
@@ -940,6 +942,7 @@ export class Session {
   puzzle_data                = null;
   puzzle_solved                 = null;
   lessonGoal                = null;
+  refill = false;   // draw back up to 5 cards each turn and swap cards that have no target
   snaps                        = [];   // snapshots for Undo: the state before each of the human's turns
   lastKey                = null;
   lessonPieces = 0;
@@ -952,7 +955,8 @@ export class Session {
     deck                     = "full",
     puzzle                = null,
     cardsAfter          = false,
-    lesson                                                                     = null
+    lesson                                                                     = null,
+    refill          = false
   ) {
     // crypto.randomUUID exists only in secure contexts (https or localhost); a phone opening http://<mac-ip> needs the fallback.
     this.id = Array.from(crypto.getRandomValues(new Uint8Array(6)), b => b.toString(16).padStart(2, "0")).join("");
@@ -996,6 +1000,8 @@ export class Session {
       this.mana_max = [0, 0];
     }
     this.cards_after = cardsAfter && (!pz || !!lesson);
+    this.refill = refill && !pz;
+    if (this.refill) { this.g.refillTo = 5; this.g.autoReplace = "refined"; }
     this.g.cardsAfter = this.cards_after;
     this.events = [];
     this.export_log = [];
@@ -1092,6 +1098,12 @@ export class Session {
     const handLenBefore = g.hand[c].length;
     g.beginTurn();
     this.mana_max[c] = g.mana[c];
+    if (g.replaced.length) {
+      if (this.mode === "ai" && c === this.human) {
+        for (const id of g.replaced) this.event(c, `swapped ${CARDS[id].name} (no target) for a new card`, { kind: "replace", card: id });
+      }
+      g.replaced = [];
+    }
 
     this.logExport(c, `starts turn with ${g.mana[c]} mana`);
 
@@ -1656,6 +1668,7 @@ export class Session {
       cover: this.cover,
       pending_discard: this.pending_discard,
       cards_after: this.cards_after,
+      refill: this.refill,
       last_ai_seconds: this.last_ai_seconds,
       ai_rng: this.ai_rng.getState(),
       policy_rng: this.policy.rng.getState(),
@@ -1854,6 +1867,7 @@ export class Session {
     s.cover = snap.cover ?? false;
     s.pending_discard = snap.pending_discard ?? false;
     s.cards_after = snap.cards_after ?? false;
+    s.refill = snap.refill ?? false;
     s.snaps = snap.undo ? snap.undo.slice() : [];
     s.lastKey = snap.last_key ?? null;
     s.last_ai_seconds = snap.last_ai_seconds ?? 0.0;
@@ -1907,6 +1921,7 @@ export class Session {
     }
     g._actions = null;
     g.cardsAfter = s.cards_after;
+    if (s.refill) { g.refillTo = 5; g.autoReplace = "refined"; }
     s.g = g;
 
     s.ai_rng = newRng(0);
@@ -2018,7 +2033,7 @@ export function newSession(body                      = {})          {
     if (!PUZZLES.some(p => p.id === body.puzzle)) throw new Reject("Bad puzzle.");
     puzzle = body.puzzle;
   }
-  const s = lesson ? new Session("puzzle", WHITE, "easy", seed, "full", null, body.cards_after === true, lesson) : puzzle !== null ? new Session("puzzle", WHITE, "easy", seed, "full", puzzle) : new Session(mode, human, ai, seed, deck, null, body.cards_after === true);
+  const s = lesson ? new Session("puzzle", WHITE, "easy", seed, "full", null, body.cards_after === true, lesson) : puzzle !== null ? new Session("puzzle", WHITE, "easy", seed, "full", puzzle) : new Session(mode, human, ai, seed, deck, null, body.cards_after === true, null, body.refill === true);
   SESSIONS.set(s.id, s);
   while (SESSIONS.size > MAX_SESSIONS) {
     const firstKey = SESSIONS.keys().next().value;
