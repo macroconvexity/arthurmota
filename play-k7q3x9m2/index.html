@@ -516,6 +516,9 @@ body.dragging.armed #board{box-shadow:0 0 0 4px var(--gold2),0 0 46px rgba(255,2
 
 /* ---- overlays ---- */
 .overlay{position:fixed;inset:0;background:rgba(6,7,9,.9);display:flex;align-items:center;justify-content:center;z-index:60;padding:14px;overflow:auto}
+.homeDlg .homeBtn{display:flex;flex-direction:column;align-items:flex-start;width:100%;margin:0 0 8px;padding:12px 14px;text-align:left;gap:2px;min-height:56px}
+.homeDlg .homeBtn b{font-size:16px} .homeDlg .homeBtn span{font-size:12.5px;font-weight:400;opacity:.8}
+#hand{--cw:var(--hcw,84px)}
 .dlg{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.6)}
 .dlg.wide{max-width:900px}
 .dlg h2{margin:0 0 10px;font-size:20px}
@@ -626,7 +629,7 @@ body.pieces-solid .pc.b, body.pieces-solid #promoBtns.blk svg {
   <button class="btn sm" id="howBtn" title="How to play"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7M12 17h.01"/></svg><span class="lbl">How to play</span></button>
   <button class="btn sm" id="setBtn" title="Settings"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span class="lbl">Settings</span></button>
   <button class="btn sm danger hidden" id="resignBtn" title="Resign"><svg class="i" viewBox="0 0 24 24"><path d="M6 21V4M6 4h12l-3 4 3 4H6"/></svg><span class="lbl">Resign</span></button>
-  <button class="btn sm" id="newBtn" title="New game"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span class="lbl">New game</span></button>
+  <button class="btn sm" id="newBtn" title="Menu"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span class="lbl">Menu</span></button>
 </header>
 
 <main id="game" class="hidden">
@@ -650,7 +653,20 @@ body.pieces-solid .pc.b, body.pieces-solid #promoBtns.blk svg {
   </aside>
 </main>
 
-<div class="overlay" id="menu">
+<div class="overlay" id="home">
+  <div class="dlg homeDlg">
+    <svg class="logo" viewBox="0 0 212 58" role="img" aria-label="Chess the Gathering" style="height:84px"><use href="#logoSym"/></svg>
+    <div class="small" style="text-align:center;margin:2px 0 12px;color:#cdbf98">Chess with power cards</div>
+    <button class="btn primary homeBtn" id="hmContinue"><b>Continue game</b><span id="hmContinueSub"></span></button>
+    <button class="btn homeBtn" id="hmLearn"><b>Learn to play</b><span id="hmLearnSub"></span></button>
+    <button class="btn homeBtn" id="hmPlay"><b>Play against the computer</b><span>Beginner, Easy, Casual or Hard</span></button>
+    <button class="btn homeBtn" id="hmTwo"><b>Two players, one phone</b><span>Pass the phone after each turn</span></button>
+    <div class="row" style="margin-top:10px;justify-content:center"><button class="btn sm" id="hmCards">Cards</button><button class="btn sm" id="hmHow">How to play</button><button class="btn sm" id="hmSet">Settings</button></div>
+    <div id="hmRecord" class="small" style="text-align:center;margin-top:10px;color:#cdbf98"></div>
+  </div>
+</div>
+
+<div class="overlay hidden" id="menu">
   <div class="dlg">
     <svg class="logo" viewBox="0 0 212 58" role="img" aria-label="Chess the Gathering"><use href="#logoSym"/></svg>
     <div id="menuRecord" class="small" style="margin:4px 0 10px 0;color:var(--text-dim);font-size:13px">Record: 0 wins, 0 draws, 0 losses (streak 0)</div>
@@ -665,7 +681,7 @@ body.pieces-solid .pc.b, body.pieces-solid #promoBtns.blk svg {
     <label class="l">Cards</label>
     <div class="seg" data-k="deck"><button data-v="starter">Lighter (16)</button><button data-v="full" class="on">All 24</button></div>
     <p class="small">Both players start with 4 cards and hold at most 7. You draw 1 card per turn and gain 2 mana per turn on top of what you saved (up to 5). Play cards before or after your chess move; after the move, End turn finishes it (Settings can switch this off).</p>
-    <div class="row"><button class="btn primary" id="startBtn" style="flex:1;justify-content:center">Start game</button><button class="btn hidden" id="menuClose">Back to game</button></div>
+    <div class="row"><button class="btn primary" id="startBtn" style="flex:1;justify-content:center">Start game</button><button class="btn" id="menuClose">Back</button></div>
     <div class="row" style="margin-top:8px"><button class="btn sm" id="replayLessons">Replay lessons</button></div>
   </div>
 </div>
@@ -730,7 +746,7 @@ body.pieces-solid .pc.b, body.pieces-solid #promoBtns.blk svg {
     <label class="l">Pieces</label>
     <div class="seg" id="segPieces"><button data-v="flat" class="on">Flat</button><button data-v="toy">Toy</button><button data-v="3d">Glossy</button><button data-v="solid">Solid</button></div>
     </details>
-    <div style="margin-top:10px;font-size:11px;color:var(--mute)">Build v83</div>
+    <div style="margin-top:10px;font-size:11px;color:var(--mute)">Build v84</div>
     <div class="row" style="margin-top:16px"><button class="btn" id="setCopyBtn" style="flex:1">Copy game</button><button class="btn primary" data-close="setDlg">Done</button></div>
   </div>
 </div>
@@ -1200,7 +1216,7 @@ async function startGame(){
   let r; try { r = await api("/api/new", les ? {mode:"ai", colour:"white", ai:"beginner", lesson:{fen:les.fen, hand:les.hand, mana:les.mana, goal:les.goal}, cards_after:!!les.after} : learn ? {mode:"ai", colour:"white", ai:"easy", puzzle:learnId} : Object.assign({}, cfg, {cards_after: SET.cardsAfter})); } catch(e) { setBusy(false); toast("Cannot reach the server."); return; }
   setBusy(false);
   if (!r.json || !r.json.ok) { toast((r.json && r.json.error) || "Could not start."); return; }
-  ["menu","overDlg"].forEach(hide);
+  ["menu","overDlg","home"].forEach(hide);
   resetSel(); S = r.json.state; UI.previewId = null; lastAI = null; overShown = null; anim = null;
   animatedEvents.clear();
   gameCardsPlayed = 0; newThisGame = [];
@@ -1214,30 +1230,53 @@ async function startGame(){
   if (les){ hintSquares.clear(); les.show.forEach(n => hintSquares.add(sqIdx(n))); render(); openLessonDlg(); }
   replayAI(r.json.events || [], null);
 }
+function cfgLearn(){
+  const b = document.querySelector('#menu .seg[data-k="mode"] button[data-v="learn"]'); if (b) b.click();
+  learn = true; lessonIdx = lessonsDone();
+  const d = learnDone(); learnId = Array.from({length: 17}, (_, i) => i + 1).find(i => !d.includes(i)) || 1;
+  startGame();
+}
 $("startBtn").onclick = () => {
   learn = cfg.mode === "learn";
   if (learn) lessonIdx = lessonsDone();
   if (learn) { const d = learnDone(); learnId = Array.from({length: 17}, (_, i) => i + 1).find(i => !d.includes(i)) || 1; }
   startGame();
 };
-/* first visit (no lessons done, no saved game): the menu opens on Learn so a newcomer lands in the lessons */
-try { if (!localStorage.getItem("ctg_lessons") && !localStorage.getItem("ctg_game") && !localStorage.getItem("ctg_stats")) { const b = document.querySelector('.seg[data-k="mode"] button[data-v="learn"]'); if (b) b.click(); } } catch(e) {}
 $("againBtn").onclick = () => {
   if (learn && inLesson() && pzSolved()){
     lessonIdx++; lessonSet(lessonIdx);
     if (lessonIdx >= LESSONS.length){   // lessons done: open the menu on a gentle first real game (Vs AI, Beginner, lighter deck)
       ["mode:ai", "ai:beginner", "deck:starter"].forEach(kv => { const [k, v] = kv.split(":"); const b = document.querySelector('#menu .seg[data-k="' + k + '"] button[data-v="' + v + '"]'); if (b) b.click(); });
-      hide("overDlg"); openMenu(); return;
+      hide("overDlg"); hide("home"); show("menu"); return;
     }
   }
   else if (learn && S && S.puzzle && !S.puzzle.lesson && pzSolved()) learnId = S.puzzle.id % S.puzzle.total + 1;
   startGame();
 };
-const openMenu = () => { updateStatsUI(); $("menuClose").classList.toggle("hidden", !S); show("menu"); };
+function showHome(){
+  updateStatsUI(); hide("menu"); hide("overDlg"); hide("lessonDlg");
+  const live = !!(S && !S.over);
+  $("hmContinue").classList.toggle("hidden", !live);
+  if (live) $("hmContinueSub").textContent = S.puzzle ? (S.puzzle.lesson ? "Back to your lesson" : "Back to your puzzle") : (S.mode === "ai" ? "Against the computer" : "Two players") + ", move " + Math.floor((S.plies || 0) / 2 + 1);
+  const ld = lessonsDone();
+  $("hmLearn").classList.toggle("primary", ld === 0 && !live);
+  $("hmLearnSub").textContent = ld === 0 ? "Start here if chess or cards are new to you" : ld < LESSONS.length ? "Lesson " + (ld + 1) + " of " + LESSONS.length : "Lessons done. 17 puzzles to practise";
+  const rec = $("menuRecord"); $("hmRecord").textContent = rec ? rec.textContent : "";
+  show("home");
+}
+const openMenu = showHome;
+const toMenu = mode => { hide("home"); const b = document.querySelector('#menu .seg[data-k="mode"] button[data-v="' + mode + '"]'); if (b) b.click(); show("menu"); };
+$("hmContinue").onclick = () => hide("home");
+$("hmLearn").onclick = () => { hide("home"); cfgLearn(); };
+$("hmPlay").onclick = () => toMenu("ai");
+$("hmTwo").onclick = () => toMenu("hotseat");
+$("hmCards").onclick = () => $("cardsBtn").onclick();
+$("hmHow").onclick = () => show("howDlg");
+$("hmSet").onclick = () => show("setDlg");
 $("newBtn").onclick = openMenu;
 $("replayLessons").onclick = () => { try { localStorage.setItem("ctg_lessons", "0"); } catch(e) {} lessonIdx = 0; const b = document.querySelector('#menu .seg[data-k="mode"] button[data-v="learn"]'); if (b) b.click(); learn = true; startGame(); };
-$("menuClose").onclick = () => hide("menu");
-$("overMenu").onclick = () => { updateStatsUI(); hide("overDlg"); $("menuClose").classList.remove("hidden"); show("menu"); };
+$("menuClose").onclick = showHome;
+$("overMenu").onclick = showHome;
 $("overView").onclick = () => hide("overDlg");
 
 async function copyGame(){
@@ -1948,6 +1987,17 @@ function fitBoard(){
     root.style.setProperty("--bs", bs + "px");
   }
   tightWrap();
+  // a tall phone has room to spare: grow the cards into it (never so wide that the hand stops fitting)
+  const tray = document.getElementById("tray"), hand = document.getElementById("hand");
+  if (tray && hand && S && S.hand && S.hand.length){
+    const cur = parseFloat(getComputedStyle(hand).getPropertyValue("--cw")) || 84;
+    const wrap = document.getElementById("boardWrap") || board;
+    const spare = vh - (wrap.getBoundingClientRect().bottom + window.scrollY + tray.offsetHeight + 24) + (cur - 84) * 1.4;
+    const n = S.hand.length, fit = (root.clientWidth - 36) / (1 + .52 * (n - 1));
+    let target = 84 + Math.max(0, spare - 130) / 1.4 * .85;
+    target = Math.round(Math.max(84, Math.min(target, fit, 124)));
+    if (Math.abs(target - cur) > 1) root.style.setProperty("--hcw", target + "px");
+  }
 }
 const queueFit = () => { if (!fitQueued){ fitQueued = true; requestAnimationFrame(fitBoard); } };
 window.addEventListener("resize", queueFit); window.addEventListener("orientationchange", queueFit);
@@ -2643,11 +2693,11 @@ updateStatsUI();
         S = r.json.state;
         overShown = S.over ? S.game : null;
         try { gameCardsPlayed = Number(localStorage.getItem("ctg_cards_" + S.game)) || 0; } catch(e){}
-        hide("menu");
         render();
       }
     }
   } catch(e) {}
+  showHome();
 })();
 
 (function(){
