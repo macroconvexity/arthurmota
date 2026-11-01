@@ -1206,6 +1206,10 @@ export class Session {
     if (this.cards_after && this.g.result === null && this._hasCardPlay()) {
       return; // spare mana and a playable card: the player may play it, then press End turn
     }
+    const c = this.g.toMove;
+    if (this.cards_after && this.mode === "ai" && c === this.human && this.g.result === null && this.g.mana[c] > 0 && this.g.hand[c].length > 0) {
+      this.event(c, "no playable card: turn passed", { kind: "pass" });
+    }
     this._endOfTurn();
   }
 

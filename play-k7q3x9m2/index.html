@@ -672,7 +672,7 @@ body.pieces-solid .pc.b, body.pieces-solid #promoBtns.blk svg {
     <button class="btn homeBtn" id="hmTwo"><b>Two players, one phone</b><span>Pass the phone after each turn</span></button>
     <div class="row" style="margin-top:10px;justify-content:center"><button class="btn sm" id="hmCards">Cards</button><button class="btn sm" id="hmHow">How to play</button><button class="btn sm" id="hmSet">Settings</button></div>
     <div id="hmRecord" class="small" style="text-align:center;margin-top:10px;color:#cdbf98"></div>
-    <div class="small" style="text-align:center;margin-top:4px;color:#8f8a7a;font-size:11px">Build v95</div>
+    <div class="small" style="text-align:center;margin-top:4px;color:#8f8a7a;font-size:11px">Build v96</div>
   </div>
 </div>
 
@@ -757,7 +757,7 @@ body.pieces-solid .pc.b, body.pieces-solid #promoBtns.blk svg {
     <label class="l">Pieces</label>
     <div class="seg" id="segPieces"><button data-v="flat" class="on">Flat</button><button data-v="toy">Toy</button><button data-v="3d">Glossy</button><button data-v="solid">Solid</button></div>
     </details>
-    <div style="margin-top:10px;font-size:11px;color:var(--mute)">Build v95</div>
+    <div style="margin-top:10px;font-size:11px;color:var(--mute)">Build v96</div>
     <div class="row" style="margin-top:16px"><button class="btn" id="setCopyBtn" style="flex:1">Copy game</button><button class="btn primary" data-close="setDlg">Done</button></div>
   </div>
 </div>
@@ -1589,6 +1589,8 @@ function processEvents(events){
     if (e.kind === "card") {
       triggerCardEffect(e.card, e.params, e.who);
       if (S && S.mode === "ai" && e.who !== S.human && e.text) toast(e.text.replace(/^Opponent: plays /, "Opponent played "), 4200);
+    } else if (e.kind === "pass") {
+      toast("No card you can play: turn passed", 3000);
     } else if (e.kind === "replace" && CARDS[e.card]) {
       toast(CARDS[e.card].name + " had no target: swapped for a new card");
     }
