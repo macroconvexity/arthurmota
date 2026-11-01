@@ -1542,6 +1542,9 @@ export class Session {
       }
       this._endOfTurn();
     } else if (kind === "end") {
+      if (g.phase === "moved") {
+        throw new Reject("You already moved. Press End turn.");
+      }
       if (g.legalActions().length > 0) {
         throw new Reject("You have a legal move.");
       }
