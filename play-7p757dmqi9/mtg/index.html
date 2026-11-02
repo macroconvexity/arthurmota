@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>MTG Classic+</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/menu.css">
+<meta name="robots" content="noindex,nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="MTG Classic+">
+<meta name="theme-color" content="#0e0907"><link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png"><link rel="icon" href="icons/icon-192.png">
+</head>
+<body>
+<div id="app">
+  <header id="nav">
+    <div class="logo"><span class="mtg">MAGIC</span><small>The Gathering</small><i></i><b>CLASSIC<em>+</em></b></div>
+    <nav id="tabs">
+      <button data-v="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v10h-6v-6H9v6H3z"/></svg>Home</button>
+      <button data-v="decks"><svg viewBox="0 0 24 24"><path d="M4 4h7a2 2 0 012 2v14a2 2 0 00-2-2H4zM20 4h-7a2 2 0 00-2 2v14a2 2 0 012-2h7z"/></svg>Decks</button>
+      <button data-v="collection"><svg viewBox="0 0 24 24"><path d="M7 3h10l2 3v15H5V6zM9 8h6"/></svg>Collection</button>
+      <button data-v="ach" disabled><svg viewBox="0 0 24 24"><circle cx="12" cy="10" r="6"/><path d="M8 16l-2 5 6-3 6 3-2-5"/></svg>Achievements</button>
+    </nav>
+  </header>
+  <main id="views">
+    <section id="v-home"></section>
+    <section id="v-collection"></section>
+    <section id="v-decks"></section>
+  </main>
+</div>
+<div id="board" hidden>
+<div id="stage">
+  <div id="opp-hand" class="hand-back"></div>
+  <div id="zones-opp" class="zones"></div>
+  <div id="field-opp-lands" class="row lands"></div>
+  <div id="field-opp" class="row creatures"></div>
+  <div id="field-me" class="row creatures"></div>
+  <div id="field-me-lands" class="row lands"></div>
+  <div id="zones-me" class="zones"></div>
+  <div id="life-1" class="life"><div class="who"></div><div class="num"></div></div>
+  <div id="life-0" class="life"><div class="who"></div><div class="num"></div></div>
+  <div id="phases"></div>
+  <div id="turnno"></div>
+  <div id="banner"></div>
+  <div id="stack"></div>
+  <div id="hand"></div>
+  <div id="action"><button id="act-btn"></button><button id="act-alt" hidden></button></div>
+  <button id="concede">Leave</button>
+  <div id="hint"></div>
+  <div id="dropzone"></div>
+  <div id="log"></div>
+</div>
+  <div id="preview"></div>
+  <div id="inspect" hidden></div>
+  <div id="over" hidden></div>
+</div>
+<script type="module" src="js/ui.js"></script>
+<script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js'));window.BUILD='202611021014';</script>
+</body>
+</html>
