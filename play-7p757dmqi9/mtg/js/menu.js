@@ -41,6 +41,12 @@ export function initMenu(opts) {
   uniq = Object.values(byName).map((v) => v[0]).sort((a, b) => isImplemented(b) - isImplemented(a) || colorKey(a) - colorKey(b) || cmc(a) - cmc(b) || a.name.localeCompare(b.name));
   load();
   $('#tabs').onclick = (e) => { const b = e.target.closest('button'); if (b && !b.disabled) show(b.dataset.v); };
+  // touch: long-press a card = big view (no right-click on phones)
+  let lp = null, swallow = 0;
+  document.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'touch') return; const el = e.target.closest('#app [data-n]'); if (!el) return; clearTimeout(lp?.t); lp = { x: e.clientX, y: e.clientY, t: setTimeout(() => { bigView(el.dataset.n); swallow = Date.now() + 700; lp = null; }, 450) }; }, true);
+  document.addEventListener('pointermove', (e) => { if (lp && Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > 8) { clearTimeout(lp.t); lp = null; } }, true);
+  for (const ev of ['pointerup', 'pointercancel']) document.addEventListener(ev, () => { if (lp) { clearTimeout(lp.t); lp = null; } }, true);
+  document.addEventListener('click', (e) => { if (Date.now() < swallow) { e.stopPropagation(); e.preventDefault(); } }, true);
   document.addEventListener('contextmenu', (e) => { const el = e.target.closest('#app [data-n]'); if (!el) return; e.preventDefault(); bigView(el.dataset.n); });
   show('home');
 }

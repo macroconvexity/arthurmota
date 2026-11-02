@@ -6,6 +6,26 @@ import { initMenu, showApp, hideApp } from './menu.js';
 import { askConfirm, askNumber, askPick } from './dialog.js';
 import * as FX from './fx.js';
 
+
+// ---------- viewport: sizes come from JS (iOS toolbars make vh unreliable) ----------
+function fitViewport() {
+  const vv = window.visualViewport, W = Math.round(vv?.width || innerWidth), H = Math.round(vv?.height || innerHeight);
+  let probe = document.getElementById('safeprobe');
+  if (!probe) { probe = document.createElement('div'); probe.id = 'safeprobe'; probe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)'; document.body.appendChild(probe); }
+  const cs = getComputedStyle(probe), st = parseFloat(cs.paddingTop) || 0, sr = parseFloat(cs.paddingRight) || 0, sb = parseFloat(cs.paddingBottom) || 0, sl = parseFloat(cs.paddingLeft) || 0;
+  const aw = Math.max(100, W - sl - sr), ah = Math.max(100, H - st - sb);
+  const sw = Math.min(aw, ah * 16 / 9), sh = sw * 9 / 16;
+  const r = document.documentElement.style;
+  r.setProperty('--app-w', W + 'px'); r.setProperty('--app-h', H + 'px');
+  r.setProperty('--safe-t', st + 'px'); r.setProperty('--safe-r', sr + 'px'); r.setProperty('--safe-b', sb + 'px'); r.setProperty('--safe-l', sl + 'px');
+  r.setProperty('--stage-w', Math.floor(sw) + 'px'); r.setProperty('--stage-h', Math.floor(sh) + 'px');
+  document.documentElement.classList.toggle('compact', H <= 500 || W <= 900);
+  document.documentElement.classList.toggle('portrait', H > W);
+}
+fitViewport();
+for (const ev of ['resize', 'orientationchange']) addEventListener(ev, () => { fitViewport(); setTimeout(fitViewport, 250); });
+window.visualViewport?.addEventListener('resize', fitViewport);
+
 const $ = (id) => document.getElementById(id);
 const ME = 0;
 let g, byName, cards;
@@ -459,7 +479,7 @@ function infoHtml(c, full) {
 }
 let pinned = false;
 document.addEventListener('mouseover', (e) => {
-  if (pinned) return;
+  if (pinned || Date.now() - lastTouch < 900) return;
   const el = e.target.closest?.('.card[data-id]'); const pv = $('preview');
   const c = el && g ? findCard(+el.dataset.id) : null;
   if (!c || (g.players[1].hand.includes(c))) { pv.classList.remove('on'); return; }
@@ -478,13 +498,26 @@ document.addEventListener('mouseout', (e) => { if (!e.relatedTarget || !e.relate
 
 function openInspect(html) { const m = $('inspect'); m.innerHTML = html; m.hidden = false; pinned = true; $('preview').classList.remove('on'); }
 function closeInspect() { $('inspect').hidden = true; pinned = false; }
+function inspectEl(el) {
+  const c = findCard(+el.dataset.id); if (!c || g.players[1].hand.includes(c)) return false;
+  openInspect(`<div class="big"><img src="${c.def.art}"><div class="info">${infoHtml(c, true)}</div></div>`); return true;
+}
 document.addEventListener('contextmenu', (e) => {
   if (!g || $('board').hidden || mode?.type === 'target') return;
   const el = e.target.closest('.card[data-id]'); if (!el) return;
-  const c = findCard(+el.dataset.id); if (!c || g.players[1].hand.includes(c)) return;
-  e.preventDefault();
-  openInspect(`<div class="big"><img src="${c.def.art}"><div class="info">${infoHtml(c, true)}</div></div>`);
+  if (inspectEl(el)) e.preventDefault();
 });
+// Touch: long-press (~450 ms, no movement) = right-click inspect. No hover on phones.
+let lastTouch = 0, lp = null, swallow = 0;
+document.addEventListener('pointerdown', (e) => {
+  if (e.pointerType !== 'touch') return; lastTouch = Date.now(); $('preview').classList.remove('on');
+  const el = g && !$('board').hidden ? e.target.closest('.card[data-id]') : null; if (!el) return;
+  clearTimeout(lp?.t); lp = { x: e.clientX, y: e.clientY, t: setTimeout(() => { if (inspectEl(el)) { drag = null; swallow = Date.now() + 700; } lp = null; }, 450) };
+}, true);
+document.addEventListener('pointermove', (e) => { if (lp && Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > 8) { clearTimeout(lp.t); lp = null; } }, true);
+for (const ev of ['pointerup', 'pointercancel']) document.addEventListener(ev, () => { if (lp) { clearTimeout(lp.t); lp = null; } $('preview').classList.remove('on'); }, true);
+document.addEventListener('click', (e) => { if (Date.now() < swallow) { e.stopPropagation(); e.preventDefault(); } }, true);
+document.addEventListener('touchstart', () => { lastTouch = Date.now(); }, { passive: true, capture: true });
 document.addEventListener('click', (e) => {
   if (!$('inspect').hidden) { closeInspect(); e.stopPropagation(); return; }
   const pl = e.target.closest('.pile[data-pl]');
@@ -707,4 +740,5 @@ function endDrag(d, e) {
   d.el.style.opacity = ''; render();
 }
 addEventListener('resize', () => { if (g && !$('board').hidden) render(); });
+$('rotate-go')?.addEventListener('click', () => $('board').classList.add('norotate'));
 window.__tick = () => tick(); window.__render = render; Object.defineProperty(window, '__mode', { get: () => mode });
