@@ -1,15 +1,15 @@
-import { Game, parseCost, makeRng } from './engine.js?v=20261102134438';
-import { aiAct } from './ai.js?v=20261102134438';
-import { EFFECTS, abilitiesOf } from './cards.js?v=20261102134438';
-import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261102134438';
-import { initMenu, showApp, hideApp, costHtml } from './menu.js?v=20261102134438';
-import { askConfirm, askNumber, askPick, modal } from './dialog.js?v=20261102134438';
-import * as FX from './fx.js?v=20261102134438';
-import * as ST from './settings.js?v=20261102134438';
-import sfx from './sfx.js?v=20261102134438';
-import * as SC from './screens.js?v=20261102134438';
-import * as AI from './ai.js?v=20261102134438';
-import * as DK from './decks.js?v=20261102134438';
+import { Game, parseCost, makeRng } from './engine.js?v=20261102145024';
+import { aiAct } from './ai.js?v=20261102145024';
+import { EFFECTS, abilitiesOf } from './cards.js?v=20261102145024';
+import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261102145024';
+import { initMenu, showApp, hideApp, costHtml } from './menu.js?v=20261102145024';
+import { askConfirm, askNumber, askPick, modal } from './dialog.js?v=20261102145024';
+import * as FX from './fx.js?v=20261102145024';
+import * as ST from './settings.js?v=20261102145024';
+import sfx from './sfx.js?v=20261102145024';
+import * as SC from './screens.js?v=20261102145024';
+import * as AI from './ai.js?v=20261102145024';
+import * as DK from './decks.js?v=20261102145024';
 
 // animation speed setting (Fast/Normal/Slow, minimal under prefers-reduced-motion): scales every WAAPI duration/delay
 const _animate = Element.prototype.animate;
@@ -393,6 +393,7 @@ function effects() {
     const el = e.target.kind === 'player' ? $('life-' + e.target.id) : permEl(e.target.id);
     if (el) hitFx(el, at);
     const [x, y] = pt(r);
+    if (e.target.kind === 'player') faceSlam(e.n, at, el);
     if (e.target.kind === 'player') {
       const pid = e.target.id; if (displayLife[pid] == null) { displayLife[pid] = prevShownLife[pid] ?? g.players[pid].life + lossSum[pid]; setLifeText(pid, displayLife[pid], true); }
       later(at, () => { if (displayLife[pid] == null) return; displayLife[pid] -= e.n; lossApplied[pid] += e.n; setLifeText(pid, displayLife[pid]); });
@@ -541,7 +542,8 @@ function decorate() {
   hint(''); if ($('links')) $('links').innerHTML = '';
   if (!mine || w.kind !== 'priority') { if (mine && w.kind === 'discard') hint('Discard down to 7 cards'); return; }
   for (const c of g.players[ME].hand) if (g.canPlayLand(ME, c) || g.canCast(ME, c)) mark(`#hand .card[data-id="${c.id}"]`, 'playable');
-  for (const a of g.activatable(ME)) mark(`#board .card[data-id="${a.perm.id}"]`, 'playable');
+  for (const a of g.activatable(ME)) if (a.perm.controller === ME) mark(`#field-me .card[data-id="${a.perm.id}"]`, 'ready');
+  document.querySelectorAll('#field-me .card.ready').forEach((el) => el.style.setProperty('--rc', cardCol(el.dataset.id)));
 }
 // damage preview while assigning blockers (own computation; first strike / trample are not modelled)
 function combatPreview() {
@@ -586,7 +588,11 @@ function buttons() {
   }
   if (w.kind === 'mulligan' || w.kind === 'bottom') { b.textContent = 'Opening hand…'; b.classList.add('wait'); queueMicrotask(openOpening); return; }
   if (w.kind === 'choice') { b.textContent = 'Choose…'; b.classList.add('wait'); queueMicrotask(openChoice); return; }
-  if (w.kind === 'attackers') { if (mode?.type !== 'attackers') mode = { type: 'attackers', sel: new Set() }; b.textContent = mode.sel.size ? `Confirm attackers (${mode.sel.size})` : 'No attack'; b.onclick = () => { const ids = [...mode.sel]; mode = null; g.declareAttackers(ME, ids); refresh(); }; return; }
+  if (w.kind === 'attackers') { if (mode?.type !== 'attackers') mode = { type: 'attackers', sel: new Set() }; b.textContent = mode.sel.size ? `Confirm attackers (${mode.sel.size})` : 'No attack'; b.onclick = () => { const ids = [...mode.sel]; mode = null; g.declareAttackers(ME, ids); refresh(); };
+    const can = g.players[ME].bf.filter((p) => g.canAttack(p)).map((p) => p.id);
+    if (can.length && mode.sel.size < can.length) { alt.hidden = false; alt.textContent = 'All attack'; alt.onclick = () => { can.forEach((i) => mode.sel.add(i)); snd('click'); render(); }; }
+    else if (can.length) { alt.hidden = false; alt.textContent = 'Clear'; alt.onclick = () => { mode.sel.clear(); render(); }; }
+    return; }
   if (w.kind === 'blockers') { if (mode?.type !== 'blockers') mode = { type: 'blockers', sel: null, map: {} }; b.textContent = 'Confirm blockers'; b.onclick = () => { const m = mode.map; mode = null; g.declareBlockers(ME, m); refresh(); }; return; }
   if (w.kind === 'discard') { b.textContent = `Discard ${w.n}`; b.classList.add('wait'); return; }
   const top = g.stack[g.stack.length - 1];
@@ -901,6 +907,17 @@ function ghost(id, p) {
   if (cl) el.animate([{ translate: '0 0' }, { translate: `${cl.dx}px ${cl.dy}px`, offset: 0.4, easing: 'ease-in' }, { translate: `${cl.dx * 0.9}px ${cl.dy * 0.9}px`, offset: 0.48 }, { translate: '0 0' }], { delay: cl.at, duration: 480, fill: 'backwards' });
   if (kf) { const a = el.animate(kf, { duration: dur, delay: dly, easing: 'ease-in', fill: 'backwards' }); a.onfinish = () => el.remove(); }
   fxHold(dly + dur);
+}
+// direct hit on a player: stiff, snappy shake of the whole board + red vignette, scaled by damage
+function faceSlam(n, at, lifeEl) {
+  const k = Math.min(1, 0.35 + n / 8), amp = 5 + 16 * k, sc = ST.animScale(), b = $('board');
+  const steps = [0, -1, 0.9, -0.8, 0.55, -0.3, 0].map((m, i) => ({ translate: `${m * amp}px ${(i % 2 ? -1 : 1) * m * amp * 0.45}px`, offset: i / 6, easing: 'steps(1,end)' }));
+  setTimeout(() => {
+    b.animate(steps, { duration: 260 + 140 * k, easing: 'linear' });
+    const v = document.createElement('div'); v.className = 'slam'; v.style.setProperty('--k', k); b.appendChild(v); setTimeout(() => v.remove(), 700);
+    lifeEl?.animate([{ transform: 'scale(1.5)', filter: 'brightness(3)' }, { transform: 'scale(.92)', offset: 0.25 }, { transform: 'none', filter: 'none' }], { duration: 480, easing: 'cubic-bezier(.2,1.6,.4,1)' });
+    ST.haptic(n >= 4 ? 60 : 30);
+  }, at * sc);
 }
 function hitFx(el, delay = 0) {
   const o = { delay, fill: 'backwards' };
