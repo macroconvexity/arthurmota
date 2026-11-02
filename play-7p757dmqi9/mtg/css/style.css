@@ -432,3 +432,9 @@ a.cl.lg{color:#ffe08a;font-weight:700}a.cl.lg::before{content:"\2605 ";color:#ff
 .divbox{min-width:min(380px,88vw)}.divrow{display:flex;align-items:center;gap:12px;margin:6px 0}.divrow span{flex:1;text-align:left}.divrow b{min-width:32px;font:700 24px Georgia;color:#f3c978;text-align:center}
 .divrow button{width:40px;height:40px;border-radius:50%;border:1px solid #6a5226;background:#2a1d15;color:#f3c978;font:700 22px Georgia}
 .divleft{margin:6px 0 12px;color:#a8d8b2;font-size:14px}.divleft.bad{color:#ffb0a0}
+
+/* pre-game picker: which deck is yours vs the opponent's */
+.scrbox .mine{display:flex;align-items:center;justify-content:center;gap:10px;margin:0 0 6px;padding:8px 12px;border:2px solid #d9a54a;border-radius:12px;background:#2a1d15}
+.scrbox .mine span{font:700 12px Georgia;letter-spacing:2px;text-transform:uppercase;color:#f3c978}
+.scrbox .msel{max-width:60vw;padding:6px 8px;border-radius:8px;border:1px solid #6a5226;background:#120b09;color:#f3e3c0;font:600 14px Georgia}
+.scrbox .oppnote{margin:0 0 8px;font:600 12px Georgia;letter-spacing:1px;color:#cdbf9a;text-transform:uppercase}

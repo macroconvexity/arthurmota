@@ -1,6 +1,6 @@
-import { isImplemented } from './cards.js?v=20261102174621';
-import { DECK_LISTS, copyLimit } from './decks.js?v=20261102174621';
-import { askConfirm, askText } from './dialog.js?v=20261102174621';
+import { isImplemented } from './cards.js?v=20261102175537';
+import { DECK_LISTS, copyLimit } from './decks.js?v=20261102175537';
+import { askConfirm, askText } from './dialog.js?v=20261102175537';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
@@ -44,6 +44,10 @@ const save = () => { try { localStorage.setItem(KEY, JSON.stringify(store)); } c
 const deck = () => store.decks[store.current];
 const entries = (d = deck()) => Object.entries(d).filter(([k]) => k[0] !== '_');
 const total = (d = deck()) => entries(d).reduce((a, [, n]) => a + n, 0);
+// the player's decks for the pre-game picker: [{name, size, legal}], plus counts of one deck
+export const myDecks = () => ({ current: store.current, list: Object.keys(store.decks).map((n) => ({ name: n, size: total(store.decks[n]), legal: total(store.decks[n]) >= MIN_DECK })) });
+export const myDeckCounts = (n) => Object.fromEntries(entries(store.decks[n] || {}));
+export const setMyDeck = (n) => { if (store.decks[n]) { store.current = n; save(); } };
 const playableName = (n) => isImplemented(byName[n][0]);
 function add(n) { const d = deck(); if (!playableName(n)) return; if ((d[n] || 0) >= copyLimit(n)) return; d[n] = (d[n] || 0) + 1; delete d._premade; save(); }
 function remove(n) { const d = deck(); if (!d[n]) return; if (--d[n] <= 0) delete d[n]; delete d._premade; save(); }

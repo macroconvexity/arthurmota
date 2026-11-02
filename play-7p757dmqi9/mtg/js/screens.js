@@ -4,17 +4,17 @@ function layer(cls, html) { const d = document.createElement('div'); d.className
 const COL = { W: '#f6efc8', U: '#6fb4ea', B: '#7d7480', R: '#ee7a5c', G: '#6cbd78' };
 
 // decks: [{name, blurb, colors:[..], size}]; returns {foe: name|null(random), level} or null when cancelled
-export function showPicker(decks, level = 'normal') {
+export function showPicker(decks, level = 'normal', mine = null) {
   return new Promise((resolve) => {
     let sel = null;
     const tile = (d, i) => `<button class="tile" data-i="${i}"><span class="pt" style="filter:hue-rotate(${(i * 47) % 360}deg)"></span><b>${esc(d.name)}</b><span class="dots">${(d.colors || []).map((c) => `<i style="background:${COL[c] || '#bbb'}"></i>`).join('')}</span><small>${esc(d.blurb || '')}</small></button>`;
-    const el = layer('picker', `<div class="scrbox"><h2>Choose your opponent</h2><div class="lvl">${['easy', 'normal', 'hard'].map((l) => `<button data-l="${l}" class="${l === level ? 'on' : ''}">${l[0].toUpperCase() + l.slice(1)}</button>`).join('')}</div>
+    const el = layer('picker', `<div class="scrbox"><h2>Choose your opponent</h2>${mine ? `<div class="mine"><span>You play</span><select class="msel">${mine.list.map((d) => `<option value="${esc(d.name)}" ${d.name === mine.current ? 'selected' : ''} ${d.legal ? '' : 'disabled'}>${esc(d.name)} (${d.size})</option>`).join('')}</select></div>` : ''}<div class="oppnote">The decks below are your OPPONENT's</div><div class="lvl">${['easy', 'normal', 'hard'].map((l) => `<button data-l="${l}" class="${l === level ? 'on' : ''}">${l[0].toUpperCase() + l.slice(1)}</button>`).join('')}</div>
       <div class="tiles"><button class="tile rnd" data-i="-1"><span class="pt q">?</span><b>Random</b><small>Surprise me</small></button>${decks.map(tile).join('')}</div>
       <div class="scrbtns"><button class="no">Back</button><button class="yes" disabled>Start</button></div></div>`);
     const go = el.querySelector('.yes'); const done = (v) => { el.remove(); resolve(v); };
     el.querySelector('.lvl').onclick = (e) => { const b = e.target.closest('[data-l]'); if (!b) return; level = b.dataset.l; el.querySelectorAll('.lvl button').forEach((x) => x.classList.toggle('on', x === b)); };
     el.querySelector('.tiles').onclick = (e) => { const b = e.target.closest('.tile'); if (!b) return; sel = +b.dataset.i; el.querySelectorAll('.tile').forEach((x) => x.classList.toggle('sel', x === b)); go.disabled = false; if (e.detail === 2) go.click(); };
-    go.onclick = () => done({ foe: sel >= 0 ? decks[sel].name : null, level });
+    go.onclick = () => done({ foe: sel >= 0 ? decks[sel].name : null, level, mine: el.querySelector('.msel')?.value });
     el.querySelector('.no').onclick = () => done(null);
   });
 }
