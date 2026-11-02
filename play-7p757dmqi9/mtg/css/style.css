@@ -171,7 +171,7 @@ html.portrait #board:not(.norotate):not([hidden]) #rotate{display:flex}
 
 #boxprobe,#saprobe,#rawprobe{z-index:-1}
 #dbg{position:fixed;left:4px;top:4px;z-index:9999;margin:0;padding:6px 8px;background:#000c;color:#7dff9a;font:10px/1.35 ui-monospace,Menlo,monospace;border:1px solid #7dff9a66;border-radius:6px;white-space:pre;max-width:90vw}
-#action{bottom:calc(3.2cqh + var(--sa-b,0px))}
+#action{bottom:3.2cqh}
 html.short #hand{--hw:min(15.5cqh,9cqw);bottom:.5cqh}
 html.short #opp-hand{top:-7.5cqh}html.short #opp-hand .cb{--cw:min(9cqh,5cqw)}
 html.short #log{display:none}
