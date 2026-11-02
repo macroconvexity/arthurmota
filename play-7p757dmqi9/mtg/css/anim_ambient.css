@@ -1,0 +1,54 @@
+/* Ambient + presentation layer (js/anim/ambient.js). --as = animation scale set from settings (0.05 Off .. 1.6 Slow). */
+/* heartbeat vignette from displayed life (replaces the old #stage.lowme::after / lowpulse) */
+#stage::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:14;opacity:0;box-shadow:inset 0 0 12cqh 3cqh #ff1a1aaa;transition:opacity .4s}
+#stage.ambHeart::after{animation:ambHeart var(--hb,1.25s) ease-in-out infinite}
+#stage.ambCrit::after{box-shadow:inset 0 0 18cqh 6cqh #ff0a0acc}
+@keyframes ambHeart{0%,100%{opacity:0}12%{opacity:.85}24%{opacity:.15}38%{opacity:.7}60%{opacity:0}}
+.life.ambLow{animation:ambLowPulse var(--hb,1.25s) ease-in-out infinite}
+@keyframes ambLowPulse{12%,38%{filter:drop-shadow(0 0 12px #ff3b2a)}}
+html.reduced #stage::after,html.reduced .life.ambLow{animation:none}
+#board.wiped #stage{transition:filter calc(1.1s*var(--as,1)),opacity calc(1.1s*var(--as,1));filter:blur(6px) brightness(.35) saturate(.4)}
+
+/* playmat particles: transform/opacity only, 9-16 elements */
+#ambmat{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:0}
+#ambmat i{position:absolute;width:var(--s);height:var(--s);opacity:0;will-change:transform,opacity;animation:var(--d) linear var(--dl) infinite}
+#ambmat .ap-dust{top:70%;border-radius:50%;background:#e8dcc0;animation-name:apDrift;filter:blur(.4px)}
+#ambmat .ap-pollen{top:90%;border-radius:50%;background:#f6f0a8;box-shadow:0 0 8px #e8f5a0;animation-name:apRise}
+#ambmat .ap-leaf{top:-6%;background:#7dbb5a;border-radius:2px 80% 2px 80%;animation-name:apFall}
+#ambmat .ap-snow{top:-4%;border-radius:50%;background:#fff;box-shadow:0 0 6px #fff;animation-name:apFall}
+#ambmat .ap-ember{top:100%;border-radius:50%;background:#ffb347;box-shadow:0 0 8px #ff7a33;animation-name:apRise}
+@keyframes apRise{0%{transform:translate(0,0);opacity:0}12%{opacity:.9}50%{transform:translate(calc(var(--x)*.4),-45vh)}100%{transform:translate(var(--x),-95vh);opacity:0}}
+@keyframes apDrift{0%{transform:translate(0,0);opacity:0}20%{opacity:.6}100%{transform:translate(calc(var(--x)*3),-12vh);opacity:0}}
+@keyframes apFall{0%{transform:translate(0,0) rotate(0);opacity:0}10%{opacity:.85}50%{transform:translate(calc(var(--x)*-.5),50vh) rotate(calc(var(--r)*.5))}100%{transform:translate(var(--x),105vh) rotate(var(--r));opacity:0}}
+html.reduced #ambmat{display:none}
+
+/* emotes: bubble next to the avatar, button beside the player avatar on desktop */
+.ambub{position:fixed;z-index:247;pointer-events:none;padding:6px 12px;border-radius:14px;background:#fffbe8;color:#2a1d10;font:700 14px Georgia;max-width:180px;box-shadow:0 4px 14px #000a;border:2px solid #d9a54a}
+.ambub::after{content:"";position:absolute;left:14px;width:10px;height:10px;background:#fffbe8;border:2px solid #d9a54a;transform:rotate(45deg)}
+.ambub.me::after{bottom:-7px;border-top:0;border-left:0}
+.ambub.opp::after{top:-7px;border-bottom:0;border-right:0}
+html:not(.phone) #emote{top:93.2%;left:calc(50% + 4.6%);transform:translateY(0)}
+html:not(.phone) #emotemenu{top:auto;bottom:calc(100% - 93.2% + 2%);left:calc(50% + 4.6%)}
+#emotemenu.on button{animation:ambPop calc(.24s*var(--as,1)) cubic-bezier(.2,1.4,.4,1) both;animation-delay:calc(var(--k,0)*40ms*var(--as,1))}
+#emotemenu.on button:nth-child(2){--k:1}#emotemenu.on button:nth-child(3){--k:2}#emotemenu.on button:nth-child(4){--k:3}#emotemenu.on button:nth-child(5){--k:4}#emotemenu.on button:nth-child(6){--k:5}
+@keyframes ambPop{from{opacity:0;transform:translateX(-10px) scale(.9)}}
+html.reduced #emotemenu.on button{animation:none}
+
+/* coin / dice toss */
+#ambtoss{position:fixed;left:50%;top:22%;transform:translateX(-50%);z-index:300;pointer-events:none;text-align:center}
+#ambtoss .tmsg{font:700 22px Georgia;letter-spacing:2px;color:#fff;text-shadow:0 0 12px #000;opacity:0;transition:opacity .3s;margin-top:14px}
+#ambtoss.shown .tmsg{opacity:1}
+#ambtoss .die{width:72px;height:72px;margin:0 auto;border-radius:14px;background:linear-gradient(#fff6dc,#d9c28a);border:3px solid #8a5f1c;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px #000a}
+#ambtoss .die b{font:700 34px Georgia;color:#3a2410}
+
+/* choice browsers: cards deal in from above with a stagger, deal out on close (dialog.js adds .dlgx) */
+.opts .opt{animation:ambDeal calc(.4s*var(--as,1)) cubic-bezier(.2,1.2,.4,1) both;animation-delay:calc(min(var(--i,0),14)*45ms*var(--as,1))}
+@keyframes ambDeal{from{opacity:0;transform:translateY(-34px) scale(.78) rotate(calc(-8deg + var(--i,0)*2deg))}}
+#inspect .cards img{animation:ambDeal calc(.4s*var(--as,1)) cubic-bezier(.2,1.2,.4,1) both;animation-delay:calc(min(var(--i,0),20)*35ms*var(--as,1))}
+.dlgx{position:fixed;inset:0;z-index:500;background:#000a;display:flex;align-items:center;justify-content:center;pointer-events:none;animation:ambFade calc(.26s*var(--as,1)) ease-in forwards}
+.dlgx .dlgbox{animation:none}
+.dlgx .opts .opt{animation:ambDealOut calc(.22s*var(--as,1)) ease-in both;animation-delay:calc(min(var(--i,0),10)*20ms*var(--as,1))}
+@keyframes ambDealOut{to{opacity:0;transform:translateY(30px) scale(.8) rotate(6deg)}}
+@keyframes ambFade{to{opacity:0}}
+html.reduced .opts .opt,html.reduced #inspect .cards img,html.reduced .dlgx,html.reduced .dlgx .opt{animation:none}
+html.reduced .dlgx{display:none}

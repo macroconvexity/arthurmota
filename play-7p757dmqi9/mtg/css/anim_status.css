@@ -1,0 +1,39 @@
+/* Status & life feedback (js/anim/status.js): counters, P/T, keyword chips, protection ring, life, action button. */
+.card .pt u{text-decoration:none;display:inline-block}
+.card .pt u.up{color:#7dff9a}.card .pt u.down{color:#ff6a55}
+/* counters: top-left stack */
+.sxcnt{position:absolute;left:-4px;top:-6px;display:flex;flex-direction:column;align-items:flex-start;gap:1px;z-index:3;pointer-events:none}
+.sxc{font:700 max(7px,calc(var(--cw)*.13))/1.15 Georgia;font-style:normal;white-space:nowrap;padding:0 .4em;border-radius:99px;color:#fff;background:#1b1410e8;border:1px solid #ffb25a}
+.sxc b{margin-left:.25em}
+.sxc.plus{border-color:#4cc46a;color:#9dffb0}.sxc.minus{border-color:#e0554a;color:#ff9a8f}.sxc.other{border-color:#ffb25a;color:#ffd9a0}
+.card.tapped .sxcnt{transform:rotate(-90deg);transform-origin:0 100%}
+/* keyword chips: bottom-left */
+.sxk{position:absolute;left:3%;bottom:3%;display:flex;flex-wrap:wrap;gap:1px;max-width:62%;z-index:3;pointer-events:none}
+.sxkw{display:inline-flex;align-items:center;justify-content:center;min-width:calc(var(--cw)*.2);height:calc(var(--cw)*.17);padding:0 2px;border-radius:99px;background:#0b1020ee;border:1px solid #9fb0d8;color:#dfe8ff;font:700 max(6.5px,calc(var(--cw)*.105))/1 Georgia}
+.sxkw.air{border-color:#6fbaff;color:#bfe2ff}.sxkw.gold{border-color:#f3c978;color:#ffe3a6}.sxkw.grn{border-color:#4cc46a;color:#9dffb0}
+.sxkw.vio{border-color:#b06bff;color:#d9b8ff}.sxkw.red{border-color:#ff7a33;color:#ffb48a}.sxkw.gry{border-color:#8a90a8;color:#c3c8dc}
+.sxkw.sick{border-color:#7a8199;color:#aab;background:#10131ccc}
+.sxkw.pro{border-color:var(--pc);color:var(--pc);box-shadow:0 0 5px var(--pc)}
+.sxkw.shield{border-color:#ffe08a;color:#ffe08a;box-shadow:0 0 6px #ffe08a;animation:sxshield 1.4s ease-in-out infinite}
+@keyframes sxshield{50%{box-shadow:0 0 11px 2px #ffe08a}}
+.lands .sxk{display:none}
+html.phone .sxkw{height:max(10px,calc(var(--cw)*.16))}
+/* protection ring */
+.sxring{position:absolute;inset:-2px;border-radius:calc(var(--cw)*.07);padding:2px;pointer-events:none;z-index:2;opacity:.9;-webkit-mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+/* floating bits (in #animlayer) */
+.sxpop{font:700 max(11px,1.8vh)/1 Georgia;text-shadow:0 0 6px #000,0 0 10px currentColor;white-space:nowrap}
+.sxlife{font:700 clamp(22px,4.2vh,40px)/1 Georgia;text-shadow:0 0 10px #000,0 0 16px currentColor;white-space:nowrap}
+.sxheal{min-width:1.4em;height:1.4em;padding:0 .3em;border-radius:99px;color:#fff;font:700 max(10px,1.7vh)/1.4em Georgia;text-align:center}
+.sxdim{background:radial-gradient(#ff2a1a99,#ff2a1a00 75%);box-shadow:inset 0 0 20px #7a0000}
+.sxinring{border-radius:50%;border:3px solid #b06bff;box-shadow:0 0 18px #b06bff,inset 0 0 14px #b06bff}
+.sxmote{width:6px;height:6px;margin:-3px;border-radius:50%;background:#d9b8ff;box-shadow:0 0 8px #b06bff}
+.sxdrain{border-radius:50%}
+/* action button */
+#act-btn{position:relative}
+#act-btn.sx-go::after{content:"";position:absolute;inset:-2px;border-radius:inherit;border:2px solid #ffcf94;pointer-events:none;animation:sxripple 1.8s ease-out infinite}
+@keyframes sxripple{0%{transform:scale(1);opacity:.85}100%{transform:scale(1.22,1.5);opacity:0}}
+#act-btn.sx-wait{animation:sxwait 2.2s ease-in-out infinite;opacity:.8}
+#act-btn.sx-wait::after{content:"";display:inline-block;width:1.2em;text-align:left;animation:sxdots 1.4s steps(4,end) infinite;overflow:hidden;vertical-align:bottom;white-space:nowrap}
+@keyframes sxwait{50%{opacity:.5}}
+@keyframes sxdots{0%{content:""}25%{content:"."}50%{content:".."}75%,100%{content:"..."}}
+html.reduced #act-btn.sx-go::after,html.reduced #act-btn.sx-wait,html.reduced .sxkw.shield{animation:none}

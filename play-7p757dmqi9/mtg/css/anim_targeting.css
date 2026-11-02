@@ -1,0 +1,57 @@
+/* Targeting & stack clarity (js/anim/targeting.js). Loaded by TG.init(). */
+#tgsvg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;--tgs:1}
+.tg-a{color:#ffcf94}
+.tg-a path{fill:none;stroke-linecap:round}
+.tg-a .g2{stroke:currentColor;stroke-width:16;opacity:.12}
+.tg-a .g1{stroke:currentColor;stroke-width:9;opacity:.28}
+.tg-a .core{stroke-width:3.6}
+.tg-a .flow{stroke:#fff;stroke-width:1.8;stroke-dasharray:2 16;opacity:.9;animation:tgflow calc(.8s*var(--tgs)) linear infinite}
+.tg-a .head{fill:currentColor;stroke:#fff;stroke-width:1;stroke-opacity:.6;filter:drop-shadow(0 0 4px currentColor)}
+.tg-a .orig{fill:currentColor;opacity:.9}
+.tg-a .tip{fill:none;stroke:currentColor;stroke-width:2;transform-box:fill-box;transform-origin:center;animation:tgtip calc(1.1s*var(--tgs)) ease-out infinite;opacity:0}
+.tg-a.small .g2{display:none}.tg-a.small .g1{stroke-width:6}.tg-a.small .core{stroke-width:2.4}.tg-a.small .tip{display:none}
+.tg-a.faint{opacity:.5}
+.tg-a.tether .g1{opacity:.12}.tg-a.tether .core{stroke-dasharray:3 6;opacity:.7}.tg-a.tether .flow,.tg-a.tether .head{display:none}
+.tg-a.bad .flow{animation-duration:calc(.35s*var(--tgs))}
+.tg-a.top .g1{opacity:.4}
+@keyframes tgflow{to{stroke-dashoffset:-36}}
+@keyframes tgtip{0%{transform:scale(.5);opacity:.9}100%{transform:scale(2);opacity:0}}
+#tgsvg.still .flow,#tgsvg.still .tip{animation:none}
+#tgsvg.still .tip{opacity:0}
+.tg-ring{fill:none;stroke-width:3;pointer-events:none}
+.tg-ring.ok{stroke:#7dff9a;filter:drop-shadow(0 0 8px #7dff9a)}
+.tg-ring.bad{stroke:#ff4a3a;stroke-dasharray:7 5;filter:drop-shadow(0 0 8px #ff4a3a)}
+.tg-ring.flash{stroke-dasharray:none}
+/* hover feedback on the element itself */
+.card.tg-hot,.life.tg-hot{filter:brightness(1.18) saturate(1.15)}
+.card.tg-badhover,.life.tg-badhover{cursor:not-allowed!important;filter:brightness(.8) sepia(.6) hue-rotate(-30deg) saturate(2)}
+/* a permanent whose ability waits on the stack keeps a soft halo */
+.card.tg-src{box-shadow:0 0 0 2px #ffd27a,0 0 22px 4px #ffd27acc!important}
+.card.tg-src:not(.tapped){animation:tgsrc calc(1.4s*var(--tgs,1)) ease-in-out infinite}
+@keyframes tgsrc{50%{filter:brightness(1.35)}}
+/* ---- stack fan: depth offsets, order badges, highlighted top ---- */
+html.tg-on #stack .items{position:relative;flex-wrap:wrap;justify-content:center;align-items:center;max-width:72cqw;gap:1.2cqh 1.4cqh;perspective:900px}
+html.tg-on #stack .items .card{--d:0;transition:none;filter:none;
+  transform:translate(calc(var(--d)*-1cqh),calc(var(--d)*-1.4cqh)) rotate(calc(var(--d)*-2.8deg)) scale(calc(1 - var(--d)*.035));
+  box-shadow:0 calc(.5cqh + var(--d)*.3cqh) calc(1cqh + var(--d)*.6cqh) #000c}
+html.tg-on #stack .items .card+.card{margin-left:-1.8cqh}
+html.tg-on #stack .items .card:not(.top){filter:brightness(calc(.9 - var(--d)*.05))}
+html.tg-on #stack .items .card.top{transform:translateY(-1.2cqh) scale(1.07);z-index:3;box-shadow:0 0 0 3px var(--gold2),0 0 36px #f3c978cc;animation:tgtop calc(1.6s*var(--tgs,1)) ease-in-out infinite}
+@keyframes tgtop{50%{box-shadow:0 0 0 3px var(--gold2),0 0 52px 6px #f3c978ee}}
+.tg-ord{position:absolute;right:-.8cqh;top:-.8cqh;min-width:3.4cqh;height:3.4cqh;padding:0 .6cqh;border-radius:99px;background:#151008;border:1.5px solid #8a7a50;color:#e9d9a8;font:700 max(8px,2.2cqh)/3.1cqh Georgia;text-align:center;font-style:normal;z-index:5;pointer-events:none;box-sizing:border-box}
+#stack .card.top>.tg-ord{background:#f3c978;border-color:#fff3c8;color:#2a1c04}
+/* ---- ability chip: source art thumbnail + short text ---- */
+html.tg-on #stack .items .card.tg-chip{width:calc(var(--cw)*1.85);height:calc(var(--cw)*.62);border-radius:99px 12px 12px 99px;display:flex;align-items:center;gap:calc(var(--cw)*.06);padding:calc(var(--cw)*.04);background:linear-gradient(100deg,#2b1f0a,#14100a);border:1.5px solid #ffd27a;overflow:visible}
+html.tg-on #stack .items .card.tg-chip+.card,html.tg-on #stack .items .card+.card.tg-chip{margin-left:0}
+html.tg-on #stack .items .card.tg-chip:not(.top){transform:translate(calc(var(--d)*-.6cqh),calc(var(--d)*-.8cqh)) scale(calc(1 - var(--d)*.02))}
+html.tg-on #stack .items .card.tg-chip.top{transform:translateY(-.6cqh) scale(1.05)}
+.tg-thumb{flex:none;width:calc(var(--cw)*.52);height:calc(var(--cw)*.52);border-radius:50%;background-size:135% auto;background-position:50% 8%;background-color:#000;border:1.5px solid #ffd27a;box-shadow:0 0 8px #ffd27a88}
+.tg-txt{display:flex;flex-direction:column;min-width:0;line-height:1.15}
+.tg-txt b{font:700 max(8px,2.3cqh) Georgia;color:#ffe9b0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tg-txt small{font:max(7px,1.9cqh) Georgia;color:#d8cfae;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tg-txt em{font-style:normal;color:#ffd27a;text-transform:uppercase;letter-spacing:.5px;font-size:.85em}
+.tg-chip.tg-ghost{display:flex;align-items:center;border-radius:99px 12px 12px 99px;background:linear-gradient(100deg,#2b1f0a,#14100a);border:1.5px solid #ffd27a;gap:4px;padding:3px}
+.tg-chip.tg-ghost .tg-thumb{width:calc(var(--cw)*.52);height:calc(var(--cw)*.52)}
+html.phone .tg-txt small{-webkit-line-clamp:1}
+html.phone.tg-on #stack .items{max-width:78cqw}
+@media (prefers-reduced-motion:reduce){.tg-a .flow,.tg-a .tip,.card.tg-src,html.tg-on #stack .items .card.top{animation:none}}

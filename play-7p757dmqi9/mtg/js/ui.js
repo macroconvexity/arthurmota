@@ -1,15 +1,21 @@
-import { Game, parseCost, makeRng } from './engine.js?v=20261102152945';
-import { aiAct } from './ai.js?v=20261102152945';
-import { EFFECTS, abilitiesOf } from './cards.js?v=20261102152945';
-import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261102152945';
-import { initMenu, showApp, hideApp, costHtml } from './menu.js?v=20261102152945';
-import { askConfirm, askNumber, askPick, modal } from './dialog.js?v=20261102152945';
-import * as FX from './fx.js?v=20261102152945';
-import * as ST from './settings.js?v=20261102152945';
-import sfx from './sfx.js?v=20261102152945';
-import * as SC from './screens.js?v=20261102152945';
-import * as AI from './ai.js?v=20261102152945';
-import * as DK from './decks.js?v=20261102152945';
+import { Game, parseCost, makeRng } from './engine.js?v=20261102160439';
+import { aiAct } from './ai.js?v=20261102160439';
+import { EFFECTS, abilitiesOf } from './cards.js?v=20261102160439';
+import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261102160439';
+import { initMenu, showApp, hideApp, costHtml } from './menu.js?v=20261102160439';
+import { askConfirm, askNumber, askPick, modal } from './dialog.js?v=20261102160439';
+import * as FX from './fx.js?v=20261102160439';
+import * as ST from './settings.js?v=20261102160439';
+import sfx from './sfx.js?v=20261102160439';
+import * as SC from './screens.js?v=20261102160439';
+import * as AI from './ai.js?v=20261102160439';
+import * as DK from './decks.js?v=20261102160439';
+import * as AN from './anim.js?v=20261102160439';
+import * as SX from './anim/status.js?v=20261102160439';
+import * as ZN from './anim/zones.js?v=20261102160439';
+import * as TG from './anim/targeting.js?v=20261102160439';
+import * as AMB from './anim/ambient.js?v=20261102160439';
+AMB.init({ me: 0 });
 
 // animation speed setting (Fast/Normal/Slow, minimal under prefers-reduced-motion): scales every WAAPI duration/delay
 const _animate = Element.prototype.animate;
@@ -90,6 +96,9 @@ async function boot() {
   { let lp; const g0 = $('gear'); g0.addEventListener('pointerdown', () => { lp = setTimeout(() => { lp = 'done'; startDebug(); }, 1200); }); const cancel = () => { if (lp && lp !== 'done') clearTimeout(lp); }; g0.addEventListener('pointerup', cancel); g0.addEventListener('pointerleave', cancel); g0.addEventListener('click', (e) => { if (lp === 'done') { lp = null; e.stopImmediatePropagation(); } }, true); }
   $('mute').onclick = () => { ST.set('sound', !ST.get('sound')); applySettings(); updMute(); };
   $('help').onclick = () => startCoach(true);
+  $('emote').onclick = (e) => { e.stopPropagation(); $('emotemenu').classList.toggle('on'); };
+  $('emotemenu').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; $('emotemenu').classList.remove('on'); AMB.emote(b.textContent); snd('click'); };
+  document.addEventListener('click', (e) => { if (!e.target.closest('#emote,#emotemenu')) $('emotemenu')?.classList.remove('on'); });
   $('logbtn').onclick = toggleLog; $('logdrawer').querySelector('.lx').onclick = closeLog;
   ST.applyClasses(); applySettings(); updMute();
   matchMedia?.('(prefers-reduced-motion: reduce)').addEventListener?.('change', () => ST.applyClasses());
@@ -107,7 +116,8 @@ async function availableMats() {
   const probe = (n) => new Promise((res) => { const im = new Image(); im.onload = () => res(n); im.onerror = () => res(0); im.src = matUrl(n); });
   return (await Promise.all([1, 2, 3, 4, 5, 6, 7, 8].map(probe))).filter(Boolean);
 }
-function applySettings() { ST.applyClasses(); try { sfx.setEnabled(ST.get('sound')); sfx.setVolume(ST.get('volume')); } catch {} applyMat(+ST.get('playmat') || 5); if (g && g.aiLevel !== undefined) g.aiLevel = ST.get('difficulty'); }
+function refreshAmbient() { AMB.refresh(); }
+function applySettings() { ST.applyClasses(); refreshAmbient(); try { sfx.setEnabled(ST.get('sound')); sfx.setVolume(ST.get('volume')); } catch {} applyMat(+ST.get('playmat') || 5); if (g && g.aiLevel !== undefined) g.aiLevel = ST.get('difficulty'); }
 async function openSettings() {
   const mats = isPhone() ? await availableMats() : []; const v = (k) => ST.get(k);
   const seg = (k, opts) => `<div class="seg" data-k="${k}">${opts.map(([val, lbl]) => `<button data-v="${val}" class="${v(k) === val ? 'on' : ''}">${lbl}</button>`).join('')}</div>`;
@@ -116,10 +126,10 @@ async function openSettings() {
     box.classList.add('setbox');
     box.innerHTML = `<p><b>Settings</b></p>
       <div class="setlbl">Sound</div><label class="row2"><input type="checkbox" data-k="sound" ${v('sound') ? 'checked' : ''}> Sound effects</label><input type="range" data-k="volume" min="0" max="1" step="0.05" value="${v('volume')}">
-      <div class="setlbl">Animation speed</div>${seg('speed', [['fast', 'Fast'], ['normal', 'Normal'], ['slow', 'Slow']])}${ST.reducedMotion() ? '<small class="muted">Reduced motion is on in your system: animations stay minimal.</small>' : ''}
+      <div class="setlbl">Animation speed</div>${seg('speed', [['off', 'Off'], ['fast', 'Fast'], ['normal', 'Normal'], ['slow', 'Slow']])}${ST.reducedMotion() ? '<small class="muted">Reduced motion is on in your system: animations stay minimal.</small>' : ''}
       <div class="setlbl">Auto-pass stops</div>${chk('stopOppSpell', 'When the opponent casts a spell I can answer')}${chk('stopMyBegin', 'In my upkeep and draw step')}${chk('stopOppEnd', 'At the opponent\'s end step')}
       <div class="setlbl">AI difficulty (next game)</div>${seg('difficulty', [['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']])}
-      <div class="setlbl">Display</div>${chk('pips', 'Show mana costs on cards (phone)')}${isPhone() ? chk('lefty', 'Left-handed layout') : ''}${navigator.vibrate ? chk('haptics', 'Haptic feedback') : ''}
+      <div class="setlbl">Display</div>${chk('pips', 'Show mana costs on cards (phone)')}${isPhone() ? chk('lefty', 'Left-handed layout') + chk('ambient', 'Ambient playmat particles') : ''}${navigator.vibrate ? chk('haptics', 'Haptic feedback') : ''}
       ${mats.length ? `<div class="setlbl">Playmat</div><div class="mats">${mats.map((n) => `<button class="mat ${n === +v('playmat') ? 'sel' : ''}" data-n="${n}"><img src="${matUrl(n)}" draggable="false"><span>Playmat ${n}</span></button>`).join('')}</div>` : ''}
       <div class="dlgbtns"><button class="help">How to play</button>${g ? '<button class="leave">Leave game</button>' : ''}<button class="yes">Close</button></div>`;
     box.addEventListener('change', (e) => { const k = e.target.dataset.k; if (!k) return; ST.set(k, e.target.type === 'checkbox' ? e.target.checked : e.target.type === 'range' ? +e.target.value : e.target.value); applySettings(); });
@@ -133,7 +143,7 @@ async function openSettings() {
   if (act === 'leave' && await askConfirm('Leave this game?', 'Leave')) leave();
   if (act === 'help' && g) startCoach(true);
 }
-function leave() { runId++; mode = null; g = null; window.g = null; busy = false; $('inspect').hidden = true; closeLog(); document.querySelectorAll('.scr,.coachring').forEach((e) => e.remove()); clearSave(); showApp(); }
+function leave() { ZN.resetCounts(); SX.reset(); AMB.stop(); TG.reset(); runId++; mode = null; g = null; window.g = null; busy = false; $('inspect').hidden = true; closeLog(); document.querySelectorAll('.scr,.coachring').forEach((e) => e.remove()); clearSave(); showApp(); }
 
 // ---------- game setup flow: opponent picker -> coin flip -> mulligan -> (first time) coach marks ----------
 let runId = 0, lastRun = null, prevHand = null;
@@ -158,7 +168,7 @@ async function playFlow(counts, again) {
   g = new Game([buildDeckFrom(counts, byName), buildDeck(foe, byName)], { names: ['You', 'Opponent'], mulligan: true, autoMulligan: quick ? true : [1], rng: makeRng((Date.now() ^ (Math.random() * 1e9)) >>> 0) });
   g.aiLevel = pick.level; g.aiDifficulty = pick.level; window.g = g; window.__stats = { dmg: [0, 0], cast: 0, died: 0 };
   shownLife[0] = shownLife[1] = displayLife[0] = displayLife[1] = null; displayDmg.clear(); prevHand = null; peekId = null; needCoach = !quick && !ST.get('onboarded');
-  hideApp(); $('board').hidden = false; $('over').hidden = true; mode = null; closeLog();
+  hideApp(); $('board').hidden = false; $('over').hidden = true; mode = null; closeLog(); refreshAmbient(); 
   const ci = g.events.findIndex((e) => e.type === 'coin'); const coin = ci >= 0 ? g.events.splice(ci, 1)[0] : null;
   if (!quick) { render(); if (coin) { await SC.showCoin(coin.winner === ME); if (rid !== runId) return; } }
   snd('deal'); tick();
@@ -211,7 +221,7 @@ function resumeGame() {
     const d = JSON.parse(localStorage.getItem(SAVE_KEY)); g = Game.restore(d.ser, { byName, rng: makeRng(1) }); lastRun = { counts: d.counts, foe: d.foe, level: d.level }; window.g = g; window.__stats = { dmg: [0, 0], cast: 0, died: 0 };
     if (d.playmat) ST.set('playmat', d.playmat); applyMat(+ST.get('playmat') || 5);
     shownLife[0] = shownLife[1] = displayLife[0] = displayLife[1] = null; displayDmg.clear(); prevHand = null; peekId = null; g.events.length = 0;
-    hideApp(); $('board').hidden = false; $('over').hidden = true; mode = null; noAnimOnce = true; tick();
+    hideApp(); $('board').hidden = false; $('over').hidden = true; mode = null; noAnimOnce = true; refreshAmbient(); tick();
   } catch (e) { console.warn('resume failed', e); clearSave(); g = null; window.g = null; showApp(); }
 }
 // ---------- game log drawer ----------
@@ -281,7 +291,7 @@ function ptHtml(p) {
   const cls2 = bp > +p.card.def.power || bt > +p.card.def.toughness ? 'buff' : '';
   return `<span class="pt ${cls2} ${d ? 'hurt' : ''}">${bp}/${bt - d}</span>${d ? `<span class="dmg">${d}</span>` : ''}`;
 }
-function patchPerm(id) { const el = permEl(id), p = g.perm(id); if (!el || !p) return; el.querySelectorAll(':scope > .pt, :scope > .dmg').forEach((x) => x.remove()); el.insertAdjacentHTML('beforeend', ptHtml(p)); }
+function patchPerm(id) { const el = permEl(id), p = g.perm(id); if (!el || !p) return; el.querySelectorAll(':scope > .pt, :scope > .dmg').forEach((x) => x.remove()); el.insertAdjacentHTML('beforeend', ptHtml(p)); SX.decoPT(el, p); }
 function setLifeText(i, v, quiet) {
   const num = $('life-' + i).querySelector('.num'), o = shownLife[i]; num.textContent = v; shownLife[i] = v;
   if (!quiet && o !== null && o !== v) num.animate([{ transform: 'scale(1.7)', color: v < o ? '#ff6a55' : '#7dff9a' }, { transform: 'scale(1)', color: '#fff' }], { duration: 600, easing: 'ease-out' });
@@ -293,13 +303,26 @@ function permHtml(p, extra = '') {
   const dm = '';
   const cn = Object.entries(p.counters || {}).filter(([, n]) => n).map(([k, n]) => `${n}× ${k}`).join(' · ');
   const auras = g.players.flatMap((pl) => pl.bf).filter((a) => a.attachedTo === p.id).map((a, i) => `<div class="card aura" data-id="${a.id}" data-kind="perm" style="--i:${i}">${IMG(a.card)}</div>`).join('');
-  return `<div class="${cls}" data-id="${p.id}" data-kind="perm">${auras}${IMG(p.card)}${g.isLand(p) ? '' : `<span class="ovl pips">${costHtml(p.card.def.manaCost)}</span>`}${pt}${dm}${cn ? `<span class="badge">${cn}</span>` : ''}</div>`;
+  return `<div class="${cls}" data-id="${p.id}" data-kind="perm">${auras}${IMG(p.card)}${g.isLand(p) ? '' : `<span class="ovl pips">${costHtml(p.card.def.manaCost)}</span>`}${pt}${dm}</div>`;
 }
 function pile(list, label, pl, z = 'gy') {
   const top = list[list.length - 1];
   return `<div class="pile" ${pl !== undefined ? `data-pl="${pl}" data-z="${z}"` : ''}>${top ? `<div class="card" data-id="${top.id}" data-kind="pilecard">${IMG(top)}</div>` : '<div class="empty"></div>'}<span class="cnt">${list.length}</span><span class="lbl">${label}</span></div>`;
 }
 const setHtml = (id, html) => { const el = $(id); if (el._h !== html) { el._h = html; el.innerHTML = html; } };
+// life that changed without a dmg/heal event (paying life, effects that set life): red dim / green rise
+function lifeNoEvent() {
+  for (const i of [0, 1]) {
+    const cur = g.players[i].life, was = prevShownLife[i]; if (was == null || was === cur || displayLife[i] != null || noAnimOnce) continue;
+    if (g.events.some((e) => (e.type === 'dmg' && e.target.kind === 'player' && e.target.id === i) || (e.type === 'heal' && e.pid === i))) continue;
+    const el = $('life-' + i), r = el.getBoundingClientRect(); SX.lifeShift(i, was, cur); void r;
+  }
+}
+function phaseMark() {
+  let m = $('phasemark'); if (!m) { m = document.createElement('div'); m.id = 'phasemark'; $('stage').appendChild(m); }
+  const on = $('phases').querySelector('.on'); if (!on) { m.style.opacity = 0; return; }
+  const sr = $('stage').getBoundingClientRect(), r = on.getBoundingClientRect(); Object.assign(m.style, { opacity: 1, left: r.left - sr.left + 'px', top: r.top - sr.top + 'px', width: r.width + 'px', height: r.height + 'px' });
+}
 function renderRaw() {
   const wk = g.waiting?.kind; if ((mode?.type === 'attackers' && wk !== 'attackers') || (mode?.type === 'blockers' && wk !== 'blockers')) mode = null;
   const [me, foe] = [g.players[ME], g.players[1]];
@@ -321,8 +344,10 @@ function renderRaw() {
   $('field-me-misc').innerHTML = phone ? mc.filter(isMisc).map((p) => permHtml(p)).join('') : '';
   $('field-me-lands').innerHTML = landsHtml(ml);
   setHtml('opp-hand', foe.hand.map(() => '<div class="cb"></div>').join(''));
+  const cnt = [me.library.length, me.gy.length, foe.library.length, foe.gy.length, me.hand.length, foe.hand.length];
   $('zones-opp').innerHTML = pile(foe.library.map((c) => c).slice(-0), 'Library').replace(/<div class="card".*?<\/div>/, '<div class="cardback"></div>') + pile(foe.gy, 'Graveyard', 1);
   $('zones-me').innerHTML = pile(me.library, 'Library').replace(/<div class="card".*?<\/div>/, '<div class="cardback"></div>') + pile(me.gy, 'Graveyard', 0);
+  ZN.pileFx(cnt, noAnimOnce);
   const hn = me.hand.length, step = Math.min(phone ? 4.4 : 3.4, 26 / Math.max(hn, 1));
   // the hand never grows past 44% of the stage width, so it cannot cover the lands row
   const sr = $('stage').getBoundingClientRect(), hw = phone ? 0.244 * sr.height : sr.height < 360 ? Math.min(0.17 * sr.height, 0.094 * sr.width) : Math.min((document.documentElement.classList.contains('short') ? 0.155 : 0.175) * sr.height, (document.documentElement.classList.contains('short') ? 0.09 : 0.096) * sr.width);
@@ -332,10 +357,11 @@ function renderRaw() {
     return `<div class="card ${peekId === c.id ? 'peek' : ''}" data-id="${c.id}" data-kind="hand" style="--rot:${(k * step * (adv / (base * hw))).toFixed(2)}deg;--dy:${(k * k * (phone ? 0.3 : 0.16)).toFixed(2)}cqh;margin:0 ${((adv - hw) / 2).toFixed(1)}px">${IMG(c)}${ov}</div>`; }).join('');
   if (prevHand != null && hn > prevHand) snd(hn - prevHand >= 3 ? 'drawmany' : 'draw'); prevHand = hn;
   prevShownLife = [...shownLife];
+  lifeNoEvent();
   for (const i of [0, 1]) { const l = $('life-' + i); l.querySelector('.who').textContent = g.players[i].name; setLifeText(i, displayLife[i] ?? g.players[i].life); l.classList.toggle('active', g.active === i); }
-  const curPh = PHASES.findIndex((p) => p[2].includes(g.step));
+  const curPh = PHASES.findIndex((p) => p[2].includes(g.step)); $('stage').classList.toggle('lowme', g.players[ME].life <= 5 && !g.winner); $('stage').classList.toggle('lowopp', g.players[1].life <= 5 && !g.winner);
   setHtml('phases', PHASES.map((p, i) => `<div class="${i === curPh ? 'on' : i < curPh ? 'done' : ''}">${p[1]}</div>`).join(''));
-  $('turnno').textContent = g.turn;
+  $('turnno').textContent = g.turn; phaseMark();
   $('log').innerHTML = g.log.slice(-7).map((l) => `<div>${l}</div>`).join('');
   renderStack();
   decorate();
@@ -343,22 +369,26 @@ function renderRaw() {
   placeBlockers();
   effects();
 }
+let prevStackIds = new Set();
 function renderStack() {
   const s = $('stack');
-  if (!g.stack.length) { s.className = ''; s.innerHTML = ''; return; }
-  const top = g.stack[g.stack.length - 1];
+  if (!g.stack.length) { s.className = ''; s.innerHTML = ''; prevStackIds = new Set(); TG.stack(); return; }
+  const top = g.stack[g.stack.length - 1], n = g.stack.length;
   s.className = 'on';
-  s.innerHTML = `<div class="title">${top.controller === ME ? 'Your spell' : 'Instant speed response'}</div><div class="items">${g.stack.map((it, i) => `<div class="card ${i === g.stack.length - 1 ? 'top' : ''}" data-id="${it.card.id}" data-kind="stackcard" data-sid="${it.id}">${IMG(it.card)}</div>`).join('')}</div>${top.targets.length ? `<div class="tgt">Target: ${top.targets.map((t) => g.refText(t)).join(', ')}</div>` : ''}`;
+  s.innerHTML = `<div class="title">${top.controller === ME ? 'Your spell' : 'Instant speed response'}</div><div class="items">${g.stack.map((it, i) => `<div class="card ${i === n - 1 ? 'top' : ''} ${it.kind === 'ability' ? 'ab' : ''}" style="--i:${i};--n:${n}" data-id="${it.card.id}" data-kind="stackcard" data-sid="${it.id}">${IMG(it.card)}${it.kind === 'ability' ? '<span class="abchip">Ability</span>' : ''}</div>`).join('')}</div>${top.targets.length ? `<div class="tgt">Target: ${top.targets.map((t) => g.refText(t)).join(', ')}</div>` : ''}`;
+  prevStackIds = new Set(g.stack.map((it) => it.id)); TG.stack();
 }
-let lastStep = '';
+let lastStep = '', lastLogLen = 0;
 const isPhone = () => document.documentElement.classList.contains('phone');
 let peekId = null;
 const COL = { W: '#fff0b0', U: '#6fbaff', B: '#b06bff', R: '#ff7a33', G: '#6dff8a' };
 const lastRects = new Map();           // card id -> last layout rect (survives the card leaving the DOM)
 const pendingClash = new Map();        // attacker id -> {dx,dy,at} for ghosts of attackers that die in the clash
+const ghostMode = new Map();           // card id -> 'sac' | 'shatter' | 'burn'
 const ghostDelay = new Map();          // card id -> ms until its ghost should leave
 const cardCol = (id) => COL[findCard(id)?.def.colors?.[0]] || '#e8e2d0';
 const permEl = (id) => document.querySelector(`#stage .card[data-kind=perm][data-id="${id}"]`);
+SX.init({ get g() { return g; } });
 const rectOfRef = (ref) => ref.kind === 'player' ? $('life-' + ref.id).getBoundingClientRect() : (permEl(ref.id)?.getBoundingClientRect() || lastRects.get(ref.id));
 const pt = (r) => [r.left + r.width / 2, r.top + r.height / 2];
 function setBanner(t, big) {
@@ -405,7 +435,10 @@ function effects() {
     later(at, () => { FX.burst(x, y, { n: 10, dist: 55, size: 5, color: '#ffb347' }); FX.ring(x, y, { size: 30, grow: 2.2, dur: 380, color: '#ffd9a0', width: 2 });
       const f = document.createElement('div'); f.className = 'float'; f.textContent = '-' + e.n; f.style.left = x - 14 + 'px'; f.style.top = r.top + 'px'; $('board').appendChild(f); setTimeout(() => f.remove(), 1100); });
   };
-  const dieCount = evs.filter((e) => e.type === 'die').length; let sweepDone = false;
+  const dieCount = evs.filter((e) => e.type === 'die').length; let sweepDone = false, wipeDone = false, untapIdx = 0;
+  const dmgIds = new Set(evs.filter((e) => e.type === 'dmg' && e.target.kind === 'perm').map((e) => e.target.id));
+  const sacIds = new Set(); { const L = g.logEvents || []; if (L.length < lastLogLen) lastLogLen = 0; for (let i = lastLogLen; i < L.length; i++) if (/ sacrifices /.test(L[i].text || '')) (L[i].cardIds || []).forEach((id) => sacIds.add(id)); lastLogLen = L.length; }
+  ghostMode.clear(); ZN.onEvents(evs); TG.onEvents(evs); SX.onEvents(evs); AMB.onEvents(evs);
   const stats = window.__stats || (window.__stats = { dmg: [0, 0], cast: 0, died: 0 });
   const sound = (e) => {
     const at = e.type === 'dmg' && isCombat(e) ? (impact ?? t) + 190 : t;
@@ -459,8 +492,10 @@ function effects() {
       hit(e, at);
     } else if (e.type === 'die') {
       const r = lastRects.get(e.id); ghostDelay.set(e.id, t);
-      if (r) { const [x, y] = pt(r); later(t, () => FX.burst(x, y, { color: '#ff7a33', n: 22, dist: 90, size: 6, dur: 800 })); }
-      end = Math.max(end, t + 800); t += clashIds.size ? 300 : 70; if (clashIds.size) impact = null;
+      const dm = sacIds.has(e.id) || e.how === 'sacrifice' ? 'sac' : dmgIds.has(e.id) ? 'burn' : 'shatter'; ghostMode.set(e.id, dm);
+      if (r && dm === 'burn' && dieCount < 3) { const [x, y] = pt(r); later(t, () => FX.burst(x, y, { color: '#ff7a33', n: 22, dist: 90, size: 6, dur: 800 })); }
+      if (dieCount >= 3 && !wipeDone && !evs.some((x) => x.type === 'sweep')) { wipeDone = true; const sr0 = $('stage').getBoundingClientRect(); later(t, () => { FX.flash('#fff', 700, 0.55); FX.shockwave(sr0.left + sr0.width / 2, sr0.top + sr0.height / 2, { size: 80, grow: 16 }); }); }
+      end = Math.max(end, t + 800); t += SX.dieStep(dieCount, clashIds.size ? 300 : 70); if (clashIds.size) impact = null;
     } else if (e.type === 'enter') {
       const el = permEl(e.id); const r = el?.getBoundingClientRect(); const land = el && el.closest('.lands');
       if (r) { const [x, y] = pt(r), c = cardCol(e.id); later(t + 320, () => { FX.ring(x, y, { color: c, size: r.width * 0.9, grow: land ? 1.8 : 3, dur: land ? 450 : 650, width: land ? 2 : 4 }); if (!land) FX.glow(x, y, { color: c, size: r.width * 2.2, dur: 700 }); }); }
@@ -472,7 +507,8 @@ function effects() {
       const el = $('life-' + e.pid), r = el.getBoundingClientRect(), [x, y] = pt(r); const hp = e.pid;
       if (displayLife[hp] == null) { displayLife[hp] = prevShownLife[hp] ?? g.players[hp].life; setLifeText(hp, displayLife[hp], true); }
       later(t, () => { if (displayLife[hp] == null) return; displayLife[hp] = g.players[hp].life + lossSum[hp] - lossApplied[hp]; setLifeText(hp, displayLife[hp]); });
-      later(t, () => { FX.glow(x, y, { color: '#6dff8a', size: r.width * 2.4 }); FX.ring(x, y, { color: '#6dff8a', size: r.width, grow: 2, dur: 600 }); FX.burst(x, y, { color: '#7dff9a', n: 12, dist: 50, size: 5 }); });
+      { const gain = g.players[hp].life - (prevShownLife[hp] ?? g.players[hp].life) + lossSum[hp]; later(t + 40, () => SX.lifeGain(hp, gain, drainOf(hp)));
+        const drainOf = (h) => { const d = evs.find((x) => x.type === 'dmg' && x.target.kind === 'player' && x.target.id !== h && !isCombat(x)); return d ? d.target.id : null; }; void x; void y; }
       t += 60;
     } else if (e.type === 'regen' || e.type === 'prevent') {
       const r = e.type === 'regen' ? (permEl(e.id)?.getBoundingClientRect() || lastRects.get(e.id)) : rectOfRef(e.target);
@@ -485,10 +521,10 @@ function effects() {
       const id = e.type === 'attach' ? e.host : e.id; const r = permEl(id)?.getBoundingClientRect() || lastRects.get(id); const c = e.type === 'control' ? '#c58bff' : e.type === 'attach' ? '#ffd27a' : cardCol(e.id);
       if (r) { const [x, y] = pt(r); later(t + 250, () => { FX.ring(x, y, { color: c, size: r.width * 0.9, grow: 2.4, dur: 650, width: 3 }); FX.glow(x, y, { color: c, size: r.width * 2.2, dur: 700 }); if (e.type === 'control') FX.burst(x, y, { color: c, n: 14, dist: 60, size: 5 }); }); }
       t += 60;
-    } else if (e.type === 'flip') { setBanner(e.won ? 'Coin flip: won' : 'Coin flip: lost'); t += 400;
+    } else if (e.type === 'flip') { later(t, () => AMB.toss(e.won)); t += 900;
     } else if (e.type === 'extraTurn') { setBanner(e.pid === ME ? 'Extra turn for you' : 'Opponent takes an extra turn', true); t += 600;
     } else if (e.type === 'shuffle') {
-      const el = document.querySelector(e.pid === ME ? '#zones-me .pile' : '#zones-opp .pile'); el?.animate([{ translate: '0 0' }, { translate: '-5px 0' }, { translate: '5px 0' }, { translate: '-3px 0' }, { translate: '0 0' }], { duration: 380, delay: t }); end = Math.max(end, t + 380);
+      const el = document.querySelector(e.pid === ME ? '#zones-me .pile' : '#zones-opp .pile'); const rf = el?.getBoundingClientRect(); later(t, () => ZN.riffle(rf)); el?.animate([{ translate: '0 0' }, { translate: '-5px 0' }, { translate: '5px 0' }, { translate: '-3px 0' }, { translate: '0 0' }], { duration: 380, delay: t }); end = Math.max(end, t + 380);
     } else if (e.type === 'tap') {   // auto-pay: show which sources were tapped
       const el = permEl(e.id); if (el?.closest('.lands, #field-me-lands, #field-opp-lands')) el.animate([{ filter: 'brightness(1)' }, { filter: 'brightness(2.2) drop-shadow(0 0 8px #ffd27a)', offset: 0.3 }, { filter: 'none' }], { duration: 650, delay: t });
     } else if (e.type === 'sweep') {
@@ -519,7 +555,7 @@ function placeBlockers() {
 // ---------- affordances ----------
 function decorate() {
   const w = g.waiting; const mine = w?.player === ME;
-  $('stage').classList.toggle('targeting', mode?.type === 'target'); $('hint').classList.remove('danger');
+  $('stage').classList.toggle('targeting', mode?.type === 'target'); TG.kick(); $('hint').classList.remove('danger');
   const mark = (sel, cls) => document.querySelectorAll(sel).forEach((el) => el.classList.add(cls));
   if (mode?.type === 'target') {
     for (const r of mode.valid) {
@@ -580,7 +616,7 @@ function drawLinks() {
 function hint(t) { const h = $('hint'); h.textContent = t || ''; h.classList.toggle('on', !!t); }
 function buttons() {
   const b = $('act-btn'), alt = $('act-alt'), undo = $('act-undo'); alt.hidden = true; undo.hidden = true; b.classList.remove('wait'); b.onclick = null; b.hidden = false;
-  const w = g.waiting; if (!w) { b.hidden = true; return; }
+  b.classList.remove('glow'); const w = g.waiting; if (!w) { b.hidden = true; return; }
   if (w.player !== ME) { b.textContent = 'Opponent…'; b.classList.add('wait'); return; }
   if (mode?.type === 'target') {
     if (mode.multi) { const ok = mode.picked.length >= mode.multi.min; b.textContent = `Confirm targets (${mode.picked.length})`; b.classList.toggle('wait', !ok); b.onclick = () => { if (!ok) return; const done = mode.done, ps = mode.picked; mode = null; done(ps); refresh(); }; alt.hidden = false; alt.textContent = 'Cancel'; alt.onclick = cancelMode; return; }
@@ -596,6 +632,7 @@ function buttons() {
   if (w.kind === 'blockers') { if (mode?.type !== 'blockers') mode = { type: 'blockers', sel: null, map: {} }; b.textContent = 'Confirm blockers'; b.onclick = () => { const m = mode.map; mode = null; g.declareBlockers(ME, m); refresh(); }; return; }
   if (w.kind === 'discard') { b.textContent = `Discard ${w.n}`; b.classList.add('wait'); return; }
   const top = g.stack[g.stack.length - 1];
+  if (w.kind === 'priority') b.classList.add('glow');
   b.textContent = top ? (top.controller === ME ? 'RESOLVE' : 'PASS') : g.step === 'main1' ? 'To combat' : g.step === 'main2' ? 'End turn' : 'Pass';
   b.onclick = () => { g.pass(ME); refresh(); };
   if (typeof g.canUndoLand === 'function' && g.canUndoLand(ME)) { undo.hidden = false; undo.onclick = () => { if (g.undoLandDrop(ME)) { snd('click'); refresh(); } }; }
@@ -617,12 +654,13 @@ function targetAsync(spec, hintText, sourceId, srcCard, multi) {
       return;
     }
     if (!valid.length) { resolve(null); return; }
-    mode = { type: 'target', valid, hint: hintText, multi, picked: [], done: resolve, cancel: () => resolve(null) };
+    mode = { type: 'target', valid, hint: hintText, multi, picked: [], done: resolve, cancel: () => resolve(null), src: srcCard?.id ?? sourceId };
     render();
   });
 }
+const elOfRef = (ref) => ref.kind === 'player' ? $('life-' + ref.id) : ref.kind === 'perm' ? permEl(ref.id) : ref.kind === 'spell' ? document.querySelector(`#stack .card[data-sid="${ref.id}"]`) : null;
 function pickTarget(ref) {
-  if (!mode?.valid.some((r) => r.kind === ref.kind && r.id === ref.id)) return;
+  if (!mode?.valid.some((r) => r.kind === ref.kind && r.id === ref.id)) { TG.deny(ref, elOfRef(ref)); snd('error'); return; }
   if (mode.multi) {
     const i = mode.picked.findIndex((r) => r.kind === ref.kind && r.id === ref.id);
     if (i >= 0) mode.picked.splice(i, 1); else if (mode.picked.length < mode.multi.max) mode.picked.push(ref);
@@ -810,7 +848,15 @@ document.addEventListener('click', (e) => {
 }, true);
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeInspect(); });
 
+let resultPending = false;
 function gameOver() {
+  const o = $('over'); if (!o.hidden || resultPending) return; const win = g.winner.id === ME;
+  if (window.__fxOff || window.__quick || window.__fast) return showResult();
+  resultPending = true; const lf = $(win ? 'life-1' : 'life-0'), r = lf.getBoundingClientRect();
+  AMB.endSequence(win, lf);
+  setTimeout(() => { resultPending = false; lf.style.visibility = ''; $('board').classList.remove('wiped'); if (g) showResult(); }, (win ? 800 : 1700) * ST.animScale());
+}
+function showResult() {
   const o = $('over'); if (!o.hidden) return; const win = g.winner.id === ME; const st = window.__stats || { dmg: [0, 0], cast: 0, died: 0 };
   o.className = win ? 'win' : 'lose'; o.hidden = false; clearSave(); closeLog();
   const why = g.winner.reason === 'deck' ? (win ? 'Opponent ran out of cards' : 'You ran out of cards') : (win ? 'Opponent life reached 0' : 'Your life reached 0');
@@ -846,7 +892,7 @@ function render() {
   renderRaw();
   if (!$('board').hidden && g) {
     document.querySelectorAll('#stage .card[data-id]:not([data-kind=pilecard])').forEach((el) => lastRects.set(+el.dataset.id, el.getBoundingClientRect()));
-    if (noAnimOnce) { noAnimOnce = false; g.events.length = 0; } else { animateFrom(prev); lifePop(); }
+    if (noAnimOnce) { noAnimOnce = false; g.events.length = 0; SX.afterRender(true); } else { animateFrom(prev); lifePop(); SX.afterRender(); }
   }
   saveGame(); renderLog();
 }
@@ -861,15 +907,20 @@ function flip(el, src, srcW, delay = 0) {
   const a = el.animate([{ transform: `translate(${sx - nx}px,${sy - ny}px) scale(${sc}) ${b}`, opacity: 0.7 }, { transform: b || 'none', opacity: 1 }], { duration: 430, delay, easing: 'cubic-bezier(.2,.8,.2,1)', fill: 'backwards' });
   a.onfinish = a.oncancel = () => { el.style.transformOrigin = origin; el.style.zIndex = ''; };
 }
+let prevGyIds = new Set();
 function animateFrom(prev) {
   const now = new Set(); let n = 0;
+  const newHand = [...document.querySelectorAll('#hand .card')].filter((el) => !prev.has(+el.dataset.id)).length; const drawStep = newHand >= 3 ? 40 : 90;
+  const gyNow = new Set(g.players.flatMap((pl) => pl.gy.map((c) => c.id)));
   document.querySelectorAll(SEL).forEach((el) => {
     const id = +el.dataset.id; now.add(id);
     const zone = el.closest(ZONES)?.id; const p = prev.get(id);
     const df = dragFrom.get(id);
     if (df) { dragFrom.delete(id); flip(el, df, df.width); return; }
     if (!p) {
-      if (zone === 'hand') flip(el, libRect(0) || el.getBoundingClientRect(), null, 70 * n++);
+      if (zone === 'hand' && prevGyIds.has(id)) flip(el, pileRect(0, 'gy') || el.getBoundingClientRect(), null);
+      else if (zone === 'hand') { const d = ZN.drawFly(el, libRect(0), n, newHand); flip(el, libRect(0) || el.getBoundingClientRect(), null, d); n++; }
+      else if (prevGyIds.has(id) && (zone === 'field-me' || zone === 'field-me-lands' || zone === 'field-opp' || zone === 'field-opp-lands')) { const owner = g.perm(id)?.card.owner ?? 0; const gr = pileRect(owner, 'gy'); if (gr) { flip(el, gr, null); ZN.pilePulse(document.querySelector(`#stage .pile[data-pl="${owner}"][data-z="gy"]`), '#b0ffb8'); } }
       else if (zone === 'field-opp' || zone === 'field-opp-lands' || zone === 'stack') { const o = document.querySelector('#opp-hand'); if (o) flip(el, o.getBoundingClientRect(), null); }
       return;
     }
@@ -877,10 +928,11 @@ function animateFrom(prev) {
     if (zone !== 'hand' && !lunging.has(id)) {
       const nr = el.getBoundingClientRect(), [pcx, pcy] = centerOf(p.r), [ncx, ncy] = centerOf(nr), T = tOf(el);
       if (Math.abs(pcx - ncx) > 3 || Math.abs(pcy - ncy) > 3) el.animate([{ translate: `${T[0] + pcx - ncx}px ${T[1] + pcy - ncy}px` }, { translate: `${T[0]}px ${T[1]}px` }], { duration: 420, easing: 'cubic-bezier(.25,.8,.25,1)' });
-      else { const tf = getComputedStyle(el).transform; if (tf !== p.tf) el.animate([{ transform: p.tf }, { transform: tf }], { duration: 260, easing: 'ease-out' }); }
+      else { const tf = getComputedStyle(el).transform; if (tf !== p.tf) el.animate([{ transform: p.tf }, { transform: tf }], { duration: 260, delay: ZN.untapDelay.get(id) || 0, easing: 'ease-out', fill: 'backwards' }); }
     }
   });
   for (const [id, p] of prev) if (!now.has(id)) ghost(id, p);
+  prevGyIds = gyNow;
   // opponent draw: a new card back slides out of their library
   const cbs = document.querySelectorAll('#opp-hand .cb');
   if (render.lastOpp !== undefined && cbs.length > render.lastOpp && libRect(1)) flip(cbs[cbs.length - 1], libRect(1), null);
@@ -888,7 +940,8 @@ function animateFrom(prev) {
 }
 function ghost(id, p) {
   const c = findCard(id); let dest = null, exiled = false;
-  if (c) for (const pl of g.players) { if (pl.gy.includes(c)) dest = pileRect(pl.id, 'gy'); if (pl.ex.includes(c)) exiled = true; if (pl.hand.includes(c) && p.zone !== 'hand') dest = (pl.id === ME ? $('hand') : $('opp-hand')).getBoundingClientRect(); }
+  if (c) for (const pl of g.players) { if (pl.gy.includes(c)) dest = pileRect(pl.id, 'gy'); if (pl.ex.includes(c)) exiled = true; if (pl.hand.includes(c) && p.zone !== 'hand') dest = (pl.id === ME ? $('hand') : $('opp-hand')).getBoundingClientRect(); if (pl.library.includes(c)) dest = libRect(pl.id); }
+  const gmode = ghostMode.get(id);
   const dly = ghostDelay.get(id) || 0, cl = pendingClash.get(id);
   const wrap = document.createElement('div'); wrap.innerHTML = p.html; const el = wrap.firstElementChild;
   Object.assign(el.style, { position: 'fixed', left: p.r.left + 'px', top: p.r.top + 'px', width: p.r.width + 'px', height: p.r.height + 'px', margin: 0, zIndex: 150, pointerEvents: 'none', transform: 'none' });
@@ -896,6 +949,8 @@ function ghost(id, p) {
   const [sx, sy] = centerOf(p.r); const burn = 'brightness(1.8) sepia(1) saturate(6) hue-rotate(-30deg)';
   let kf, dur;
   if (exiled) { kf = [{ opacity: 1, transform: 'none', filter: 'none' }, { opacity: 0.95, filter: 'brightness(2.4) saturate(0)', offset: 0.35 }, { opacity: 0, transform: 'translateY(-34px) scale(1.1)', filter: 'brightness(4) saturate(0) blur(5px)' }]; dur = 900; setTimeout(() => FX.motes(sx, sy, { n: 22, spread: p.r.width * 0.4 }), (dly + 150) * ST.animScale()); setTimeout(() => FX.glow(sx, sy, { color: '#cfe8ff', size: p.r.width * 2.2, dur: 800 }), dly * ST.animScale()); }
+  else if (dest && gmode === 'sac' && !window.__fxOff) { el.remove(); const dly2 = (dly) * ST.animScale(); setTimeout(() => SX.implode(p.r, p.html, dest), dly2); dur = 650; kf = null; }
+  else if (dest && gmode === 'shatter' && !window.__fxOff) { el.remove(); setTimeout(() => SX.shatter(p.r, p.html, SX.batchSize()), dly * ST.animScale()); dur = 800; kf = null; }
   else if (dest && ghostDelay.has(id) && p.zone !== 'stack' && !c?.def.types.includes('Instant') && !c?.def.types.includes('Sorcery')) {   // permanent died: burn and dissolve in place
     el.classList.add('dissolve'); dur = 900; kf = null;
     el.animate([{ '--m': '-32%' }, { '--m': '100%' }], { duration: dur, delay: dly, easing: 'ease-in', fill: 'both' }).onfinish = () => el.remove();
@@ -1040,4 +1095,5 @@ function endDrag(d, e) {
 }
 addEventListener('resize', () => { if (g && !$('board').hidden) render(); });
 $('rotate-go')?.addEventListener('click', () => $('board').classList.add('norotate'));
+TG.init({ g: () => g, mode: () => mode, ME, permEl: (id) => permEl(id), refOf: (el) => refOf(el) });
 window.__tick = () => tick(); window.__render = render; Object.defineProperty(window, '__mode', { get: () => mode });

@@ -25,7 +25,6 @@ button{font:inherit;cursor:pointer}
 .card .pt{position:absolute;right:2%;bottom:2%;background:#000c;border:1px solid var(--gold);color:#fff;font:700 calc(var(--cw)*.17)/1 Georgia;padding:2px 5px;border-radius:5px}
 .card .pt.buff{color:#7dff9a}.card .pt.hurt{color:#ff8a7a}
 .card .dmg{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);background:#c93030;color:#fff;border-radius:50%;width:calc(var(--cw)*.4);height:calc(var(--cw)*.4);display:flex;align-items:center;justify-content:center;font-weight:700}
-.card .badge{position:absolute;left:-4px;top:-6px;background:var(--orange);color:#fff;border-radius:10px;padding:1px 6px;font-size:11px;font-weight:700}
 .cardback,.hand-back .cb,.cb{width:var(--cw);height:calc(var(--cw)*1.393);border-radius:4.5%;background:#14100d url(../assets/ui/card_back.jpg) center/100% 100% no-repeat;box-shadow:0 2px 8px #000a;flex:none}
 #opp-hand{position:absolute;top:-5.5cqh;left:35%;transform:translateX(-50%);display:flex}
 #opp-hand .cb{margin:0 -1.2cqh;transform:scale(.9)}
@@ -122,8 +121,6 @@ button{font:inherit;cursor:pointer}
 .card{isolation:isolate}
 .card.aura{position:absolute;inset:0;width:100%;height:100%;z-index:-1;transform:translate(calc(-10% - var(--i)*8%),8%) rotate(-4deg);opacity:.95;transition:none}
 .card.aura:hover{z-index:5}
-.card .badge{max-width:120%;white-space:nowrap;font-size:calc(var(--cw)*.14);z-index:2}
-.card.tapped .badge{transform:rotate(-90deg)}
 #opp-hand .cb{transition:transform .2s}
 #over .emblem{position:relative;width:min(34cqh,300px);mix-blend-mode:screen;animation:emblemIn 1.3s cubic-bezier(.2,1.2,.4,1) both,emblemGlow 3s ease-in-out 1.3s infinite}
 #over.win .emblem{filter:drop-shadow(0 0 30px #f3c978aa)}#over.lose .emblem{filter:drop-shadow(0 0 26px #8a1c1c88)}
@@ -411,3 +408,23 @@ html.phone #hand{bottom:-11cqh}
 html.phone .row:has(>:nth-child(6)){--cw:20cqh}
 html.phone .row:has(>:nth-child(8)){--cw:17cqh}
 html.phone .row:has(>:nth-child(11)){--cw:13.5cqh}
+
+/* ===== animation pass (see docs/ANIMATIONS.md) ===== */
+#animlayer{position:fixed;inset:0;pointer-events:none;z-index:245;overflow:hidden}
+.cb.fly{background:#14100d url(../assets/ui/card_back.jpg) center/100% 100% no-repeat;box-shadow:0 4px 14px #000a}
+/* keyword chips */
+/* stack fan with depth, ability chips */
+/* action button states */
+#act-btn.glow{animation:btnglow 1.6s ease-in-out infinite}
+@keyframes btnglow{50%{box-shadow:0 0 34px 6px #ffa94cdd}}
+#act-btn.wait{animation:waitpulse 1.8s ease-in-out infinite}
+@keyframes waitpulse{50%{opacity:.62}}
+/* low life heartbeat vignette */
+/* phase marker slides between steps */
+#phasemark{position:absolute;pointer-events:none;z-index:1;border-radius:4px;background:linear-gradient(90deg,#f08a2455,#0000);box-shadow:inset 3px 0 0 #f08a24;transition:top .35s cubic-bezier(.3,1.2,.4,1),left .35s,width .35s,height .35s,opacity .2s;opacity:0}
+/* emotes */
+#emote{display:flex;position:absolute;z-index:60;align-items:center;justify-content:center;width:max(26px,4.8cqh);height:max(26px,4.8cqh);padding:0;border-radius:.8cqh;border:max(1.5px,.3cqh) solid #6a5226;background:#0009;color:#e6d6b0;font-size:max(14px,3cqh);top:2%;left:calc(1.2% + 74px + 4*max(34px,6cqh))}
+html.phone #emote{width:44px;height:44px;left:calc(var(--pl) + 14cqh + 14px);top:auto;bottom:var(--pb);border-radius:1.4cqh;border:max(2px,.5cqh) solid #d9a54a;background:linear-gradient(#2a1d15,#120b09);color:#f3c978;font-size:22px}
+#emotemenu{display:none;position:absolute;z-index:70;flex-direction:column;gap:4px;padding:6px;background:#120b09f5;border:2px solid #d9a54a;border-radius:10px;top:calc(2% + max(30px,5.4cqh));left:calc(1.2% + 74px + 4*max(34px,6cqh))}
+#emotemenu.on{display:flex}#emotemenu button{min-height:36px;padding:4px 14px;border-radius:8px;border:1px solid #5a431f;background:#241810;color:#e6d6b0;font:600 14px Georgia;text-align:left;white-space:nowrap}
+html.phone #emotemenu{top:auto;bottom:calc(var(--pb) + 48px);left:calc(var(--pl) + 14cqh + 14px)}

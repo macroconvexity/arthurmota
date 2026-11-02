@@ -3,7 +3,7 @@ export function modal(build, { esc = true } = {}) {
   return new Promise((resolve) => {
     const wrap = document.createElement('div'); wrap.className = 'dlg';
     const box = document.createElement('div'); box.className = 'dlgbox'; wrap.appendChild(box);
-    const close = (v) => { wrap.remove(); document.removeEventListener('keydown', key, true); resolve(v); };
+    const close = (v) => { if (!window.__fxOff && wrap.querySelector('.opt')) { wrap.classList.remove('dlg'); wrap.classList.add('dlgx'); setTimeout(() => wrap.remove(), 330 * (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--as')) || 1)); } else wrap.remove(); document.removeEventListener('keydown', key, true); resolve(v); };
     const key = (e) => { if (e.key === 'Escape' && esc) close(null); };
     document.addEventListener('keydown', key, true);
     build(box, close); document.body.appendChild(wrap);
@@ -40,7 +40,7 @@ export const askNumber = (text, min, max, { value = max, cancelable = true, yes 
 export const askPick = (text, options, { min = 1, max = 1, cancelable = false, yes = 'Confirm' } = {}) => modal((box, close) => {
   box.classList.add('pickbox'); const sel = new Set();
   const hasCards = options.some((o) => o.card);
-  box.innerHTML = `<p>${text}${max > 1 || min !== 1 ? `<small> (choose ${min === max ? min : `${min} to ${max === Infinity ? options.length : max}`})</small>` : ''}</p><div class="opts ${hasCards ? 'cards' : 'list'}">${options.map((o, i) => `<button class="opt" data-i="${i}" title="${e$(o.label)}">${o.card ? `<img src="${e$(o.card.art)}" draggable="false"><span>${e$(o.label)}</span>` : e$(o.label)}</button>`).join('')}</div><div class="dlgbtns">${cancelable ? '<button class="no">Cancel</button>' : ''}<button class="yes">${yes}</button></div>`;
+  box.innerHTML = `<p>${text}${max > 1 || min !== 1 ? `<small> (choose ${min === max ? min : `${min} to ${max === Infinity ? options.length : max}`})</small>` : ''}</p><div class="opts ${hasCards ? 'cards' : 'list'}">${options.map((o, i) => `<button class="opt" style="--i:${i}" data-i="${i}" title="${e$(o.label)}">${o.card ? `<img src="${e$(o.card.art)}" draggable="false"><span>${e$(o.label)}</span>` : e$(o.label)}</button>`).join('')}</div><div class="dlgbtns">${cancelable ? '<button class="no">Cancel</button>' : ''}<button class="yes">${yes}</button></div>`;
   const ok = box.querySelector('.yes');
   const upd = () => { box.querySelectorAll('.opt').forEach((b) => b.classList.toggle('sel', sel.has(+b.dataset.i))); ok.disabled = sel.size < min || sel.size > max; };
   box.querySelector('.opts').onclick = (e) => {
