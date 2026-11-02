@@ -401,3 +401,13 @@ html.phone.lefty #action button#act-undo{right:auto;left:calc(100% + 6px)}
 /* direct hit vignette */
 .slam{position:absolute;inset:0;pointer-events:none;z-index:60;background:radial-gradient(ellipse at center,#0000 35%,rgba(210,20,10,calc(.35 + var(--k)*.45)) 100%);animation:slamFade .65s ease-out forwards}
 @keyframes slamFade{from{opacity:1}to{opacity:0}}
+
+/* ===== phone board, round 3: bigger battlefield cards ===== */
+html.phone #stage{--cw:24cqh}
+html.phone .row{left:22%;right:21%}
+html.phone #field-opp{top:4cqh}
+html.phone #field-me{top:37.5cqh}
+html.phone #hand{bottom:-11cqh}
+html.phone .row:has(>:nth-child(6)){--cw:20cqh}
+html.phone .row:has(>:nth-child(8)){--cw:17cqh}
+html.phone .row:has(>:nth-child(11)){--cw:13.5cqh}
