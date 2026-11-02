@@ -17,13 +17,14 @@ function fitViewport() {
   const bw = boxProbe.clientWidth || innerWidth, bh = boxProbe.clientHeight || innerHeight;
   const cs = getComputedStyle(saProbe), st = parseFloat(cs.paddingTop) || 0, sr = parseFloat(cs.paddingRight) || 0, sb = parseFloat(cs.paddingBottom) || 0, sl = parseFloat(cs.paddingLeft) || 0;
   // the 16:9 stage: largest box that fits; only the SIDE insets reduce the width
-  const aw = Math.max(100, bw - sl - sr), ah = Math.max(100, bh - sb), sw = Math.min(aw, ah * 16 / 9), sh = sw * 9 / 16; // bottom inset reduces the height so the baked art lines up with the overlays
+  const phone = bw > bh && (bh <= 500 || bw <= 900);   // dedicated full-bleed phone board: no 16:9 letterbox, no baked art
+  const aw = Math.max(100, bw - sl - sr), ah = Math.max(100, bh - sb), sw = phone ? bw : Math.min(aw, ah * 16 / 9), sh = phone ? bh : sw * 9 / 16; // bottom inset reduces the height so the baked art lines up with the overlays
   const r = document.documentElement.style;
   r.setProperty('--app-w', bw + 'px'); r.setProperty('--app-h', bh + 'px');
   r.setProperty('--stage-w', Math.floor(sw) + 'px'); r.setProperty('--stage-h', Math.floor(sh) + 'px');
-  r.setProperty('--stage-dx', (sl - sr) / 2 + 'px'); r.setProperty('--stage-dy', -sb / 2 + 'px');
+  r.setProperty('--stage-dx', phone ? '0px' : (sl - sr) / 2 + 'px'); r.setProperty('--stage-dy', phone ? '0px' : -sb / 2 + 'px');
   const cl = document.documentElement.classList;
-  cl.toggle('compact', bh <= 500 || bw <= 900); cl.toggle('portrait', bh > bw); cl.toggle('short', bh <= 430);
+  cl.toggle('compact', bh <= 500 || bw <= 900); cl.toggle('portrait', bh > bw); cl.toggle('short', bh <= 430); cl.toggle('phone', phone);
   return { bw, bh, st, sr, sb, sl };
 }
 fitViewport();
@@ -143,7 +144,7 @@ function renderRaw() {
   $('zones-me').innerHTML = pile(me.library, 'Library').replace(/<div class="card".*?<\/div>/, '<div class="cardback"></div>') + pile(me.gy, 'Graveyard', 0);
   const hn = me.hand.length, step = Math.min(3.4, 26 / Math.max(hn, 1));
   // the hand never grows past 44% of the stage width, so it cannot cover the lands row
-  const sr = $('stage').getBoundingClientRect(), hw = sr.height < 360 ? Math.min(0.17 * sr.height, 0.094 * sr.width) : Math.min((document.documentElement.classList.contains('short') ? 0.155 : 0.175) * sr.height, (document.documentElement.classList.contains('short') ? 0.09 : 0.096) * sr.width), adv = hn > 1 ? Math.min(0.8 * hw, (0.44 * sr.width - hw) / (hn - 1)) : hw;
+  const sr = $('stage').getBoundingClientRect(), hw = document.documentElement.classList.contains('phone') ? 0.244 * sr.height : sr.height < 360 ? Math.min(0.17 * sr.height, 0.094 * sr.width) : Math.min((document.documentElement.classList.contains('short') ? 0.155 : 0.175) * sr.height, (document.documentElement.classList.contains('short') ? 0.09 : 0.096) * sr.width), adv = hn > 1 ? Math.min((document.documentElement.classList.contains('phone') ? 0.6 : 0.8) * hw, ((document.documentElement.classList.contains('phone') ? 0.42 : 0.44) * sr.width - hw) / (hn - 1)) : hw;
   $('hand').innerHTML = me.hand.map((c, i) => { const k = i - (hn - 1) / 2; return `<div class="card" data-id="${c.id}" data-kind="hand" style="--rot:${(k * step * (adv / (0.8 * hw))).toFixed(2)}deg;--dy:${(k * k * 0.16).toFixed(2)}cqh;margin:0 ${((adv - hw) / 2).toFixed(1)}px">${IMG(c)}</div>`; }).join('');
   prevShownLife = [...shownLife];
   for (const i of [0, 1]) { const l = $('life-' + i); l.querySelector('.who').textContent = g.players[i].name; setLifeText(i, displayLife[i] ?? g.players[i].life); l.classList.toggle('active', g.active === i); }
@@ -658,7 +659,7 @@ function lifePop() { return;
 // =====================================================================
 let drag = null, justDragged = false;
 const stageRect = () => $('stage').getBoundingClientRect();
-const cardPx = () => { const r = stageRect(); return Math.min(0.126 * r.height, 0.084 * r.width); };
+const cardPx = () => { const r = stageRect(); return document.documentElement.classList.contains('phone') ? 0.2 * r.height : Math.min(0.126 * r.height, 0.084 * r.width); };
 function refOf(el) {
   if (!el) return null;
   const life = el.closest('.life'); if (life) return { kind: 'player', id: +life.id.split('-')[1] };

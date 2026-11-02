@@ -188,3 +188,57 @@ html.short #opp-hand .cb{margin:0 -1.7cqh}
   html #hand,html.short #hand{--hw:min(17cqh,9.4cqw);bottom:-1cqh}
   html #opp-hand .cb,html.short #opp-hand .cb{--cw:min(8cqh,4.2cqw)}
 }
+
+/* =====================================================================
+   PHONE BOARD (html.phone = landscape, short/narrow): full-bleed playmat, real-unit layout.
+   Heights are fractions of the box height H (cqh). Desktop is untouched.
+   Swap the mat by replacing assets/ui/board_mobile_bg.jpg.
+   ===================================================================== */
+html.phone{--pl:max(var(--sa-l,0px),10px);--pr:max(var(--sa-r,0px),10px);--pb:max(var(--sa-b,0px),8px)}
+html.phone #board::before{inset:0;background:#0b0708 url(../assets/ui/board_mobile_bg.jpg) center/cover no-repeat;filter:none}
+html.phone #stage{width:100%;height:100%;left:0;top:0;transform:none;aspect-ratio:auto;background:none;--cw:18.7cqh;--hw:24.4cqh}
+html.phone .row{left:24%;right:24%;min-height:0;gap:calc(var(--cw)*.08)}
+html.phone #field-opp{top:15cqh}
+html.phone #field-me{top:45cqh}
+html.phone .row:has(>:nth-child(7)){--cw:15.5cqh}
+html.phone .row:has(>:nth-child(10)){--cw:12.5cqh}
+html.phone .card.attacking{transform:translateY(-12%)}html.phone .card.tapped.attacking{transform:translateY(-12%) rotate(90deg)}
+html.phone #field-opp .card.attacking{transform:translateY(12%)}html.phone #field-opp .card.attacking.tapped{transform:translateY(12%) rotate(90deg)}
+html.phone .card.tapped{margin:0 calc(var(--cw)*.2)}
+/* lands: compact wrapped blocks in the left column */
+html.phone .row.lands,html.phone #field-opp-lands,html.phone #field-me-lands{left:var(--pl);right:auto;width:calc(24% - var(--pl) - 8px);flex-wrap:wrap;justify-content:flex-start;gap:0;align-content:flex-start}
+html.phone .lands .card{--cw:max(11.5cqh,36px);margin-right:calc(var(--cw)*-.4)}
+html.phone .lands .card.tapped{margin:0 calc(var(--cw)*.1) 0 0}
+html.phone #field-opp-lands{top:max(15cqh,48px)}
+html.phone #field-me-lands{top:auto;bottom:calc(var(--pb) + 14cqh);flex-wrap:wrap-reverse;align-content:flex-end}
+/* avatars + life */
+html.phone .life{width:12cqh;height:12cqh;aspect-ratio:1;border-radius:50%;border:max(2px,.7cqh) solid #c9954a;background-color:#1d130d;background-size:cover;background-position:center;box-shadow:0 0 2cqh #f08a2488,inset 0 0 1.5cqh #000a;overflow:visible;transform:none}
+html.phone #life-1{left:calc(50% - 6cqh);top:max(2cqh,8px);background:#1d130d url(../assets/ui/avatar_opp.png) center/cover no-repeat}
+html.phone #life-0{left:var(--pl);top:auto;bottom:var(--pb);background:#1d130d url(../assets/ui/avatar_me.png) center/cover no-repeat}
+html.phone .life .num{position:absolute;left:50%;bottom:-1.8cqh;transform:translateX(-50%);min-width:5.4cqh;padding:0 1cqh;text-align:center;font:700 max(11px,3.7cqh)/1.25 Georgia;background:linear-gradient(#3a281a,#1d130d);border:max(1.5px,.4cqh) solid #c9954a;border-radius:3cqh;color:#fff}
+html.phone .life.active{box-shadow:0 0 3cqh #ffb25acc,inset 0 0 1.5cqh #000a}
+html.phone #opp-hand{top:-3.5cqh;left:50%}
+html.phone #opp-hand .cb{--cw:7cqh;margin:0 -1.3cqh;transform:none}
+/* piles in the corners, tiny */
+html.phone .zones{gap:1cqh}
+html.phone .pile{--cw:8.6cqh}
+html.phone .pile .lbl{display:none}
+html.phone #zones-opp{left:auto;right:var(--pr);top:max(2cqh,8px)}
+html.phone #zones-me{left:auto;right:var(--pr);bottom:calc(var(--pb) + 12.5cqh)}
+/* phases: slim vertical list; turn number beside it */
+html.phone #phases{left:auto;right:var(--pr);top:50%;width:auto;font-size:max(8px,2.2cqh);gap:.4cqh;transform:translateY(-50%)}
+html.phone #phases div{padding:.5cqh 1cqh .5cqh max(13px,3cqh)}
+html.phone #turnno{left:auto;right:calc(var(--pr) + 17cqh);top:50%;transform:translateY(-50%);width:max(28px,8cqh);height:max(28px,8cqh);font-size:max(13px,3.6cqh)}
+/* buttons */
+html.phone #action{left:auto;right:var(--pr);bottom:var(--pb);width:max(28cqh,104px)}
+html.phone #action button{min-height:40px}
+html.phone #concede{left:var(--pl);top:max(2cqh,8px)}
+/* hand: ~34% of H tall, arc, sits mostly inside the screen */
+html.phone #hand{left:calc(50% + (var(--pl) - var(--pr))/2);bottom:-7.5cqh;--hw:24.4cqh;padding-top:0}
+/* centre overlays */
+html.phone #banner{top:40cqh}
+html.phone #hint{top:44cqh;bottom:auto;transform:translate(-50%,-50%)}
+html.phone #stack{top:46cqh}
+html.phone #stack .card{--cw:min(19cqh,12cqw)}
+html.phone #dropzone{left:20%;right:20%;top:10cqh;height:62cqh}
+html.phone #log{display:none}

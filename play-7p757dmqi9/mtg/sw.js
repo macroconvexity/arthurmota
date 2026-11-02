@@ -1,5 +1,5 @@
 // network-first for code, cache-first for card art; bump BUILD to refresh
-const V='mtgc-202611021057';
+const V='mtgc-202611021134';
 self.addEventListener('install',e=>self.skipWaiting());
 self.addEventListener('activate',e=>e.waitUntil((async()=>{for(const k of await caches.keys())if(k!==V)await caches.delete(k);await clients.claim();})()));
 self.addEventListener('fetch',e=>{const r=e.request;if(r.method!=='GET')return;const u=new URL(r.url);if(u.origin!==location.origin)return;
