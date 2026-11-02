@@ -415,3 +415,8 @@ html.phone .misc .card{margin:0 0 calc(var(--cw)*-.62) 0}
 
 /* summoning-sick: keep art readable, the zZ chip already says it */
 .card.sick img{filter:brightness(.92) saturate(.92)}
+
+/* phone: bigger library/graveyard piles; cost pips only matter in hand, not on the board */
+html.phone .pile{--cw:12cqh}
+html.phone #zones-me{bottom:calc(var(--pb) + 14cqh)}
+html.phone .row .ovl.pips,html.phone .lands .ovl.pips,html.phone .misc .ovl.pips{display:none}

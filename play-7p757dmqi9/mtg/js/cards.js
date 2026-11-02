@@ -38,14 +38,14 @@ const TRIGGERS_BASE = {
   'Hypnotic Specter': { onDamagePlayer: (g, perm, target) => g.discardRandom(target.id) },
 };
 
-import * as white from './cards/white.js?v=20261102170855';
-import * as blue from './cards/blue.js?v=20261102170855';
-import * as black from './cards/black.js?v=20261102170855';
-import * as red from './cards/red.js?v=20261102170855';
-import * as green from './cards/green.js?v=20261102170855';
-import * as artifacts from './cards/artifacts.js?v=20261102170855';
-import * as lands from './cards/lands.js?v=20261102170855';
-import * as enchantments from './cards/enchantments.js?v=20261102170855';
+import * as white from './cards/white.js?v=20261102171740';
+import * as blue from './cards/blue.js?v=20261102171740';
+import * as black from './cards/black.js?v=20261102171740';
+import * as red from './cards/red.js?v=20261102171740';
+import * as green from './cards/green.js?v=20261102171740';
+import * as artifacts from './cards/artifacts.js?v=20261102171740';
+import * as lands from './cards/lands.js?v=20261102171740';
+import * as enchantments from './cards/enchantments.js?v=20261102171740';
 
 // enchantments first: a colour module that defines the same card wins
 const MODULES = [enchantments, white, blue, black, red, green, artifacts, lands];
