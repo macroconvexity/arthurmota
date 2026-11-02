@@ -297,3 +297,6 @@ html.phone #dropzone{left:26%;right:24%;top:10cqh;height:62cqh}
 
 html.standalone #app,html.standalone #board{width:var(--app-w);height:var(--app-h);bottom:auto;right:auto}
 html.standalone,html.standalone body{background:#0a0605}
+
+/* the printed scan already shows the name: no overlay strip over the card art */
+html.phone .ovl.nm{display:none!important}

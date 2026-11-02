@@ -1,10 +1,10 @@
-import { Game, parseCost } from './engine.js?v=202611021205';
-import { aiAct } from './ai.js?v=202611021205';
-import { EFFECTS, abilitiesOf } from './cards.js?v=202611021205';
-import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=202611021205';
-import { initMenu, showApp, hideApp, costHtml } from './menu.js?v=202611021205';
-import { askConfirm, askNumber, askPick, modal } from './dialog.js?v=202611021205';
-import * as FX from './fx.js?v=202611021205';
+import { Game, parseCost } from './engine.js?v=202611021207';
+import { aiAct } from './ai.js?v=202611021207';
+import { EFFECTS, abilitiesOf } from './cards.js?v=202611021207';
+import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=202611021207';
+import { initMenu, showApp, hideApp, costHtml } from './menu.js?v=202611021207';
+import { askConfirm, askNumber, askPick, modal } from './dialog.js?v=202611021207';
+import * as FX from './fx.js?v=202611021207';
 
 
 const $ = (id) => document.getElementById(id);
@@ -196,7 +196,7 @@ function renderRaw() {
   const sr = $('stage').getBoundingClientRect(), hw = phone ? 0.244 * sr.height : sr.height < 360 ? Math.min(0.17 * sr.height, 0.094 * sr.width) : Math.min((document.documentElement.classList.contains('short') ? 0.155 : 0.175) * sr.height, (document.documentElement.classList.contains('short') ? 0.09 : 0.096) * sr.width);
   const base = phone ? (hn <= 7 ? 0.74 : 0.6) : 0.8, adv = hn > 1 ? Math.min(base * hw, ((phone ? 0.44 : 0.44) * sr.width - hw) / (hn - 1)) : hw;
   $('hand').innerHTML = me.hand.map((c, i) => { const k = i - (hn - 1) / 2; const d = c.def, cr = d.types.includes('Creature');
-    const ov = `<span class="ovl nm">${esc(d.name)}</span>${d.manaCost ? `<span class="ovl pips">${costHtml(d.manaCost)}</span>` : ''}${cr ? `<span class="pt">${d.power}/${d.toughness}</span>` : ''}`;
+    const ov = `${d.manaCost ? `<span class="ovl pips">${costHtml(d.manaCost)}</span>` : ''}${cr ? `<span class="pt">${d.power}/${d.toughness}</span>` : ''}`;
     return `<div class="card ${peekId === c.id ? 'peek' : ''}" data-id="${c.id}" data-kind="hand" style="--rot:${(k * step * (adv / (base * hw))).toFixed(2)}deg;--dy:${(k * k * (phone ? 0.3 : 0.16)).toFixed(2)}cqh;margin:0 ${((adv - hw) / 2).toFixed(1)}px">${IMG(c)}${ov}</div>`; }).join('');
   prevShownLife = [...shownLife];
   for (const i of [0, 1]) { const l = $('life-' + i); l.querySelector('.who').textContent = g.players[i].name; setLifeText(i, displayLife[i] ?? g.players[i].life); l.classList.toggle('active', g.active === i); }
