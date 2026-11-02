@@ -1,10 +1,10 @@
-import { Game, parseCost } from './engine.js';
-import { aiAct } from './ai.js';
-import { EFFECTS, abilitiesOf } from './cards.js';
-import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js';
-import { initMenu, showApp, hideApp } from './menu.js';
-import { askConfirm, askNumber, askPick } from './dialog.js';
-import * as FX from './fx.js';
+import { Game, parseCost } from './engine.js?v=202611021149';
+import { aiAct } from './ai.js?v=202611021149';
+import { EFFECTS, abilitiesOf } from './cards.js?v=202611021149';
+import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=202611021149';
+import { initMenu, showApp, hideApp, costHtml } from './menu.js?v=202611021149';
+import { askConfirm, askNumber, askPick, modal } from './dialog.js?v=202611021149';
+import * as FX from './fx.js?v=202611021149';
 
 
 const $ = (id) => document.getElementById(id);
@@ -57,7 +57,33 @@ async function boot() {
   byName = indexCards(cards);
   initMenu({ byName, coverage: coverage(cards), onPlay: start });
   $('concede').onclick = async () => { if (await askConfirm('Leave this game?', 'Leave')) leave(); };
+  $('gear').onclick = openSettings;
+  applyMat(+(safeGet('mtgclassic.playmat') || 1));
   const q = new URLSearchParams(location.search).get('deck'); if (q) start(DECK_LISTS[Object.keys(DECK_LISTS)[+q]]);
+}
+// ---------- playmat chooser (phone board) + settings ----------
+const safeGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+const safeSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+const matUrl = (n) => new URL(`assets/ui/playmat_${n}.jpg`, location.href).href;
+function applyMat(n) {
+  const im = new Image();
+  im.onload = () => $('board').style.setProperty('--mat', `url("${matUrl(n)}")`);
+  im.onerror = () => { if (n !== 1) applyMat(1); else $('board').style.removeProperty('--mat'); };
+  im.src = matUrl(n);
+}
+async function availableMats() {
+  const probe = (n) => new Promise((res) => { const im = new Image(); im.onload = () => res(n); im.onerror = () => res(0); im.src = matUrl(n); });
+  return (await Promise.all([1, 2, 3, 4, 5, 6, 7, 8].map(probe))).filter(Boolean);
+}
+async function openSettings() {
+  const mats = await availableMats(); let cur = +(safeGet('mtgclassic.playmat') || 1);
+  const act = await modal((box, close) => {
+    box.classList.add('setbox');
+    box.innerHTML = `<p><b>Settings</b></p><div class="setlbl">Playmat</div><div class="mats">${mats.map((n) => `<button class="mat ${n === cur ? 'sel' : ''}" data-n="${n}"><img src="${matUrl(n)}" draggable="false"><span>Playmat ${n}</span></button>`).join('') || '<span class="muted">No playmats found</span>'}</div><div class="dlgbtns"><button class="leave">Leave game</button><button class="yes">Close</button></div>`;
+    box.querySelector('.mats').onclick = (e) => { const b = e.target.closest('.mat'); if (!b) return; cur = +b.dataset.n; safeSet('mtgclassic.playmat', cur); applyMat(cur); box.querySelectorAll('.mat').forEach((x) => x.classList.toggle('sel', x === b)); };
+    box.querySelector('.leave').onclick = () => close('leave'); box.querySelector('.yes').onclick = () => close('ok'); box.querySelector('.yes').focus();
+  });
+  if (act === 'leave' && await askConfirm('Leave this game?', 'Leave')) leave();
 }
 function leave() { mode = null; g = null; window.g = null; busy = false; $('inspect').hidden = true; showApp(); }
 
@@ -109,7 +135,7 @@ function ptHtml(p) {
   if (!g.isCreature(p)) return '';
   const d = displayDmg.has(p.id) ? displayDmg.get(p.id) : p.damage; const bp = g.power(p), bt = g.toughness(p);
   const cls2 = bp > +p.card.def.power || bt > +p.card.def.toughness ? 'buff' : '';
-  return `<span class="pt ${cls2}">${bp}/${bt - d}</span>${d ? `<span class="dmg">${d}</span>` : ''}`;
+  return `<span class="pt ${cls2} ${d ? 'hurt' : ''}">${bp}/${bt - d}</span>${d ? `<span class="dmg">${d}</span>` : ''}`;
 }
 function patchPerm(id) { const el = permEl(id), p = g.perm(id); if (!el || !p) return; el.querySelectorAll(':scope > .pt, :scope > .dmg').forEach((x) => x.remove()); el.insertAdjacentHTML('beforeend', ptHtml(p)); }
 function setLifeText(i, v, quiet) {
@@ -123,7 +149,7 @@ function permHtml(p, extra = '') {
   const dm = '';
   const cn = Object.entries(p.counters || {}).filter(([, n]) => n).map(([k, n]) => `${n}× ${k}`).join(' · ');
   const auras = g.players.flatMap((pl) => pl.bf).filter((a) => a.attachedTo === p.id).map((a, i) => `<div class="card aura" data-id="${a.id}" data-kind="perm" style="--i:${i}">${IMG(a.card)}</div>`).join('');
-  return `<div class="${cls}" data-id="${p.id}" data-kind="perm">${auras}${IMG(p.card)}${pt}${dm}${cn ? `<span class="badge">${cn}</span>` : ''}</div>`;
+  return `<div class="${cls}" data-id="${p.id}" data-kind="perm">${auras}${IMG(p.card)}${g.isLand(p) ? '' : `<span class="ovl pips">${costHtml(p.card.def.manaCost)}</span>`}${pt}${dm}${cn ? `<span class="badge">${cn}</span>` : ''}</div>`;
 }
 function pile(list, label, pl, z = 'gy') {
   const top = list[list.length - 1];
@@ -135,17 +161,30 @@ function renderRaw() {
   const hosted = (p) => p.attachedTo != null && g.perm(p.attachedTo);
   const split = (pl) => [pl.bf.filter((p) => g.isLand(p) && !hosted(p)), pl.bf.filter((p) => !g.isLand(p) && !hosted(p))];
   const [fl, fc] = split(foe), [ml, mc] = split(me);
-  $('field-opp-lands').innerHTML = fl.map((p) => permHtml(p)).join('');
-  $('field-opp').innerHTML = fc.map((p) => permHtml(p)).join('');
-  $('field-me').innerHTML = mc.map((p) => permHtml(p)).join('');
-  $('field-me-lands').innerHTML = ml.map((p) => permHtml(p)).join('');
+  const phone = isPhone(), isMisc = (p) => !g.isCreature(p);
+  // phone: lands grouped by name into small overlapping stacks (max 4 per stack), artifacts/enchantments in their own column
+  const landsHtml = (list) => {
+    if (!phone) return list.map((p) => permHtml(p)).join('');
+    const by = new Map(); for (const p of list) { const k = p.card.def.name; if (!by.has(k)) by.set(k, []); by.get(k).push(p); }
+    const out = []; for (const arr of by.values()) for (let i = 0; i < arr.length; i += 4) out.push(arr.slice(i, i + 4));
+    return out.map((st) => `<div class="lstack" style="--n:${st.length}">${st.map((p) => permHtml(p)).join('')}</div>`).join('');
+  };
+  $('field-opp-lands').innerHTML = landsHtml(fl);
+  $('field-opp').innerHTML = (phone ? fc.filter((p) => !isMisc(p)) : fc).map((p) => permHtml(p)).join('');
+  $('field-me').innerHTML = (phone ? mc.filter((p) => !isMisc(p)) : mc).map((p) => permHtml(p)).join('');
+  $('field-opp-misc').innerHTML = phone ? fc.filter(isMisc).map((p) => permHtml(p)).join('') : '';
+  $('field-me-misc').innerHTML = phone ? mc.filter(isMisc).map((p) => permHtml(p)).join('') : '';
+  $('field-me-lands').innerHTML = landsHtml(ml);
   $('opp-hand').innerHTML = foe.hand.map(() => '<div class="cb"></div>').join('');
   $('zones-opp').innerHTML = pile(foe.library.map((c) => c).slice(-0), 'Library').replace(/<div class="card".*?<\/div>/, '<div class="cardback"></div>') + pile(foe.gy, 'Graveyard', 1);
   $('zones-me').innerHTML = pile(me.library, 'Library').replace(/<div class="card".*?<\/div>/, '<div class="cardback"></div>') + pile(me.gy, 'Graveyard', 0);
-  const hn = me.hand.length, step = Math.min(3.4, 26 / Math.max(hn, 1));
+  const hn = me.hand.length, step = Math.min(phone ? 4.4 : 3.4, 26 / Math.max(hn, 1));
   // the hand never grows past 44% of the stage width, so it cannot cover the lands row
-  const sr = $('stage').getBoundingClientRect(), hw = document.documentElement.classList.contains('phone') ? 0.244 * sr.height : sr.height < 360 ? Math.min(0.17 * sr.height, 0.094 * sr.width) : Math.min((document.documentElement.classList.contains('short') ? 0.155 : 0.175) * sr.height, (document.documentElement.classList.contains('short') ? 0.09 : 0.096) * sr.width), adv = hn > 1 ? Math.min((document.documentElement.classList.contains('phone') ? 0.6 : 0.8) * hw, ((document.documentElement.classList.contains('phone') ? 0.42 : 0.44) * sr.width - hw) / (hn - 1)) : hw;
-  $('hand').innerHTML = me.hand.map((c, i) => { const k = i - (hn - 1) / 2; return `<div class="card" data-id="${c.id}" data-kind="hand" style="--rot:${(k * step * (adv / (0.8 * hw))).toFixed(2)}deg;--dy:${(k * k * 0.16).toFixed(2)}cqh;margin:0 ${((adv - hw) / 2).toFixed(1)}px">${IMG(c)}</div>`; }).join('');
+  const sr = $('stage').getBoundingClientRect(), hw = phone ? 0.244 * sr.height : sr.height < 360 ? Math.min(0.17 * sr.height, 0.094 * sr.width) : Math.min((document.documentElement.classList.contains('short') ? 0.155 : 0.175) * sr.height, (document.documentElement.classList.contains('short') ? 0.09 : 0.096) * sr.width);
+  const base = phone ? (hn <= 7 ? 0.74 : 0.6) : 0.8, adv = hn > 1 ? Math.min(base * hw, ((phone ? 0.44 : 0.44) * sr.width - hw) / (hn - 1)) : hw;
+  $('hand').innerHTML = me.hand.map((c, i) => { const k = i - (hn - 1) / 2; const d = c.def, cr = d.types.includes('Creature');
+    const ov = `<span class="ovl nm">${esc(d.name)}</span>${d.manaCost ? `<span class="ovl pips">${costHtml(d.manaCost)}</span>` : ''}${cr ? `<span class="pt">${d.power}/${d.toughness}</span>` : ''}`;
+    return `<div class="card ${peekId === c.id ? 'peek' : ''}" data-id="${c.id}" data-kind="hand" style="--rot:${(k * step * (adv / (base * hw))).toFixed(2)}deg;--dy:${(k * k * (phone ? 0.3 : 0.16)).toFixed(2)}cqh;margin:0 ${((adv - hw) / 2).toFixed(1)}px">${IMG(c)}${ov}</div>`; }).join('');
   prevShownLife = [...shownLife];
   for (const i of [0, 1]) { const l = $('life-' + i); l.querySelector('.who').textContent = g.players[i].name; setLifeText(i, displayLife[i] ?? g.players[i].life); l.classList.toggle('active', g.active === i); }
   const curPh = PHASES.findIndex((p) => p[2].includes(g.step));
@@ -166,6 +205,8 @@ function renderStack() {
   s.innerHTML = `<div class="title">${top.controller === ME ? 'Your spell' : 'Instant speed response'}</div><div class="items">${g.stack.map((it, i) => `<div class="card ${i === g.stack.length - 1 ? 'top' : ''}" data-id="${it.card.id}" data-kind="stackcard" data-sid="${it.id}">${IMG(it.card)}</div>`).join('')}</div>${top.targets.length ? `<div class="tgt">Target: ${top.targets.map((t) => g.refText(t)).join(', ')}</div>` : ''}`;
 }
 let lastStep = '';
+const isPhone = () => document.documentElement.classList.contains('phone');
+let peekId = null;
 const COL = { W: '#fff0b0', U: '#6fbaff', B: '#b06bff', R: '#ff7a33', G: '#6dff8a' };
 const lastRects = new Map();           // card id -> last layout rect (survives the card leaving the DOM)
 const pendingClash = new Map();        // attacker id -> {dx,dy,at} for ghosts of attackers that die in the clash
@@ -465,6 +506,9 @@ function onCard(el) {
   if (w.kind !== 'priority') return;
   if (kind === 'hand') {
     const c = g.players[ME].hand.find((x) => x.id === id);
+    // phone: the first tap lifts the card and peeks at it big; a second tap (or a drag) plays it
+    if (isPhone() && Date.now() - lastTouch < 1200 && peekId !== id) { peekId = id; render(); showPreviewFor(document.querySelector(`#hand .card[data-id="${id}"]`), c); return; }
+    peekId = null; $('preview').classList.remove('on');
     if (g.canPlayLand(ME, c)) { g.playLand(ME, c); return refresh(); }
     if (!g.canCast(ME, c)) return;
     return void castFlow(c);
@@ -479,6 +523,7 @@ document.addEventListener('click', (e) => {
   if (!g || $('board').hidden) return;
   const life = e.target.closest('.life'); if (life && mode?.type === 'target') return pickTarget({ kind: 'player', id: +life.id.split('-')[1] });
   const el = e.target.closest('.card[data-kind]'); if (el) return onCard(el);
+  if (peekId != null) { peekId = null; $('preview').classList.remove('on'); render(); }
   if (mode?.type === 'target' && !e.target.closest('#action')) cancelMode();
 });
 
@@ -496,21 +541,28 @@ function infoHtml(c, full) {
   return `<div class="ihead"><b>${esc(d.name)}</b><span>${esc(d.manaCost || '')}</span></div><div class="itype">${esc(d.type)} ${pt}</div><div class="itext">${esc(d.text || '—')}</div><div class="imeta">${SETNAME[d.set] || d.set} · ${esc(d.rarity)} · ${esc(d.artist || '')}</div>${rul}`;
 }
 let pinned = false;
-document.addEventListener('mouseover', (e) => {
-  if (pinned || Date.now() - lastTouch < 900) return;
-  const el = e.target.closest?.('.card[data-id]'); const pv = $('preview');
-  const c = el && g ? findCard(+el.dataset.id) : null;
-  if (!c || (g.players[1].hand.includes(c))) { pv.classList.remove('on'); return; }
+function showPreviewFor(el, c) {
+  const pv = $('preview'); if (!el || !c) { pv.classList.remove('on'); return; }
   pv.innerHTML = `<img src="${c.def.art}"><div class="txt">${infoHtml(c, false)}</div>`;
-  const r = el.getBoundingClientRect(); const W = innerWidth, H = innerHeight; const pw = Math.min(H * 0.5 * 0.718, W * 0.28) * 0.6;
-  pv.style.width = pw + 'px';
+  const r = el.getBoundingClientRect(); const W = innerWidth, H = innerHeight, phone = isPhone();
+  const st = $('board').hidden ? { left: 0, right: W, width: W } : $('stage').getBoundingClientRect();
+  const pw = phone ? Math.min(st.height * 0.62 * 0.718, W * 0.26) : Math.min(H * 0.5 * 0.718, W * 0.28) * 0.6;
+  pv.style.width = pw + 'px'; pv.classList.add('on');
+  if (phone) {   // quick peek: big, left of the centre, above the hand
+    pv.style.left = Math.max(8, st.left + st.width * 0.27) + 'px'; pv.style.top = Math.max(8, (st.height - pw * 1.393) / 2 - 6) + 'px'; return;
+  }
   // dock to the side of the stage opposite the hovered card, never over the centre
-  const st = $('board').hidden ? { left: 0, right: W } : $('stage').getBoundingClientRect();
   const onLeft = r.left + r.width / 2 < (st.left + st.right) / 2;
   pv.style.left = (onLeft ? Math.min(st.right - pw - 8, W - pw - 8) : Math.max(st.left + 8, 8)) + 'px';
-  pv.classList.add('on');
   const ph = pw * 1.393 + pv.querySelector('.txt').getBoundingClientRect().height + 8;
   pv.style.top = Math.max(10, Math.min(r.top + r.height / 2 - ph / 2, H - ph - 10)) + 'px';
+}
+document.addEventListener('mouseover', (e) => {
+  if (pinned || Date.now() - lastTouch < 900) return;
+  const el = e.target.closest?.('.card[data-id]');
+  const c = el && g ? findCard(+el.dataset.id) : null;
+  if (!c || (g.players[1].hand.includes(c))) { $('preview').classList.remove('on'); return; }
+  showPreviewFor(el, c);
 });
 document.addEventListener('mouseout', (e) => { if (!e.relatedTarget || !e.relatedTarget.closest?.('.card[data-id]')) $('preview').classList.remove('on'); });
 
@@ -533,7 +585,7 @@ document.addEventListener('pointerdown', (e) => {
   clearTimeout(lp?.t); lp = { x: e.clientX, y: e.clientY, t: setTimeout(() => { if (inspectEl(el)) { drag = null; swallow = Date.now() + 700; } lp = null; }, 450) };
 }, true);
 document.addEventListener('pointermove', (e) => { if (lp && Math.hypot(e.clientX - lp.x, e.clientY - lp.y) > 8) { clearTimeout(lp.t); lp = null; } }, true);
-for (const ev of ['pointerup', 'pointercancel']) document.addEventListener(ev, () => { if (lp) { clearTimeout(lp.t); lp = null; } $('preview').classList.remove('on'); }, true);
+for (const ev of ['pointerup', 'pointercancel']) document.addEventListener(ev, () => { if (lp) { clearTimeout(lp.t); lp = null; } if (peekId == null) $('preview').classList.remove('on'); }, true);
 document.addEventListener('click', (e) => { if (Date.now() < swallow) { e.stopPropagation(); e.preventDefault(); } }, true);
 document.addEventListener('touchstart', () => { lastTouch = Date.now(); }, { passive: true, capture: true });
 document.addEventListener('click', (e) => {
@@ -560,7 +612,7 @@ boot();
 // =====================================================================
 // Animation layer: FLIP between zones, ghosts for cards that leave, hit flashes, life pops
 // =====================================================================
-const ZONES = '#hand,#field-me,#field-me-lands,#field-opp,#field-opp-lands,#stack';
+const ZONES = '#hand,#field-me,#field-me-lands,#field-opp,#field-opp-lands,#field-me-misc,#field-opp-misc,#stack';
 const SEL = '#stage .card[data-id]:not([data-kind=pilecard])';
 const dragFrom = new Map();
 let lastLife = [null, null];
@@ -709,6 +761,7 @@ document.addEventListener('pointerup', (e) => {
 document.addEventListener('click', (e) => { if (justDragged) { e.stopPropagation(); e.preventDefault(); } }, true);
 
 function beginDrag() {
+  if (peekId != null) { peekId = null; $('preview').classList.remove('on'); }
   const w = g.waiting; const d = drag; const id = d.id;
   if (mode?.type === 'target') { mode = null; }
   d.valid = null; d.act = null;

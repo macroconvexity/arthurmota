@@ -195,7 +195,7 @@ html.short #opp-hand .cb{margin:0 -1.7cqh}
    Swap the mat by replacing assets/ui/board_mobile_bg.jpg.
    ===================================================================== */
 html.phone{--pl:max(var(--sa-l,0px),10px);--pr:max(var(--sa-r,0px),10px);--pb:max(var(--sa-b,0px),8px)}
-html.phone #board::before{inset:0;background:#0b0708 url(../assets/ui/board_mobile_bg.jpg) center/cover no-repeat;filter:none}
+html.phone #board::before{inset:0;background:#0b0708 var(--mat,url(../assets/ui/playmat_1.jpg)) center/cover no-repeat;filter:none}
 html.phone #stage{width:100%;height:100%;left:0;top:0;transform:none;aspect-ratio:auto;background:none;--cw:18.7cqh;--hw:24.4cqh}
 html.phone .row{left:24%;right:24%;min-height:0;gap:calc(var(--cw)*.08)}
 html.phone #field-opp{top:15cqh}
@@ -242,3 +242,55 @@ html.phone #stack{top:46cqh}
 html.phone #stack .card{--cw:min(19cqh,12cqw)}
 html.phone #dropzone{left:20%;right:20%;top:10cqh;height:62cqh}
 html.phone #log{display:none}
+
+
+/* ===== phone board, round 2: Arena parity ===== */
+.ovl{display:none}.misc{display:none}#gear{display:none}
+html.phone .ovl{display:flex}
+html.phone #stage{--cw:20.5cqh}
+html.phone .row{left:26%;right:24%}
+html.phone #field-opp{top:11cqh}
+html.phone #field-me{top:40.5cqh}
+html.phone .row:has(>:nth-child(6)){--cw:18cqh}
+html.phone .row:has(>:nth-child(8)){--cw:15cqh}
+html.phone .row:has(>:nth-child(11)){--cw:12.5cqh}
+/* card overlays: cost pips top-right, name strip (hand), big P/T */
+html.phone .ovl.pips{position:absolute;top:-1.4cqh;right:-.8cqh;z-index:3;font-size:max(9px,3.4cqh);filter:drop-shadow(0 1px 2px #000);pointer-events:none}
+html.phone .ovl.pips .pip{margin-left:1px;border:1px solid #0008}
+html.phone .ovl.nm{position:absolute;left:0;top:0;max-width:90%;padding:.2cqh .9cqh;background:#000c;color:#f3e3c0;font:600 max(7px,2.3cqh)/1.25 Georgia;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:.6cqh 0 .6cqh 0;z-index:3;pointer-events:none}
+html.phone .card .pt{font-size:max(10px,calc(var(--cw)*.26));padding:.1cqh .9cqh;border:max(1.5px,.35cqh) solid var(--gold);right:-.6cqh;bottom:-.6cqh;z-index:3}
+html.phone .card .pt.hurt{color:#ff8a7a}
+html.phone .card .dmg{width:calc(var(--cw)*.36);height:calc(var(--cw)*.36);font-size:max(9px,calc(var(--cw)*.2))}
+html.phone .lands .card .pt,html.phone .lands .card .ovl{display:none}
+/* hand: stronger arc, centred, peek lift */
+html.phone #hand{bottom:-3.8cqh}
+html.phone #hand .card.peek{transform:translateY(-24%) rotate(0deg) scale(1.1);z-index:30}
+/* lands grouped in small overlapping stacks */
+html.phone .lstack{--lw:10.5cqh;--lh:14.6cqh;--lo:2.8cqh;position:relative;flex:none;width:var(--lw);height:calc(var(--lh) + (var(--n) - 1)*var(--lo));margin:0 1.1cqh 1cqh 0}
+html.phone .lstack .card{position:absolute;left:0;top:0;margin:0!important;--cw:var(--lw)}
+html.phone .lstack .card:nth-child(2){top:var(--lo)}html.phone .lstack .card:nth-child(3){top:calc(var(--lo)*2)}html.phone .lstack .card:nth-child(4){top:calc(var(--lo)*3)}
+html.phone .row.lands,html.phone #field-opp-lands,html.phone #field-me-lands{width:calc(26% - var(--pl) - 6px);gap:0}
+html.phone #field-opp-lands{top:calc(max(2cqh,8px) + 17.5cqh)}
+html.phone #field-me-lands{bottom:calc(var(--pb) + 17.5cqh)}
+/* artifacts / enchantments column, right of the creature rows */
+html.phone .misc{display:flex;position:absolute;left:calc(76% + 6px);width:max(52px,calc(24% - var(--pr) - 84px));flex-wrap:wrap;gap:0;--cw:9cqh;align-content:flex-start}
+html.phone .misc .card{margin:0 -3.4cqh -9cqh 0}
+html.phone #field-opp-misc{top:14cqh}html.phone #field-me-misc{top:44cqh}
+/* square gold portraits */
+html.phone .life{width:14cqh;height:14cqh;border-radius:1.4cqh;border:max(2px,.6cqh) solid #d9a54a;box-shadow:inset 0 0 0 max(1px,.3cqh) #5a3d14,0 .4cqh 1.6cqh #000c}
+html.phone #life-1{left:var(--pl);top:max(2cqh,8px)}
+html.phone #life-0{left:var(--pl);bottom:var(--pb)}
+html.phone .life .num{left:auto;right:-1.6cqh;bottom:-1.8cqh;transform:none}
+/* gear top-right replaces Leave */
+html.phone #concede{display:none}
+html.phone #gear{display:flex;position:absolute;right:var(--pr);top:max(2cqh,8px);width:max(36px,10cqh);height:max(36px,10cqh);padding:0;align-items:center;justify-content:center;border-radius:1.4cqh;border:max(2px,.5cqh) solid #d9a54a;background:linear-gradient(#2a1d15,#120b09);color:#f3c978;z-index:60}
+html.phone #gear svg{width:62%;height:62%}
+html.phone #zones-opp{right:calc(var(--pr) + max(36px,10cqh) + 8px)}
+html.phone #opp-hand{left:50%}
+html.phone #dropzone{left:26%;right:24%;top:10cqh;height:62cqh}
+/* settings dialog */
+.setbox{min-width:min(420px,86vw)}.setlbl{color:#a89a78;font-size:12px;letter-spacing:2px;text-transform:uppercase;margin:0 0 8px}
+.mats{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.mat{width:120px;padding:4px;border-radius:10px;border:2px solid #5a431f;background:#0f0a08;color:#e6d6b0;font:12px Georgia;cursor:pointer;display:flex;flex-direction:column;gap:4px;align-items:center}
+.mat img{width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:6px}.mat.sel{border-color:#ffcf94;box-shadow:0 0 0 2px #f3c978,0 0 14px #f08a2488}
+.dlgbtns .leave{background:#3a1512;border-color:#a44;color:#ffb0a0}

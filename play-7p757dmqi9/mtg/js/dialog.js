@@ -1,5 +1,5 @@
 // In-page replacements for confirm()/prompt(): embedded browsers often block the native ones.
-function modal(build, { esc = true } = {}) {
+export function modal(build, { esc = true } = {}) {
   return new Promise((resolve) => {
     const wrap = document.createElement('div'); wrap.className = 'dlg';
     const box = document.createElement('div'); box.className = 'dlgbox'; wrap.appendChild(box);

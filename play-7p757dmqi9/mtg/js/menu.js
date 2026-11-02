@@ -1,6 +1,6 @@
-import { isImplemented } from './cards.js';
-import { DECK_LISTS, copyLimit } from './decks.js';
-import { askConfirm, askText } from './dialog.js';
+import { isImplemented } from './cards.js?v=202611021149';
+import { DECK_LISTS, copyLimit } from './decks.js?v=202611021149';
+import { askConfirm, askText } from './dialog.js?v=202611021149';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));

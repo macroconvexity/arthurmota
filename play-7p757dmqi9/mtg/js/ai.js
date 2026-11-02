@@ -1,8 +1,8 @@
 // Computer opponent. Generic: card use is driven by the `ai` hint of EFFECTS / ABILITIES entries
 // (see docs/CARD_MODULE_CONTRACT.md); when a hint is missing it is inferred from the Oracle text.
 // Contract: every aiAct(g, pid) call changes the game state or returns false (never loops silently).
-import { EFFECTS, abilitiesOf } from './cards.js';
-import { parseCost } from './engine.js';
+import { EFFECTS, abilitiesOf } from './cards.js?v=202611021149';
+import { parseCost } from './engine.js?v=202611021149';
 
 const ref = (p) => ({ kind: 'perm', id: p.id });
 const PLAYER = (id) => ({ kind: 'player', id });
