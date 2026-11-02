@@ -175,3 +175,18 @@ html.portrait #board:not(.norotate):not([hidden]) #rotate{display:flex}
 html.short #hand{--hw:min(15.5cqh,9cqw);bottom:.5cqh}
 html.short #opp-hand{top:-7.5cqh}html.short #opp-hand .cb{--cw:min(9cqh,5cqw)}
 html.short #log{display:none}
+
+/* ===== polish for short real phones ===== */
+#board{background:#07050a}
+#board::before{content:"";position:absolute;inset:-30px;background:url(../assets/ui/board_bg.webp) center/cover;filter:blur(16px) brightness(.5) saturate(.9)}
+#concede{top:max(2cqh,8px);min-height:36px;min-width:56px;display:flex;align-items:center;justify-content:center}
+.lands .card{--cw:max(36px,calc(min(12.6cqh,8.4cqw)*.8))}
+html.short #zones-opp{top:max(2.4%,8px)}
+html.short #life-0{top:calc(100% - 3.6cqw - max(8px,var(--sa-b,0px)))}
+html.short #opp-hand{left:31%}
+html.short #opp-hand .cb{margin:0 -1.7cqh}
+@container (max-height:360px){
+  html #hand,html.short #hand{--hw:min(17cqh,9.4cqw);bottom:calc(max(var(--sa-b,0px),8px) - 1cqh)}
+  html #opp-hand .cb,html.short #opp-hand .cb{--cw:min(8cqh,4.2cqw)}
+  #action{bottom:max(calc(3.2cqh + var(--sa-b,0px)),12px)}
+}

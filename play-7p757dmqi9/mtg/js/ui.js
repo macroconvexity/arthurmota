@@ -143,7 +143,7 @@ function renderRaw() {
   $('zones-me').innerHTML = pile(me.library, 'Library').replace(/<div class="card".*?<\/div>/, '<div class="cardback"></div>') + pile(me.gy, 'Graveyard', 0);
   const hn = me.hand.length, step = Math.min(3.4, 26 / Math.max(hn, 1));
   // the hand never grows past 44% of the stage width, so it cannot cover the lands row
-  const sr = $('stage').getBoundingClientRect(), hw = Math.min((document.documentElement.classList.contains('short') ? 0.155 : 0.175) * sr.height, (document.documentElement.classList.contains('short') ? 0.09 : 0.096) * sr.width), adv = hn > 1 ? Math.min(0.8 * hw, (0.44 * sr.width - hw) / (hn - 1)) : hw;
+  const sr = $('stage').getBoundingClientRect(), hw = sr.height < 360 ? Math.min(0.17 * sr.height, 0.094 * sr.width) : Math.min((document.documentElement.classList.contains('short') ? 0.155 : 0.175) * sr.height, (document.documentElement.classList.contains('short') ? 0.09 : 0.096) * sr.width), adv = hn > 1 ? Math.min(0.8 * hw, (0.44 * sr.width - hw) / (hn - 1)) : hw;
   $('hand').innerHTML = me.hand.map((c, i) => { const k = i - (hn - 1) / 2; return `<div class="card" data-id="${c.id}" data-kind="hand" style="--rot:${(k * step * (adv / (0.8 * hw))).toFixed(2)}deg;--dy:${(k * k * 0.16).toFixed(2)}cqh;margin:0 ${((adv - hw) / 2).toFixed(1)}px">${IMG(c)}</div>`; }).join('');
   prevShownLife = [...shownLife];
   for (const i of [0, 1]) { const l = $('life-' + i); l.querySelector('.who').textContent = g.players[i].name; setLifeText(i, displayLife[i] ?? g.players[i].life); l.classList.toggle('active', g.active === i); }
