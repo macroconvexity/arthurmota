@@ -1,15 +1,15 @@
-import { Game, parseCost, makeRng } from './engine.js?v=20261102145024';
-import { aiAct } from './ai.js?v=20261102145024';
-import { EFFECTS, abilitiesOf } from './cards.js?v=20261102145024';
-import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261102145024';
-import { initMenu, showApp, hideApp, costHtml } from './menu.js?v=20261102145024';
-import { askConfirm, askNumber, askPick, modal } from './dialog.js?v=20261102145024';
-import * as FX from './fx.js?v=20261102145024';
-import * as ST from './settings.js?v=20261102145024';
-import sfx from './sfx.js?v=20261102145024';
-import * as SC from './screens.js?v=20261102145024';
-import * as AI from './ai.js?v=20261102145024';
-import * as DK from './decks.js?v=20261102145024';
+import { Game, parseCost, makeRng } from './engine.js?v=20261102145746';
+import { aiAct } from './ai.js?v=20261102145746';
+import { EFFECTS, abilitiesOf } from './cards.js?v=20261102145746';
+import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261102145746';
+import { initMenu, showApp, hideApp, costHtml } from './menu.js?v=20261102145746';
+import { askConfirm, askNumber, askPick, modal } from './dialog.js?v=20261102145746';
+import * as FX from './fx.js?v=20261102145746';
+import * as ST from './settings.js?v=20261102145746';
+import sfx from './sfx.js?v=20261102145746';
+import * as SC from './screens.js?v=20261102145746';
+import * as AI from './ai.js?v=20261102145746';
+import * as DK from './decks.js?v=20261102145746';
 
 // animation speed setting (Fast/Normal/Slow, minimal under prefers-reduced-motion): scales every WAAPI duration/delay
 const _animate = Element.prototype.animate;
@@ -107,7 +107,7 @@ async function availableMats() {
   const probe = (n) => new Promise((res) => { const im = new Image(); im.onload = () => res(n); im.onerror = () => res(0); im.src = matUrl(n); });
   return (await Promise.all([1, 2, 3, 4, 5, 6, 7, 8].map(probe))).filter(Boolean);
 }
-function applySettings() { ST.applyClasses(); try { sfx.setEnabled(ST.get('sound')); sfx.setVolume(ST.get('volume')); } catch {} applyMat(+ST.get('playmat') || 2); if (g && g.aiLevel !== undefined) g.aiLevel = ST.get('difficulty'); }
+function applySettings() { ST.applyClasses(); try { sfx.setEnabled(ST.get('sound')); sfx.setVolume(ST.get('volume')); } catch {} applyMat(+ST.get('playmat') || 5); if (g && g.aiLevel !== undefined) g.aiLevel = ST.get('difficulty'); }
 async function openSettings() {
   const mats = isPhone() ? await availableMats() : []; const v = (k) => ST.get(k);
   const seg = (k, opts) => `<div class="seg" data-k="${k}">${opts.map(([val, lbl]) => `<button data-v="${val}" class="${v(k) === val ? 'on' : ''}">${lbl}</button>`).join('')}</div>`;
@@ -209,7 +209,7 @@ function resumable() {
 function resumeGame() {
   try {
     const d = JSON.parse(localStorage.getItem(SAVE_KEY)); g = Game.restore(d.ser, { byName, rng: makeRng(1) }); lastRun = { counts: d.counts, foe: d.foe, level: d.level }; window.g = g; window.__stats = { dmg: [0, 0], cast: 0, died: 0 };
-    if (d.playmat) ST.set('playmat', d.playmat); applyMat(+ST.get('playmat') || 2);
+    if (d.playmat) ST.set('playmat', d.playmat); applyMat(+ST.get('playmat') || 5);
     shownLife[0] = shownLife[1] = displayLife[0] = displayLife[1] = null; displayDmg.clear(); prevHand = null; peekId = null; g.events.length = 0;
     hideApp(); $('board').hidden = false; $('over').hidden = true; mode = null; noAnimOnce = true; tick();
   } catch (e) { console.warn('resume failed', e); clearSave(); g = null; window.g = null; showApp(); }
