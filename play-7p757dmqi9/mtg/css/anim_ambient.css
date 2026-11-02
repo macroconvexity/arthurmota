@@ -52,3 +52,13 @@ html.reduced #emotemenu.on button{animation:none}
 @keyframes ambFade{to{opacity:0}}
 html.reduced .opts .opt,html.reduced #inspect .cards img,html.reduced .dlgx,html.reduced .dlgx .opt{animation:none}
 html.reduced .dlgx{display:none}
+
+/* emote button + menu base styles (restored) */
+#emote{position:absolute;z-index:60;display:flex;align-items:center;justify-content:center;width:max(26px,4.8cqh);height:max(26px,4.8cqh);padding:0;border-radius:.8cqh;border:max(1.5px,.3cqh) solid #6a5226;background:#0009;color:#e6d6b0;font:700 max(14px,3cqh) Georgia;cursor:pointer;left:calc(1.2% + 74px + 4*max(34px,6cqh));top:2%}
+#emotemenu{display:none;position:absolute;z-index:70;flex-direction:column;gap:4px;padding:6px;border-radius:10px;background:#120b09ee;border:2px solid #d9a54a;box-shadow:0 6px 18px #000a}
+#emotemenu.on{display:flex}
+#emotemenu button{padding:7px 12px;border-radius:8px;border:1px solid #6a5226;background:linear-gradient(#2a1d15,#120b09);color:#f3e3c0;font:600 13px Georgia;cursor:pointer;text-align:left;white-space:nowrap}
+html.phone #emote{width:44px;height:44px;border-radius:1.4cqh;border:max(2px,.5cqh) solid #d9a54a;background:linear-gradient(#2a1d15,#120b09);color:#f3c978;top:auto;bottom:calc(var(--pb) + 1cqh);left:calc(var(--pl) + 13.5cqh);font-size:22px}
+html.phone #emotemenu{top:auto;bottom:calc(var(--pb) + 8cqh + 44px);left:calc(var(--pl) + 13.5cqh)}
+html.phone.lefty #emote{left:auto;right:calc(var(--pr) + 13.5cqh)}
+html.phone.lefty #emotemenu{left:auto;right:calc(var(--pr) + 13.5cqh)}

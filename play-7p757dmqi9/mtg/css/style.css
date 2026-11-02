@@ -399,32 +399,16 @@ html.phone.lefty #action button#act-undo{right:auto;left:calc(100% + 6px)}
 .slam{position:absolute;inset:0;pointer-events:none;z-index:60;background:radial-gradient(ellipse at center,#0000 35%,rgba(210,20,10,calc(.35 + var(--k)*.45)) 100%);animation:slamFade .65s ease-out forwards}
 @keyframes slamFade{from{opacity:1}to{opacity:0}}
 
-/* ===== phone board, round 3: bigger battlefield cards ===== */
-html.phone #stage{--cw:24cqh}
+/* ===== phone board, round 3 (rebalanced): creatures mid-size, lands/artifacts bigger, hand tucked lower ===== */
+html.phone #stage{--cw:21cqh}
 html.phone .row{left:22%;right:21%}
-html.phone #field-opp{top:4cqh}
-html.phone #field-me{top:37.5cqh}
-html.phone #hand{bottom:-11cqh}
-html.phone .row:has(>:nth-child(6)){--cw:20cqh}
-html.phone .row:has(>:nth-child(8)){--cw:17cqh}
-html.phone .row:has(>:nth-child(11)){--cw:13.5cqh}
-
-/* ===== animation pass (see docs/ANIMATIONS.md) ===== */
-#animlayer{position:fixed;inset:0;pointer-events:none;z-index:245;overflow:hidden}
-.cb.fly{background:#14100d url(../assets/ui/card_back.jpg) center/100% 100% no-repeat;box-shadow:0 4px 14px #000a}
-/* keyword chips */
-/* stack fan with depth, ability chips */
-/* action button states */
-#act-btn.glow{animation:btnglow 1.6s ease-in-out infinite}
-@keyframes btnglow{50%{box-shadow:0 0 34px 6px #ffa94cdd}}
-#act-btn.wait{animation:waitpulse 1.8s ease-in-out infinite}
-@keyframes waitpulse{50%{opacity:.62}}
-/* low life heartbeat vignette */
-/* phase marker slides between steps */
-#phasemark{position:absolute;pointer-events:none;z-index:1;border-radius:4px;background:linear-gradient(90deg,#f08a2455,#0000);box-shadow:inset 3px 0 0 #f08a24;transition:top .35s cubic-bezier(.3,1.2,.4,1),left .35s,width .35s,height .35s,opacity .2s;opacity:0}
-/* emotes */
-#emote{display:flex;position:absolute;z-index:60;align-items:center;justify-content:center;width:max(26px,4.8cqh);height:max(26px,4.8cqh);padding:0;border-radius:.8cqh;border:max(1.5px,.3cqh) solid #6a5226;background:#0009;color:#e6d6b0;font-size:max(14px,3cqh);top:2%;left:calc(1.2% + 74px + 4*max(34px,6cqh))}
-html.phone #emote{width:44px;height:44px;left:calc(var(--pl) + 14cqh + 14px);top:auto;bottom:var(--pb);border-radius:1.4cqh;border:max(2px,.5cqh) solid #d9a54a;background:linear-gradient(#2a1d15,#120b09);color:#f3c978;font-size:22px}
-#emotemenu{display:none;position:absolute;z-index:70;flex-direction:column;gap:4px;padding:6px;background:#120b09f5;border:2px solid #d9a54a;border-radius:10px;top:calc(2% + max(30px,5.4cqh));left:calc(1.2% + 74px + 4*max(34px,6cqh))}
-#emotemenu.on{display:flex}#emotemenu button{min-height:36px;padding:4px 14px;border-radius:8px;border:1px solid #5a431f;background:#241810;color:#e6d6b0;font:600 14px Georgia;text-align:left;white-space:nowrap}
-html.phone #emotemenu{top:auto;bottom:calc(var(--pb) + 48px);left:calc(var(--pl) + 14cqh + 14px)}
+html.phone #field-opp{top:3cqh}
+html.phone #field-me{top:33.5cqh}
+html.phone #hand{bottom:-12.5cqh}
+html.phone .row:has(>:nth-child(6)){--cw:18cqh}
+html.phone .row:has(>:nth-child(8)){--cw:15.5cqh}
+html.phone .row:has(>:nth-child(11)){--cw:13cqh}
+html.phone .lands .card{--cw:max(15.5cqh,46px);margin-right:calc(var(--cw)*-.32)}
+html.phone .row.lands,html.phone #field-opp-lands,html.phone #field-me-lands{width:calc(22% - var(--pl) - 6px)}
+html.phone .misc{--cw:max(13.5cqh,46px);width:calc(24% - var(--pr) - 70px)}
+html.phone .misc .card{margin:0 0 calc(var(--cw)*-.62) 0}
