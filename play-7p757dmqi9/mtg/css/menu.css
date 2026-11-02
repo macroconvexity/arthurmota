@@ -145,7 +145,7 @@ button.ghost,.dtools button{background:#2a1d15;color:#e6d6b0;border:1px solid #6
 @media (max-width:520px){.logo{display:none}}
 
 /* ===== adaptive menus ===== */
-#app{inset:auto;left:0;top:0;width:var(--app-w,100vw);height:var(--app-h,100vh);padding:var(--safe-t,0px) var(--safe-r,0px) var(--safe-b,0px) var(--safe-l,0px)}
+#app{position:fixed;inset:0;width:100%;height:100%}
 #v-home{overflow:auto;-webkit-overflow-scrolling:touch}
 .dlgbox{max-height:calc(var(--app-h,100vh)*.9);max-width:calc(var(--app-w,100vw)*.92);overflow:auto}
 .pickbox .opts.cards,.pickbox .opts.list{max-height:calc(var(--app-h,100vh)*.55)}
@@ -198,3 +198,17 @@ html.portrait #nav{height:48px}
 *{scrollbar-width:thin;scrollbar-color:#5a431f transparent}
 html.compact .filters{scrollbar-width:none}html.compact .filters::-webkit-scrollbar{display:none}
 html.compact .dcols::-webkit-scrollbar,html.compact .grid::-webkit-scrollbar,html.compact .slist::-webkit-scrollbar,html.compact .dlist::-webkit-scrollbar{width:5px;height:5px}
+
+/* safe areas pad the INNER content only; backgrounds always fill the whole box */
+#nav{box-sizing:border-box;height:calc(68px + var(--sa-t,0px));padding:var(--sa-t,0px) max(var(--sa-r,0px),8px) 0 max(var(--sa-l,0px),8px)}
+#views section{inset:0 var(--sa-r,0px) var(--sa-b,0px) var(--sa-l,0px)}
+#app{display:flex;flex-direction:column}#views{flex:1 1 0;min-height:0;position:relative}
+html.compact #nav{height:calc(40px + var(--sa-t,0px));padding-left:max(var(--sa-l,0px),8px);padding-right:max(var(--sa-r,0px),8px)}
+html.portrait #nav{height:calc(48px + var(--sa-t,0px))}
+html.compact .grid{grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:8px 6px}
+html.compact .dbwrap{grid-template-columns:minmax(0,1fr) 24vw}
+html.compact .dcols{gap:8px;padding:8px}
+html.compact .dcol{flex:1 1 0;width:auto;min-width:64px;max-width:130px}
+html.portrait .colwrap,html.portrait .dbwrap{grid-template-columns:minmax(0,1fr)}
+html.compact .cfoot{margin-top:2px}
+.grid,.dcols,.slist,.dlist{-webkit-overflow-scrolling:touch}

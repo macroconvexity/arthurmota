@@ -7,26 +7,43 @@ import { askConfirm, askNumber, askPick } from './dialog.js';
 import * as FX from './fx.js';
 
 
-// ---------- viewport: sizes come from JS (iOS toolbars make vh unreliable) ----------
+const $ = (id) => document.getElementById(id);
+// ---------- viewport: MEASURE the real fixed box (never compute it from visualViewport) ----------
+let boxProbe, saProbe, rawProbe;
+function mkProbe(id, css) { const d = document.createElement('div'); d.id = id; d.style.cssText = 'position:fixed;visibility:hidden;pointer-events:none;' + css; document.body.appendChild(d); return d; }
 function fitViewport() {
-  const vv = window.visualViewport, W = Math.round(vv?.width || innerWidth), H = Math.round(vv?.height || innerHeight);
-  let probe = document.getElementById('safeprobe');
-  if (!probe) { probe = document.createElement('div'); probe.id = 'safeprobe'; probe.style.cssText = 'position:fixed;left:0;top:0;width:0;height:0;visibility:hidden;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)'; document.body.appendChild(probe); }
-  const cs = getComputedStyle(probe), st = parseFloat(cs.paddingTop) || 0, sr = parseFloat(cs.paddingRight) || 0, sb = parseFloat(cs.paddingBottom) || 0, sl = parseFloat(cs.paddingLeft) || 0;
-  const aw = Math.max(100, W - sl - sr), ah = Math.max(100, H - st - sb);
-  const sw = Math.min(aw, ah * 16 / 9), sh = sw * 9 / 16;
+  boxProbe ||= mkProbe('boxprobe', 'left:0;top:0;right:0;bottom:0;');
+  saProbe ||= mkProbe('saprobe', 'left:0;top:0;width:0;height:0;padding:var(--sa-t) var(--sa-r) var(--sa-b) var(--sa-l);');
+  const bw = boxProbe.clientWidth || innerWidth, bh = boxProbe.clientHeight || innerHeight;
+  const cs = getComputedStyle(saProbe), st = parseFloat(cs.paddingTop) || 0, sr = parseFloat(cs.paddingRight) || 0, sb = parseFloat(cs.paddingBottom) || 0, sl = parseFloat(cs.paddingLeft) || 0;
+  // the 16:9 stage: largest box that fits; only the SIDE insets reduce the width
+  const aw = Math.max(100, bw - sl - sr), sw = Math.min(aw, bh * 16 / 9), sh = sw * 9 / 16;
   const r = document.documentElement.style;
-  r.setProperty('--app-w', W + 'px'); r.setProperty('--app-h', H + 'px');
-  r.setProperty('--safe-t', st + 'px'); r.setProperty('--safe-r', sr + 'px'); r.setProperty('--safe-b', sb + 'px'); r.setProperty('--safe-l', sl + 'px');
+  r.setProperty('--app-w', bw + 'px'); r.setProperty('--app-h', bh + 'px');
   r.setProperty('--stage-w', Math.floor(sw) + 'px'); r.setProperty('--stage-h', Math.floor(sh) + 'px');
-  document.documentElement.classList.toggle('compact', H <= 500 || W <= 900);
-  document.documentElement.classList.toggle('portrait', H > W);
+  r.setProperty('--stage-dx', (sl - sr) / 2 + 'px');
+  const cl = document.documentElement.classList;
+  cl.toggle('compact', bh <= 500 || bw <= 900); cl.toggle('portrait', bh > bw); cl.toggle('short', bh <= 430);
+  return { bw, bh, st, sr, sb, sl };
 }
 fitViewport();
-for (const ev of ['resize', 'orientationchange']) addEventListener(ev, () => { fitViewport(); setTimeout(fitViewport, 250); });
+for (const ev of ['resize', 'orientationchange']) addEventListener(ev, () => { fitViewport(); setTimeout(fitViewport, 300); });
 window.visualViewport?.addEventListener('resize', fitViewport);
+if (window.ResizeObserver) new ResizeObserver(() => fitViewport()).observe(boxProbe);
 
-const $ = (id) => document.getElementById(id);
+// ?debug=1 : numbers box (tap to hide) so a single screenshot shows what the real browser reports
+if (new URLSearchParams(location.search).get('debug')) {
+  rawProbe = mkProbe('rawprobe', 'left:0;top:0;width:0;height:0;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);');
+  const box = document.createElement('pre'); box.id = 'dbg'; document.body.appendChild(box);
+  box.onclick = () => box.remove();
+  const rr = (el) => { const q = el?.getBoundingClientRect(); return q ? `${q.left | 0},${q.top | 0} ${q.width | 0}x${q.height | 0}` : '-'; };
+  const upd = () => {
+    if (!box.isConnected) return; const vv = visualViewport, cs = getComputedStyle(rawProbe), f = (v) => parseFloat(v) || 0;
+    box.textContent = `inner ${innerWidth}x${innerHeight}  dpr ${devicePixelRatio}\nvv ${vv ? `${vv.width | 0}x${vv.height | 0} off ${vv.offsetLeft | 0},${vv.offsetTop | 0} sc ${vv.scale}` : 'n/a'}\ndoc ${document.documentElement.clientWidth}x${document.documentElement.clientHeight}  screen ${screen.width}x${screen.height}\nbox ${rr(boxProbe)}\napp ${rr($('app'))}\nnav ${rr($('nav'))}\nviews ${rr($('views'))}\nboard ${rr($('board'))}\nstage ${rr($('stage'))}\nenv t${f(cs.paddingTop)} r${f(cs.paddingRight)} b${f(cs.paddingBottom)} l${f(cs.paddingLeft)}\nclasses ${document.documentElement.className}`;
+  };
+  upd(); setInterval(upd, 700);
+}
+
 const ME = 0;
 let g, byName, cards;
 let mode = null;              // { type:'target', specs, onPick } | { type:'attackers', sel:Set } | { type:'blockers', sel, map }
@@ -126,7 +143,7 @@ function renderRaw() {
   $('zones-me').innerHTML = pile(me.library, 'Library').replace(/<div class="card".*?<\/div>/, '<div class="cardback"></div>') + pile(me.gy, 'Graveyard', 0);
   const hn = me.hand.length, step = Math.min(3.4, 26 / Math.max(hn, 1));
   // the hand never grows past 44% of the stage width, so it cannot cover the lands row
-  const sr = $('stage').getBoundingClientRect(), hw = Math.min(0.175 * sr.height, 0.096 * sr.width), adv = hn > 1 ? Math.min(0.8 * hw, (0.44 * sr.width - hw) / (hn - 1)) : hw;
+  const sr = $('stage').getBoundingClientRect(), hw = Math.min((document.documentElement.classList.contains('short') ? 0.155 : 0.175) * sr.height, (document.documentElement.classList.contains('short') ? 0.09 : 0.096) * sr.width), adv = hn > 1 ? Math.min(0.8 * hw, (0.44 * sr.width - hw) / (hn - 1)) : hw;
   $('hand').innerHTML = me.hand.map((c, i) => { const k = i - (hn - 1) / 2; return `<div class="card" data-id="${c.id}" data-kind="hand" style="--rot:${(k * step * (adv / (0.8 * hw))).toFixed(2)}deg;--dy:${(k * k * 0.16).toFixed(2)}cqh;margin:0 ${((adv - hw) / 2).toFixed(1)}px">${IMG(c)}</div>`; }).join('');
   prevShownLife = [...shownLife];
   for (const i of [0, 1]) { const l = $('life-' + i); l.querySelector('.who').textContent = g.players[i].name; setLifeText(i, displayLife[i] ?? g.players[i].life); l.classList.toggle('active', g.active === i); }
