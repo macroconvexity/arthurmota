@@ -1,20 +1,20 @@
-import { Game, parseCost, makeRng } from './engine.js?v=20261102175537';
-import { aiAct } from './ai.js?v=20261102175537';
-import { EFFECTS, abilitiesOf } from './cards.js?v=20261102175537';
-import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261102175537';
-import { initMenu, showApp, hideApp, costHtml, myDecks, myDeckCounts, setMyDeck } from './menu.js?v=20261102175537';
-import { askConfirm, askNumber, askPick, modal, askName, askDivide } from './dialog.js?v=20261102175537';
-import * as FX from './fx.js?v=20261102175537';
-import * as ST from './settings.js?v=20261102175537';
-import sfx from './sfx.js?v=20261102175537';
-import * as SC from './screens.js?v=20261102175537';
-import * as AI from './ai.js?v=20261102175537';
-import * as DK from './decks.js?v=20261102175537';
-import * as AN from './anim.js?v=20261102175537';
-import * as SX from './anim/status.js?v=20261102175537';
-import * as ZN from './anim/zones.js?v=20261102175537';
-import * as TG from './anim/targeting.js?v=20261102175537';
-import * as AMB from './anim/ambient.js?v=20261102175537';
+import { Game, parseCost, makeRng } from './engine.js?v=20261102175845';
+import { aiAct } from './ai.js?v=20261102175845';
+import { EFFECTS, abilitiesOf } from './cards.js?v=20261102175845';
+import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261102175845';
+import { initMenu, showApp, hideApp, costHtml, myDecks, myDeckCounts, setMyDeck } from './menu.js?v=20261102175845';
+import { askConfirm, askNumber, askPick, modal, askName, askDivide } from './dialog.js?v=20261102175845';
+import * as FX from './fx.js?v=20261102175845';
+import * as ST from './settings.js?v=20261102175845';
+import sfx from './sfx.js?v=20261102175845';
+import * as SC from './screens.js?v=20261102175845';
+import * as AI from './ai.js?v=20261102175845';
+import * as DK from './decks.js?v=20261102175845';
+import * as AN from './anim.js?v=20261102175845';
+import * as SX from './anim/status.js?v=20261102175845';
+import * as ZN from './anim/zones.js?v=20261102175845';
+import * as TG from './anim/targeting.js?v=20261102175845';
+import * as AMB from './anim/ambient.js?v=20261102175845';
 AMB.init({ me: 0 });
 
 // animation speed setting (Fast/Normal/Slow, minimal under prefers-reduced-motion): scales every WAAPI duration/delay
@@ -156,13 +156,14 @@ function blurbOf(name) {
 async function playFlow(counts, again) {
   const rid = ++runId; let pick = again;
   if (!pick) {
-    const decks = Object.keys(DECK_LISTS).map((n) => ({ name: n, blurb: blurbOf(n), colors: deckColors(n) }));
-    pick = await SC.showPicker(decks, ST.get('difficulty'), myDecks()); if (!pick || rid !== runId) return;
+    const md = myDecks();
+    const decks = md.list.map((d) => { const c = myDeckCounts(d.name); const cols = new Set(); for (const n of Object.keys(c)) (byName[n]?.[0]?.colors || []).forEach((x) => cols.add(x)); return { name: d.name, legal: d.legal, colors: ['W', 'U', 'B', 'R', 'G'].filter((x) => cols.has(x)), blurb: DECK_LISTS[d.name] ? blurbOf(d.name) : `Your deck · ${d.size} cards` }; });
+    pick = await SC.showPicker(decks, ST.get('difficulty'), md.current); if (!pick || rid !== runId) return;
     ST.set('difficulty', pick.level);
-    if (pick.mine && pick.mine !== myDecks().current) { setMyDeck(pick.mine); counts = myDeckCounts(pick.mine); }
+    if (pick.mine !== md.current) setMyDeck(pick.mine);
+    counts = myDeckCounts(pick.mine); pick.foe = null;
   }
   let foe = pick.foe;
-  if (!foe && AI.pickOpponent) { try { const r = AI.pickOpponent(counts, pick.level); foe = typeof r === 'string' ? r : r?.name; } catch {} }
   if (!foe || !DECK_LISTS[foe]) { const names = Object.keys(DECK_LISTS); foe = names[Math.floor(Math.random() * names.length)]; }
   lastRun = { counts, foe, level: pick.level };
   const quick = window.__fast || window.__auto || window.__quick;
