@@ -255,7 +255,7 @@ html.phone .row:has(>:nth-child(11)){--cw:12.5cqh}
 html.phone .ovl.pips{position:absolute;top:-1.4cqh;right:-.8cqh;z-index:3;font-size:max(9px,3.4cqh);filter:drop-shadow(0 1px 2px #000);pointer-events:none}
 html.phone .ovl.pips .pip{margin-left:1px;border:1px solid #0008}
 html.phone .ovl.nm{position:absolute;left:0;top:0;max-width:90%;padding:.2cqh .9cqh;background:#000c;color:#f3e3c0;font:600 max(7px,2.3cqh)/1.25 Georgia;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:.6cqh 0 .6cqh 0;z-index:3;pointer-events:none}
-html.phone .card .pt{font-size:max(10px,calc(var(--cw)*.26));padding:.1cqh .9cqh;border:max(1.5px,.35cqh) solid var(--gold);right:-.6cqh;bottom:-.6cqh;z-index:3}
+html.phone .card .pt{font-size:max(10px,calc(var(--cw)*.19));padding:.1cqh .9cqh;border:max(1.5px,.35cqh) solid var(--gold);right:-.6cqh;bottom:-.6cqh;z-index:3}
 html.phone .card .pt.hurt{color:#ff8a7a}
 html.phone .card .dmg{width:calc(var(--cw)*.36);height:calc(var(--cw)*.36);font-size:max(9px,calc(var(--cw)*.2))}
 html.phone .lands .card .pt,html.phone .lands .card .ovl{display:none}
@@ -400,13 +400,13 @@ html.phone.lefty #action button#act-undo{right:auto;left:calc(100% + 6px)}
 @keyframes slamFade{from{opacity:1}to{opacity:0}}
 
 /* ===== phone board, round 3 (rebalanced): creatures mid-size, lands/artifacts bigger, hand tucked lower ===== */
-html.phone #stage{--cw:21cqh}
+html.phone #stage{--cw:19cqh}
 html.phone .row{left:22%;right:21%}
-html.phone #field-opp{top:3cqh}
-html.phone #field-me{top:33.5cqh}
+html.phone #field-opp{top:5.5cqh}
+html.phone #field-me{top:35cqh}
 html.phone #hand{bottom:-12.5cqh}
-html.phone .row:has(>:nth-child(6)){--cw:18cqh}
-html.phone .row:has(>:nth-child(8)){--cw:15.5cqh}
+html.phone .row:has(>:nth-child(6)){--cw:16.5cqh}
+html.phone .row:has(>:nth-child(8)){--cw:14.5cqh}
 html.phone .row:has(>:nth-child(11)){--cw:13cqh}
 html.phone .lands .card{--cw:max(15.5cqh,46px);margin-right:calc(var(--cw)*-.32)}
 html.phone .row.lands,html.phone #field-opp-lands,html.phone #field-me-lands{width:calc(22% - var(--pl) - 6px)}

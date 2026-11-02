@@ -5,9 +5,9 @@
 //  - stack fan: depth, order badges, FLIP reflow, resolve flash
 // DOM/SVG/WAAPI only. Informational arrows stay visible (static) under reduced motion / speed Off; every movement is skipped.
 // Element.animate is globally time-scaled in ui.js, so WAAPI durations here are the designed ones; setTimeout delays use animScale().
-import * as FX from '../fx.js?v=20261102161655';
-import * as ST from '../settings.js?v=20261102161655';
-import * as AN from '../anim.js?v=20261102161655';
+import * as FX from '../fx.js?v=20261102162521';
+import * as ST from '../settings.js?v=20261102162521';
+import * as AN from '../anim.js?v=20261102162521';
 const NS = 'http://www.w3.org/2000/svg';
 const off = () => !!window.__fxOff;
 const C = { mine: '#7fd0ff', opp: '#ff9c7a', ok: '#7dff9a', neutral: '#ffcf94', bad: '#ff4a3a', tether: '#ffd27a' };
