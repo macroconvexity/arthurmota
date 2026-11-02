@@ -295,7 +295,7 @@ html.phone #dropzone{left:26%;right:24%;top:10cqh;height:62cqh}
 .mat img{width:100%;aspect-ratio:3/2;object-fit:cover;border-radius:6px}.mat.sel{border-color:#ffcf94;box-shadow:0 0 0 2px #f3c978,0 0 14px #f08a2488}
 .dlgbtns .leave{background:#3a1512;border-color:#a44;color:#ffb0a0}
 
-html.standalone #app,html.standalone #board{width:var(--app-w);height:var(--app-h);bottom:auto;right:auto}
+html.standalone #app,html.standalone #board{width:var(--app-w);height:var(--app-h);height:max(var(--app-h),100vh,100lvh);bottom:auto;right:auto}
 html.standalone,html.standalone body{background:#0a0605}
 
 /* the printed scan already shows the name: no overlay strip over the card art */

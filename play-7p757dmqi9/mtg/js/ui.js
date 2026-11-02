@@ -1,10 +1,10 @@
-import { Game, parseCost } from './engine.js?v=202611021207';
-import { aiAct } from './ai.js?v=202611021207';
-import { EFFECTS, abilitiesOf } from './cards.js?v=202611021207';
-import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=202611021207';
-import { initMenu, showApp, hideApp, costHtml } from './menu.js?v=202611021207';
-import { askConfirm, askNumber, askPick, modal } from './dialog.js?v=202611021207';
-import * as FX from './fx.js?v=202611021207';
+import { Game, parseCost } from './engine.js?v=202611021243';
+import { aiAct } from './ai.js?v=202611021243';
+import { EFFECTS, abilitiesOf } from './cards.js?v=202611021243';
+import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=202611021243';
+import { initMenu, showApp, hideApp, costHtml } from './menu.js?v=202611021243';
+import { askConfirm, askNumber, askPick, modal } from './dialog.js?v=202611021243';
+import * as FX from './fx.js?v=202611021243';
 
 
 const $ = (id) => document.getElementById(id);
@@ -46,12 +46,14 @@ if (window.ResizeObserver) new ResizeObserver(() => fitViewport()).observe(boxPr
 function startDebug() {
   if (document.getElementById('dbg')) { document.getElementById('dbg').remove(); return; }
   rawProbe = mkProbe('rawprobe', 'left:0;top:0;width:0;height:0;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);');
+  const unitProbe = (u) => mkProbe('uprobe' + u, `left:0;top:0;width:0;height:100${u};`);
+  const pv = unitProbe('vh'), pl = unitProbe('lvh'), pd = unitProbe('dvh'), ps = unitProbe('svh');
   const box = document.createElement('pre'); box.id = 'dbg'; document.body.appendChild(box);
   box.onclick = () => box.remove();
   const rr = (el) => { const q = el?.getBoundingClientRect(); return q ? `${q.left | 0},${q.top | 0} ${q.width | 0}x${q.height | 0}` : '-'; };
   const upd = () => {
     if (!box.isConnected) return; const vv = visualViewport, cs = getComputedStyle(rawProbe), f = (v) => parseFloat(v) || 0;
-    box.textContent = `inner ${innerWidth}x${innerHeight}  dpr ${devicePixelRatio}\nvv ${vv ? `${vv.width | 0}x${vv.height | 0} off ${vv.offsetLeft | 0},${vv.offsetTop | 0} sc ${vv.scale}` : 'n/a'}\ndoc ${document.documentElement.clientWidth}x${document.documentElement.clientHeight}  screen ${screen.width}x${screen.height}\nbox ${rr(boxProbe)}\napp ${rr($('app'))}\nnav ${rr($('nav'))}\nviews ${rr($('views'))}\nboard ${rr($('board'))}\nstage ${rr($('stage'))}\nenv t${f(cs.paddingTop)} r${f(cs.paddingRight)} b${f(cs.paddingBottom)} l${f(cs.paddingLeft)}\nclasses ${document.documentElement.className}`;
+    box.textContent = `inner ${innerWidth}x${innerHeight}  dpr ${devicePixelRatio}\nvv ${vv ? `${vv.width | 0}x${vv.height | 0} off ${vv.offsetLeft | 0},${vv.offsetTop | 0} sc ${vv.scale}` : 'n/a'}\ndoc ${document.documentElement.clientWidth}x${document.documentElement.clientHeight}  screen ${screen.width}x${screen.height}\nbox ${rr(boxProbe)}\napp ${rr($('app'))}\nnav ${rr($('nav'))}\nviews ${rr($('views'))}\nboard ${rr($('board'))}\nstage ${rr($('stage'))}\nvh ${pv.clientHeight} lvh ${pl.clientHeight} dvh ${pd.clientHeight} svh ${ps.clientHeight} standalone ${navigator.standalone}\nenv t${f(cs.paddingTop)} r${f(cs.paddingRight)} b${f(cs.paddingBottom)} l${f(cs.paddingLeft)}\nclasses ${document.documentElement.className}`;
   };
   upd(); setInterval(upd, 700);
 }
