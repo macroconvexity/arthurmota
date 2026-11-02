@@ -1,4 +1,4 @@
-import { COLORS, EFFECTS, TRIGGERS, STATIC, abilitiesOf as defAbilities, keywordsOf, auraSpecOf } from './cards.js?v=20261102145746';
+import { COLORS, EFFECTS, TRIGGERS, STATIC, abilitiesOf as defAbilities, keywordsOf, auraSpecOf } from './cards.js?v=20261102152249';
 
 export const STEPS = ['untap', 'upkeep', 'draw', 'main1', 'attackers', 'blockers', 'damage', 'main2', 'end'];
 const NOLOST = new Set();

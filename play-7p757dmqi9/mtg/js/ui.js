@@ -1,15 +1,15 @@
-import { Game, parseCost, makeRng } from './engine.js?v=20261102145746';
-import { aiAct } from './ai.js?v=20261102145746';
-import { EFFECTS, abilitiesOf } from './cards.js?v=20261102145746';
-import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261102145746';
-import { initMenu, showApp, hideApp, costHtml } from './menu.js?v=20261102145746';
-import { askConfirm, askNumber, askPick, modal } from './dialog.js?v=20261102145746';
-import * as FX from './fx.js?v=20261102145746';
-import * as ST from './settings.js?v=20261102145746';
-import sfx from './sfx.js?v=20261102145746';
-import * as SC from './screens.js?v=20261102145746';
-import * as AI from './ai.js?v=20261102145746';
-import * as DK from './decks.js?v=20261102145746';
+import { Game, parseCost, makeRng } from './engine.js?v=20261102152249';
+import { aiAct } from './ai.js?v=20261102152249';
+import { EFFECTS, abilitiesOf } from './cards.js?v=20261102152249';
+import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261102152249';
+import { initMenu, showApp, hideApp, costHtml } from './menu.js?v=20261102152249';
+import { askConfirm, askNumber, askPick, modal } from './dialog.js?v=20261102152249';
+import * as FX from './fx.js?v=20261102152249';
+import * as ST from './settings.js?v=20261102152249';
+import sfx from './sfx.js?v=20261102152249';
+import * as SC from './screens.js?v=20261102152249';
+import * as AI from './ai.js?v=20261102152249';
+import * as DK from './decks.js?v=20261102152249';
 
 // animation speed setting (Fast/Normal/Slow, minimal under prefers-reduced-motion): scales every WAAPI duration/delay
 const _animate = Element.prototype.animate;
