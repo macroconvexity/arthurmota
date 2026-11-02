@@ -17,11 +17,11 @@ function fitViewport() {
   const bw = boxProbe.clientWidth || innerWidth, bh = boxProbe.clientHeight || innerHeight;
   const cs = getComputedStyle(saProbe), st = parseFloat(cs.paddingTop) || 0, sr = parseFloat(cs.paddingRight) || 0, sb = parseFloat(cs.paddingBottom) || 0, sl = parseFloat(cs.paddingLeft) || 0;
   // the 16:9 stage: largest box that fits; only the SIDE insets reduce the width
-  const aw = Math.max(100, bw - sl - sr), sw = Math.min(aw, bh * 16 / 9), sh = sw * 9 / 16;
+  const aw = Math.max(100, bw - sl - sr), ah = Math.max(100, bh - sb), sw = Math.min(aw, ah * 16 / 9), sh = sw * 9 / 16; // bottom inset reduces the height so the baked art lines up with the overlays
   const r = document.documentElement.style;
   r.setProperty('--app-w', bw + 'px'); r.setProperty('--app-h', bh + 'px');
   r.setProperty('--stage-w', Math.floor(sw) + 'px'); r.setProperty('--stage-h', Math.floor(sh) + 'px');
-  r.setProperty('--stage-dx', (sl - sr) / 2 + 'px');
+  r.setProperty('--stage-dx', (sl - sr) / 2 + 'px'); r.setProperty('--stage-dy', -sb / 2 + 'px');
   const cl = document.documentElement.classList;
   cl.toggle('compact', bh <= 500 || bw <= 900); cl.toggle('portrait', bh > bw); cl.toggle('short', bh <= 430);
   return { bw, bh, st, sr, sb, sl };
