@@ -1,9 +1,13 @@
 // Computer opponent. Generic: card use is driven by the `ai` hint of EFFECTS / ABILITIES entries
 // (see docs/CARD_MODULE_CONTRACT.md); when a hint is missing it is inferred from the Oracle text.
 // Contract: every aiAct(g, pid) call changes the game state or returns false (never loops silently).
-import { EFFECTS, abilitiesOf } from './cards.js?v=202611021243';
-import { parseCost } from './engine.js?v=202611021243';
+import { EFFECTS, abilitiesOf } from './cards.js?v=202611021343';
+import { parseCost } from './engine.js?v=202611021343';
 
+export const LEVELS = ['easy', 'normal', 'hard'];
+let CUR = { level: 'normal', g: null };
+const level = () => CUR.level;
+const rnd = () => (CUR.g && CUR.g.rng ? CUR.g.rng() : Math.random());
 const ref = (p) => ({ kind: 'perm', id: p.id });
 const PLAYER = (id) => ({ kind: 'player', id });
 const same = (a, b) => a.kind === b.kind && a.id === b.id;
@@ -218,6 +222,7 @@ function evalHintUse(g, pid, hint, entry, def, ctx, mode, specs, isPermanentSpel
       }
       const net = theirs - mine;
       if (theirs <= 0) return null;
+      if (level() === 'hard' && creaturesOf(g, 1 - pid).length < 2 && net < 8 && !threatened(g, pid)) return null; // wait for a second target
       if (net >= 6 || (net >= 2 && (me.life <= 10 || threatened(g, pid))) || (threatened(g, pid) && theirs > 0 && net >= 0)) return { score: 180 + net, targets: [] };
       return null;
     }
@@ -229,7 +234,7 @@ function evalHintUse(g, pid, hint, entry, def, ctx, mode, specs, isPermanentSpel
     case 'counter': return null; // handled in the stack-response code
     default: { // utility
       if (!main && mode !== 'end') return null;
-      if (!specs.length) return ctx.skipUtility ? null : { score: 32, targets: [] };
+      if (!specs.length) return ctx.skipUtility ? null : { score: has(ctx.text, /extra turn/i) ? 110 : 32, targets: [] };
       const harmful = has((entry?.text || '') + ' ' + (def.text || ''), /destroy|damage|exile|tap target|return target|-\d\/-\d|can't|loses|sacrifice/i);
       const t = pickTargets(g, pid, specs, harmful ? 'harmful' : 'beneficial', ctx);
       if (!t || t.score < (harmful ? 3 : 2)) return null;
@@ -265,7 +270,7 @@ function spellPlans(g, pid, mode) {
       const creature = d.types.includes('Creature'), artifact = d.types.includes('Artifact');
       const behind = boardValue(g, 1 - pid) > boardValue(g, pid);
       const mana = abilitiesOf(d).some((a) => a.mana);
-      plan = { score: creature ? 100 + fixed * 3 + (behind ? 25 : 0) : artifact ? (mana ? 150 : 60 + fixed) : 20, targets: [] };
+      plan = { score: creature ? 100 + fixed * 3 + (behind ? 25 : 0) : artifact ? (mana ? 150 + (level() === 'hard' && g.turn <= 8 ? 20 : 0) : 60 + fixed) : 20, targets: [], creature };
     } else if (eff) {
       const hint = hintOf(eff, d);
       const forms = eff.modes ? eff.modes.map((md, i) => ({ md, i })) : [{ md: null, i: null }];
@@ -288,7 +293,7 @@ function spellPlans(g, pid, mode) {
       if (tr.kind === 'player') plan.x = Math.min(x, Math.max(1, g.players[tr.id].life));
       else { const tp = g.perm(tr); if (tp) plan.x = Math.min(x, Math.max(1, lifeLeft(g, tp))); }
     }
-    if (plan) plans.push({ ...plan, card: c, x: plan.x ?? x, mode: plan.mode, label: d.name });
+    if (plan) plans.push({ ...plan, card: c, x: plan.x ?? x, mode: plan.mode, label: d.name, hint: eff ? hintOf(eff, d) : 'permanent', cost: fixed + (plan.x ?? x) });
   }
   return plans;
 }
@@ -459,8 +464,11 @@ function respondToStack(g, pid, top) {
 }
 
 // ---------------------------------------------------------------- main entry
-export function aiAct(g, pid) {
+// opts.level: 'easy' | 'normal' | 'hard' (default: g.aiLevels[pid] ?? g.aiLevel ?? 'normal')
+export function aiAct(g, pid, opts = {}) {
   const w = g.waiting; if (!w || w.player !== pid || g.winner) return false;
+  const lv = opts.level ?? g.aiLevels?.[pid] ?? g.aiLevel ?? 'normal';
+  CUR = { level: LEVELS.includes(lv) ? lv : 'normal', g };
   const before = sig(g);
   try { decide(g, pid, w); } catch (e) { (g.aiErrors ||= []).push(String(e && e.stack || e)); if (g.aiStrict) throw e; }
   if (sig(g) !== before) return true;
@@ -515,7 +523,31 @@ function answerChoice(g, pid, w) {
   };
   return [...opts].sort((a, b) => score(b) - score(a)).slice(0, need).map((o) => o.value);
 }
+// ---- opening hand: keep 2-5 lands of 7, mulligan 0-1 or 6-7 unless the hand is very cheap (engine: 'mulligan' / 'bottom' waits)
+function keepOpening(g, pid, w) {
+  const hand = w.hand || g.players[pid].hand;
+  const isLand = (c) => c.def.types.includes('Land');
+  const lands = hand.filter(isLand).length, spells = hand.filter((c) => !isLand(c));
+  const avg = spells.length ? spells.reduce((t, c) => t + cmc(c), 0) / spells.length : 9;
+  const cheap = avg <= 2 && spells.some((c) => cmc(c) <= 2);
+  const size = hand.length;
+  if (!w.canMulligan || (w.count || 0) >= 3) return lands >= 1 || !w.canMulligan;       // never spiral below 4 cards
+  if (level() === 'easy') return lands >= 1 && lands <= size - 1;
+  if (lands >= 2 && lands <= 5) return true;
+  if (cheap && (lands === 1 || lands === 6) && (w.count || 0) === 0 && level() === 'hard') return true;
+  if ((w.count || 0) >= 1 && lands >= 1 && lands <= size - 2) return true;           // a 6-card hand with 1 land and play is still better than 5
+  return false;
+}
+function chooseBottom(g, pid, w) {
+  const hand = [...(w.hand || g.players[pid].hand)];
+  const isLand = (c) => c.def.types.includes('Land');
+  const lands = hand.filter(isLand).length;
+  const score = (c) => (isLand(c) ? (lands > 4 ? 6 : lands <= 2 ? -9 : -2) : cmc(c) - (EFFECTS[c.def.name] && ['removal', 'burn', 'counter'].includes(hintOf(EFFECTS[c.def.name], c.def)) ? 2 : 0));
+  return hand.sort((a, b) => score(b) - score(a)).slice(0, w.n);
+}
 const WAITING_HANDLERS = {
+  mulligan(g, pid, w) { if (keepOpening(g, pid, w)) g.keepHand(pid); else if (!g.mulligan(pid)) g.keepHand(pid); },
+  bottom(g, pid, w) { g.bottomCards(pid, chooseBottom(g, pid, w)); },
   // engine choices ("may", searches, modes, X): sensible answers, engine auto-answer as the safety net
   choice(g, pid, w) {
     let a;
@@ -541,6 +573,8 @@ function fallback(g, pid, w) {
   else if (w.kind === 'attackers') g.declareAttackers(pid, []);
   else if (w.kind === 'blockers') g.declareBlockers(pid, {});
   else if (w.kind === 'priority') g.pass(pid);
+  else if (w.kind === 'mulligan') g.keepHand?.(pid);
+  else if (w.kind === 'bottom') g.bottomCards?.(pid, [...g.players[pid].hand].slice(0, w.n));
   else if (w.kind === 'choice' && g.choose) { // last resort: smallest legal answer
     const a = w.type === 'yesno' ? false : w.type === 'number' ? (w.min ?? 0) : (w.options || []).slice(0, w.min || 0).map((o) => o.value);
     g.choose(pid, a);
@@ -552,18 +586,22 @@ function priority(g, pid) {
   if (++m.n > 60) return void g.pass(pid);                  // runaway guard
   const top = g.stack[g.stack.length - 1];
   if (top) {
-    if (top.controller !== pid && respondToStack(g, pid, top)) return;
+    if (top.controller !== pid && !(level() === 'easy' && rnd() < 0.5) && respondToStack(g, pid, top)) return;
     return void g.pass(pid);
   }
   const mine = g.active === pid;
   const mode = g.hasMainTiming(pid) ? 'main' : mine ? (g.step === 'end' ? 'end' : 'combat') : (g.step === 'end' ? 'end' : 'oppCombat');
-  if (g.step === 'blockers' || (g.step === 'attackers' && !mine)) {
+  if (level() !== 'easy' && (g.step === 'blockers' || (g.step === 'attackers' && !mine))) {
     const plans = combatPumpPlans(g, pid).sort((a, b) => b.score - a.score);
     for (const p of plans) if (runPlan(g, pid, p)) return;
   }
   if (mode === 'main' || mode === 'end' || (mode === 'oppCombat' && (g.step === 'attackers' || g.step === 'blockers'))) {
     if (mode === 'main' && playLand(g, pid)) return;
-    const plans = [...spellPlans(g, pid, mode), ...abilityPlans(g, pid, mode)].sort((a, b) => b.score - a.score);
+    let plans = [...spellPlans(g, pid, mode), ...abilityPlans(g, pid, mode)].sort((a, b) => b.score - a.score);
+    if (level() === 'easy') {
+      // holds back removal, forgets to cast things now and then
+      plans = plans.filter((p) => !(['removal', 'sweeper'].includes(p.hint) && rnd() < 0.5) && !(p.score < 1000 && rnd() < 0.08));
+    } else if (level() === 'hard' && mode === 'main') plans = hardOrder(g, pid, plans);
     for (const p of plans) if (runPlan(g, pid, p)) return;
   }
   g.pass(pid);
@@ -593,7 +631,76 @@ function unblockedDamage(g, attackers, defenders) {
   return dmg;
 }
 
+// Hard: keep counterspell mana up, spend mana efficiently (best subset of mid-priority plays first).
+function hardOrder(g, pid, plans) {
+  const me = g.players[pid], foe = g.players[1 - pid];
+  const avail = availMana(g, pid);
+  let reserve = 0;
+  for (const c of me.hand) { const e = EFFECTS[c.def.name]; if (e && hintOf(e, c.def) === 'counter' && g.canCast(pid, c)) reserve = Math.max(reserve, cmc(c)); }
+  const behind = boardValue(g, 1 - pid) > boardValue(g, pid);
+  if (reserve && foe.hand.length >= 1 && avail >= reserve + 1) {
+    plans = plans.filter((p) => p.score >= 150 || p.ability || (p.cost ?? 0) + reserve <= avail || (p.creature && behind));
+  }
+  const top = plans.filter((p) => p.score >= 150 || p.ability);
+  const rest = plans.filter((p) => !(p.score >= 150 || p.ability));
+  const cs = rest.slice(0, 8); let best = null, bestV = -1;
+  for (let mask = 1; mask < 1 << cs.length; mask++) {
+    let cost = 0, sc = 0;
+    for (let i = 0; i < cs.length; i++) if (mask & (1 << i)) { cost += cs[i].cost ?? 0; sc += cs[i].score; }
+    if (cost > avail) continue;
+    const v = cost * 10 + sc / 100;
+    if (v > bestV) { bestV = v; best = mask; }
+  }
+  const chosen = best ? cs.filter((_, i) => best & (1 << i)).sort((a, b) => b.score - a.score) : [];
+  return [...top, ...chosen, ...rest.filter((p) => !chosen.includes(p))];
+}
+
+// Hard: pick the attack set by simulating the opponent's best blocks (1-ply, using the same block logic from their side).
+function simulateAttack(g, pid, S) {
+  const me = g.players[pid], foe = g.players[1 - pid];
+  const saved = g.combat; let map;
+  g.combat = { attackers: S.map((p) => p.id), blocks: {} };
+  try { map = chooseBlocks(g, 1 - pid); } finally { g.combat = saved; }
+  const open = foe.hand.length > 0 && g.manaSources(1 - pid).length > 0 ? 1.15 : 1;
+  let dmg = 0, score = 0;
+  for (const a of S) {
+    const bl = (map[a.id] || []).map((b) => g.perm(b)).filter(Boolean);
+    if (!bl.length) { dmg += g.power(a); continue; }
+    let aDies, bDies;
+    if (bl.length === 1) ({ aDies, bDies } = duel(g, a, bl[0]));
+    else { aDies = bl.reduce((t, b) => t + g.power(b), 0) >= lifeLeft(g, a); bDies = g.power(a) >= lifeLeft(g, bl[0]); }
+    if (aDies) score -= valuePerm(g, a) * open;
+    if (bDies) score += valuePerm(g, bl[0]);
+  }
+  if (dmg >= foe.life) return 1e4;
+  score += dmg * (foe.life <= 10 ? 1.3 : 0.8);
+  const stay = me.bf.filter((p) => g.isCreature(p) && (!S.includes(p) || g.kw(p).has('vigilance')) && !p.tapped);
+  const inc = unblockedDamage(g, creaturesOf(g, 1 - pid), stay);
+  if (me.life - inc <= 0) return -1e4;
+  score -= inc * (me.life <= 10 ? 0.9 : 0.35);
+  return score;
+}
+function hardAttackers(g, pid, mine) {
+  const cand = [...mine].sort((a, b) => valuePerm(g, b) - valuePerm(g, a)).slice(0, 8);
+  let best = [], bestV = simulateAttack(g, pid, []);
+  for (let mask = 1; mask < 1 << cand.length; mask++) {
+    const S = cand.filter((_, i) => mask & (1 << i));
+    const v = simulateAttack(g, pid, S) + 0.01 * S.length;
+    if (v > bestV) { bestV = v; best = S; }
+  }
+  return best.map((p) => p.id);
+}
+
 export function chooseAttackers(g, pid) {
+  const ids = chooseAttackers0(g, pid);
+  if (level() === 'hard') { const mine = g.players[pid].bf.filter((p) => g.canAttack(p)); if (mine.length) return hardAttackers(g, pid, mine); }
+  if (level() === 'easy') {            // conservative: only attackers no blocker can kill, and sometimes stays home
+    const foeB = g.players[1 - pid].bf.filter((p) => g.isCreature(p) && !p.tapped);
+    return ids.filter((id) => { const a = g.perm(id); return !foeB.some((b) => g.canBlock(b, a) && duel(g, a, b).aDies) && rnd() > 0.1; });
+  }
+  return ids;
+}
+function chooseAttackers0(g, pid) {
   const me = g.players[pid], foe = g.players[1 - pid];
   const mine = me.bf.filter((p) => g.canAttack(p));
   if (!mine.length) return [];
@@ -645,6 +752,15 @@ export function chooseAttackers(g, pid) {
 
 // ---------------------------------------------------------------- blocking
 export function chooseBlocks(g, pid) {
+  const map = chooseBlocks0(g, pid);
+  if (level() === 'easy') {
+    const me = g.players[pid];
+    const inc = (g.combat.attackers || []).map((a) => g.perm(a)).filter(Boolean).reduce((t, a) => t + g.power(a), 0);
+    if (inc < me.life - 4) for (const k of Object.keys(map)) if (rnd() < 0.2) delete map[k];   // misses a block when not in danger
+  }
+  return map;
+}
+function chooseBlocks0(g, pid) {
   const me = g.players[pid];
   const atk = (g.combat.attackers || []).map((a) => g.perm(a)).filter(Boolean);
   const free = me.bf.filter((p) => g.isCreature(p) && !p.tapped);

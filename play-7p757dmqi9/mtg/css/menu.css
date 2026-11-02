@@ -212,3 +212,5 @@ html.compact .dcol{flex:1 1 0;width:auto;min-width:64px;max-width:130px}
 html.portrait .colwrap,html.portrait .dbwrap{grid-template-columns:minmax(0,1fr)}
 html.compact .cfoot{margin-top:2px}
 .grid,.dcols,.slist,.dlist{-webkit-overflow-scrolling:touch}
+.resume{display:flex;flex-direction:column;gap:2px;padding:10px;border-radius:14px;border:2px solid #7dff9a88;background:linear-gradient(#1c2c1f,#101a12);color:#dfffe6;font:15px Georgia;cursor:pointer;text-align:center}
+.resume b{font-size:18px;color:#7dff9a}.resume span{font-size:12px;color:#a8d8b2}

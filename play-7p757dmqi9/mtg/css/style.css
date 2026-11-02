@@ -300,3 +300,94 @@ html.standalone,html.standalone body{background:#0a0605}
 
 /* the printed scan already shows the name: no overlay strip over the card art */
 html.phone .ovl.nm{display:none!important}
+
+/* ===== round 4: toolbar, settings, flow screens, log, combat clarity ===== */
+#gear,#logbtn,#mute,#help{position:absolute;z-index:60;display:flex;align-items:center;justify-content:center;width:max(26px,4.8cqh);height:max(26px,4.8cqh);padding:0;border-radius:.8cqh;border:max(1.5px,.3cqh) solid #6a5226;background:#0009;color:#e6d6b0;font:700 max(12px,2.6cqh) Georgia;top:2%}
+#gear{left:calc(1.2% + 74px)}#logbtn{left:calc(1.2% + 74px + max(34px,6cqh))}#mute{left:calc(1.2% + 74px + 2*max(34px,6cqh))}#help{left:calc(1.2% + 74px + 3*max(34px,6cqh))}
+#gear svg,#mute svg{width:68%;height:68%}
+#mute.off .w{display:none}#mute.off{color:#a55}
+html.phone #help{display:none}
+html.phone #gear,html.phone #logbtn,html.phone #mute{width:44px;height:44px;border-radius:1.4cqh;border:max(2px,.5cqh) solid #d9a54a;background:linear-gradient(#2a1d15,#120b09);color:#f3c978;top:max(2cqh,8px);left:auto}
+html.phone #gear{right:var(--pr)}html.phone #mute{right:calc(var(--pr) + 50px)}html.phone #logbtn{right:calc(var(--pr) + 100px)}
+html.phone #zones-opp{right:var(--pr);top:calc(max(2cqh,8px) + 50px)}
+html.phone #field-opp-misc{top:15cqh}
+html.phone #action button{min-height:44px}
+html.nopips .ovl.pips{display:none!important}
+/* log drawer */
+#logdrawer{position:absolute;top:0;bottom:0;right:0;width:min(34%,340px);z-index:80;background:#0a0f1ef2;border-left:2px solid #6a5226;transform:translateX(102%);transition:transform .25s;display:flex;flex-direction:column;font-size:max(11px,2.3cqh)}
+#logdrawer.on{transform:none}
+#logdrawer .lh{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid #3a3320;color:var(--gold2)}
+#logdrawer .lh button{background:none;border:0;color:#e6d6b0;font-size:22px;min-width:44px;min-height:36px}
+#logdrawer .ll{flex:1;overflow:auto;padding:8px 12px;line-height:1.45;color:#b8b2a0;-webkit-overflow-scrolling:touch}
+#logdrawer .ll div:last-child{color:#fff}
+a.cl{color:#f3c978;text-decoration:underline dotted;cursor:pointer}
+/* settings */
+.seg{display:flex;gap:0;margin-bottom:6px}.seg button{flex:1;padding:8px 6px;background:#241810;color:#e6d6b0;border:1px solid #5a4422;font:600 14px Georgia;min-height:40px}
+.seg button:first-child{border-radius:10px 0 0 10px}.seg button:last-child{border-radius:0 10px 10px 0}.seg button.on{background:linear-gradient(#ff9b3d,#d9631a);color:#fff;border-color:#ffcf94}
+.row2{display:flex;align-items:center;gap:10px;margin:4px 0;font-size:15px;min-height:36px}.row2 input{width:20px;height:20px;accent-color:#f08a24}
+.setbox input[type=range]{width:100%;margin:2px 0 6px;padding:0;accent-color:#f08a24}
+/* flow screens */
+.scr{position:fixed;inset:0;z-index:450;display:flex;align-items:center;justify-content:center;background:radial-gradient(#1b1210ee,#05070df5);animation:scrIn .3s ease-out;color:#efe6d2;font-family:Georgia,serif}
+@keyframes scrIn{from{opacity:0}}
+.scrbox{max-width:92vw;max-height:calc(var(--app-h,100vh)*.94);overflow:auto;padding:18px 22px;text-align:center}
+.scrbox h2{margin:0 0 10px;font:700 26px Georgia;letter-spacing:2px;color:#f3c978}.scrbox p{margin:0 0 12px;color:#cdbf9a;font-size:14px}
+.scrbtns{display:flex;gap:12px;justify-content:center;margin-top:14px}
+.scrbtns button,.obtns button{min-width:120px;min-height:44px;padding:8px 22px;border-radius:26px;border:2px solid #ffcf94;background:linear-gradient(#ff9b3d,#d9631a);color:#fff;font:700 17px Georgia}
+.scrbtns .no,.obtns .alt{background:linear-gradient(#2a1d15,#120b09);border-color:#6a5226;color:#e6d6b0}.scrbtns button:disabled{opacity:.4}
+.lvl{display:inline-flex;margin-bottom:12px}.lvl button{padding:8px 18px;background:#241810;color:#e6d6b0;border:1px solid #5a4422;font:600 14px Georgia;min-height:40px}.lvl button:first-child{border-radius:12px 0 0 12px}.lvl button:last-child{border-radius:0 12px 12px 0}.lvl button.on{background:linear-gradient(#ff9b3d,#d9631a);color:#fff}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;max-width:820px;max-height:calc(var(--app-h,100vh)*.58);overflow:auto;padding:4px;-webkit-overflow-scrolling:touch}
+.tile{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px;background:#150e0ccc;border:2px solid #5a431f;border-radius:12px;color:#efe6d2;font:14px Georgia;cursor:pointer;text-align:center}
+.tile b{font-size:15px;color:#f3c978}.tile small{font-size:11px;color:#a89a78;line-height:1.3}
+.tile .pt{width:54px;height:54px;border-radius:8px;border:2px solid #d9a54a;background:#1d130d url(../assets/ui/avatar_opp.png) center/cover}.tile .pt.q{display:flex;align-items:center;justify-content:center;font:700 30px Georgia;color:#f3c978;background:#150e0c}
+.tile .dots{display:flex;gap:4px}.tile .dots i{width:10px;height:10px;border-radius:50%;border:1px solid #0008}
+.tile.sel{border-color:#ffcf94;box-shadow:0 0 0 2px #f3c978,0 0 18px #f08a2488;background:#2a1d15}
+.coinwrap{text-align:center;perspective:800px}
+.coin{width:120px;height:120px;margin:0 auto 18px;position:relative;transform-style:preserve-3d;animation:coinflip 1.6s cubic-bezier(.2,.7,.3,1) forwards}
+.coin i{position:absolute;inset:0;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 26px Georgia;font-style:normal;color:#3a2410;background:radial-gradient(#ffe39a,#d9a54a 70%,#8a5f1c);border:4px solid #fff0b0;backface-visibility:hidden;box-shadow:0 0 30px #f08a24aa}
+.coin .f2{transform:rotateY(180deg)}
+.coin.heads{--end:1800deg}.coin.tails{--end:1980deg}
+@keyframes coinflip{from{transform:translateY(60px) rotateY(0)}40%{transform:translateY(-70px) rotateY(calc(var(--end)*.5))}to{transform:translateY(0) rotateY(var(--end))}}
+.coinmsg{font:700 30px Georgia;letter-spacing:3px;color:#f3c978;opacity:0;transition:opacity .4s}.coin ~ .coinmsg{min-height:40px}.scr.shown .coinmsg{opacity:1}
+.mhand{display:flex;justify-content:center;gap:0;margin:6px 0}.mhand img{width:min(calc(92vw/7.2),calc(var(--app-h,100vh)*.52/1.393),240px);height:auto;margin:0 -1.2%;border-radius:4.5%;box-shadow:0 6px 18px #000c;animation:mdeal .45s both cubic-bezier(.2,1.2,.4,1)}
+@keyframes mdeal{from{opacity:0;transform:translateY(40px) rotate(6deg)}}
+.scrbox.wide{max-width:96vw}
+/* coach marks */
+.coachring{position:fixed;display:none;z-index:470;border:3px solid #ffcf94;border-radius:12px;box-shadow:0 0 0 9999px #0007,0 0 24px #f08a24;pointer-events:none;animation:cring 1.2s ease-in-out infinite}
+@keyframes cring{50%{border-color:#fff}}
+.scr.coach{background:none;align-items:flex-end;pointer-events:none;z-index:480;padding-bottom:calc(var(--sa-b,0px) + 10px)}.scr.coach.top{align-items:flex-start;padding-top:10px}
+.cbox{pointer-events:auto;width:min(480px,92vw);background:#120b09f5;border:2px solid #d9a54a;border-radius:14px;padding:10px 14px;box-shadow:0 8px 30px #000}
+.cstep{font-size:11px;color:#a89a78;letter-spacing:2px}.ctitle{color:#f3c978;font-size:17px}.ctext{margin:4px 0 8px;font-size:14px;line-height:1.4;color:#efe6d2}
+.cbtns{display:flex;justify-content:flex-end;gap:8px}.cbtns button{min-height:40px;min-width:80px;border-radius:20px;border:1px solid #6a5226;background:#241810;color:#e6d6b0;font:600 14px Georgia}.cbtns .next{background:linear-gradient(#ff9b3d,#d9631a);border-color:#ffcf94;color:#fff}
+/* result screen */
+#over .stats{display:flex;gap:clamp(10px,3vw,28px);flex-wrap:wrap;justify-content:center;animation:overIn 1s ease-out .9s both}
+#over .stats div{text-align:center;min-width:64px}#over .stats b{display:block;font:700 clamp(20px,4cqh,32px) Georgia;color:#fff}#over .stats span{font-size:11px;letter-spacing:1px;color:#a89a78;text-transform:uppercase}
+#over .obtns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;animation:overIn 1s ease-out 1.2s both}
+#over{padding:2cqh}
+/* combat clarity */
+.cpv{position:absolute;left:50%;top:-1.2cqh;transform:translateX(-50%);padding:.1cqh 1cqh;border-radius:2cqh;background:#1d130d;border:max(1.5px,.3cqh) solid #7dff9a;color:#7dff9a;font:700 max(10px,2.8cqh) Georgia;z-index:6;white-space:nowrap;pointer-events:none}
+.cpv.dead{border-color:#ff5a45;color:#ff8a7a;background:#2a1010}.cpv.you{border-color:#ffb25a;color:#ffd8b0}
+#hint.danger{background:#3a1010f2;border-color:#ff5a45;color:#ffb0a0;animation:pulse 1s infinite}
+#stage.targeting .card:not(.targetable):not([data-kind=hand]){filter:brightness(.6) saturate(.7)}
+#stage.targeting .life:not(.targetable){filter:brightness(.7)}
+.card.targetable,.life.targetable{box-shadow:0 0 0 3px var(--red),0 0 26px 6px #ff5a45dd!important}
+/* left-handed phone layout: mirror the side columns */
+html.phone.lefty .row{left:24%;right:26%}
+html.phone.lefty #life-1,html.phone.lefty #life-0{left:auto;right:var(--pl)}
+html.phone.lefty .row.lands,html.phone.lefty #field-opp-lands,html.phone.lefty #field-me-lands{left:auto;right:var(--pl);justify-content:flex-end}
+html.phone.lefty .misc{left:auto;right:calc(76% + 6px)}
+html.phone.lefty #zones-opp,html.phone.lefty #zones-me,html.phone.lefty #action,html.phone.lefty #phases{right:auto;left:var(--pr)}
+html.phone.lefty #turnno{right:auto;left:calc(var(--pr) + 17cqh)}
+html.phone.lefty #gear{right:auto;left:var(--pr)}html.phone.lefty #mute{right:auto;left:calc(var(--pr) + 50px)}html.phone.lefty #logbtn{right:auto;left:calc(var(--pr) + 100px)}
+html.reduced *{scroll-behavior:auto}
+.dlgbox .row2 input{width:20px;height:20px;margin:0;padding:0;flex:none}
+.dlgbox .row2{justify-content:flex-start;text-align:left}
+.setbox{max-height:calc(var(--app-h,100vh)*.92)}
+html.phone .misc{flex-direction:column;flex-wrap:nowrap;align-items:flex-start}
+html.phone .misc .card{margin:0 0 -6.4cqh 0}
+html.phone #field-me-misc{top:46cqh}
+#action button#act-undo{background:linear-gradient(#2a3556,#161d34);border-color:#5b6a99;box-shadow:none;font-size:max(11px,2.2cqh);min-height:36px}
+.lturn{margin:8px 0 2px;color:var(--gold2);font-size:.85em;letter-spacing:2px;text-transform:uppercase;border-bottom:1px solid #3a3320}
+#logdrawer .ll .lp1{color:#c9a6a0}#logdrawer .ll .lk-damage{color:#ff9c8a}#logdrawer .ll .lk-info{color:#7a84a6}
+html.phone #action{position:absolute}
+html.phone #action button#act-undo{position:absolute;right:calc(100% + 6px);bottom:0;width:auto;min-width:78px;padding:0 10px}
+html.phone.lefty #action button#act-undo{right:auto;left:calc(100% + 6px)}

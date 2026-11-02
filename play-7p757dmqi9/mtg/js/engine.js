@@ -1,4 +1,4 @@
-import { COLORS, EFFECTS, TRIGGERS, STATIC, abilitiesOf as defAbilities, keywordsOf, auraSpecOf } from './cards.js?v=202611021243';
+import { COLORS, EFFECTS, TRIGGERS, STATIC, abilitiesOf as defAbilities, keywordsOf, auraSpecOf } from './cards.js?v=202611021343';
 
 export const STEPS = ['untap', 'upkeep', 'draw', 'main1', 'attackers', 'blockers', 'damage', 'main2', 'end'];
 const NOLOST = new Set();
@@ -70,12 +70,21 @@ const CARD_SPECS = {
   artifactCardInYourGraveyard: (g, c, x) => c.def.types.includes('Artifact') && c.owner === x.pid,
 };
 
+// Small seedable PRNG whose state can be saved (use it as opts.rng for games you want to serialize).
+export function makeRng(seed = 1) {
+  let a = seed >>> 0;
+  const f = () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  f.getState = () => a; f.setState = (v) => { a = v >>> 0; };
+  return f;
+}
+const defRef = (d) => ({ name: d.name, set: d.set, number: d.number });
+
 export class Game {
   constructor(decks, opts = {}) {
-    this.rng = opts.rng || Math.random;
+    this.rng = opts.rng || makeRng((Math.random() * 4294967296) >>> 0);
     this.names = opts.names || ['You', 'Opponent'];
     this.auto = new Set(opts.auto || []);   // players whose choices are answered automatically
-    this.log = [];
+    this.log = []; this.logEvents = [];
     this.events = [];       // UI animation hints
     this.nextId = 1;
     this.players = [0, 1].map((i) => ({ id: i, name: this.names[i], life: 20, library: [], hand: [], bf: [], gy: [], ex: [], pool: emptyPool(), landPlayed: false, landsPlayed: 0, drewEmpty: false, skip: { untap: 0, draw: 0, turn: 0 }, mods: [], damageTaken: 0, damageFrom: [] }));
@@ -90,16 +99,90 @@ export class Game {
     this.waiting = null;
     this.combat = { attackers: [], blocks: {}, blocked: [], bands: [] };
     this.asks = []; this.curAsk = null; this.idle = []; this.inAsk = false; this.prevWaiting = null;
-    this.delayed = []; this.shields = []; this.extraTurns = []; this.ghosts = []; this.pendingCallbacks = [];
+    this.delayed = []; this.shields = []; this.extraTurns = []; this.ghosts = []; this.pendingCallbacks = []; this.ver = 0;
     this.diedThisTurn = 0; this.noCombatDamage = false;
     this.inSba = false; this.sbaAgain = false; this._tyGuard = false; this._depth = 0;
+    this.opts = opts; this.mull = null;
     for (const i of [0, 1]) this.draw(i, 7, true);
-    this.startTurn();
+    if (opts.mulligan) {
+      // opening-hand flow: coin flip (the winner plays first), then keep / London mulligan for both players
+      this.emit({ type: 'coin', winner: this.first });
+      this.say(`${this.players[this.first].name} wins the coin flip and plays first.`, { kind: 'coin', player: this.first });
+      this.mull = { count: [0, 0], kept: [false, false] };
+      this.nextMulligan();
+    } else this.startTurn();
   }
+
+  // ---------- mulligan (opts.mulligan) ----------
+  mullAuto(pid) { return this.opts.autoMulligan === true || (Array.isArray(this.opts.autoMulligan) && this.opts.autoMulligan.includes(pid)); }
+  autoKeep(pid) {
+    const m = this.mull, hand = this.players[pid].hand, size = hand.length;
+    const lands = hand.filter((c) => c.def.types.includes('Land')).length;
+    return m.count[pid] >= 6 || size <= 4 || (lands >= 2 && lands <= size - 2);
+  }
+  autoBottom(pid, n) {
+    const hand = this.players[pid].hand, lands = hand.filter((c) => c.def.types.includes('Land')).length;
+    const score = (c) => (c.def.types.includes('Land') ? (lands > 4 ? 5 : -1) : cmcOf(c.def));
+    return [...hand].sort((a, b) => score(b) - score(a)).slice(0, n);
+  }
+  nextMulligan() {
+    const m = this.mull; if (!m) return;
+    for (const pid of [this.first, this.opp(this.first)]) {
+      if (m.kept[pid]) continue;
+      if (this.mullAuto(pid)) {
+        let guard = 0;
+        while (!this.autoKeep(pid) && guard++ < 8) this.doMulligan(pid);
+        const n = m.count[pid];
+        if (n > 0) this.doBottom(pid, this.autoBottom(pid, n));
+        m.kept[pid] = true; continue;
+      }
+      this.waiting = { kind: 'mulligan', player: pid, hand: [...this.players[pid].hand], count: m.count[pid], canMulligan: m.count[pid] < 6 };
+      return;
+    }
+    this.mull = null; this.waiting = null; this.startTurn();
+  }
+  doMulligan(pid) {
+    const p = this.players[pid], m = this.mull;
+    p.library.push(...p.hand); p.hand = []; this.shuffle(p.library);
+    this.draw(pid, 7, true); m.count[pid]++;
+    this.emit({ type: 'mulligan', pid, count: m.count[pid] });
+    this.say(`${p.name} takes a mulligan (${m.count[pid]}).`, { kind: 'mulligan', player: pid });
+  }
+  doBottom(pid, cards) {
+    const p = this.players[pid];
+    for (const c of cards) { p.hand = p.hand.filter((x) => x !== c); p.library.unshift(c); }
+    this.say(`${p.name} puts ${cards.length} card${cards.length === 1 ? '' : 's'} on the bottom of the library.`, { kind: 'mulligan', player: pid });
+  }
+  keepHand(pid) {
+    const w = this.waiting; if (w?.kind !== 'mulligan' || w.player !== pid) return false;
+    const n = this.mull.count[pid];
+    if (n > 0) { this.waiting = { kind: 'bottom', player: pid, n, hand: [...this.players[pid].hand] }; return true; }
+    this.mull.kept[pid] = true; this.say(`${this.players[pid].name} keeps.`, { kind: 'mulligan', player: pid }); this.nextMulligan(); return true;
+  }
+  mulligan(pid) {
+    const w = this.waiting; if (w?.kind !== 'mulligan' || w.player !== pid || !w.canMulligan) return false;
+    this.doMulligan(pid);
+    this.waiting = { kind: 'mulligan', player: pid, hand: [...this.players[pid].hand], count: this.mull.count[pid], canMulligan: this.mull.count[pid] < 6 };
+    return true;
+  }
+  bottomCards(pid, cards) {
+    const w = this.waiting; if (w?.kind !== 'bottom' || w.player !== pid) return false;
+    const hand = this.players[pid].hand;
+    const cs = cards.map((c) => (typeof c === 'object' ? c : hand.find((x) => x.id === c)));
+    if (cs.length !== w.n || cs.some((c) => !c || !hand.includes(c)) || new Set(cs).size !== cs.length) return false;
+    this.doBottom(pid, cs);
+    this.mull.kept[pid] = true; this.say(`${this.players[pid].name} keeps.`, { kind: 'mulligan', player: pid }); this.nextMulligan(); return true;
+  }
+
 
   shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(this.rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
   shuffleLibrary(pid) { this.shuffle(this.players[pid].library); this.emit({ type: 'shuffle', pid }); }
-  say(m) { this.log.push(m); if (this.log.length > 200) this.log.shift(); }
+  // text log (g.log) plus structured entries (g.logEvents): {turn, step, player, kind, text, cardIds}
+  say(m, meta = {}) {
+    this.log.push(m); if (this.log.length > 200) this.log.shift();
+    this.logEvents.push({ turn: this.turn, step: this.step, player: meta.player ?? this.active, kind: meta.kind || 'info', text: m, cardIds: meta.cards || [] });
+    if (this.logEvents.length > 600) this.logEvents.shift();
+  }
   emit(e) { this.events.push(e); if (this.events.length > 400) this.events.shift(); }
   opp(p) { return 1 - p; }
   flip() { const won = this.rng() < 0.5; this.emit({ type: 'flip', won }); this.say(`Coin flip: ${won ? 'won' : 'lost'}.`); return won; }
@@ -118,14 +201,23 @@ export class Game {
   findCard(id) { for (const p of this.players) for (const z of ['hand', 'library', 'gy', 'ex']) { const c = p[z].find((x) => x.id === id); if (c) return c; } return null; }
 
   // ---------- continuous effects ----------
-  statics() {
+  // Raw static entries, cached while the battlefield membership is unchanged (ver is bumped by newPerm/leave/setController/ghost changes).
+  rawStatics() {
+    const sig = `${this.ver}:${this.players[0].bf.length}:${this.players[1].bf.length}:${this.ghosts.length}`;
+    if (this._stSig === sig) return this._stRaw;
     const out = [];
     for (const pl of this.players) for (const src of pl.bf) {
       const s = STATIC[src.card.def.name]; if (!s) continue;
       for (const e of asArr(s)) out.push({ src, e });
     }
     for (const gh of this.ghosts) for (const e of gh.ents) out.push({ src: gh.src, e });
-    if (out.length && !this._lg) { const lost = this.lostSet(); if (lost.size) return out.filter((x) => !lost.has(x.src)); }
+    this._stSig = sig; this._stRaw = out;
+    this._stFlags = { types: out.some(({ e }) => e.addTypes || e.setSubtypes || e.addSubtypes), lose: out.some(({ e }) => e.loseAbilities), colors: out.some(({ e }) => e.setColors || e.addColors) };
+    return out;
+  }
+  statics() {
+    const out = this.rawStatics();
+    if (out.length && this._stFlags.lose && !this._lg) { const lost = this.lostSet(); if (lost.size) return out.filter((x) => !lost.has(x.src)); }
     return out;
   }
   rule(key, ...args) { for (const { src, e } of this.statics()) if (e[key] && e[key](this, src, ...args)) return true; return false; }
@@ -134,7 +226,8 @@ export class Game {
   applies(e, src, p) { return e.affects ? !!e.affects(this, src, p) : false; }
   types(p) {
     const base = p.card.def.types;
-    if (this._tyGuard) return base;
+    this.rawStatics();
+    if (this._tyGuard || (!this._stFlags.types && !p.mods.some((m) => m.addTypes))) return base;
     this._tyGuard = true;
     try {
       let t = base;
@@ -145,7 +238,8 @@ export class Game {
   }
   subtypes(p) {
     const base = p.card.def.subtypes || [];
-    if (this._tyGuard) return base;
+    this.rawStatics();
+    if (this._tyGuard || (!this._stFlags.types && !p.mods.some((m) => m.setSubtypes || m.addSubtypes))) return base;
     this._tyGuard = true;
     try {
       let t = base;
@@ -162,6 +256,7 @@ export class Game {
     if (p.colorOverride) return p.colorOverride;
     let c = p.card.def.colors || [];
     if (this._depth > 3 || !p.mods) return c;
+    this.rawStatics(); if (!this._stFlags.colors) return c;
     this._depth++;
     try { for (const { src, e } of this.statics()) if ((e.setColors || e.addColors) && this.applies(e, src, p)) c = e.setColors ? [...e.setColors] : [...new Set([...c, ...e.addColors])]; } finally { this._depth--; }
     return c;
@@ -263,9 +358,9 @@ export class Game {
   }
   lostSet() {
     if (this._lg) return NOLOST;
-    const ents = [];
-    for (const pl of this.players) for (const src of pl.bf) { const s = STATIC[src.card.def.name]; if (s) for (const e of asArr(s)) if (e.loseAbilities) ents.push({ src, e }); }
-    for (const gh of this.ghosts) for (const e of gh.ents) if (e.loseAbilities) ents.push({ src: gh.src, e });
+    const raw = this.rawStatics();
+    if (!this._stFlags.lose) return NOLOST;
+    const ents = raw.filter(({ e }) => e.loseAbilities);
     if (!ents.length) return NOLOST;
     this._lg = true;
     try { const set = new Set(); for (const p of this.allPerms()) if (ents.some(({ src, e }) => this.applies(e, src, p))) set.add(p); return set; } finally { this._lg = false; }
@@ -388,7 +483,7 @@ export class Game {
       if (!p.library.length) { p.drewEmpty = true; continue; }
       const c = p.library.pop(); p.hand.push(c); drawn++; p.lastDrawn = { card: c, turn: this.turn };
     }
-    if (!silent) { this.say(`${p.name} draws ${n > 1 ? n + ' cards' : 'a card'}.`); if (drawn) this.fire('onDraw', pid, drawn); }
+    if (!silent) { this.say(`${p.name} draws ${n > 1 ? n + ' cards' : 'a card'}.`, { kind: 'draw', player: pid }); if (drawn) this.fire('onDraw', pid, drawn); }
   }
   reveal(viewer, target, zone = 'hand') { this.emit({ type: 'reveal', viewer, target, zone, cards: this.players[target][zone].map((c) => ({ id: c.id, name: c.def.name })) }); }
   // Drain Power: `from` activates a mana ability of each land (choosing colours), then `to` gets all the mana in from's pool
@@ -413,13 +508,13 @@ export class Game {
     if (n <= 0) return;
     const rep = this.ruleVals('replaceLifeGain', pid, n)[0];
     if (rep) return;
-    this.players[pid].life += n; this.emit({ type: 'heal', pid }); this.say(`${this.players[pid].name} gains ${n} life.`);
+    this.players[pid].life += n; this.emit({ type: 'heal', pid }); this.say(`${this.players[pid].name} gains ${n} life.`, { kind: 'life', player: pid });
     this.fire('onLifeGain', pid, n);
   }
   loseLife(pid, n) {
     if (n <= 0) return;
     this.players[pid].life -= n; this.emit({ type: 'dmg', target: { kind: 'player', id: pid }, n });
-    this.say(`${this.players[pid].name} loses ${n} life.`);
+    this.say(`${this.players[pid].name} loses ${n} life.`, { kind: 'life', player: pid });
     this.fire('onLifeLoss', pid, n);
     this.sba();
   }
@@ -428,7 +523,7 @@ export class Game {
     const perm = { id: card.id, card, controller, baseCtl: controller, tapped: !!opts.tapped, sick: true, damage: 0, mods: [], counters: {}, attachedTo: opts.attachedTo ?? null, attacking: false, regen: 0, used: {}, x: opts.x ?? 0, enteredTurn: this.turn, damagedBy: [] };
     if (opts.targetRef) perm.targetRef = opts.targetRef;
     if (opts.played) perm.played = true;
-    this.players[controller].bf.push(perm);
+    this.players[controller].bf.push(perm); this.ver++;
     this.emit({ type: 'enter', id: perm.id });
     if (opts.counters) for (const [k, n] of Object.entries(opts.counters)) perm.counters[k] = n;
     if (!opts.silent) { this.self(perm, 'onEnter'); this.fire('onAnyEnter', perm); }
@@ -436,7 +531,7 @@ export class Game {
   }
   putOntoBattlefield(card, controller, opts = {}) {
     if (opts.from !== null) for (const pl of this.players) for (const z of ['hand', 'library', 'gy', 'ex']) { const i = pl[z].indexOf(card); if (i >= 0) pl[z].splice(i, 1); }
-    this.say(`${card.def.name} enters the battlefield under ${this.players[controller].name}'s control.`);
+    this.say(`${card.def.name} enters the battlefield under ${this.players[controller].name}'s control.`, { kind: 'enter', cards: [card.id], player: controller });
     return this.newPerm(card, controller, opts);
   }
   reanimate(pid, card, opts) { return this.putOntoBattlefield(card, pid, opts); }
@@ -465,7 +560,7 @@ export class Game {
     const wasCreature = this.isCreature(perm);
     for (const a of this.allPerms()) if (a.attachedTo === perm.id) this.self(a, 'onHostLeave', perm, zone);
     { const ents = asArr(STATIC[perm.card.def.name]).filter((e) => e.lingers); if (ents.length) this.ghosts.push({ src: perm, ents }); }
-    pl.bf = pl.bf.filter((x) => x !== perm);
+    pl.bf = pl.bf.filter((x) => x !== perm); this.ver++;
     this.removeFromCombat(perm);
     if (zone === 'gy' && perm.mods.some((m) => m.exileOnDie)) zone = 'ex';
     if (!perm.card.token) this.players[perm.card.owner][zone === 'lib' ? 'library' : zone].push(perm.card);
@@ -491,13 +586,13 @@ export class Game {
       this.say(`${perm.card.def.name} regenerates.`); this.emit({ type: 'regen', id: perm.id });
       return false;
     }
-    this.say(`${perm.card.def.name} is destroyed.`); this.emit({ type: 'die', id: perm.id });
+    this.say(`${perm.card.def.name} is destroyed.`, { kind: 'die', cards: [perm.id], player: perm.controller }); this.emit({ type: 'die', id: perm.id });
     this.leave(perm, 'gy');
     return true;
   }
-  sacrifice(perm) { if (!perm || !this.perm(perm)) return false; this.say(`${this.players[perm.controller].name} sacrifices ${perm.card.def.name}.`); this.emit({ type: 'die', id: perm.id }); return this.leave(perm, 'gy'); }
-  exile(perm) { if (!perm || !this.perm(perm)) return; this.say(`${perm.card.def.name} is exiled.`); this.leave(perm, 'ex'); }
-  bounce(perm) { if (!perm || !this.perm(perm)) return; this.say(`${perm.card.def.name} returns to hand.`); this.emit({ type: 'bounce', id: perm.id }); this.leave(perm, 'hand'); }
+  sacrifice(perm) { if (!perm || !this.perm(perm)) return false; this.say(`${this.players[perm.controller].name} sacrifices ${perm.card.def.name}.`, { kind: 'die', cards: [perm.id], player: perm.controller }); this.emit({ type: 'die', id: perm.id }); return this.leave(perm, 'gy'); }
+  exile(perm) { if (!perm || !this.perm(perm)) return; this.say(`${perm.card.def.name} is exiled.`, { kind: 'exile', cards: [perm.id], player: perm.controller }); this.leave(perm, 'ex'); }
+  bounce(perm) { if (!perm || !this.perm(perm)) return; this.say(`${perm.card.def.name} returns to hand.`, { kind: 'bounce', cards: [perm.id], player: perm.controller }); this.emit({ type: 'bounce', id: perm.id }); this.leave(perm, 'hand'); }
   regenerate(perm) { if (perm && perm.mods.some((m) => m.noRegen)) { this.say(`${perm.card.def.name} can't be regenerated.`); return; } if (perm) { perm.regen = (perm.regen || 0) + 1; this.say(`${perm.card.def.name} gets a regeneration shield.`); } }
   attach(aura, host) { aura.attachedTo = host.id; this.emit({ type: 'attach', id: aura.id, host: host.id }); }
   setController(perm, pid, opts = {}) {
@@ -507,7 +602,7 @@ export class Game {
     this.removeFromCombat(perm);
     perm.controller = pid; perm.sick = true; perm.tapped = perm.tapped;
     if (opts.permanent) perm.baseCtl = pid;
-    this.players[pid].bf.push(perm);
+    this.players[pid].bf.push(perm); this.ver++;
     this.emit({ type: 'control', id: perm.id, to: pid });
     this.say(`${this.players[pid].name} gains control of ${perm.card.def.name}.`);
   }
@@ -515,7 +610,7 @@ export class Game {
     const i = this.stack.findIndex((s) => s.id === ref.id); if (i < 0) return;
     const [s] = this.stack.splice(i, 1); this.emit({ type: 'counter', id: s.card.id });
     if (s.kind === 'spell' && !s.copy) this.players[s.card.owner].gy.push(s.card);
-    this.say(`${s.card.def.name} is countered.`);
+    this.say(`${s.card.def.name} is countered.`, { kind: 'counter', cards: [s.card.id], player: s.controller });
   }
 
   tap(perm, silent) { if (perm.tapped) return; perm.tapped = true; this.emit({ type: 'tap', id: perm.id }); this.self(perm, 'onTap'); if (!silent) this.fire('onAnyTap', perm); }
@@ -575,7 +670,7 @@ export class Game {
     const rec = src?.card ? { src: src.card.id, def: src.card.def, types: src.mods ? this.types(src) : src.card.def.types, colors: this.colors(src), n } : { src: null, def: null, types: [], colors: [], n };
     if (ref.kind === 'player') this.players[ref.id].damageFrom.push(rec); else { const t = this.perm(ref); if (t) (t.damageFrom ||= []).push(rec); }
     this.emit({ type: 'dmg', target: ref, n, from: src?.card?.id });
-    this.say(`${n} damage to ${this.refText(ref)}.`);
+    this.say(`${n} damage to ${this.refText(ref)}.`, { kind: 'damage', cards: [src?.card?.id, ref.kind === 'perm' ? ref.id : null].filter((x) => x != null), player: src?.controller });
     const sp = src && src.card ? this.perm(src.card.id) : null;
     if (sp) this.self(sp, 'onDealDamage', ref, n);
     if (ref.kind === 'perm') { const t = this.perm(ref); if (t) this.self(t, 'onDealtDamage', src, n); }
@@ -829,9 +924,10 @@ export class Game {
   playLand(pid, card) {
     if (!this.canPlayLand(pid, card)) return false;
     const p = this.players[pid]; p.hand = p.hand.filter((c) => c !== card); p.landsPlayed++; p.landPlayed = p.landsPlayed >= this.landDrops(pid);
-    this.say(`${p.name} plays ${card.def.name}.`);
+    this.say(`${p.name} plays ${card.def.name}.`, { kind: 'play', cards: [card.id], player: pid });
     const perm = this.newPerm(card, pid, { silent: true, played: true });
     this.self(perm, 'onEnter'); this.fire('onAnyEnter', perm);
+    p.lastLand = { perm, turn: this.turn, logLen: this.logEvents.length };
     this.passes = 0; return true;
   }
   cast(pid, card, targets = [], x = 0, extra = {}) {
@@ -857,7 +953,7 @@ export class Game {
     const p = this.players[pid]; p.hand = p.hand.filter((c) => c !== card);
     const item = { id: card.id, kind: 'spell', card, controller: pid, targets, specs, effect: eff, x: info.hasX ? x : 0, mode, paid: paidExtra };
     this.stack.push(item);
-    this.say(`${p.name} casts ${card.def.name}${targets.length ? ' targeting ' + targets.map((t) => this.refText(t)).join(', ') : ''}.`);
+    this.say(`${p.name} casts ${card.def.name}${targets.length ? ' targeting ' + targets.map((t) => this.refText(t)).join(', ') : ''}.`, { kind: 'cast', cards: [card.id, ...targets.map((t) => (t.kind === 'player' ? null : t.id)).filter((x) => x != null)], player: pid });
     this.emit({ type: 'cast', id: card.id });
     this.passes = 0; this.setPriority(pid);
     this.fire('onSpellCast', item);
@@ -970,8 +1066,8 @@ export class Game {
     if (cost.tap) this.tap(a.perm);
     a.perm.used[idx] = (a.perm.used[idx] || 0) + 1;
     if (cost.sac) this.sacrifice(a.perm);
-    this.stack.push({ id: this.nextId++, kind: 'ability', card: a.perm.card, source: a.perm, controller: pid, targets, specs, effect: ab, x, choices, paid });
-    this.say(`${this.players[pid].name} activates ${a.perm.card.def.name}.`);
+    this.stack.push({ id: this.nextId++, kind: 'ability', card: a.perm.card, source: a.perm, controller: pid, targets, specs, effect: ab, abIdx: idx, x, choices, paid });
+    this.say(`${this.players[pid].name} activates ${a.perm.card.def.name}.`, { kind: 'activate', cards: [a.perm.id], player: pid });
     this.passes = 0; this.setPriority(pid);
     return true;
   }
@@ -983,6 +1079,10 @@ export class Game {
 
   // ---------- priority & stack ----------
   pass(pid) {
+    if (this.mull && (this.waiting?.kind === 'mulligan' || this.waiting?.kind === 'bottom') && this.waiting.player === pid) {
+      if (this.waiting.kind === 'mulligan') { if (this.autoKeep(pid) || !this.waiting.canMulligan) this.keepHand(pid); else this.mulligan(pid); } else this.bottomCards(pid, this.autoBottom(pid, this.waiting.n));
+      return;
+    }
     if (this.waiting?.kind === 'choice' && this.waiting.player === pid) { this.choose(pid, this.autoAnswer()); return; } // bots that only know pass()
     if (this.waiting?.kind !== 'priority' || this.waiting.player !== pid) return;
     this.passes++;
@@ -996,7 +1096,7 @@ export class Game {
     const it = this.stack.pop();
     it.legal = it.targets.map((t, i) => this.targetLegal(t, it.specs?.[i], it));
     if (it.targets.length && it.legal.every((x) => !x)) {
-      this.say(`${it.card.def.name} fizzles.`);
+      this.say(`${it.card.def.name} fizzles.`, { kind: 'fizzle', cards: [it.card.id], player: it.controller });
       if (it.kind === 'spell' && !it.copy) this.players[it.card.owner].gy.push(it.card);
       return;
     }
@@ -1007,7 +1107,7 @@ export class Game {
       else {
         const aura = auraSpecOf(it.card.def);
         const t = it.targets[0];
-        this.say(`${it.card.def.name} enters the battlefield.`);
+        this.say(`${it.card.def.name} enters the battlefield.`, { kind: 'enter', cards: [it.card.id], player: it.controller });
         this.newPerm(it.card, it.controller, { attachedTo: aura && t?.kind === 'perm' ? t.id : null, targetRef: aura ? t : null, x: it.x });
       }
     } else it.effect.resolve(this, it);
@@ -1029,7 +1129,7 @@ export class Game {
       this.active = next;
     }
     this.combat = { attackers: [], blocks: {}, blocked: [], bands: [] };
-    this.say(`— Turn ${this.turn}: ${this.players[this.active].name} —`);
+    this.say(`— Turn ${this.turn}: ${this.players[this.active].name} —`, { kind: 'turn', player: this.active });
     this.enter('untap');
   }
   nextStep() {
@@ -1117,7 +1217,7 @@ export class Game {
   cleanup() {
     for (const pl of this.players) for (const p of pl.bf) { p.damage = 0; p.mods = p.mods.filter((m) => m.until !== 'eot' && m.until !== 'endCombat'); p.attacking = false; p.regen = 0; p.used = {}; p.damagedBy = []; p.damageFrom = []; }
     for (const pl of this.players) { pl.mods = pl.mods.filter((m) => m.until !== 'eot'); pl.damageTaken = 0; pl.damageFrom = []; }
-    this.ghosts = [];
+    this.ghosts = []; this.ver++;
     this.shields = this.shields.filter((s) => s.until !== 'eot');
     this.noCombatDamage = false; this.diedThisTurn = 0;
     this.combat = { attackers: [], blocks: {}, blocked: [], bands: [] };
@@ -1162,7 +1262,7 @@ export class Game {
     this.combat.attackers = atk.map((p) => p.id);
     this.combat.bands = this.makeBands(atk, bands);
     for (const p of atk) { p.attacking = true; p.attackedTurn = this.turn; if (!this.kw(p).has('vigilance')) this.tap(p); }
-    if (atk.length) this.say(`${a.name} attacks with ${atk.map((p) => p.card.def.name).join(', ')}.`);
+    if (atk.length) this.say(`${a.name} attacks with ${atk.map((p) => p.card.def.name).join(', ')}.`, { kind: 'attack', cards: atk.map((p) => p.id), player: pid });
     this.passes = 0;
     for (const p of atk) if (this.perm(p)) this.self(p, 'onAttack');
     if (atk.length) this.fire('onDeclareAttackers', atk);
@@ -1235,7 +1335,7 @@ export class Game {
     this.combat.blocks = blocks;
     this.combat.blocked = Object.keys(blocks).map(Number);
     for (const band of this.combat.bands || []) if (band.some((id) => this.combat.blocked.includes(id))) for (const id of band) if (!this.combat.blocked.includes(id)) this.combat.blocked.push(id);
-    for (const [aid, bs] of Object.entries(blocks)) this.say(`${bs.map((b) => this.perm(b).card.def.name).join(' + ')} blocks ${this.perm(+aid).card.def.name}.`);
+    for (const [aid, bs] of Object.entries(blocks)) this.say(`${bs.map((b) => this.perm(b).card.def.name).join(' + ')} blocks ${this.perm(+aid).card.def.name}.`, { kind: 'block', cards: [...bs, +aid], player: pid });
     this.passes = 0;
     for (const [aid, bs] of Object.entries(blocks)) {
       const att = this.perm(+aid);
@@ -1245,51 +1345,57 @@ export class Game {
     this.whenIdle(() => { this.waiting = { kind: 'priority', player: this.active }; });
     return true;
   }
-  combatDamage() {
-    const fs = (p) => { const k = this.kw(p); return k.has('first strike') || k.has('double strike'); };
-    const regular = (p) => { const k = this.kw(p); return !k.has('first strike') || k.has('double strike'); };
-    const phase = (filter) => {
-      const hits = [];
-      const share = new Map(); // blocker -> attackers it blocks (power split)
-      for (const [aid, bs] of Object.entries(this.combat.blocks)) for (const b of bs) { if (!share.has(b)) share.set(b, []); share.get(b).push(+aid); }
-      for (const aid of this.combat.attackers) {
-        const att = this.perm(aid); if (!att) continue;
-        const raw = this.combat.blocks[aid] || [];
-        const blockers = raw.map((b) => this.perm(b)).filter(Boolean);
-        if (filter(att)) {
-          let pw = Math.max(0, this.power(att));
-          const trample = this.kw(att).has('trample');
-          if (!this.combat.blocked.includes(aid)) hits.push([att, { kind: 'player', id: this.opp(att.controller) }, pw]);
-          else if (!blockers.length) { if (trample) hits.push([att, { kind: 'player', id: this.opp(att.controller) }, pw]); }
-          else if (blockers.some((b) => this.kw(b).has('banding'))) {
-            // a blocker with banding: the defending player assigns this attacker's damage
-            const plan = this.assignKill(pw, blockers, att);
-            for (const [b, n] of plan) hits.push([att, { kind: 'perm', id: b.id }, n]);
-            if (trample) { const used = plan.reduce((a, x) => a + x[1], 0); if (pw > used) hits.push([att, { kind: 'player', id: this.opp(att.controller) }, pw - used]); }
-          } else {
-            blockers.forEach((b, i) => {
-              const lethal = Math.max(0, this.toughness(b) - b.damage);
-              const last = i === blockers.length - 1;
-              const n = last && !trample ? pw : Math.min(pw, lethal);
-              hits.push([att, { kind: 'perm', id: b.id }, n]); pw -= n;
-            });
-            if (trample && pw > 0) hits.push([att, { kind: 'player', id: this.opp(att.controller) }, pw]);
-          }
-        }
-        for (const b of blockers) {
-          if (!filter(b)) continue;
-          const atts = share.get(b.id) || [att.id];
-          const pwB = Math.max(0, this.power(b));
-          const part = atts.length > 1 ? Math.floor(pwB / atts.length) + (atts[0] === att.id ? pwB % atts.length : 0) : pwB;
-          const band = this.bandOf(att.id);
-          if (band) {
-            // attacking player assigns the blocker's damage among the band
-            const members = band.map((id) => this.perm(id)).filter(Boolean);
-            for (const [m, n] of this.assignSpread(part, members, b)) hits.push([b, { kind: 'perm', id: m.id }, n]);
-          } else hits.push([b, { kind: 'perm', id: att.id }, part]);
+  fsOf(p) { const k = this.kw(p); return k.has('first strike') || k.has('double strike'); }
+  regularOf(p) { const k = this.kw(p); return !k.has('first strike') || k.has('double strike'); }
+  // Pure: list of [source perm, target ref, amount] for one damage step. `st` (preview only) carries virtual damage/deaths.
+  planHits(filter, st) {
+    const hits = [];
+    const alive = (id) => (st?.dead.has(id) ? null : this.perm(id));
+    const dmg = (p) => (st?.dmg.has(p.id) ? st.dmg.get(p.id) : p.damage);
+    const share = new Map(); // blocker -> attackers it blocks (power split)
+    for (const [aid, bs] of Object.entries(this.combat.blocks)) for (const b of bs) { if (!share.has(b)) share.set(b, []); share.get(b).push(+aid); }
+    for (const aid of this.combat.attackers) {
+      const att = alive(aid); if (!att) continue;
+      const raw = this.combat.blocks[aid] || [];
+      const blockers = raw.map((b) => alive(b)).filter(Boolean);
+      if (filter(att)) {
+        let pw = Math.max(0, this.power(att));
+        const trample = this.kw(att).has('trample');
+        if (!this.combat.blocked.includes(aid)) hits.push([att, { kind: 'player', id: this.opp(att.controller) }, pw]);
+        else if (!blockers.length) { if (trample) hits.push([att, { kind: 'player', id: this.opp(att.controller) }, pw]); }
+        else if (blockers.some((b) => this.kw(b).has('banding'))) {
+          // a blocker with banding: the defending player assigns this attacker's damage
+          const plan = this.assignKill(pw, blockers, att);
+          for (const [b, n] of plan) hits.push([att, { kind: 'perm', id: b.id }, n]);
+          if (trample) { const used = plan.reduce((a, x) => a + x[1], 0); if (pw > used) hits.push([att, { kind: 'player', id: this.opp(att.controller) }, pw - used]); }
+        } else {
+          blockers.forEach((b, i) => {
+            const lethal = Math.max(0, this.toughness(b) - dmg(b));
+            const last = i === blockers.length - 1;
+            const n = last && !trample ? pw : Math.min(pw, lethal);
+            hits.push([att, { kind: 'perm', id: b.id }, n]); pw -= n;
+          });
+          if (trample && pw > 0) hits.push([att, { kind: 'player', id: this.opp(att.controller) }, pw]);
         }
       }
-      for (const [src, tgt, n] of hits) {
+      for (const b of blockers) {
+        if (!filter(b)) continue;
+        const atts = share.get(b.id) || [att.id];
+        const pwB = Math.max(0, this.power(b));
+        const part = atts.length > 1 ? Math.floor(pwB / atts.length) + (atts[0] === att.id ? pwB % atts.length : 0) : pwB;
+        const band = this.bandOf(att.id);
+        if (band) {
+          // attacking player assigns the blocker's damage among the band
+          const members = band.map((id) => alive(id)).filter(Boolean);
+          for (const [m, n] of this.assignSpread(part, members, b)) hits.push([b, { kind: 'perm', id: m.id }, n]);
+        } else hits.push([b, { kind: 'perm', id: att.id }, part]);
+      }
+    }
+    return hits;
+  }
+  combatDamage() {
+    const phase = (filter) => {
+      for (const [src, tgt, n] of this.planHits(filter)) {
         if (n <= 0) continue;
         if (src.attacking) this.emit({ type: 'clash', id: src.id, tgt });
         const dealt = this.damage(src, tgt, n, { combat: true, noSba: true });
@@ -1297,11 +1403,166 @@ export class Game {
       }
       this.sba();
     };
-    const anyFS = [...this.combat.attackers, ...Object.values(this.combat.blocks).flat()].some((id) => { const p = this.perm(id); return p && fs(p); });
-    if (anyFS) { phase(fs); if (this.winner) return; }
-    phase((p) => (anyFS ? regular(p) : true));
+    const anyFS = [...this.combat.attackers, ...Object.values(this.combat.blocks).flat()].some((id) => { const p = this.perm(id); return p && this.fsOf(p); });
+    if (anyFS) { phase((p) => this.fsOf(p)); if (this.winner) return; }
+    phase((p) => (anyFS ? this.regularOf(p) : true));
     this.endCombat();
   }
+  // Damage preview for the UI. Optional { blocks: {attackerId: [blockerIds]} } previews hypothetical blocks (while the defender is choosing).
+  // Returns one entry per attacker: { id, blockers, blocked, band, toPlayer, dies, blockersDie, damageTaken, hits:[{from,to,n,first}] }
+  // (shields, regeneration and triggered effects are not simulated; protection, first strike, double strike, trample, banding are.)
+  combatPreview(opts = {}) {
+    const saved = [this.combat.blocks, this.combat.blocked];
+    if (opts.blocks) {
+      const blocks = {}; for (const [k, v] of Object.entries(opts.blocks)) if (v.length) blocks[+k] = [...v];
+      this.combat.blocks = blocks; this.combat.blocked = Object.keys(blocks).map(Number);
+      for (const band of this.combat.bands || []) if (band.some((id) => this.combat.blocked.includes(id))) for (const id of band) if (!this.combat.blocked.includes(id)) this.combat.blocked.push(id);
+    }
+    try {
+      const st = { dmg: new Map(), dead: new Set() };
+      const log = [];
+      const run = (filter, first) => {
+        for (const [src, tgt, n0] of this.planHits(filter, st)) {
+          if (n0 <= 0) continue;
+          let n = this.noCombatDamage ? 0 : n0;
+          if (tgt.kind === 'perm') { const t = this.perm(tgt.id); if (t && this.srcColors(src).some((c) => this.kw(t).has('pro:' + c))) n = 0; if (t && n) st.dmg.set(t.id, (st.dmg.has(t.id) ? st.dmg.get(t.id) : t.damage) + n); }
+          log.push({ from: src.id, to: tgt, n, first });
+        }
+        for (const t of this.allPerms()) if (this.isCreature(t) && !st.dead.has(t.id)) {
+          const d = st.dmg.has(t.id) ? st.dmg.get(t.id) : t.damage; const th = this.toughness(t);
+          if (th <= 0 || (d >= th && !this.kw(t).has('indestructible') && !(t.regen > 0 && !t.mods.some((m) => m.noRegen)))) st.dead.add(t.id);
+        }
+      };
+      const ids = [...this.combat.attackers, ...Object.values(this.combat.blocks).flat()];
+      const anyFS = ids.some((id) => { const p = this.perm(id); return p && this.fsOf(p); });
+      if (anyFS) run((p) => this.fsOf(p), true);
+      run((p) => (anyFS ? this.regularOf(p) : true), false);
+      return this.combat.attackers.map((aid) => {
+        const blockers = [...(this.combat.blocks[aid] || [])];
+        const mine = log.filter((h) => h.from === aid || h.to.id === aid || blockers.includes(h.from) || (h.to.kind === 'perm' && blockers.includes(h.to.id)));
+        return {
+          id: aid, blockers, blocked: this.combat.blocked.includes(aid), band: this.bandOf(aid),
+          toPlayer: log.filter((h) => h.from === aid && h.to.kind === 'player').reduce((a, h) => a + h.n, 0),
+          dies: st.dead.has(aid), blockersDie: blockers.filter((b) => st.dead.has(b)),
+          damageTaken: log.filter((h) => h.to.kind === 'perm' && h.to.id === aid).reduce((a, h) => a + h.n, 0),
+          hits: mine,
+        };
+      });
+    } finally { [this.combat.blocks, this.combat.blocked] = saved; }
+  }
+
+  // ---------- mercy: take back a land drop ----------
+  canUndoLand(pid) {
+    const l = this.players[pid].lastLand;
+    if (!l || this.winner || this.waiting?.kind !== 'priority' || this.waiting.player !== pid) return false;
+    return l.turn === this.turn && this.active === pid && this.hasMainTiming(pid) && this.perm(l.perm) === l.perm && !l.perm.tapped && this.logEvents.length === l.logLen && !this.curAsk && !this.asks.length
+      && !this.allPerms().some((p) => p.attachedTo === l.perm.id);
+  }
+  undoLandDrop(pid) {
+    if (!this.canUndoLand(pid)) return false;
+    const p = this.players[pid], l = p.lastLand;
+    p.bf = p.bf.filter((x) => x !== l.perm); this.ver++;
+    p.hand.push(l.perm.card); p.landsPlayed--; p.landPlayed = p.landsPlayed >= this.landDrops(pid);
+    this.log.pop(); this.logEvents.pop(); p.lastLand = null;
+    return true;
+  }
+
+  // ---------- save / resume ----------
+  // Only possible between decisions: no pending choice, no function-valued state (delayed effects, shield callbacks, stack triggers).
+  canSerialize() { try { this.encodeState(); return true; } catch (e) { return false; } }
+  encodeState() {
+    if (this.curAsk || this.asks.length || this.idle.length || this.delayed.length || this.ghosts.length || this.pendingCallbacks?.length) throw new Error('pending decision or effect');
+    const cards = {};
+    const cardRef = (c) => {
+      if (!cards[c.id]) {
+        const d = c.baseDef || c.def;
+        cards[c.id] = { id: c.id, owner: c.owner, ref: defRef(d), art: c.art, token: c.token || undefined, tokenDef: c.token ? c.def : undefined, cur: c.baseDef ? defRef(c.def) : undefined, copyOf: c.copyOf };
+        if (c.baseDef) cards[c.id].curFull = c.def;
+      }
+      return { $c: c.id };
+    };
+    const isCard = (v) => 'def' in v && 'owner' in v && 'id' in v && !('controller' in v);
+    const isPerm = (v) => 'card' in v && 'controller' in v && 'tapped' in v;
+    const isDef = (v) => 'types' in v && 'manaCost' in v;
+    const enc = (v) => {
+      if (v === undefined || v === null) return v ?? null;
+      if (typeof v === 'function') throw new Error('function in state');
+      if (typeof v === 'number') return Number.isFinite(v) ? v : { $n: v > 0 ? 'inf' : v < 0 ? '-inf' : 'nan' };
+      if (typeof v !== 'object') return v;
+      if (Array.isArray(v)) return v.map(enc);
+      if (v instanceof Set) return { $set: [...v].map(enc) };
+      if (isCard(v)) return cardRef(v);
+      if (isPerm(v)) return { $p: v.id };
+      if (isDef(v)) return { $def: defRef(v) };
+      const o = {}; for (const [k, x] of Object.entries(v)) if (x !== undefined) o[k] = enc(x); return o;
+    };
+    const encPerm = (p) => { const o = {}; for (const [k, x] of Object.entries(p)) if (x !== undefined && k !== 'kw' && k !== 'auraSpec') o[k] = k === 'card' ? cardRef(x) : enc(x); return o; };
+    const players = this.players.map((pl) => { const o = {}; for (const [k, x] of Object.entries(pl)) o[k] = k === 'bf' ? x.map(encPerm) : enc(x); return o; });
+    const stack = this.stack.map((it) => {
+      if (it.effect?.trigger) throw new Error('trigger on stack');
+      const o = {}; for (const [k, x] of Object.entries(it)) if (k !== 'effect') o[k] = k === 'source' && x && !this.perm(x) ? { $ps: encPerm(x) } : enc(x);
+      if (it.kind === 'ability' && it.abIdx === undefined) throw new Error('ability without index');
+      return o;
+    });
+    const sh = this.shields.map((x) => enc(x));
+    return {
+      v: 1, rng: this.rng.getState ? this.rng.getState() : null, cards, players, stack, shields: sh,
+      g: enc({ names: this.names, nextId: this.nextId, turn: this.turn, active: this.active, first: this.first, winner: this.winner, step: this.step, waiting: this.waiting, passes: this.passes, combat: this.combat, extraTurns: this.extraTurns, noCombatDamage: this.noCombatDamage, diedThisTurn: this.diedThisTurn, mull: this.mull, log: this.log, logEvents: this.logEvents, auto: [...this.auto], opts: { mulligan: this.opts?.mulligan, autoMulligan: this.opts?.autoMulligan } }),
+    };
+  }
+  serialize() { return JSON.parse(JSON.stringify(this.encodeState())); }
+  // opts: { rng?, cards: [defs] | byName: {name:[defs]} }  (the card catalogue the game was built from)
+  static restore(json, opts = {}) {
+    const data = typeof json === 'string' ? JSON.parse(json) : json;
+    const byName = opts.byName || (() => { const m = {}; for (const c of opts.cards || []) (m[c.name] ||= []).push(c); return m; })();
+    const lookup = (r) => { const l = byName[r.name]; if (!l) throw new Error('card not in catalogue: ' + r.name); return l.find((c) => c.set === r.set && c.number === r.number) || l[0]; };
+    const g = Object.create(Game.prototype);
+    const cards = {}; const perms = {};
+    for (const c of Object.values(data.cards)) {
+      const def = c.token ? c.tokenDef : lookup(c.ref);
+      const card = { id: c.id, def, owner: c.owner };
+      if (c.art !== undefined) card.art = c.art; else if (def.art) card.art = def.art;
+      if (c.token) card.token = true;
+      if (c.copyOf !== undefined) card.copyOf = c.copyOf;
+      if (c.cur) { card.baseDef = def; card.def = c.curFull ? lookup(c.cur) : def; if (c.curFull) card.def = { ...lookup(c.cur), ...c.curFull }; }
+      cards[c.id] = card;
+    }
+    const dec = (v) => {
+      if (v === null || typeof v !== 'object') return v;
+      if (Array.isArray(v)) return v.map(dec);
+      if ('$c' in v) return cards[v.$c];
+      if ('$p' in v) return perms[v.$p];
+      if ('$ps' in v) { const t = {}; for (const [kk, vv] of Object.entries(v.$ps)) t[kk] = kk === 'card' ? cards[vv.$c] : dec(vv); return t; }
+      if ('$def' in v) return lookup(v.$def);
+      if ('$n' in v) return v.$n === 'inf' ? Infinity : v.$n === '-inf' ? -Infinity : NaN;
+      if ('$set' in v) return new Set(v.$set.map(dec));
+      const o = {}; for (const [k, x] of Object.entries(v)) o[k] = dec(x); return o;
+    };
+    for (const pl of data.players) for (const p of pl.bf) perms[p.id] = {};
+    g.players = data.players.map((pl) => {
+      const o = {}; for (const [k, x] of Object.entries(pl)) {
+        if (k === 'bf') o.bf = x.map((p) => { const t = perms[p.id]; for (const [kk, vv] of Object.entries(p)) t[kk] = kk === 'card' ? cards[vv.$c] : dec(vv); return t; });
+        else o[k] = dec(x);
+      }
+      return o;
+    });
+    const gd = dec(data.g);
+    Object.assign(g, gd);
+    g.auto = new Set(gd.auto);
+    g.opts = gd.opts;
+    g.rng = opts.rng || makeRng(1);
+    if (data.rng !== null && g.rng.setState) g.rng.setState(data.rng);
+    g.events = []; g.asks = []; g.curAsk = null; g.idle = []; g.inAsk = false; g.prevWaiting = null; g.delayed = []; g.ghosts = []; g.pendingCallbacks = [];
+    g.inSba = false; g.sbaAgain = false; g._tyGuard = false; g._depth = 0; g._lg = false; g.ver = 0; g._stSig = null;
+    g.shields = data.shields.map(dec);
+    g.stack = data.stack.map((it) => {
+      const o = dec(it);
+      o.effect = o.kind === 'spell' ? EFFECTS[o.card.def.name] : g.abilitiesOf(o.source)[o.abIdx];
+      return o;
+    });
+    return g;
+  }
+
   endCombat() {
     for (const p of this.allPerms()) p.mods = p.mods.filter((m) => m.until !== 'endCombat');
     this.fire('onEndCombat');

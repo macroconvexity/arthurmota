@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <title>MTG Classic+</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<link rel="stylesheet" href="css/style.css?v=202611021243">
-<link rel="stylesheet" href="css/menu.css?v=202611021243">
+<link rel="stylesheet" href="css/style.css?v=202611021343">
+<link rel="stylesheet" href="css/menu.css?v=202611021343">
 <meta name="robots" content="noindex,nofollow">
 <meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="MTG Classic+">
@@ -47,8 +47,12 @@
   <div id="banner"></div>
   <div id="stack"></div>
   <div id="hand"></div>
-  <div id="action"><button id="act-btn"></button><button id="act-alt" hidden></button></div>
+  <div id="action"><button id="act-btn"></button><button id="act-alt" hidden></button><button id="act-undo" hidden>Undo land</button></div>
   <button id="concede">Leave</button>
+  <button id="logbtn" aria-label="Game log" title="Game log">&#9776;</button>
+  <button id="mute" aria-label="Sound" title="Mute"><svg viewBox="0 0 24 24" width="100%" height="100%"><path fill="currentColor" d="M4 9v6h4l5 4V5L8 9z"/><path class="w" fill="none" stroke="currentColor" stroke-width="2" d="M16 9a4 4 0 010 6M18.5 6.5a8 8 0 010 11"/></svg></button>
+  <button id="help" aria-label="How to play" title="How to play">?</button>
+  <div id="logdrawer"><div class="lh"><b>Game log</b><button class="lx">&times;</button></div><div class="ll"></div></div>
   <button id="gear" aria-label="Settings"><svg viewBox="0 0 24 24" width="100%" height="100%"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 000-2l2-1.6-2-3.4-2.4 1a7.5 7.5 0 00-1.7-1L15 3.5h-4l-.4 2.5a7.5 7.5 0 00-1.7 1l-2.4-1-2 3.4 2 1.6a7.6 7.6 0 000 2l-2 1.6 2 3.4 2.4-1c.5.4 1.1.7 1.7 1l.4 2.5h4l.4-2.5c.6-.3 1.2-.6 1.7-1l2.4 1 2-3.4zM13 15.5a3.5 3.5 0 110-7 3.5 3.5 0 010 7z"/></svg></button>
   <div id="hint"></div>
   <div id="dropzone"></div>
@@ -59,7 +63,7 @@
   <div id="over" hidden></div>
   <div id="rotate"><div class="rbox"><svg viewBox="0 0 48 48" width="64" height="64"><rect x="14" y="4" width="20" height="40" rx="4" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M40 24a16 16 0 0 0-8-13.8M8 24a16 16 0 0 0 8 13.8" fill="none" stroke="currentColor" stroke-width="2.5"/></svg><p>Rotate your device</p><small>The board is built for landscape.</small><button id="rotate-go">Play anyway</button></div></div>
 </div>
-<script type="module" src="js/ui.js?v=202611021243"></script>
-<script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js'));window.BUILD='202611021243';</script>
+<script type="module" src="js/ui.js?v=202611021343"></script>
+<script>if('serviceWorker' in navigator)addEventListener('load',()=>navigator.serviceWorker.register('sw.js'));window.BUILD='202611021343';</script>
 </body>
 </html>

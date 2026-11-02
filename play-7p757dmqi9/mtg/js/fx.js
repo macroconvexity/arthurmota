@@ -1,7 +1,7 @@
 // Small DOM/WAAPI effects layer (no canvas): bursts, rings, lightning, orbs, screen flashes.
 const layer = () => document.getElementById('fx') || Object.assign(document.body.appendChild(document.createElement('div')), { id: 'fx' });
 const rnd = (a, b) => a + Math.random() * (b - a);
-function add(el, anim, dur, opts = {}) { layer().appendChild(el); const a = el.animate(anim, { duration: dur, easing: 'cubic-bezier(.15,.7,.3,1)', fill: 'forwards', ...opts }); a.onfinish = () => el.remove(); return a; }
+function add(el, anim, dur, opts = {}) { if (window.__fxOff) return { onfinish: null }; layer().appendChild(el); const a = el.animate(anim, { duration: dur, easing: 'cubic-bezier(.15,.7,.3,1)', fill: 'forwards', ...opts }); a.onfinish = () => el.remove(); return a; }
 export function burst(x, y, { color = '#ffb347', n = 14, dist = 80, size = 6, dur = 650 } = {}) {
   for (let i = 0; i < n; i++) {
     const d = document.createElement('i'); const s = rnd(size * 0.5, size * 1.3);

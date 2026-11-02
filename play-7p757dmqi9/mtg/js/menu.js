@@ -1,6 +1,6 @@
-import { isImplemented } from './cards.js?v=202611021243';
-import { DECK_LISTS, copyLimit } from './decks.js?v=202611021243';
-import { askConfirm, askText } from './dialog.js?v=202611021243';
+import { isImplemented } from './cards.js?v=202611021343';
+import { DECK_LISTS, copyLimit } from './decks.js?v=202611021343';
+import { askConfirm, askText } from './dialog.js?v=202611021343';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
@@ -84,6 +84,7 @@ document.addEventListener('change', (e) => { const a = e.target.dataset?.act; if
 document.addEventListener('click', async (e) => {
   const b = e.target.closest('#app [data-act]'); if (!b || b.tagName === 'SELECT') return;
   const a = b.dataset.act;
+  if (a === 'resume') { ctx.onResume?.(); return; }
   if (a === 'play') { if (total() >= MIN_DECK) onPlay({ ...Object.fromEntries(entries()) }); }
   if (a === 'new') { const n = (await askText('Deck name?', 'My Deck'))?.trim(); if (n && !store.decks[n]) { store.decks[n] = {}; store.current = n; save(); renderAll(); } }
   if (a === 'dup') { const n = store.current + ' copy'; store.decks[n] = Object.fromEntries(entries()); store.current = n; save(); renderAll(); }
@@ -96,7 +97,7 @@ document.addEventListener('click', async (e) => {
 function renderHome() {
   const cov = ctx.coverage;
   $('#v-home').innerHTML = `<div class="home"><h1>MTG Classic<em>+</em></h1><p class="tag">Vintage Magic, Arena style · Alpha · Beta · Unlimited · Arabian Nights · Antiquities</p>
-  <div class="homebox"><label>Your deck</label>${deckSelect()}<div class="hcount">${total()} cards</div>${playBtn()}
+  <div class="homebox">${(() => { const r = ctx.canResume?.(); return r ? `<button class="resume" data-act="resume"><b>Resume game</b><span>vs ${esc(r.foe || 'Opponent')} · Turn ${r.turn} · You ${r.life[0]} - ${r.life[1]} Opp</span></button>` : ''; })()}<label>Your deck</label>${deckSelect()}<div class="hcount">${total()} cards</div>${playBtn()}
   <button class="ghost" data-act="goto" data-v="decks">Edit deck</button></div><p class="muted">${cov.implemented} of ${cov.total} cards have implemented rules. The rest are shown locked in the collection.</p></div>`;
 }
 
