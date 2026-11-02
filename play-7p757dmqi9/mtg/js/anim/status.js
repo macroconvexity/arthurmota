@@ -3,8 +3,8 @@
 // end-of-turn damage heal-off. DOM/WAAPI only, no assets. Everything visual is skipped when window.__fxOff is set;
 // Element.animate durations are already scaled by the wrapper in ui.js, timeouts use ST.animScale() explicitly.
 // Hooks in ui.js: init, onEvents, afterRender, decoPT, reset, dieStep, batchSize, implode, shatter, lifeGain, lifeShift.
-import * as FX from '../fx.js?v=20261102162816';
-import * as ST from '../settings.js?v=20261102162816';
+import * as FX from '../fx.js?v=20261102163450';
+import * as ST from '../settings.js?v=20261102163450';
 const NS = 'http://www.w3.org/2000/svg';
 const rnd = (a, b) => a + Math.random() * (b - a);
 const off = () => !!window.__fxOff;

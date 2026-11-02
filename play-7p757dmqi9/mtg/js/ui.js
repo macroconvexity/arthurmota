@@ -1,20 +1,20 @@
-import { Game, parseCost, makeRng } from './engine.js?v=20261102162816';
-import { aiAct } from './ai.js?v=20261102162816';
-import { EFFECTS, abilitiesOf } from './cards.js?v=20261102162816';
-import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261102162816';
-import { initMenu, showApp, hideApp, costHtml } from './menu.js?v=20261102162816';
-import { askConfirm, askNumber, askPick, modal } from './dialog.js?v=20261102162816';
-import * as FX from './fx.js?v=20261102162816';
-import * as ST from './settings.js?v=20261102162816';
-import sfx from './sfx.js?v=20261102162816';
-import * as SC from './screens.js?v=20261102162816';
-import * as AI from './ai.js?v=20261102162816';
-import * as DK from './decks.js?v=20261102162816';
-import * as AN from './anim.js?v=20261102162816';
-import * as SX from './anim/status.js?v=20261102162816';
-import * as ZN from './anim/zones.js?v=20261102162816';
-import * as TG from './anim/targeting.js?v=20261102162816';
-import * as AMB from './anim/ambient.js?v=20261102162816';
+import { Game, parseCost, makeRng } from './engine.js?v=20261102163450';
+import { aiAct } from './ai.js?v=20261102163450';
+import { EFFECTS, abilitiesOf } from './cards.js?v=20261102163450';
+import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261102163450';
+import { initMenu, showApp, hideApp, costHtml } from './menu.js?v=20261102163450';
+import { askConfirm, askNumber, askPick, modal } from './dialog.js?v=20261102163450';
+import * as FX from './fx.js?v=20261102163450';
+import * as ST from './settings.js?v=20261102163450';
+import sfx from './sfx.js?v=20261102163450';
+import * as SC from './screens.js?v=20261102163450';
+import * as AI from './ai.js?v=20261102163450';
+import * as DK from './decks.js?v=20261102163450';
+import * as AN from './anim.js?v=20261102163450';
+import * as SX from './anim/status.js?v=20261102163450';
+import * as ZN from './anim/zones.js?v=20261102163450';
+import * as TG from './anim/targeting.js?v=20261102163450';
+import * as AMB from './anim/ambient.js?v=20261102163450';
 AMB.init({ me: 0 });
 
 // animation speed setting (Fast/Normal/Slow, minimal under prefers-reduced-motion): scales every WAAPI duration/delay
@@ -1042,6 +1042,19 @@ document.addEventListener('pointerup', (e) => {
   endDrag(d, e);
 });
 document.addEventListener('click', (e) => { if (justDragged) { e.stopPropagation(); e.preventDefault(); } }, true);
+// a drag must never outlive its gesture: OS interruptions (home swipe, app switch, scroll takeover, lost pointer) cancel it cleanly
+function cancelDrag() {
+  const d = drag; drag = null;
+  if (d?.el) d.el.style.opacity = '';
+  document.querySelectorAll('.dragghost').forEach((x) => x.remove());
+  $('dropzone')?.classList.remove('on', 'hot'); clearMarks(); document.querySelectorAll('#stage .drophot').forEach((x) => x.classList.remove('drophot')); hint('');
+  if (d?.started && g) render();
+}
+document.addEventListener('pointercancel', cancelDrag, true);
+addEventListener('blur', cancelDrag); addEventListener('pagehide', cancelDrag);
+document.addEventListener('visibilitychange', () => { if (document.hidden) cancelDrag(); });
+document.addEventListener('pointerdown', () => { if (!drag) document.querySelectorAll('.dragghost').forEach((x) => x.remove()); }, true);
+setInterval(() => { if (!drag && document.querySelector('.dragghost')) document.querySelectorAll('.dragghost').forEach((x) => x.remove()); }, 1500);
 
 function beginDrag() {
   if (peekId != null) { peekId = null; $('preview').classList.remove('on'); }
