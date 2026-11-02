@@ -1,11 +1,11 @@
 /* Status & life feedback (js/anim/status.js): counters, P/T, keyword chips, protection ring, life, action button. */
 .card .pt u{text-decoration:none;display:inline-block}
-.card .pt u.up{color:#7dff9a}.card .pt u.down{color:#ff6a55}
+.card .pt u.up{color:#fff}.card .pt u.down{color:#ff6a55}
 /* counters: top-left stack */
 .sxcnt{position:absolute;left:-4px;top:-6px;display:flex;flex-direction:column;align-items:flex-start;gap:1px;z-index:3;pointer-events:none}
 .sxc{font:700 max(7px,calc(var(--cw)*.095))/1.15 Georgia;font-style:normal;white-space:nowrap;padding:0 .4em;border-radius:99px;color:#fff;background:#1b1410e8;border:1px solid #ffb25a}
 .sxc b{margin-left:.25em}
-.sxc.plus{border-color:#4cc46a;color:#9dffb0}.sxc.minus{border-color:#e0554a;color:#ff9a8f}.sxc.other{border-color:#ffb25a;color:#ffd9a0}
+.sxc.plus{border-color:#e8dcc0;color:#fff}.sxc.minus{border-color:#e0554a;color:#ff9a8f}.sxc.other{border-color:#ffb25a;color:#ffd9a0}
 .card.tapped .sxcnt{transform:rotate(-90deg);transform-origin:0 100%}
 /* keyword chips: bottom-left */
 .sxk{position:absolute;left:3%;bottom:3%;display:flex;flex-wrap:wrap;gap:1px;max-width:62%;z-index:3;pointer-events:none}

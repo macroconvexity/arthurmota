@@ -23,7 +23,7 @@ button{font:inherit;cursor:pointer}
 .field-opp .card.attacking,#field-opp .card.attacking{transform:translateY(22%)}
 #field-opp .card.attacking.tapped{transform:translateY(22%) rotate(90deg)}
 .card .pt{position:absolute;right:2%;bottom:2%;background:#000c;border:1px solid var(--gold);color:#fff;font:700 calc(var(--cw)*.17)/1 Georgia;padding:2px 5px;border-radius:5px}
-.card .pt.buff{color:#7dff9a}.card .pt.hurt{color:#ff8a7a}
+.card .pt.buff{color:#fff}.card .pt.hurt{color:#ff8a7a}
 .card .dmg{position:absolute;left:50%;top:40%;transform:translate(-50%,-50%);background:#c93030;color:#fff;border-radius:50%;width:calc(var(--cw)*.4);height:calc(var(--cw)*.4);display:flex;align-items:center;justify-content:center;font-weight:700}
 .cardback,.hand-back .cb,.cb{width:var(--cw);height:calc(var(--cw)*1.393);border-radius:4.5%;background:#14100d url(../assets/ui/card_back.jpg) center/100% 100% no-repeat;box-shadow:0 2px 8px #000a;flex:none}
 #opp-hand{position:absolute;top:-5.5cqh;left:35%;transform:translateX(-50%);display:flex}
