@@ -214,3 +214,11 @@ html.compact .cfoot{margin-top:2px}
 .grid,.dcols,.slist,.dlist{-webkit-overflow-scrolling:touch}
 .resume{display:flex;flex-direction:column;gap:2px;padding:10px;border-radius:14px;border:2px solid #7dff9a88;background:linear-gradient(#1c2c1f,#101a12);color:#dfffe6;font:15px Georgia;cursor:pointer;text-align:center}
 .resume b{font-size:18px;color:#7dff9a}.resume span{font-size:12px;color:#a8d8b2}
+
+/* Legends: gold (multicolour) and legendary markers, hybrid pips, paged grid sentinel */
+.cf.M{background:linear-gradient(135deg,#f6efc8 0,#7ab8ee 25%,#8a7f86 50%,#ee7a5c 75%,#6cbd78 100%);color:#222}
+.cc.gold img{box-shadow:0 0 0 3px #d9b04a,0 0 14px #f3c97866,0 6px 14px #000a}
+.cc.gold.in img{box-shadow:0 0 0 3px #ffe08a,0 0 20px #ffe08aaa}
+.cc.leg::after{content:"\2605";position:absolute;top:4px;left:6px;color:#ffe08a;font-size:18px;text-shadow:0 0 6px #000,0 0 10px #f08a24;pointer-events:none}
+.pip.H{color:#111;border:1px solid #0006}.pip.X{background:#cfc8bb}
+.gmore{grid-column:1/-1;text-align:center;color:#a89a78;padding:12px;font-size:13px}

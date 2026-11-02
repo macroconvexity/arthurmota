@@ -1,20 +1,20 @@
-import { Game, parseCost, makeRng } from './engine.js?v=20261102171740';
-import { aiAct } from './ai.js?v=20261102171740';
-import { EFFECTS, abilitiesOf } from './cards.js?v=20261102171740';
-import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261102171740';
-import { initMenu, showApp, hideApp, costHtml } from './menu.js?v=20261102171740';
-import { askConfirm, askNumber, askPick, modal } from './dialog.js?v=20261102171740';
-import * as FX from './fx.js?v=20261102171740';
-import * as ST from './settings.js?v=20261102171740';
-import sfx from './sfx.js?v=20261102171740';
-import * as SC from './screens.js?v=20261102171740';
-import * as AI from './ai.js?v=20261102171740';
-import * as DK from './decks.js?v=20261102171740';
-import * as AN from './anim.js?v=20261102171740';
-import * as SX from './anim/status.js?v=20261102171740';
-import * as ZN from './anim/zones.js?v=20261102171740';
-import * as TG from './anim/targeting.js?v=20261102171740';
-import * as AMB from './anim/ambient.js?v=20261102171740';
+import { Game, parseCost, makeRng } from './engine.js?v=20261102174621';
+import { aiAct } from './ai.js?v=20261102174621';
+import { EFFECTS, abilitiesOf } from './cards.js?v=20261102174621';
+import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261102174621';
+import { initMenu, showApp, hideApp, costHtml } from './menu.js?v=20261102174621';
+import { askConfirm, askNumber, askPick, modal, askName, askDivide } from './dialog.js?v=20261102174621';
+import * as FX from './fx.js?v=20261102174621';
+import * as ST from './settings.js?v=20261102174621';
+import sfx from './sfx.js?v=20261102174621';
+import * as SC from './screens.js?v=20261102174621';
+import * as AI from './ai.js?v=20261102174621';
+import * as DK from './decks.js?v=20261102174621';
+import * as AN from './anim.js?v=20261102174621';
+import * as SX from './anim/status.js?v=20261102174621';
+import * as ZN from './anim/zones.js?v=20261102174621';
+import * as TG from './anim/targeting.js?v=20261102174621';
+import * as AMB from './anim/ambient.js?v=20261102174621';
 AMB.init({ me: 0 });
 
 // animation speed setting (Fast/Normal/Slow, minimal under prefers-reduced-motion): scales every WAAPI duration/delay
@@ -230,7 +230,7 @@ function logLines() { const L = g?.logEvents; if (Array.isArray(L) && L.length) 
 let nameRe = null;
 function linkify(t) {
   if (!nameRe) { const ns = Object.keys(byName || {}).sort((a, b) => b.length - a.length).map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')); nameRe = ns.length ? new RegExp('(' + ns.join('|') + ')', 'g') : /$^/; }
-  return esc(t).replace(nameRe, (m) => `<a class="cl" data-card="${esc(m)}">${m}</a>`);
+  return esc(t).replace(nameRe, (m) => `<a class="cl ${(byName[m]?.[0]?.supertypes || []).includes('Legendary') ? 'lg' : ''}" data-card="${esc(m)}">${m}</a>`);
 }
 function renderLog() {
   const d = $('logdrawer'); if (!d || !logOpen) return; const ll = d.querySelector('.ll');
@@ -323,6 +323,8 @@ function phaseMark() {
   const on = $('phases').querySelector('.on'); if (!on) { m.style.opacity = 0; return; }
   const sr = $('stage').getBoundingClientRect(), r = on.getBoundingClientRect(); Object.assign(m.style, { opacity: 1, left: r.left - sr.left + 'px', top: r.top - sr.top + 'px', width: r.width + 'px', height: r.height + 'px' });
 }
+const revealedHand = (pid) => { try { return !!g.handsRevealed?.(pid); } catch { return false; } };
+const revealedTop = (pid) => { try { return g.topRevealed?.(pid) || null; } catch { return null; } };
 function renderRaw() {
   const wk = g.waiting?.kind; if ((mode?.type === 'attackers' && wk !== 'attackers') || (mode?.type === 'blockers' && wk !== 'blockers')) mode = null;
   const [me, foe] = [g.players[ME], g.players[1]];
@@ -343,11 +345,13 @@ function renderRaw() {
   $('field-opp-misc').innerHTML = phone ? fc.filter(isMisc).map((p) => permHtml(p)).join('') : '';
   $('field-me-misc').innerHTML = phone ? mc.filter(isMisc).map((p) => permHtml(p)).join('') : '';
   $('field-me-lands').innerHTML = landsHtml(ml);
-  setHtml('opp-hand', foe.hand.map(() => '<div class="cb"></div>').join(''));
+  const handRev = revealedHand(1);
+  setHtml('opp-hand', foe.hand.map((c) => handRev ? `<div class="cb rev card" data-id="${c.id}" data-kind="revhand" style="background-image:url(${c.def.art})"></div>` : '<div class="cb"></div>').join(''));
   const cnt = [me.library.length, me.gy.length, foe.library.length, foe.gy.length, me.hand.length, foe.hand.length];
   $('zones-opp').innerHTML = pile(foe.library.map((c) => c).slice(-0), 'Library').replace(/<div class="card".*?<\/div>/, '<div class="cardback"></div>') + pile(foe.gy, 'Graveyard', 1);
   $('zones-me').innerHTML = pile(me.library, 'Library').replace(/<div class="card".*?<\/div>/, '<div class="cardback"></div>') + pile(me.gy, 'Graveyard', 0);
   ZN.pileFx(cnt, noAnimOnce);
+  for (const [pid, zid] of [[0, 'zones-me'], [1, 'zones-opp']]) { const top = revealedTop(pid); if (top) { const cb = $(zid).querySelector('.cardback'); if (cb) cb.outerHTML = `<div class="card toprev" data-id="${top.id}" data-kind="pilecard">${IMG(top)}</div>`; } }
   const hn = me.hand.length, step = Math.min(phone ? 4.4 : 3.4, 26 / Math.max(hn, 1));
   // the hand never grows past 44% of the stage width, so it cannot cover the lands row
   const sr = $('stage').getBoundingClientRect(), hw = phone ? 0.244 * sr.height : sr.height < 360 ? Math.min(0.17 * sr.height, 0.094 * sr.width) : Math.min((document.documentElement.classList.contains('short') ? 0.155 : 0.175) * sr.height, (document.documentElement.classList.contains('short') ? 0.09 : 0.096) * sr.width);
@@ -358,7 +362,7 @@ function renderRaw() {
   if (prevHand != null && hn > prevHand) snd(hn - prevHand >= 3 ? 'drawmany' : 'draw'); prevHand = hn;
   prevShownLife = [...shownLife];
   lifeNoEvent();
-  for (const i of [0, 1]) { const l = $('life-' + i); l.querySelector('.who').textContent = g.players[i].name; setLifeText(i, displayLife[i] ?? g.players[i].life); l.classList.toggle('active', g.active === i); }
+  for (const i of [0, 1]) { const l = $('life-' + i); l.querySelector('.who').textContent = g.players[i].name; { let ps = l.querySelector('.psn'); if (!ps) { ps = document.createElement('span'); ps.className = 'psn'; l.appendChild(ps); } const pn = g.players[i].poison || 0; ps.textContent = pn ? `\u2620 ${pn}` : ''; ps.hidden = !pn; ps.title = `${pn} poison counter${pn === 1 ? '' : 's'} (10 loses)`; } setLifeText(i, displayLife[i] ?? g.players[i].life); l.classList.toggle('active', g.active === i); }
   const curPh = PHASES.findIndex((p) => p[2].includes(g.step)); $('stage').classList.toggle('lowme', g.players[ME].life <= 5 && !g.winner); $('stage').classList.toggle('lowopp', g.players[1].life <= 5 && !g.winner);
   setHtml('phases', PHASES.map((p, i) => `<div class="${i === curPh ? 'on' : i < curPh ? 'done' : ''}">${p[1]}</div>`).join(''));
   $('turnno').textContent = g.turn; phaseMark();
@@ -525,6 +529,10 @@ function effects() {
     } else if (e.type === 'extraTurn') { setBanner(e.pid === ME ? 'Extra turn for you' : 'Opponent takes an extra turn', true); t += 600;
     } else if (e.type === 'shuffle') {
       const el = document.querySelector(e.pid === ME ? '#zones-me .pile' : '#zones-opp .pile'); const rf = el?.getBoundingClientRect(); later(t, () => ZN.riffle(rf)); el?.animate([{ translate: '0 0' }, { translate: '-5px 0' }, { translate: '5px 0' }, { translate: '-3px 0' }, { translate: '0 0' }], { duration: 380, delay: t }); end = Math.max(end, t + 380);
+    } else if (e.type === 'worldRule') {
+      later(t, () => setBanner(`World rule: ${e.name || 'the older World enchantment'} goes to the graveyard`)); t += 500;
+    } else if (e.type === 'legend' || e.type === 'legendRule') {   // legend rule fired (event name per engine docs; gated on existing)
+      const nm = e.name || findCard(e.id)?.def.name || 'A legend'; later(t, () => setBanner(`Legend rule: ${nm} goes to the graveyard`)); t += 500;
     } else if (e.type === 'tap') {   // auto-pay: show which sources were tapped
       const el = permEl(e.id); if (el?.closest('.lands, #field-me-lands, #field-opp-lands')) el.animate([{ filter: 'brightness(1)' }, { filter: 'brightness(2.2) drop-shadow(0 0 8px #ffd27a)', offset: 0.3 }, { filter: 'none' }], { duration: 650, delay: t });
     } else if (e.type === 'sweep') {
@@ -699,6 +707,10 @@ async function castFlow(c, pre = [], fromRect) {
     x = await askNumber(`${c.def.name}: choose X (0 to ${mx})`, 0, mx, { value: mx });
     if (x === null) { refresh(); return false; }
   }
+  if (info.multi?.divide != null && targets.length > 1) {   // divided damage: the player splits N among the targets
+    const total = info.multi.divide === 'x' ? x : +info.multi.divide;
+    if (total > 0) { const rows = targets.map((t) => ({ label: t.kind === 'player' ? g.players[t.id].name : g.refText(t) })); const dv = await askDivide(`${c.def.name}: divide damage`, total, rows); if (!dv) { refresh(); return false; } extra.division = dv; }
+  }
   const ch = await costFlow(c.def.name, eff?.cost, null); if (!ch) { refresh(); return false; } if (Object.keys(ch).length) extra.choices = ch;
   const ok = g.cast(ME, c, targets, x, extra);
   if (ok === false) setBanner("Can't cast that"); else if (fromRect) dragFrom.set(c.id, fromRect);
@@ -730,6 +742,7 @@ async function openChoice() {
     let ans;
     if (w.type === 'yesno') ans = await askConfirm(esc(w.prompt || 'Do it?'), 'Yes', 'No');
     else if (w.type === 'number') ans = await askNumber(title, w.min ?? 0, w.max ?? 20, { value: w.min ?? 0, cancelable: false });
+    else if (w.type === 'cardName') { ans = await askName(w.prompt || 'Name a card', w.names || [], { cancelable: false }); }
     else if (w.type === 'pick') {
       const opts = (w.options || []).map((o) => ({ value: o.value, label: o.label ?? String(o.value), card: o.card || refCard(o.ref)?.def }));
       const mn = w.optional ? 0 : (w.min ?? 1), mx = w.max ?? 1;
@@ -778,11 +791,11 @@ document.addEventListener('click', (e) => {
 
 // ---------- card inspection (hover zoom, right-click full view, graveyard viewer) ----------
 function findCard(id) {
-  for (const pl of g.players) { const c = [...pl.hand, ...pl.gy, ...pl.ex, ...pl.bf.map((p) => p.card), ...g.stack.map((s) => s.card)].find((x) => x.id === id); if (c) return c; }
+  for (const pl of g.players) { const c = [...pl.hand, ...pl.gy, ...pl.ex, ...pl.bf.map((p) => p.card), ...g.stack.map((s) => s.card), ...pl.library.slice(-1)].find((x) => x.id === id); if (c) return c; }
   return null;
 }
 const esc = (t) => String(t ?? '').replace(/[&<>]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[m]));
-const SETNAME = { LEA: 'Limited Edition Alpha', LEB: 'Limited Edition Beta', ARN: 'Arabian Nights', ATQ: 'Antiquities', '2ED': 'Unlimited' };
+const SETNAME = { LEA: 'Limited Edition Alpha', LEB: 'Limited Edition Beta', ARN: 'Arabian Nights', ATQ: 'Antiquities', '2ED': 'Unlimited', LEG: 'Legends' };
 function infoHtml(c, full) {
   const d = c.def; const perm = g.perm(c.id);
   const pt = d.power !== undefined ? `<span class="ptbig">${perm ? g.power(perm) + '/' + (g.toughness(perm) - perm.damage) : d.power + '/' + d.toughness}</span>` : '';
@@ -810,7 +823,7 @@ document.addEventListener('mouseover', (e) => {
   if (pinned || Date.now() - lastTouch < 900) return;
   const el = e.target.closest?.('.card[data-id]');
   const c = el && g ? findCard(+el.dataset.id) : null;
-  if (!c || (g.players[1].hand.includes(c))) { $('preview').classList.remove('on'); return; }
+  if (!c || (g.players[1].hand.includes(c) && !revealedHand(1))) { $('preview').classList.remove('on'); return; }
   showPreviewFor(el, c);
 });
 document.addEventListener('mouseout', (e) => { if (!e.relatedTarget || !e.relatedTarget.closest?.('.card[data-id]')) $('preview').classList.remove('on'); });
@@ -818,7 +831,7 @@ document.addEventListener('mouseout', (e) => { if (!e.relatedTarget || !e.relate
 function openInspect(html) { const m = $('inspect'); m.innerHTML = html; m.hidden = false; pinned = true; $('preview').classList.remove('on'); }
 function closeInspect() { $('inspect').hidden = true; pinned = false; }
 function inspectEl(el) {
-  const c = findCard(+el.dataset.id); if (!c || g.players[1].hand.includes(c)) return false;
+  const c = findCard(+el.dataset.id); if (!c || (g.players[1].hand.includes(c) && !revealedHand(1))) return false;
   openInspect(`<div class="big"><img src="${c.def.art}"><div class="info">${infoHtml(c, true)}</div></div>`); return true;
 }
 document.addEventListener('contextmenu', (e) => {
@@ -850,24 +863,24 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeInspe
 
 let resultPending = false;
 function gameOver() {
-  const o = $('over'); if (!o.hidden || resultPending) return; const win = g.winner.id === ME;
+  const o = $('over'); if (!o.hidden || resultPending) return; if (g.winner.id === -1 || g.winner.draw) return showResult(); const win = g.winner.id === ME;
   if (window.__fxOff || window.__quick || window.__fast) return showResult();
   resultPending = true; const lf = $(win ? 'life-1' : 'life-0'), r = lf.getBoundingClientRect();
   AMB.endSequence(win, lf);
   setTimeout(() => { resultPending = false; lf.style.visibility = ''; $('board').classList.remove('wiped'); if (g) showResult(); }, (win ? 800 : 1700) * ST.animScale());
 }
 function showResult() {
-  const o = $('over'); if (!o.hidden) return; const win = g.winner.id === ME; const st = window.__stats || { dmg: [0, 0], cast: 0, died: 0 };
-  o.className = win ? 'win' : 'lose'; o.hidden = false; clearSave(); closeLog();
-  const why = g.winner.reason === 'deck' ? (win ? 'Opponent ran out of cards' : 'You ran out of cards') : (win ? 'Opponent life reached 0' : 'Your life reached 0');
-  o.innerHTML = `<div class="rays"></div><img class="emblem" src="assets/ui/${win ? 'emblem_victory' : 'emblem_defeat'}.jpg" alt=""><h1>${win ? 'VICTORY' : 'DEFEAT'}</h1><div class="sub">${why}</div>
+  const o = $('over'); if (!o.hidden) return; const draw = g.winner.id === -1 || g.winner.draw; const win = !draw && g.winner.id === ME; const st = window.__stats || { dmg: [0, 0], cast: 0, died: 0 };
+  o.className = draw ? 'draw' : win ? 'win' : 'lose'; o.hidden = false; clearSave(); closeLog();
+  const why = draw ? 'Neither player can win this game' : g.winner.reason === 'poison' ? (win ? 'Opponent has 10 poison counters' : 'You have 10 poison counters') : g.winner.reason === 'deck' ? (win ? 'Opponent ran out of cards' : 'You ran out of cards') : (win ? 'Opponent life reached 0' : 'Your life reached 0');
+  o.innerHTML = `<div class="rays"></div><img class="emblem" src="assets/ui/${win || draw ? 'emblem_victory' : 'emblem_defeat'}.jpg" alt=""><h1>${draw ? 'DRAW' : win ? 'VICTORY' : 'DEFEAT'}</h1><div class="sub">${why}</div>
     <div class="stats"><div><b>${g.turn}</b><span>Turns</span></div><div><b>${g.players[ME].life}</b><span>Your life</span></div><div><b>${st.dmg[1]}</b><span>Damage dealt</span></div><div><b>${st.dmg[0]}</b><span>Damage taken</span></div><div><b>${st.cast}</b><span>Spells cast</span></div><div><b>${st.died}</b><span>Creatures lost</span></div></div>
     <div class="obtns"><button id="rematch">Rematch</button><button id="again" class="alt">Menu</button><button id="editdeck" class="alt">Edit deck</button></div>`;
   $('again').onclick = leave;
   $('rematch').onclick = () => { const r = lastRun; leave(); if (r) playFlow(r.counts, { foe: r.foe, level: r.level }); };
   $('editdeck').onclick = () => { leave(); showApp('decks'); };
-  snd(win ? 'victory' : 'defeat');
-  if (win) { FX.confetti(90); FX.flash('#ffe6a8', 900, 0.6); } else FX.flash('#300', 900, 0.5);
+  snd(draw ? 'phase' : win ? 'victory' : 'defeat');
+  if (draw) FX.flash('#ccd', 900, 0.4); else if (win) { FX.confetti(90); FX.flash('#ffe6a8', 900, 0.6); } else FX.flash('#300', 900, 0.5);
 }
 boot();
 

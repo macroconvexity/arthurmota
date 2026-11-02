@@ -1,8 +1,8 @@
 // Computer opponent. Generic: card use is driven by the `ai` hint of EFFECTS / ABILITIES entries
 // (see docs/CARD_MODULE_CONTRACT.md); when a hint is missing it is inferred from the Oracle text.
 // Contract: every aiAct(g, pid) call changes the game state or returns false (never loops silently).
-import { EFFECTS, abilitiesOf } from './cards.js?v=20261102171740';
-import { parseCost } from './engine.js?v=20261102171740';
+import { EFFECTS, abilitiesOf } from './cards.js?v=20261102174621';
+import { parseCost } from './engine.js?v=20261102174621';
 
 export const LEVELS = ['easy', 'normal', 'hard'];
 let CUR = { level: 'normal', g: null };
@@ -44,7 +44,7 @@ function duel(g, a, b) {
 
 // state signature: used to prove an action changed something
 function sig(g) {
-  const out = [g.turn, g.step, g.stack.length, g.passes, g.waiting?.kind, g.waiting?.player, g.winner ? 1 : 0, g.combat?.attackers?.length, Object.keys(g.combat?.blocks || {}).length];
+  const out = [g.turn, g.step, g.stack.length, g.passes, g.waiting?.kind, g.waiting?.player, g.winner ? 1 : 0, g.combat?.attackers?.length, Object.keys(g.combat?.blocks || {}).length, g.waiting?.prompt, g.curAsk?.req?.prompt, g.asks?.length, g.curAsk?.req?.options?.length];
   for (const p of g.players) out.push(p.life, p.hand.length, p.bf.length, p.gy.length, p.ex.length, p.library.length, p.landPlayed ? 1 : 0, p.bf.filter((x) => x.tapped).length, p.bf.reduce((a, x) => a + (x.damage || 0) + (x.mods?.length || 0) + (x.auras?.length || 0), 0), p.pool ? Object.values(p.pool).join('') : '');
   return out.join(',');
 }
@@ -169,6 +169,7 @@ function evalHintUse(g, pid, hint, entry, def, ctx, mode, specs, isPermanentSpel
       return { score: (isPermanentSpell ? 150 : 200) + t.score, targets: t.refs };
     }
     case 'burn': {
+      if (!specs.length) return mode === 'end' ? null : { score: 120, targets: [] };   // untargeted damage (Backdraft): castWhen already limits it
       if (mode === 'end' && !(foe.life <= ctx.dmg)) { /* face burn at end of turn is fine below */ }
       const atk = oppAttackers(g, pid);
       if (mode === 'oppCombat') ctx.only = (o) => (o.perm && atk.includes(o.perm)) || (o.player && !o.mine && foe.life <= ctx.dmg);
@@ -243,6 +244,30 @@ function evalHintUse(g, pid, hint, entry, def, ctx, mode, specs, isPermanentSpel
   }
 }
 
+// Legends-era rules the AI respects instead of casting blindly.
+function blockedByRules(g, pid, c) {
+  const d = c.def, me = g.players[pid], foe = g.players[1 - pid];
+  const sup = d.supertypes || [];
+  if (sup.includes('Legendary') && me.bf.some((p) => p.card.def.name === d.name)) return true;          // legend rule: never cast a second copy
+  if (sup.includes('World') && g.players.some((pl) => pl.bf.some((p) => (p.card.def.supertypes || []).includes('World') && p.controller === pid))) return true;
+  const text = d.text || '';
+  const types = d.types || [];
+  if (!types.includes('Instant') && !types.includes('Sorcery')) {
+    const fliers = (pl) => creaturesOf(g, pl).filter((p) => !g.kw(p).has('flying'));
+    if (has(text, /creatures without flying can't attack/i)) {                                          // Moat: only if my ground force is worse than theirs
+      const mine = fliers(pid).reduce((t, p) => t + valuePerm(g, p), 0), theirs = fliers(1 - pid).reduce((t, p) => t + valuePerm(g, p), 0);
+      if (theirs <= mine + 2) return true;
+    }
+    if (has(text, /destroy target nonartifact creature that player controls/i)) {                       // The Abyss
+      const na = (pl) => creaturesOf(g, pl).filter((p) => !p.card.def.types.includes('Artifact')).length;
+      if (na(pid) > 0 && na(pid) >= na(1 - pid)) return true;
+    }
+    if (has(text, /deals X damage to that player, where X is 4 minus/i) && !(me.life >= foe.life + 4 && foe.life <= 10)) return true; // Storm World
+  }
+  return false;
+}
+const voidTax = (g) => g.players.some((pl) => pl.bf.some((p) => p.card.def.name === 'Nether Void'));
+
 function spellPlans(g, pid, mode) {
   const me = g.players[pid], m = mem(g), plans = [];
   const avail = availMana(g, pid);
@@ -251,6 +276,7 @@ function spellPlans(g, pid, mode) {
     const d = c.def;
     if (d.types.includes('Land') || !g.canCast(pid, c)) continue;
     const eff0 = EFFECTS[d.name];
+    if (blockedByRules(g, pid, c)) continue;
     if (eff0?.cost && (eff0.cost.sacOther || eff0.cost.tapOther || eff0.cost.discard || eff0.cost.life)) continue;
     if (eff0?.multi && (eff0.multi.min ?? 1) > 1) continue;
     const info = g.castInfo ? g.castInfo(c) : null;
@@ -264,6 +290,7 @@ function spellPlans(g, pid, mode) {
     const permanent = !instant;
     if (permanent && mode !== 'main') continue;
     if (xCard && x < 1) continue;
+    if (voidTax(g) && fixed + 3 > avail) continue;               // Nether Void would counter it
     const ctx = { dmg: damageOf(text, x), x, text, card: c, sourceId: null };
     let plan = null;
     if (!eff && permanent) {
@@ -422,8 +449,8 @@ function respondToStack(g, pid, top) {
   for (const c of me.hand) {
     const eff = EFFECTS[c.def.name]; if (!eff || m.failed.has('c' + c.id) || !g.canCast(pid, c)) continue;
     if (hintOf(eff, c.def) !== 'counter' || top.kind !== 'spell') continue;
-    if (!eff.targets.length || eff.targets.some((s) => s !== 'spell')) continue;
-    if (!g.validTargets('spell', pid, c.id, c).some((r) => r.id === top.id)) continue;
+    if (eff.targets.length !== 1) continue;
+    if (!g.validTargets(eff.targets[0], pid, c.id, c).some((r) => r.kind === 'spell' && r.id === top.id)) continue;
     const t = top.card.def, eff2 = EFFECTS[t.name];
     const worth = (eff2 && (eff2.targets.length || /damage|destroy|draw/i.test(eff2.text || ''))) || cmc(top.card) >= 3 || (cmc(top.card) >= 2 && me.hand.length > 2) || me.hand.length > 4;
     if (!worth) continue;
@@ -504,6 +531,14 @@ function answerChoice(g, pid, w) {
     if (has(prompt, /search|draw|return|gain|untap|put|pay|may|keep|regenerat/i)) return true;
     return g.autoAnswer();
   }
+  if (w.type === 'cardName') {
+    const names = new Set(w.names || []);
+    const foe = g.players[1 - pid];
+    const seen = [...foe.bf.map((p) => p.card), ...foe.gy, ...foe.ex].filter((c) => !c.def.types.includes('Land') && names.has(c.def.name)).sort((a, b) => cmc(b) - cmc(a));
+    if (seen.length) return seen[0].def.name;
+    const mine = g.players[pid].hand.filter((c) => names.has(c.def.name) && !c.def.types.includes('Land')).sort((a, b) => cmc(a) - cmc(b));
+    return mine.length ? undefined : (w.names || [])[0];
+  }
   if (w.type === 'number') {
     const lo = w.min ?? 0, hi = Number.isFinite(w.max) ? w.max : lo;
     if (has(prompt, /\bX\b|mana|pay|spend|amount|how (much|many)/i) && !has(prompt, /discard|sacrifice/i)) return Math.max(lo, hi);
@@ -550,6 +585,8 @@ const WAITING_HANDLERS = {
   bottom(g, pid, w) { g.bottomCards(pid, chooseBottom(g, pid, w)); },
   // engine choices ("may", searches, modes, X): sensible answers, engine auto-answer as the safety net
   choice(g, pid, w) {
+    // engine bug guard (docs/ENGINE_REQUESTS.md, 'ai legends'): g.waiting can show a stale prompt while a different ask is live
+    if (g.curAsk && g.curAsk.req !== undefined && (g.curAsk.req.prompt || '') !== (w.prompt || '')) { w = { kind: 'choice', player: g.curAsk.pid, type: g.curAsk.req.type, prompt: g.curAsk.req.prompt || '', ...g.curAsk.req }; pid = g.curAsk.pid; }
     let a;
     try { a = answerChoice(g, pid, w); } catch (e) { a = undefined; (g.aiErrors ||= []).push(String(e && e.stack || e)); }
     if (a === undefined || !g.choose(pid, a)) {

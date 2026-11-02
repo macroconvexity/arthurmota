@@ -38,22 +38,25 @@ const TRIGGERS_BASE = {
   'Hypnotic Specter': { onDamagePlayer: (g, perm, target) => g.discardRandom(target.id) },
 };
 
-import * as white from './cards/white.js?v=20261102171740';
-import * as blue from './cards/blue.js?v=20261102171740';
-import * as black from './cards/black.js?v=20261102171740';
-import * as red from './cards/red.js?v=20261102171740';
-import * as green from './cards/green.js?v=20261102171740';
-import * as artifacts from './cards/artifacts.js?v=20261102171740';
-import * as lands from './cards/lands.js?v=20261102171740';
-import * as enchantments from './cards/enchantments.js?v=20261102171740';
+import * as white from './cards/white.js?v=20261102174621';
+import * as blue from './cards/blue.js?v=20261102174621';
+import * as black from './cards/black.js?v=20261102174621';
+import * as red from './cards/red.js?v=20261102174621';
+import * as green from './cards/green.js?v=20261102174621';
+import * as artifacts from './cards/artifacts.js?v=20261102174621';
+import * as lands from './cards/lands.js?v=20261102174621';
+import * as enchantments from './cards/enchantments.js?v=20261102174621';
+import * as goldA from './cards/gold_a.js?v=20261102174621';
+import * as goldB from './cards/gold_b.js?v=20261102174621';
 
 // enchantments first: a colour module that defines the same card wins
-const MODULES = [enchantments, white, blue, black, red, green, artifacts, lands];
+const MODULES = [enchantments, white, blue, black, red, green, artifacts, lands, goldA, goldB];
 const merge = (base, key) => Object.assign({}, base, ...MODULES.map((m) => m[key] || {}));
 export const EFFECTS = merge(EFFECTS_BASE, 'EFFECTS');
 export const ABILITIES = merge(ABILITIES_BASE, 'ABILITIES');
 export const TRIGGERS = merge(TRIGGERS_BASE, 'TRIGGERS');
 export const STATIC = merge({}, 'STATIC');
+export const COUNTER_ABILITIES = merge({}, 'COUNTER_ABILITIES'); // counter name -> abilities every permanent with that counter has
 const IMPLEMENTED = new Set(MODULES.flatMap((m) => m.IMPLEMENTED || []));
 
 const BASIC = { Plains: 'W', Island: 'U', Swamp: 'B', Mountain: 'R', Forest: 'G' };
@@ -71,7 +74,11 @@ function parseKwLine(raw) {
   const out = [];
   for (const part of l.split(/\s*[,;]\s*/)) {
     if (KEYWORDS.includes(part)) { out.push(part); continue; }
-    const m = part.match(/^protection from (white|blue|black|red|green)$/);
+    let m = part.match(/^rampage (\d+)$/);
+    if (m) { out.push('rampage:' + m[1]); continue; }
+    if (part === 'legendary landwalk') { out.push('legendary landwalk'); continue; }
+    if (part === 'bands with other legendary creatures') { out.push('bandswith:legendary'); continue; }
+    m = part.match(/^protection from (white|blue|black|red|green)$/);
     if (m) { out.push('pro:' + COLOR_WORDS[m[1]]); continue; }
     return null;
   }
@@ -88,7 +95,7 @@ export function keywordsOf(def) {
 }
 
 // "Enchant creature" -> target spec for the aura, or null.
-const AURA_SPECS = { creature: 'creature', land: 'land', artifact: 'artifact', enchantment: 'enchantment', wall: 'wall', 'creature card in a graveyard': 'graveyardCreature' };
+const AURA_SPECS = { creature: 'creature', land: 'land', artifact: 'artifact', enchantment: 'enchantment', wall: 'wall', 'creature you control': 'creatureYouControl', 'creature card in a graveyard': 'graveyardCreature' };
 export function auraSpecOf(def) {
   if (!(def.types || []).includes('Enchantment')) return null;
   const first = (def.text || '').split('\n')[0].replace(/\(.*?\)/g, '').trim().toLowerCase();

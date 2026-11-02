@@ -420,3 +420,15 @@ html.phone .misc .card{margin:0 0 calc(var(--cw)*-.62) 0}
 html.phone .pile{--cw:12cqh}
 html.phone #zones-me{bottom:calc(var(--pb) + 14cqh)}
 html.phone .row .ovl.pips,html.phone .lands .ovl.pips,html.phone .misc .ovl.pips{display:none}
+
+/* Legends follow-ups: poison, revealed cards, draw result, name/divide dialogs */
+.life .psn{position:absolute;left:-1.2cqh;bottom:-1.6cqh;padding:0 .9cqh;border-radius:99px;background:#16261a;border:max(1.5px,.3cqh) solid #7dff9a;color:#b8ffc8;font:700 max(10px,2.6cqh) Georgia;white-space:nowrap;z-index:3}
+.life .psn[hidden]{display:none}
+.cb.rev{background-size:100% 100%;background-color:#14100d;outline:1px solid #ffe08a;cursor:default}
+.card.toprev{position:relative}.pile .card.toprev img{box-shadow:0 0 0 2px #ffe08a,0 0 10px #ffe08a88}
+#over.draw h1{color:#cfd6e6;text-shadow:0 0 30px #5a6a90}#over.draw .emblem{filter:grayscale(.85) brightness(.9)}
+a.cl.lg{color:#ffe08a;font-weight:700}a.cl.lg::before{content:"\2605 ";color:#ffd27a}
+.namebox{min-width:min(420px,88vw)}.nsearch{width:100%;margin-bottom:10px}.nlist{max-height:calc(var(--app-h,100vh)*.45)}
+.divbox{min-width:min(380px,88vw)}.divrow{display:flex;align-items:center;gap:12px;margin:6px 0}.divrow span{flex:1;text-align:left}.divrow b{min-width:32px;font:700 24px Georgia;color:#f3c978;text-align:center}
+.divrow button{width:40px;height:40px;border-radius:50%;border:1px solid #6a5226;background:#2a1d15;color:#f3c978;font:700 22px Georgia}
+.divleft{margin:6px 0 12px;color:#a8d8b2;font-size:14px}.divleft.bad{color:#ffb0a0}

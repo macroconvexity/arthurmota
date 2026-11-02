@@ -52,3 +52,23 @@ export const askPick = (text, options, { min = 1, max = 1, cancelable = false, y
   ok.onclick = () => close([...sel].sort((a, b) => a - b).map((i) => options[i].value));
   if (!options.length || min === 0) ok.disabled = false; upd();
 }, { esc: cancelable });
+// Searchable list of card names (choice type 'cardName'). Resolves to the chosen name, or null when cancelled (only if cancelable).
+export const askName = (text, names, { cancelable = false } = {}) => modal((box, close) => {
+  box.classList.add('pickbox', 'namebox'); let sel = null; const MAX = 120;
+  box.innerHTML = `<p>${e$(text)}</p><input type="text" class="nsearch" placeholder="Type to search ${names.length} cards…"><div class="opts list nlist"></div><div class="dlgbtns">${cancelable ? '<button class="no">Cancel</button>' : ''}<button class="yes" disabled>Choose</button></div>`;
+  const list = box.querySelector('.nlist'), ok = box.querySelector('.yes'), inp = box.querySelector('.nsearch');
+  const draw = () => { const q = inp.value.trim().toLowerCase(); const m = names.filter((n) => !q || n.toLowerCase().includes(q)); list.innerHTML = m.slice(0, MAX).map((n) => `<button class="opt ${n === sel ? 'sel' : ''}" data-n="${e$(n)}">${e$(n)}</button>`).join('') + (m.length > MAX ? `<p class="muted">${m.length - MAX} more: keep typing</p>` : '') || '<p class="muted">No match</p>'; };
+  list.onclick = (e) => { const b = e.target.closest('.opt'); if (!b) return; sel = b.dataset.n; ok.disabled = false; draw(); if (e.detail === 2) close(sel); };
+  inp.oninput = draw; draw(); setTimeout(() => inp.focus());
+  ok.onclick = () => close(sel); if (cancelable) box.querySelector('.no').onclick = () => close(null);
+  inp.onkeydown = (e) => { if (e.key === 'Enter') { const f = list.querySelector('.opt'); if (sel || f) close(sel || f.dataset.n); } };
+}, { esc: cancelable });
+// Split `total` among rows [{label}] (divided damage). Resolves to an array of integers summing to total, or null.
+export const askDivide = (text, total, rows, { cancelable = true } = {}) => modal((box, close) => {
+  box.classList.add('divbox'); const n = rows.length; const v = rows.map((_, i) => Math.floor(total / n) + (i < total % n ? 1 : 0));
+  box.innerHTML = `<p>${e$(text)} <small>(split ${total})</small></p><div class="divrows">${rows.map((r, i) => `<div class="divrow" data-i="${i}"><span>${e$(r.label)}</span><button class="m">-</button><b>${v[i]}</b><button class="pl">+</button></div>`).join('')}</div><div class="divleft"></div><div class="dlgbtns">${cancelable ? '<button class="no">Cancel</button>' : ''}<button class="yes">OK</button></div>`;
+  const ok = box.querySelector('.yes'), left = box.querySelector('.divleft');
+  const upd = () => { box.querySelectorAll('.divrow b').forEach((b, i) => (b.textContent = v[i])); const rem = total - v.reduce((a, x) => a + x, 0); left.textContent = rem ? `${rem > 0 ? rem + ' left to assign' : -rem + ' too many'}` : 'All assigned'; left.classList.toggle('bad', !!rem); ok.disabled = !!rem; };
+  box.querySelector('.divrows').onclick = (e) => { const r = e.target.closest('.divrow'); if (!r) return; const i = +r.dataset.i; if (e.target.closest('.pl')) v[i]++; else if (e.target.closest('.m') && v[i] > 0) v[i]--; upd(); };
+  upd(); ok.onclick = () => close([...v]); if (cancelable) box.querySelector('.no').onclick = () => close(null);
+}, { esc: cancelable });
