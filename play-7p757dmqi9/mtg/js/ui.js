@@ -1,10 +1,10 @@
-import { Game, parseCost } from './engine.js?v=202611021149';
-import { aiAct } from './ai.js?v=202611021149';
-import { EFFECTS, abilitiesOf } from './cards.js?v=202611021149';
-import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=202611021149';
-import { initMenu, showApp, hideApp, costHtml } from './menu.js?v=202611021149';
-import { askConfirm, askNumber, askPick, modal } from './dialog.js?v=202611021149';
-import * as FX from './fx.js?v=202611021149';
+import { Game, parseCost } from './engine.js?v=202611021205';
+import { aiAct } from './ai.js?v=202611021205';
+import { EFFECTS, abilitiesOf } from './cards.js?v=202611021205';
+import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=202611021205';
+import { initMenu, showApp, hideApp, costHtml } from './menu.js?v=202611021205';
+import { askConfirm, askNumber, askPick, modal } from './dialog.js?v=202611021205';
+import * as FX from './fx.js?v=202611021205';
 
 
 const $ = (id) => document.getElementById(id);
@@ -14,7 +14,16 @@ function mkProbe(id, css) { const d = document.createElement('div'); d.id = id; 
 function fitViewport() {
   boxProbe ||= mkProbe('boxprobe', 'left:0;top:0;right:0;bottom:0;');
   saProbe ||= mkProbe('saprobe', 'left:0;top:0;width:0;height:0;padding:var(--sa-t) var(--sa-r) var(--sa-b) var(--sa-l);');
-  const bw = boxProbe.clientWidth || innerWidth, bh = boxProbe.clientHeight || innerHeight;
+  let bw = boxProbe.clientWidth || innerWidth, bh = boxProbe.clientHeight || innerHeight;
+  // installed (home-screen) app on iOS can report a stale/short viewport after launch or rotation: trust the larger of the measurements and the screen's size
+  const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches || matchMedia('(display-mode: fullscreen)').matches;
+  if (standalone) {
+    bw = Math.max(bw, innerWidth); bh = Math.max(bh, innerHeight);
+    const land = bw > bh, sMin = Math.min(screen.width, screen.height), sMax = Math.max(screen.width, screen.height);
+    if (land && sMin > 200 && bh < sMin) bh = sMin;
+    if (land && sMax > 400 && bw < sMax) bw = sMax;
+  }
+  document.documentElement.classList.toggle('standalone', standalone);
   const cs = getComputedStyle(saProbe), st = parseFloat(cs.paddingTop) || 0, sr = parseFloat(cs.paddingRight) || 0, sb = parseFloat(cs.paddingBottom) || 0, sl = parseFloat(cs.paddingLeft) || 0;
   // the 16:9 stage: largest box that fits; only the SIDE insets reduce the width
   const phone = bw > bh && (bh <= 500 || bw <= 900);   // dedicated full-bleed phone board: no 16:9 letterbox, no baked art
@@ -28,12 +37,14 @@ function fitViewport() {
   return { bw, bh, st, sr, sb, sl };
 }
 fitViewport();
-for (const ev of ['resize', 'orientationchange']) addEventListener(ev, () => { fitViewport(); setTimeout(fitViewport, 300); });
+for (const ev of ['resize', 'orientationchange']) addEventListener(ev, () => { fitViewport(); for (const t of [100, 300, 700, 1500]) setTimeout(fitViewport, t); });
+setTimeout(fitViewport, 500); setTimeout(fitViewport, 1500);
 window.visualViewport?.addEventListener('resize', fitViewport);
 if (window.ResizeObserver) new ResizeObserver(() => fitViewport()).observe(boxProbe);
 
 // ?debug=1 : numbers box (tap to hide) so a single screenshot shows what the real browser reports
-if (new URLSearchParams(location.search).get('debug')) {
+function startDebug() {
+  if (document.getElementById('dbg')) { document.getElementById('dbg').remove(); return; }
   rawProbe = mkProbe('rawprobe', 'left:0;top:0;width:0;height:0;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);');
   const box = document.createElement('pre'); box.id = 'dbg'; document.body.appendChild(box);
   box.onclick = () => box.remove();
@@ -44,6 +55,7 @@ if (new URLSearchParams(location.search).get('debug')) {
   };
   upd(); setInterval(upd, 700);
 }
+if (new URLSearchParams(location.search).get('debug')) startDebug();
 
 const ME = 0;
 let g, byName, cards;
@@ -58,7 +70,8 @@ async function boot() {
   initMenu({ byName, coverage: coverage(cards), onPlay: start });
   $('concede').onclick = async () => { if (await askConfirm('Leave this game?', 'Leave')) leave(); };
   $('gear').onclick = openSettings;
-  applyMat(+(safeGet('mtgclassic.playmat') || 1));
+  { let lp; const g0 = $('gear'); g0.addEventListener('pointerdown', () => { lp = setTimeout(() => { lp = 'done'; startDebug(); }, 1200); }); const cancel = () => { if (lp && lp !== 'done') clearTimeout(lp); }; g0.addEventListener('pointerup', cancel); g0.addEventListener('pointerleave', cancel); g0.addEventListener('click', (e) => { if (lp === 'done') { lp = null; e.stopImmediatePropagation(); } }, true); }
+  applyMat(+(safeGet('mtgclassic.playmat') || 2));
   const q = new URLSearchParams(location.search).get('deck'); if (q) start(DECK_LISTS[Object.keys(DECK_LISTS)[+q]]);
 }
 // ---------- playmat chooser (phone board) + settings ----------
@@ -76,7 +89,7 @@ async function availableMats() {
   return (await Promise.all([1, 2, 3, 4, 5, 6, 7, 8].map(probe))).filter(Boolean);
 }
 async function openSettings() {
-  const mats = await availableMats(); let cur = +(safeGet('mtgclassic.playmat') || 1);
+  const mats = await availableMats(); let cur = +(safeGet('mtgclassic.playmat') || 2);
   const act = await modal((box, close) => {
     box.classList.add('setbox');
     box.innerHTML = `<p><b>Settings</b></p><div class="setlbl">Playmat</div><div class="mats">${mats.map((n) => `<button class="mat ${n === cur ? 'sel' : ''}" data-n="${n}"><img src="${matUrl(n)}" draggable="false"><span>Playmat ${n}</span></button>`).join('') || '<span class="muted">No playmats found</span>'}</div><div class="dlgbtns"><button class="leave">Leave game</button><button class="yes">Close</button></div>`;
