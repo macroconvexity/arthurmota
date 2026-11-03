@@ -363,3 +363,56 @@ TRIGGERS['Firestorm Phoenix'] = {
 STATIC['Caverns of Despair'] = { maxAttackers: () => 2, maxBlockers: () => 2 };
 STATIC['Crevasse'] = { ignoreLandwalk: (g, src, att, blk, land) => land === 'Mountain' };
 IMPLEMENTED.push('Disharmony', 'Pyrotechnics', 'Backdraft', 'Quarum Trench Gnomes', 'Firestorm Phoenix', 'Caverns of Despair', 'Crevasse');
+
+// ================= Arabian Nights / Antiquities (red) =================
+Object.assign(EFFECTS, {
+  'Detonate': {
+    targets: [{ kind: 'perm', test: (g, p, ctx) => g.hasType(p, 'Artifact') && (p.card.def.manaValue ?? 0) === ctx.x }], x: true, ai: 'removal',
+    text: 'Destroy target artifact with mana value X. It can\'t be regenerated. Detonate deals X damage to that artifact\'s controller.',
+    resolve: (g, it) => { const a = g.perm(it.targets[0]); if (!a) return; const pid = a.controller; g.destroy(a, { noRegen: true }); g.damage(it, { kind: 'player', id: pid }, it.x); },
+  },
+  'Artifact Blast': {
+    targets: [{ kind: 'spell', test: (g, s) => s.card.def.types.includes('Artifact') }], ai: 'counter', text: 'Counter target artifact spell.',
+    resolve: (g, it) => g.counterSpell(it.targets[0]),
+  },
+});
+Object.assign(ABILITIES, {
+  'Aladdin': [{
+    cost: { mana: '{1}{R}{R}', tap: true }, targets: ['artifact'], ai: 'utility', text: 'Gain control of target artifact for as long as you control this creature.',
+    resolve: (g, it) => { const t = g.perm(it.targets[0]); if (!t) return; (it.source.stolen ||= []).push({ id: t.id, pid: it.controller }); g.sba(); },
+  }],
+  'Ali Baba': [{ cost: { mana: '{R}' }, targets: ['wall'], ai: 'utility', text: 'Tap target Wall.', resolve: (g, it) => { const w = g.perm(it.targets[0]); if (w) g.tap(w); } }],
+  'Hurr Jackal': [{ cost: { tap: true }, targets: ['creature'], ai: 'utility', text: 'Target creature can\'t be regenerated this turn.', resolve: (g, it) => { const c = g.perm(it.targets[0]); if (c) { c.regen = 0; g.addMod(c, { noRegen: true }); } } }],
+  'Orcish Mechanics': [{ cost: { tap: true, sacOther: 'Artifact' }, targets: ['any'], ai: 'burn', text: '2 damage to any target.', resolve: (g, it) => g.damage(it.source, it.targets[0], 2) }],
+  'Goblin Artisans': [{
+    cost: { tap: true }, ai: 'draw', text: 'Flip a coin. Win: draw a card. Lose: counter target artifact spell you control that isn\'t the target of an ability from another creature named Goblin Artisans.',
+    targets: [{ kind: 'spell', test: (g, s, ctx) => s.controller === ctx.pid && s.card.def.types.includes('Artifact') && !g.stack.some((x) => x.kind === 'ability' && x.card.def.name === 'Goblin Artisans' && x.source !== ctx.source && x.targets.some((t) => t.id === s.id)) }],
+    resolve: (g, it) => { if (g.flip()) g.draw(it.controller, 1); else g.counterSpell(it.targets[0]); },
+  }],
+});
+Object.assign(TRIGGERS, {
+  'Rukh Egg': {
+    onDie: (g, perm) => {
+      const pid = perm.controller;
+      g.delay('end', () => g.createToken(pid, { name: 'Bird', power: 4, toughness: 4, types: ['Creature'], subtypes: ['Bird'], colors: ['R'], kw: ['flying'], text: 'Flying' }));
+    },
+  },
+  'Ydwen Efreet': {
+    onBlock: (g, perm) => {
+      if (g.flip()) return;
+      g.removeFromCombat(perm, { unblock: true }); g.addMod(perm, { kw: 'cantBlock' });
+      g.say('Ydwen Efreet is removed from combat and can\'t block this turn.');
+    },
+  },
+});
+Object.assign(STATIC, {
+  'Aladdin': { affects: (g, src, t) => (src.stolen || []).some((e) => e.id === t.id && e.pid === src.controller), control: (g, src) => src.controller },
+  'Ali from Cairo': {
+    preventDamage: (g, src, d) => { if (d.target.kind !== 'player' || d.target.id !== src.controller) return d.n; const life = g.players[src.controller].life; return Math.max(0, Math.min(d.n, life - 1)); },
+  },
+  'Desert Nomads': [
+    { cantBlock: (g, src, blocker, attacker) => attacker === src && g.players[blocker.controller].bf.some((l) => g.isLand(l) && g.hasSubtype(l, 'Desert')) },
+    { preventDamage: (g, src, d) => (d.target.kind === 'perm' && d.target.id === src.id && d.src?.card?.def?.subtypes?.includes('Desert') ? 0 : d.n) },
+  ],
+});
+IMPLEMENTED.push('Detonate', 'Artifact Blast', 'Aladdin', 'Ali Baba', 'Hurr Jackal', 'Orcish Mechanics', 'Goblin Artisans', 'Rukh Egg', 'Ydwen Efreet', 'Ali from Cairo', 'Desert Nomads');

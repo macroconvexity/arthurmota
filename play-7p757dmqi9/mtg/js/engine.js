@@ -1,7 +1,8 @@
-import { COLORS, EFFECTS, ABILITIES, TRIGGERS, STATIC, COUNTER_ABILITIES, abilitiesOf as defAbilities, keywordsOf, auraSpecOf } from './cards.js?v=20261102222924';
+import { COLORS, EFFECTS, ABILITIES, TRIGGERS, STATIC, COUNTER_ABILITIES, abilitiesOf as defAbilities, keywordsOf, auraSpecOf } from './cards.js?v=20261103062100';
 
 export const STEPS = ['untap', 'upkeep', 'draw', 'main1', 'attackers', 'blockers', 'damage', 'main2', 'end'];
 const NOLOST = new Set();
+const LOOP_LIMIT = 400; // casts + activations per step: stops unbounded mana loops (Power Artifact + Basalt Monolith) from hanging bots
 const emptyPool = () => ({ W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 });
 const COLOR_WORD = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
 const WALKS = { plainswalk: 'Plains', islandwalk: 'Island', swampwalk: 'Swamp', mountainwalk: 'Mountain', forestwalk: 'Forest' };
@@ -90,7 +91,7 @@ export class Game {
     this.log = []; this.logEvents = [];
     this.events = [];       // UI animation hints
     this.nextId = 1;
-    this.players = [0, 1].map((i) => ({ id: i, name: this.names[i], life: 20, library: [], hand: [], bf: [], gy: [], ex: [], pool: emptyPool(), landPlayed: false, landsPlayed: 0, drewEmpty: false, skip: { untap: 0, draw: 0, turn: 0 }, spellsCast: [], enteredNonToken: [], drawnThisTurn: [], mods: [], damageTaken: 0, damageFrom: [], castLog: [], entered: 0, prevTurn: { cast: [], entered: 0 }, drawsThisTurn: 0, poison: 0 }));
+    this.players = [0, 1].map((i) => ({ id: i, name: this.names[i], life: 20, library: [], hand: [], bf: [], gy: [], ex: [], pool: emptyPool(), poolR: [], landPlayed: false, landsPlayed: 0, drewEmpty: false, skip: { untap: 0, draw: 0, turn: 0 }, spellsCast: [], enteredNonToken: [], drawnThisTurn: [], mods: [], damageTaken: 0, damageFrom: [], castLog: [], entered: 0, prevTurn: { cast: [], entered: 0 }, drawsThisTurn: 0, poison: 0 }));
     for (const i of [0, 1]) {
       this.players[i].library = this.shuffle(decks[i].map((def) => ({ id: this.nextId++, def, owner: i, art: def.art })));
     }
@@ -266,6 +267,7 @@ export class Game {
   colors(p) {
     if (p.colorOverride) return p.colorOverride;
     let c = p.card.def.colors || [];
+    if (p.mods) for (const m of p.mods) { if (m.setColors) c = [...m.setColors]; else if (m.addColors) c = [...new Set([...c, ...m.addColors])]; }
     if (this._depth > 3 || !p.mods) return c;
     this.rawStatics(); if (!this._stFlags.colors) return c;
     this._depth++;
@@ -553,7 +555,9 @@ export class Game {
     this.fire('onLifeLoss', pid, n);
     this.sba();
   }
-  addMana(pid, colour, n = 1) { this.players[pid].pool[colour] += n; }
+  // restrict: 'Artifact' | 'Creature' | ... (card type of the spell it may pay for) or (g, card) => bool. Restricted mana only pays spells.
+  addMana(pid, colour, n = 1, restrict = null) { if (restrict) this.players[pid].poolR.push({ c: colour, n, only: restrict }); else this.players[pid].pool[colour] += n; }
+  restrictOk(restrict, ctx) { return !!ctx?.card && (typeof restrict === 'function' ? restrict(this, ctx.card) : restrict === 'any' || ctx.card.def.types.includes(restrict)); }
   newPerm(card, controller, opts = {}) {
     const perm = { id: card.id, card, controller, baseCtl: controller, tapped: !!opts.tapped, sick: true, damage: 0, mods: [], counters: {}, attachedTo: opts.attachedTo ?? null, attacking: false, regen: 0, used: {}, x: opts.x ?? 0, enteredTurn: this.turn, damagedBy: [], ts: ++this.ts };
     if (opts.targetRef) perm.targetRef = opts.targetRef;
@@ -605,6 +609,7 @@ export class Game {
     for (const a of this.allPerms()) if (a.attachedTo === perm.id) this.self(a, 'onHostLeave', perm, zone);
     { const ents = asArr(STATIC[perm.card.def.name]).filter((e) => e.lingers); if (ents.length) this.ghosts.push({ src: perm, ents }); }
     pl.bf = pl.bf.filter((x) => x !== perm); this.ver++;
+    for (const e of [...(this.phased || [])]) if (e.until === perm.id) this.phaseIn(e);
     this.removeFromCombat(perm);
     if (zone === 'gy' && perm.mods.some((m) => m.exileOnDie)) zone = 'ex';
     if (!perm.card.token) this.players[perm.card.owner][zone === 'lib' ? 'library' : zone].push(perm.card);
@@ -615,7 +620,8 @@ export class Game {
     this.self(perm, 'onLeave', zone);
     if (zone === 'gy') {
       if (wasCreature) this.self(perm, 'onDie');
-      this.fire('onAnyDie', perm);
+      perm.leftBy = opts.cause || 'sba';
+      this.fire('onAnyDie', perm, perm.leftBy);
       if (wasCreature) this.fire('onCreatureDies', perm);
       if (wasCreature && this.deathWatch.length) { const dw = this.deathWatch.filter((d) => d.id === perm.id); this.deathWatch = this.deathWatch.filter((d) => d.id !== perm.id); for (const d of dw) d.fn(this, perm); }
     }
@@ -626,6 +632,7 @@ export class Game {
   destroy(perm, opts = {}) {
     if (!perm || !this.perm(perm)) return false;
     if (this.kw(perm).has('indestructible')) return false;
+    { const rd = perm.mods.find((m) => m.replaceDestroy && m.replaceDestroy(this, perm)); if (rd) { perm.mods = perm.mods.filter((m) => m !== rd); return false; } }
     const canRegen = !opts.noRegen && !perm.mods.some((m) => m.noRegen);
     if (canRegen && (perm.regen > 0 || this.rule('autoRegen', perm) || TRIGGERS[perm.card.def.name]?.autoRegen?.(this, perm))) {
       if (perm.regen > 0) perm.regen--; perm.damage = 0; perm.tapped = true; this.removeFromCombat(perm);
@@ -633,16 +640,35 @@ export class Game {
       return false;
     }
     this.say(`${perm.card.def.name} is destroyed.`, { kind: 'die', cards: [perm.id], player: perm.controller }); this.emit({ type: 'die', id: perm.id });
-    this.leave(perm, 'gy');
+    this.leave(perm, 'gy', { cause: 'destroy' });
     return true;
   }
-  sacrifice(perm) { if (!perm || !this.perm(perm)) return false; this.say(`${this.players[perm.controller].name} sacrifices ${perm.card.def.name}.`, { kind: 'die', cards: [perm.id], player: perm.controller }); this.emit({ type: 'die', id: perm.id }); return this.leave(perm, 'gy'); }
+  sacrifice(perm) { if (!perm || !this.perm(perm)) return false; this.say(`${this.players[perm.controller].name} sacrifices ${perm.card.def.name}.`, { kind: 'die', cards: [perm.id], player: perm.controller }); this.emit({ type: 'die', id: perm.id }); return this.leave(perm, 'gy', { cause: 'sacrifice' }); }
   exile(perm) { if (!perm || !this.perm(perm)) return; this.say(`${perm.card.def.name} is exiled.`, { kind: 'exile', cards: [perm.id], player: perm.controller }); this.leave(perm, 'ex'); }
   bounce(perm) { if (!perm || !this.perm(perm)) return; this.say(`${perm.card.def.name} returns to hand.`, { kind: 'bounce', cards: [perm.id], player: perm.controller }); this.emit({ type: 'bounce', id: perm.id }); this.leave(perm, 'hand'); }
   regenerate(perm) { if (perm && perm.mods.some((m) => m.noRegen)) { this.say(`${perm.card.def.name} can't be regenerated.`); return; } if (perm) { perm.regen = (perm.regen || 0) + 1; this.say(`${perm.card.def.name} gets a regeneration shield.`); } }
+  // Phasing (Oubliette): the permanent and its Auras leave every query without leave/enter events until `until` (a permanent) leaves the battlefield.
+  phaseOut(perm, opts = {}) {
+    if (!perm || !this.perm(perm)) return;
+    const group = [perm, ...this.allPerms().filter((a) => a.attachedTo === perm.id)];
+    for (const x of group) {
+      this.removeFromCombat(x);
+      const pl = this.players[x.controller]; pl.bf = pl.bf.filter((q) => q !== x);
+      (this.phased ||= []).push({ perm: x, host: perm.id, until: opts.until?.id ?? null, tap: !!opts.tap });
+      this.emit({ type: 'phase', id: x.id, out: true });
+    }
+    this.ver++; this.say(`${perm.card.def.name} phases out.`, { kind: 'info', cards: [perm.id] });
+  }
+  phaseIn(entry) {
+    const x = entry.perm; this.phased = this.phased.filter((e) => e !== entry);
+    this.players[x.controller].bf.push(x); this.ver++;
+    if (entry.tap && entry.host === x.id) x.tapped = true;
+    this.emit({ type: 'phase', id: x.id, out: false });
+  }
   attach(aura, host) { aura.attachedTo = host.id; this.emit({ type: 'attach', id: aura.id, host: host.id }); }
   // opts.permanent: new base controller; opts.until:'eot': control reverts at cleanup (Disharmony)
   setController(perm, pid, opts = {}) {
+    if (pid !== perm.controller && this.rule('cantGainControl', perm, pid)) return;
     if (opts.until === 'eot' && pid !== perm.baseCtl) perm.tempCtl = pid;
     if (perm.controller === pid) { if (opts.permanent) perm.baseCtl = pid; return; }
     const from = this.players[perm.controller];
@@ -777,7 +803,7 @@ export class Game {
         const sts = this.statics().filter(({ e }) => e.control);
         for (const p of this.allPerms()) {
           let want = p.tempCtl ?? p.baseCtl;
-          for (const { src, e } of sts) if (this.applies(e, src, p)) { const c = e.control(this, src, p); if (c != null) want = c; }
+          for (const { src, e } of sts) if (this.applies(e, src, p)) { const c = e.control(this, src, p); if (c != null && !this.rule('cantGainControl', p, c)) want = c; }
           if (want !== p.controller) { this.setController(p, want); this.sbaAgain = true; }
         }
         for (const pl of this.players) for (const p of [...pl.bf]) {
@@ -821,17 +847,32 @@ export class Game {
 
   // ---------- mana ----------
   manaSources(pid) {
+    const ck = this._msc ? `${pid}:${this._mctx?.card?.id ?? ''}` : null;
+    if (ck && this._msc.has(ck)) return this._msc.get(ck).map((x) => ({ ...x }));
+    const out = this.manaSourcesRaw(pid);
+    if (ck) this._msc.set(ck, out.map((x) => ({ ...x })));
+    return out;
+  }
+  manaSourcesRaw(pid) {
     const out = [];
     for (const perm of this.players[pid].bf) {
-      for (const ab of this.abilitiesOf(perm)) {
+      const abs = this.abilitiesOf(perm); let otherTap = null;
+      for (const ab of abs) {
         if (!ab.mana || ab.cost.mana) continue;
+        if (ab.mana.restrict && !this.restrictOk(ab.mana.restrict, this._mctx)) continue;
         if (ab.cost.tap && (perm.tapped || (this.isCreature(perm) && perm.sick && !this.kw(perm).has('haste')))) continue;
         const conv = perm.mods.filter((m) => m.manaConvert);
         const opts = conv.length ? ab.mana.colors.map((c) => conv.reduce((x, m) => m.manaConvert[x] || x, c)) : ab.mana.colors;
         const cc = ab.cost.counter && (typeof ab.cost.counter === 'string' ? { type: ab.cost.counter, n: 1 } : ab.cost.counter);
         let uses = 1;
         if (cc) { uses = Math.floor((perm.counters?.[cc.type] || 0) / cc.n); if (ab.cost.tap) uses = Math.min(uses, 1); }
-        for (let u = 0; u < uses; u++) out.push({ perm, ab, opts, amount: ab.mana.amount, counterCost: cc || null, rank: ab.cost.sac ? 100 : cc ? 60 : this.isCreature(perm) ? 50 : ab.mana.colors.length });
+        if (otherTap === null) otherTap = abs.some((x) => !x.mana && x.cost?.tap) ? 0.5 : 0; // lands with their own tap abilities (manlands) are tapped last
+        const rk = ab.cost.sac ? 100 : cc ? 60 : this.isCreature(perm) ? 50 : ab.mana.colors.length + otherTap;
+        if (ab.cost.sacOther) { // Priest of Yawgmoth / Ashnod's Altar: one entry per sacrificial candidate
+          for (const cand of this.extraCandidates(this.players[pid] === undefined ? pid : pid, perm, ab.cost.sacOther, perm)) out.push({ perm, ab, opts, amount: typeof ab.mana.amount === 'function' ? ab.mana.amount(this, { sacrificed: [cand] }) : ab.mana.amount, counterCost: null, sacChoice: cand, rank: 90 + (typeof ab.mana.amount === 'function' ? 0 : 0) });
+          continue;
+        }
+        for (let u = 0; u < uses; u++) out.push({ perm, ab, opts, amount: typeof ab.mana.amount === 'function' ? ab.mana.amount(this, { sacrificed: [] }) : ab.mana.amount, counterCost: cc || null, rank: rk });
       }
     }
     return out.sort((a, b) => a.rank - b.rank);
@@ -845,6 +886,33 @@ export class Game {
       if (!excl.has(perm)) out.push({ perm, ab, opts: ab.mana.colors, amount: ab.mana.amount });
     }
     return out;
+  }
+  // Manual mana: tap a permanent's mana ability into the pool (floating mana). colour picks one of several; returns false if impossible.
+  tapForMana(pid, permId, a3 = 0, a4 = null, choices = {}) {
+    // accepted forms: (pid, permId, idx, colour) or (pid, permId, colour, idx)
+    let idx = typeof a3 === 'number' ? a3 : (typeof a4 === 'number' ? a4 : 0), colour = typeof a3 === 'string' ? a3 : typeof a4 === 'string' ? a4 : null;
+    const perm = this.players[pid].bf.find((p) => p.id === permId); if (!perm || this.winner) return false;
+    const ab = this.abilitiesOf(perm)[idx]; if (!ab?.mana || ab.cost.mana) return false;
+    if (ab.mana.restrict === undefined && false) return false;
+    if (ab.cost.tap && (perm.tapped || (this.isCreature(perm) && perm.sick && !this.kw(perm).has('haste')))) return false;
+    const cc = ab.cost.counter && (typeof ab.cost.counter === 'string' ? { type: ab.cost.counter, n: 1 } : ab.cost.counter);
+    if (cc && !(perm.counters?.[cc.type] >= cc.n)) return false;
+    let sac = null;
+    if (ab.cost.sacOther) {
+      const cands = this.extraCandidates(pid, perm, ab.cost.sacOther, perm);
+      sac = choices.sac != null ? cands.find((c) => c.id === choices.sac) : cands.sort((x, y) => cmcOf(y.card.def) - cmcOf(x.card.def))[0];
+      if (!sac) return false;
+    }
+    const c = colour && ab.mana.colors.includes(colour) ? colour : ab.mana.colors[0];
+    const amount = typeof ab.mana.amount === 'function' ? ab.mana.amount(this, { sacrificed: sac ? [sac] : [] }) : ab.mana.amount;
+    if (cc) this.addCounters(perm, cc.type, -cc.n);
+    if (ab.cost.tap) { perm.tapped = true; this.emit({ type: 'tap', id: perm.id }); }
+    if (sac) this.sacrifice(sac);
+    this.addMana(pid, c, amount, ab.mana.restrict || null);
+    if (ab.cost.sac) this.leave(perm, 'gy');
+    this.fire('onAbilityActivated', { id: 0, kind: 'ability', mana: true, source: perm, controller: pid, tapCost: !!ab.cost.tap });
+    if (ab.cost.tap) { this.fire('onManaTapped', perm, pid, [c]); this.fire('onAnyTap', perm); }
+    return true;
   }
   // pay-life-as-mana (Channel) and converters are layered on top of the plain planner
   planPayment(pid, cost, excl = new Set(), depth = 0) {
@@ -882,6 +950,7 @@ export class Game {
     const g0 = Math.max(0, cost.generic - poolLeft);
     const pips = COLORS.flatMap((c) => Array(need[c]).fill(c));
     const srcs = this.manaSources(pid);
+    if (g0 + pips.length > srcs.reduce((n, x) => n + x.amount, 0)) return null; // cannot possibly be covered (skips the exhaustive search)
     const used = new Set(); const tp = new Set(); const assign = new Map(); const cap = { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 };
     const dfs = (i) => {
       if (i === pips.length) {
@@ -903,9 +972,26 @@ export class Game {
     const taps = dfs(0);
     return taps ? { taps, assign, needFromPool: { W: cost.W - need.W, U: cost.U - need.U, B: cost.B - need.B, R: cost.R - need.R, G: cost.G - need.G }, g0 } : null;
   }
-  canPay(pid, cost) { return cost.total === 0 || !!this.planPayment(pid, cost); }
-  pay(pid, cost0) {
+  // ctx = {card} when paying for a spell: lets restricted mana (Mishra's Workshop, Metamorphosis) count
+  canPay(pid, cost, ctx = null) {
+    if (cost.total === 0) return true;
+    const pl = this.players[pid], saved = this._mctx, savedPool = { ...pl.pool };
+    this._mctx = ctx;
+    try { for (const e of pl.poolR) if (this.restrictOk(e.only, ctx)) pl.pool[e.c] += e.n; return !!this.planPayment(pid, cost); } finally { this._mctx = saved; pl.pool = savedPool; }
+  }
+  pay(pid, cost0, ctx = null) {
     if (cost0.total === 0) return true;
+    const pl = this.players[pid], saved = this._mctx; this._mctx = ctx;
+    const moved = [];
+    try {
+      pl.poolR = pl.poolR.filter((e) => { if (this.restrictOk(e.only, ctx)) { pl.pool[e.c] += e.n; moved.push(e); return false; } return true; });
+      const ok = this.payInner(pid, cost0);
+      // unused restricted mana stays restricted
+      for (const e of moved) { const back = Math.min(e.n, pl.pool[e.c]); if (back > 0) { pl.pool[e.c] -= back; pl.poolR.push({ ...e, n: back }); } }
+      return ok;
+    } finally { this._mctx = saved; }
+  }
+  payInner(pid, cost0) {
     const plan = this.planPayment(pid, cost0); if (!plan) return false;
     const cost = plan.cost;
     if (plan.life) { this.players[pid].life -= plan.life; this.say(`${this.players[pid].name} pays ${plan.life} life for mana.`); }
@@ -914,7 +1000,15 @@ export class Game {
     for (const c of COLORS) pool[c] -= plan.needFromPool[c];
     let left = plan.g0 === cost.generic ? 0 : cost.generic - plan.g0;
     for (const c of [...COLORS, 'C']) { const u = Math.min(pool[c], left); pool[c] -= u; left -= u; }
+    { // mana produced beyond what the cost needed floats in the pool (as colourless), e.g. Basalt Monolith paying a {1} ability
+      const pipsFromSrc = COLORS.reduce((n, c) => n + cost[c] - plan.needFromPool[c], 0);
+      const produced = plan.taps.reduce((n, t) => n + t.amount, 0);
+      const excess = produced - (pipsFromSrc + plan.g0);
+      if (excess > 0) pool.C += excess;
+    }
     for (const s of plan.taps) if (s.counterCost) this.addCounters(s.perm, s.counterCost.type, -s.counterCost.n);
+    for (const s of plan.taps) if (s.sacChoice && this.perm(s.sacChoice)) this.sacrifice(s.sacChoice);
+    for (const s of plan.taps) if (s.ab.cost.sac) this.fire('onAbilityActivated', { id: 0, kind: 'ability', mana: true, source: s.perm, controller: pid, tapCost: !!s.ab.cost.tap });
     for (const s of plan.taps) { if (s.ab.cost.tap) { s.perm.tapped = true; this.emit({ type: 'tap', id: s.perm.id }); } if (s.ab.cost.sac) { this.leave(s.perm, 'gy'); } }
     for (const c of plan.conv || []) { this.fire('onManaTapped', c.perm, pid, [c.opts[0]]); this.fire('onAnyTap', c.perm); }
     for (const s of plan.taps) if (s.ab.cost.tap) { this.fire('onManaTapped', s.perm, pid, [plan.assign.get(s) || s.opts[0]]); this.fire('onAnyTap', s.perm); }
@@ -944,13 +1038,13 @@ export class Game {
     if (m) { const c = COLOR_WORD[m[1].toLowerCase()]; return { kind: 'perm', test: (g, p) => g.isCreature(p) && !g.colors(p).includes(c) }; }
     return { kind: 'none' };
   }
-  validTargets(spec, pid, sourceId, srcCard, chosen = []) {
+  validTargets(spec, pid, sourceId, srcCard, chosen = [], x = 0) {
     const out = [];
     const info = this.specInfo(spec);
     const sourcePerm = sourceId != null ? this.perm(sourceId) : null;
     const card = srcCard || sourcePerm?.card || (sourceId != null ? this.stack.find((s) => s.id === sourceId)?.card : null);
     const colors = card ? this.srcColors(sourcePerm || { card }) : [];
-    const ctx = { pid, source: sourcePerm, card, targets: chosen };
+    const ctx = { pid, source: sourcePerm, card, targets: chosen, x };
     const sourceKind = sourcePerm || (sourceId != null && this.stack.some((x) => x.id === sourceId && x.kind === 'ability')) ? 'ability' : 'spell';
     const addPlayers = () => this.players.forEach((p) => out.push({ kind: 'player', id: p.id }));
     const isAura = card && !!auraSpecOf(card.def);
@@ -973,7 +1067,7 @@ export class Game {
     if (t.kind === 'card') return this.players.some((p) => p.gy.some((c) => c.id === t.id));
     if (!this.perm(t)) return false;
     if (spec == null) return true;
-    return this.validTargets(spec, it.controller, it.source?.id ?? it.id, it.card).some((r) => r.kind === t.kind && r.id === t.id);
+    return this.validTargets(spec, it.controller, it.source?.id ?? it.id, it.card, [], it.x || 0).some((r) => r.kind === t.kind && r.id === t.id);
   }
 
   // ---------- casting info ----------
@@ -997,8 +1091,10 @@ export class Game {
     return c;
   }
   maxX(pid, card) {
-    let lo = 0;
-    for (let x = 0; x < 40; x++) { if (this.canPay(pid, this.spellCost(pid, card, x, 1))) lo = x; else break; }
+    let lo = 0; const hadCache = !!this._msc; if (!hadCache) this._msc = new Map();
+    try {
+    for (let x = 0; x < 40; x++) { if (this.canPay(pid, this.spellCost(pid, card, x, 1), { card })) lo = x; else break; }
+    } finally { if (!hadCache) this._msc = null; }
     return lo;
   }
 
@@ -1007,22 +1103,25 @@ export class Game {
   landDrops(pid) { return 1 + this.ruleSum('extraLandPlays', pid); }
   canPlayLand(pid, card) {
     const p = this.players[pid];
-    return !this.winner && !(card.cantPlayUntilTurn > this.turn) && this.waiting?.kind === 'priority' && this.waiting.player === pid && card.def.types.includes('Land') && this.hasMainTiming(pid) && p.landsPlayed < this.landDrops(pid) && p.hand.includes(card);
+    return !this.winner && !(card.cantPlayUntilTurn > this.turn) && !this.rule('cantPlayLand', card, pid) && this.waiting?.kind === 'priority' && this.waiting.player === pid && card.def.types.includes('Land') && this.hasMainTiming(pid) && p.landsPlayed < this.landDrops(pid) && p.hand.includes(card);
   }
   canCast(pid, card) {
     const d = card.def;
     if (this.winner || this.waiting?.kind !== 'priority' || this.waiting.player !== pid || !this.players[pid].hand.includes(card)) return false;
-    if (d.types.includes('Land') || card.cantPlayUntilTurn > this.turn) return false;
+    if (d.types.includes('Land') || card.cantPlayUntilTurn > this.turn || this.rule('cantCast', card, pid)) return false;
     const fast = d.types.includes('Instant') || this.kwCard(card).has('flash');
     if (!fast && !this.hasMainTiming(pid)) return false;
     const eff = EFFECTS[d.name];
     if (eff?.castWhen && !eff.castWhen(this, pid, card)) return false;
     const info = this.castInfo(card, eff?.modes ? this.firstCastableMode(pid, card) : undefined);
     if (eff?.modes && this.firstCastableMode(pid, card) == null) return false;
-    for (const spec of info.targets) if (!this.validTargets(spec, pid, null, card).length) return false;
+    if (info.hasX && info.targets.some((sp) => typeof sp !== 'string')) { // target availability may depend on X (Detonate): some affordable X must work
+      const mx = Math.min(this.maxX(pid, card), 20);
+      for (const spec of info.targets) { let ok = false; for (let x = 0; x <= mx && !ok; x++) ok = this.validTargets(spec, pid, null, card, [], x).length > 0; if (!ok) return false; }
+    } else for (const spec of info.targets) if (!this.validTargets(spec, pid, null, card).length) return false;
     if (info.multi && info.multi.min > 0 && !this.validTargets(info.multi.spec, pid, null, card).length) return false;
     if (eff?.cost && !this.extraCostPayable(pid, null, eff.cost)) return false;
-    return this.canPay(pid, this.spellCost(pid, card, 0, 1));
+    return this.canPay(pid, this.spellCost(pid, card, 0, 1), { card });
   }
   firstCastableMode(pid, card) {
     const eff = EFFECTS[card.def.name];
@@ -1039,7 +1138,7 @@ export class Game {
     this.passes = 0; return true;
   }
   cast(pid, card, targets = [], x = 0, extra = {}) {
-    if (!this.canCast(pid, card)) return false;
+    if (this.stepActions >= LOOP_LIMIT || !this.canCast(pid, card)) return false;
     const eff = EFFECTS[card.def.name];
     const mode = eff?.modes ? (extra.mode ?? this.firstCastableMode(pid, card)) : undefined;
     const info = this.castInfo(card, mode);
@@ -1057,15 +1156,16 @@ export class Game {
       specs.length = 0; for (let i = 0; i < targets.length; i++) specs.push(info.multi.spec);
     } else if (targets.length !== specs.length) return false;
     for (let i = 0; i < specs.length; i++) {
-      if (!this.validTargets(specs[i], pid, null, card, targets.slice(0, i)).some((r) => r.kind === targets[i].kind && r.id === targets[i].id)) return false;
+      if (!this.validTargets(specs[i], pid, null, card, targets.slice(0, i), x).some((r) => r.kind === targets[i].kind && r.id === targets[i].id)) return false;
     }
     if (info.hasX && x > this.maxX(pid, card)) return false;
     const cost = this.spellCost(pid, card, info.hasX ? x : 0, targets.length, mode);
-    if (!this.canPay(pid, cost)) return false;
+    if (!this.canPay(pid, cost, { card })) return false;
+    this.stepActions++;
     const snap = this.captureUndo(pid, card.id);
     let paidExtra = null;
     if (eff?.cost) { paidExtra = this.payExtraCosts(pid, null, eff.cost, extra.choices || {}); if (!paidExtra) return false; }
-    this.pay(pid, cost);
+    this.pay(pid, cost, { card });
     const p = this.players[pid]; p.hand = p.hand.filter((c) => c !== card);
     const item = { id: card.id, kind: 'spell', card, controller: pid, targets, specs, effect: eff, x: info.hasX ? x : 0, mode, paid: paidExtra, division: extra._division };
     this.stack.push(item); p.castLog.push({ id: card.id, types: card.def.types, colors: this.colors({ card, mods: [] }), mv: cmcOf(card.def) });
@@ -1091,6 +1191,7 @@ export class Game {
     if (cost.counter) { const cc = typeof cost.counter === 'string' ? { type: cost.counter, n: 1 } : cost.counter; if (!perm || !(perm.counters?.[cc.type] >= cc.n)) return false; }
     if (cost.life && pl.life <= cost.life) return false;
     if (cost.discard && pl.hand.length < cost.discard) return false;
+    if (cost.discardRandom && pl.hand.length < cost.discardRandom) return false;
     return true;
   }
   costChoices(pid, perm, ab) {
@@ -1129,6 +1230,7 @@ export class Game {
     for (const c of sacMany || []) { paid.sacrificed.push(c); if (cost.sacExile) this.exile(c); else this.sacrifice(c); }
     for (const t of taps) { this.tap(t); paid.tapped.push(t); }
     for (const c of dis) { pl.hand = pl.hand.filter((x) => x !== c); pl.gy.push(c); paid.discarded.push(c); this.say(`${pl.name} discards ${c.def.name}.`); }
+    for (let i = 0; i < (cost.discardRandom || 0); i++) { const c = pl.hand.splice(Math.floor(this.rng() * pl.hand.length), 1)[0]; pl.gy.push(c); paid.discarded.push(c); this.say(`${pl.name} discards ${c.def.name} at random.`); this.afterDiscard(pid, c); }
     if (cost.counter) { const cc = typeof cost.counter === 'string' ? { type: cost.counter, n: 1 } : cost.counter; this.addCounters(perm, cc.type, -cc.n); }
     if (cost.life) { pl.life -= cost.life; this.say(`${pl.name} pays ${cost.life} life.`); }
     return paid;
@@ -1141,6 +1243,7 @@ export class Game {
       else if (t === 'myTurn') { if (this.active !== pid) return false; }
       else if (t === 'sorcery') { if (!this.hasMainTiming(pid)) return false; }
       else if (t === 'combat') { if (!['attackers', 'blockers', 'damage'].includes(this.step) || !this.combat.attackers.length) return false; }
+      else if (t === 'endCombat') { if (!this.combatEnding) return false; }
       else if (t === 'anyUpkeep') { if (this.step !== 'upkeep') return false; }
     }
     if (ab.limit && (perm.used[idx] || 0) >= ab.limit) return false;
@@ -1177,6 +1280,7 @@ export class Game {
     return { ab, targets: ab.targets || [], multi: ab.multi || null, hasX: !!c.x || /\{X\}/.test(c.mana || ''), needs: { sac: !!c.sacOther, tapOther: !!c.tapOther, discard: !!c.discard } };
   }
   activate(pid, permId, idx, targets = [], choices = {}) {
+    if (this.stepActions >= LOOP_LIMIT) { if (this.stepActions === LOOP_LIMIT) { this.say('Too many actions this step (loop guard).'); this.stepActions++; } return false; }
     const a = this.activatable(pid).find((x) => x.perm.id === permId && x.idx === idx); if (!a) return false;
     const ab = a.ab; const cost = ab.cost || {};
     const specs = ab.multi ? targets.map(() => ab.multi.spec) : ab.targets || [];
@@ -1196,6 +1300,7 @@ export class Game {
     this.stack.push({ id: this.nextId++, kind: 'ability', card: a.perm.card, source: a.perm, controller: pid, targets, specs, effect: ab, abIdx: idx, x, choices, paid, tapCost: !!cost.tap });
     this.say(`${this.players[pid].name} activates ${a.perm.card.def.name}.`, { kind: 'activate', cards: [a.perm.id], player: pid });
     this.passes = 0; this.setPriority(pid);
+    this.stepActions++;
     this.fire('onActivate', this.stack[this.stack.length - 1]); this.fire('onAbilityActivated', this.stack[this.stack.length - 1]);
     this.commitUndo(snap);
     return true;
@@ -1218,7 +1323,7 @@ export class Game {
     if (this.passes >= 2) {
       this.passes = 0;
       if (this.stack.length) { this.resolveTop(); if (!this.winner) this.whenIdle(() => { this.waiting = { kind: 'priority', player: this.active }; }); }
-      else this.nextStep();
+      else { if (this.combatEnding) { this.combatEnding = false; this.endCombat(); } this.nextStep(); }
     } else this.waiting = { kind: 'priority', player: this.opp(pid) };
   }
   resolveTop() {
@@ -1264,7 +1369,7 @@ export class Game {
   }
   nextStep() {
     if (this.stack.length && !this.winner) { this.passes = 0; this.setPriority(this.active); return; } // triggers put on the stack by hooks
-    for (const p of this.players) p.pool = emptyPool();
+    for (const p of this.players) { p.pool = emptyPool(); p.poolR = []; }
     const i = STEPS.indexOf(this.step);
     let n = STEPS[i + 1];
     if (n === 'blockers' && !this.combat.attackers.length) n = 'main2';
@@ -1286,13 +1391,13 @@ export class Game {
       for (const m of [...p.mods]) if (m.noUntap && (typeof m.noUntap !== 'function' || m.noUntap(this, p))) { if (m.untapSteps !== undefined && --m.untapSteps <= 0) p.mods = p.mods.filter((x) => x !== m); return false; }
       return true;
     });
-    const optional = cands.filter((p) => TRIGGERS[p.card.def.name]?.optionalUntap);
+    const optional = cands.filter((p) => TRIGGERS[p.card.def.name]?.optionalUntap || TRIGGERS[p.card.def.name]?.mayNotUntap || TRIGGERS[p.card.def.name]?.onUntapChoice);
     cands = cands.filter((p) => !optional.includes(p));
     const lim = this.ruleVals('untapLimit', a.id);
     const groups = [];
     for (const l of lim) {
       for (const [k, n] of Object.entries(l)) {
-        const f = k === 'creatures' ? (p) => this.isCreature(p) : k === 'lands' ? (p) => this.isLand(p) : () => true;
+        const f = k === 'creatures' ? (p) => this.isCreature(p) : k === 'lands' ? (p) => this.isLand(p) : k === 'artifacts' ? (p) => this.hasType(p, 'Artifact') : () => true;
         const g = cands.filter(f);
         if (g.length > n) groups.push({ g, n });
       }
@@ -1308,7 +1413,7 @@ export class Game {
     }
   }
   enter(step) {
-    this.step = step; this.passes = 0; this.waiting = null;
+    this.step = step; this.stepActions = 0; this.combatEnding = false; this.passes = 0; this.waiting = null;
     const a = this.players[this.active];
     if (step === 'untap') {
       this.fire('onTurnStart', this.active);
@@ -1349,7 +1454,13 @@ export class Game {
       }
       this.waiting = { kind: 'blockers', player: this.opp(this.active) }; return;
     }
-    if (step === 'damage') { this.combatDamage(); return this.winner ? null : this.whenIdle(() => this.nextStep()); }
+    if (step === 'damage') {
+      this.combatDamage({ keepOpen: true });
+      if (this.winner) return null;
+      // end-of-combat window: players get priority with the attackers still in combat (Desert)
+      this.combatEnding = true;
+      return this.whenIdle(() => { this.waiting = { kind: 'priority', player: this.active }; });
+    }
     if (step === 'end') {
       this.fire('onEndTurn', this.active);
       this.runDelayed('end', this.active);
@@ -1374,7 +1485,8 @@ export class Game {
     this.sba();
     if (this.winner) return;
     const a = this.players[this.active];
-    if (a.hand.length > 7 && !this.rule('noHandLimit', a.id)) { this.step = 'cleanup'; this.waiting = { kind: 'discard', player: this.active, n: a.hand.length - 7 }; return; }
+    const maxHand = Math.min(7, ...this.ruleVals('maxHandSize', a.id));
+    if (a.hand.length > maxHand && !this.rule('noHandLimit', a.id)) { this.step = 'cleanup'; this.waiting = { kind: 'discard', player: this.active, n: a.hand.length - maxHand }; return; }
     this.whenIdle(() => this.startTurn());
   }
   discard(pid, card) {
@@ -1574,7 +1686,7 @@ export class Game {
     }
     return hits;
   }
-  combatDamage() {
+  combatDamage(opts = {}) {
     const phase = (filter) => {
       for (const [src, tgt, n] of this.planHits(filter)) {
         if (n <= 0) continue;
@@ -1587,7 +1699,7 @@ export class Game {
     const anyFS = [...this.combat.attackers, ...Object.values(this.combat.blocks).flat()].some((id) => { const p = this.perm(id); return p && this.fsOf(p); });
     if (anyFS) { phase((p) => this.fsOf(p)); if (this.winner) return; }
     phase((p) => (anyFS ? this.regularOf(p) : true));
-    this.endCombat();
+    if (!opts.keepOpen) this.endCombat();
   }
   // Damage preview for the UI. Optional { blocks: {attackerId: [blockerIds]} } previews hypothetical blocks (while the defender is choosing).
   // Returns one entry per attacker: { id, blockers, blocked, band, toPlayer, dies, blockersDie, damageTaken, hits:[{from,to,n,first}] }
@@ -1702,7 +1814,7 @@ export class Game {
   // Only possible between decisions: no pending choice, no function-valued state (delayed effects, shield callbacks, stack triggers).
   canSerialize() { try { this.encodeState(); return true; } catch (e) { return false; } }
   encodeState(live = false) {
-    if (this.curAsk || this.asks.length || this.idle.length || this.delayed.length || this.ghosts.length || this.pendingCallbacks?.length) throw new Error('pending decision or effect');
+    if (this.curAsk || this.asks.length || this.idle.length || this.delayed.length || this.ghosts.length || this.phased?.length || this.pendingCallbacks?.length) throw new Error('pending decision or effect');
     const cards = {};
     const cardRef = (c) => {
       if (!cards[c.id]) {
@@ -1783,6 +1895,7 @@ export class Game {
     Object.assign(g, gd);
     g.auto = new Set(gd.auto);
     g.opts = gd.opts;
+    g.stepActions = 0; g._mctx = null; for (const pl of g.players) pl.poolR ||= [];
     g.rngCalls = 0; g.logSeq = 0; g.undoEpoch = 0; g.undoSnap = null; g.undoFor = [];
     g.rng = opts.live ? opts.rng : g.wrapRng(opts.rng || makeRng(1));
     if (data.rng !== null && g.rng.setState) g.rng.setState(data.rng);

@@ -403,3 +403,103 @@ EFFECTS['Rapid Fire'] = {
 };
 
 done('Clergy of the Holy Nimbus', 'Divine Intervention', 'Glyph of Life', 'Great Wall', 'Infinite Authority', 'Kismet', 'Petra Sphinx', 'Rapid Fire');
+
+// =====================================================================================================
+// Arabian Nights / Antiquities white
+// =====================================================================================================
+const isArtSrc = (g, s) => !!s && !!s.card && (s.mods ? g.hasType(s, 'Artifact') : s.card.def.types.includes('Artifact'));
+
+// Abu Ja'far: remembers who it fought; when it dies, those creatures still in that combat are destroyed (no regeneration).
+TRIGGERS["Abu Ja'far"] = {
+  onBlock: (g, perm, att) => { perm.partners = [att.id]; },
+  onBlocked: (g, perm, blockers) => { perm.partners = blockers.map((b) => b.id); },
+  onDie(g, perm) {
+    if (!['attackers', 'blockers', 'damage'].includes(g.step)) return; // only while the combat it was part of is still going
+    for (const id of perm.partners || []) { const q = g.perm(id); if (q && g.isCreature(q)) g.destroy(q, { noRegen: true }); }
+  },
+};
+
+EFFECTS['Army of Allah'] = {
+  targets: [], ai: 'pump', text: 'Attacking creatures get +2/+0 until end of turn.',
+  resolve(g) { for (const id of g.combat.attackers) { const p = g.perm(id); if (p) g.addMod(p, { p: 2 }); } },
+};
+
+// Camel: damage from Deserts is prevented to it and its band while it attacks.
+STATIC['Camel'] = {
+  preventDamage(g, src, d) {
+    const t = d.perm; if (!t || !src.attacking && !g.combat.attackers.includes(src.id)) return d.n;
+    if (!d.src?.card) return d.n;
+    const ds = g.perm(d.src.card.id);
+    if (!ds || !g.hasSubtype(ds, 'Desert')) return d.n;
+    const banded = t === src || (g.combat.bands || []).some((b) => b.includes(src.id) && b.includes(t.id));
+    return banded ? 0 : d.n;
+  },
+};
+
+// Jihad: colour and opponent chosen as it enters (two players: the opponent).
+TRIGGERS['Jihad'] = {
+  onEnter(g, perm) {
+    const opp = 1 - perm.controller;
+    const names = { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' };
+    const count = (c) => g.players[opp].bf.filter((p) => !p.card.token && g.colors(p).includes(c)).length;
+    g.ask(perm.controller, { type: 'pick', prompt: 'Jihad: choose a colour (the chosen opponent is ' + g.players[opp].name + ')', source: perm.card.id, min: 1, max: 1,
+      options: Object.keys(names).map((c) => ({ value: c, label: names[c], score: count(c) })) },
+    ([c]) => { perm.jihadColor = c; perm.jihadPlayer = opp; g.sba(); });
+  },
+  onState(g, perm) {
+    if (!perm.jihadColor) return;
+    if (!g.players[perm.jihadPlayer].bf.some((p) => !p.card.token && g.colors(p).includes(perm.jihadColor))) { g.say('Jihad is sacrificed.'); g.sacrifice(perm); }
+  },
+};
+STATIC['Jihad'] = (() => {
+  const cond = guarded((g, src) => !!src.jihadColor && g.players[src.jihadPlayer].bf.some((p) => !p.card.token && g.colors(p).includes(src.jihadColor)));
+  const white = guarded((g, t) => g.isCreature(t) && g.colors(t).includes('W'));
+  return { affects: (g, src, t) => white(g, t) && cond(g, src), power: 2, toughness: 1 };
+})();
+
+ABILITIES['King Suleiman'] = [{
+  cost: { tap: true }, ai: 'removal', text: '{T}: Destroy target Djinn or Efreet.',
+  targets: [{ kind: 'perm', test: (g, p) => g.isCreature(p) && (g.hasSubtype(p, 'Djinn') || g.hasSubtype(p, 'Efreet')) }],
+  resolve: (g, it) => g.destroy(g.perm(it.targets[0])),
+}];
+
+EFFECTS['Piety'] = {
+  targets: [], ai: 'pump', text: 'Blocking creatures get +0/+3 until end of turn.',
+  resolve(g) { for (const p of g.allPerms()) if (g.isCreature(p) && isBlocking(g, p)) g.addMod(p, { t: 3 }); },
+};
+
+ABILITIES['Argivian Archaeologist'] = [{
+  cost: { tap: true, mana: '{W}{W}' }, targets: ['artifactCardInYourGraveyard'], ai: 'utility', text: '{W}{W}, {T}: Return target artifact card from your graveyard to your hand.',
+  resolve(g, it) { const c = g.findCard(it.targets[0].id); const o = g.players[it.controller]; if (c && o.gy.includes(c)) { o.gy = o.gy.filter((x) => x !== c); o.hand.push(c); g.say(`${c.def.name} returns to ${o.name}'s hand.`); } },
+}];
+ABILITIES['Argivian Blacksmith'] = [{
+  cost: { tap: true }, targets: ['artifactCreature'], ai: 'heal', text: '{T}: Prevent the next 2 damage that would be dealt to target artifact creature this turn.',
+  resolve: (g, it) => g.preventDamage(it.targets[0], 2),
+}];
+
+STATIC['Artifact Ward'] = [
+  { cantBlock: (g, src, blocker, att) => att.id === src.attachedTo && g.hasType(blocker, 'Artifact') },
+  { preventDamage: (g, src, d) => (d.target?.kind === 'perm' && d.target.id === src.attachedTo && isArtSrc(g, d.src) ? 0 : d.n) },
+  { cantBeTargeted: (g, src, target, kind, card) => target.id === src.attachedTo && kind === 'ability' && !!card && card.def.types.includes('Artifact') },
+];
+
+ABILITIES['Circle of Protection: Artifacts'] = [{
+  cost: { mana: '{2}' }, ai: 'heal', text: 'The next time an artifact source of your choice would deal damage to you this turn, prevent that damage.',
+  resolve: (g, it) => g.chooseSource(it.controller, (s) => isArtSrc(g, s), { prompt: 'Choose an artifact source', source: it.card.id },
+    (id) => { if (id != null) g.preventDamage(pl(it.controller), Infinity, { sourceId: id, once: true }); }),
+}];
+
+// Martyrs of Korlis: while untapped, artifact damage aimed at its controller is dealt to it instead.
+STATIC['Martyrs of Korlis'] = {
+  preventDamage(g, src, d) {
+    if (src.tapped || !d.target || d.target.kind !== 'player' || d.target.id !== src.controller || !isArtSrc(g, d.src)) return d.n;
+    g.damage(d.src, pr(src), d.n, { combat: d.combat, noSba: true });
+    return 0;
+  },
+};
+
+done("Abu Ja'far", 'Army of Allah', 'Camel', 'Jihad', 'King Suleiman', 'Piety', 'Argivian Archaeologist', 'Argivian Blacksmith', 'Artifact Ward',
+  'Circle of Protection: Artifacts', 'Martyrs of Korlis');
+
+STATIC['Damping Field'] = { untapLimit: () => ({ artifacts: 1 }) };
+done('Damping Field');

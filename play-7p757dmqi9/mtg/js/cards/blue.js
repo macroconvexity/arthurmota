@@ -174,7 +174,8 @@ export const IMPLEMENTED = [
   ...Object.keys(EFFECTS), ...Object.keys(ABILITIES), ...Object.keys(TRIGGERS),
 ];
 
-import { auraSpecOf } from '../cards.js?v=20261102222924';
+import { auraSpecOf } from '../cards.js?v=20261103062100';
+import { parseCost as parseManaCost } from '../engine.js?v=20261103062100';
 
 // ===================== Legends (mono-blue) =====================
 const permSpec = (test) => ({ kind: 'perm', test });
@@ -522,3 +523,112 @@ Object.assign(STATIC, {
   'Undertow': { ignoreLandwalk: (g, src, attacker, blocker, land) => land === 'Island' },
 });
 IMPLEMENTED.push('Anti-Magic Aura', 'Enchantment Alteration', 'Glyph of Delusion', 'Telekinesis', 'Mana Drain', 'Recall', 'Psychic Purge', 'Field of Dreams', 'Undertow');
+
+// ===================== Arabian Nights / Antiquities (blue) =====================
+Object.assign(EFFECTS, {
+  // {2} less on the enchanted artifact's activated abilities, never below one mana (see STATIC)
+  'Power Artifact': { targets: ['artifact'], aura: true, ai: 'utility', text: "Enchanted artifact's activated abilities cost {2} less to activate. This effect can't reduce the mana in that cost to less than one mana.", resolve: () => {} },
+  'Fishliver Oil': { targets: ['creature'], aura: true, ai: 'utility', text: 'Enchanted creature has islandwalk.', resolve: () => {} },
+  "Drafna's Restoration": {
+    targets: [], ai: 'utility', text: "Put any number of target artifact cards from target player's graveyard on top of their library in any order.",
+    multi: { spec: { kind: 'card', test: (g, c, ctx) => c.def.types.includes('Artifact') && (!ctx.targets?.length || g.findCard(ctx.targets[0].id)?.owner === c.owner) }, min: 0, max: Infinity },
+    resolve: (g, it) => {
+      let cards = it.targets.map((t) => g.findCard(t.id)).filter(Boolean);
+      if (!cards.length) return;
+      const owner = cards[0].owner, pl = g.players[owner];
+      cards = cards.filter((c) => c.owner === owner && pl.gy.includes(c));
+      const order = [];
+      const step = () => {
+        if (cards.length <= 1) { order.push(...cards); return finish(); }
+        g.pickCards(it.controller, cards, { prompt: `Choose the next card to put on top of ${pl.name}'s library (top first)`, min: 1, max: 1, source: it.card.id }, ([c]) => { order.push(c); cards = cards.filter((x) => x !== c); step(); });
+      };
+      const finish = () => {
+        for (const c of order) pl.gy = pl.gy.filter((x) => x !== c);
+        for (let i = order.length - 1; i >= 0; i--) pl.library.push(order[i]);
+        g.say(`${order.length} artifact card${order.length === 1 ? '' : 's'} go on top of ${pl.name}'s library.`);
+      };
+      step();
+    },
+  },
+  'Transmute Artifact': {
+    targets: [], ai: 'utility', text: "Sacrifice an artifact. If you do, search your library for an artifact card. If its mana value is less than or equal to the sacrificed artifact's, put it onto the battlefield; if greater, you may pay {X}, the difference, to put it onto the battlefield, otherwise put it into its owner's graveyard. Then shuffle.",
+    resolve: (g, it) => {
+      const pid = it.controller, pl = g.players[pid];
+      const arts = pl.bf.filter((p) => g.hasType(p, 'Artifact')); if (!arts.length) return;
+      const mvOfCard = (d) => d.manaValue || 0;
+      g.pickPerms(pid, arts, { prompt: 'Sacrifice an artifact', min: 1, auto: [[...arts].sort((a, b) => mvOfCard(a.card.def) - mvOfCard(b.card.def))[0].id], source: it.card.id }, ([a]) => {
+        if (!a) return;
+        const mv = mvOfCard(a.card.def); g.sacrifice(a);
+        const matches = pl.library.filter((c) => c.def.types.includes('Artifact'));
+        if (!matches.length) return g.shuffleLibrary(pid);
+        g.pickCards(pid, matches, { prompt: 'Search your library for an artifact card', min: 1, max: 1, score: (c) => mvOfCard(c.def), source: it.card.id }, ([c]) => {
+          const place = (toBf) => { pl.library = pl.library.filter((x) => x !== c); if (toBf) g.putOntoBattlefield(c, pid, { from: null }); else pl.gy.push(c); g.shuffleLibrary(pid); };
+          const cm = mvOfCard(c.def);
+          if (cm <= mv) return place(true);
+          g.mayPay(pid, `{${cm - mv}}`, { prompt: `Pay {${cm - mv}} to put ${c.def.name} onto the battlefield?`, source: it.card.id }, (paid) => place(paid));
+        });
+      });
+    },
+  },
+});
+
+Object.assign(ABILITIES, {
+  'Old Man of the Sea': [{
+    cost: { tap: true }, ai: 'utility', text: "{T}: Gain control of target creature with power less than or equal to this creature's power for as long as this creature remains tapped and that creature's power remains less than or equal to this creature's power.",
+    targets: [permSpec((g, c, ctx) => g.isCreature(c) && (!ctx.source || g.power(c) <= g.power(ctx.source)))],
+    resolve: (g, it) => { const t = g.perm(it.targets[0]); if (!t || !g.perm(it.source) || g.power(t) > g.power(it.source)) return; it.source.stolenId = t.id; },
+  }],
+  'Sage of Lat-Nam': [{ cost: { tap: true, sacOther: 'Artifact' }, ai: 'draw', text: '{T}, Sacrifice an artifact: Draw a card.', resolve: (g, it) => g.draw(it.controller, 1) }],
+  'Sindbad': [{
+    cost: { tap: true }, ai: 'draw', text: "{T}: Draw a card and reveal it. If it isn't a land card, discard it.",
+    resolve: (g, it) => {
+      const pid = it.controller, pl = g.players[pid], before = pl.hand.length;
+      g.draw(pid, 1); if (pl.hand.length <= before) return;
+      const c = pl.hand[pl.hand.length - 1];
+      g.say(`${pl.name} reveals ${c.def.name}.`);
+      if (!c.def.types.includes('Land')) { pl.hand = pl.hand.filter((x) => x !== c); pl.gy.push(c); g.say(`${pl.name} discards ${c.def.name}.`); g.afterDiscard(pid, c); }
+    },
+  }],
+});
+
+Object.assign(TRIGGERS, {
+  'Dandân': islandAttack,
+  'Merchant Ship': { ...islandAttack, onUnblocked: (g, perm) => g.gainLife(perm.controller, 2) },
+  'Old Man of the Sea': { optionalUntap: true, onUntap: (g, perm) => { perm.stolenId = null; } },
+  'Serendib Djinn': {
+    onUpkeep: (g, perm, pid) => {
+      if (pid !== perm.controller) return;
+      const lands = g.players[pid].bf.filter((p) => g.isLand(p)); if (!lands.length) return;
+      const pref = lands.find((p) => !g.hasSubtype(p, 'Island') && p.tapped) || lands.find((p) => !g.hasSubtype(p, 'Island')) || lands[0];
+      g.pickPerms(pid, lands, { prompt: 'Serendib Djinn: sacrifice a land', min: 1, auto: [pref.id], source: perm.card.id, score: (p) => (g.hasSubtype(p, 'Island') ? -5 : 0) }, ([l]) => {
+        if (!l) return;
+        const isl = g.hasSubtype(l, 'Island'); g.sacrifice(l);
+        if (isl) g.damage(perm, pl(pid), 3);
+      });
+    },
+    onState: (g, perm) => { if (!g.players[perm.controller].bf.some((p) => g.isLand(p))) { g.say('Serendib Djinn: no lands.'); g.sacrifice(perm); } },
+  },
+});
+
+Object.assign(STATIC, {
+  'Power Artifact': {
+    abilityCostIncrease: (g, src, perm, ab) => {
+      if (perm.id !== src.attachedTo || !ab.cost?.mana) return 0;
+      const c = parseManaCost(ab.cost.mana);
+      const n = Math.max(0, Math.min(2, c.generic, c.total - 1));
+      return n ? -n : 0;
+    },
+  },
+  'Fishliver Oil': { affects: (g, src, t) => t.id === src.attachedTo, kw: 'islandwalk' },
+  'Giant Tortoise': { affects: (g, src, t) => t === src && !src.tapped, toughness: 3 },
+  'Old Man of the Sea': {
+    affects: (g, src, t) => {
+      if (src.stolenId == null || t.id !== src.stolenId) return false;
+      if (src.tapped && g.isCreature(t) && g.power(t) <= g.power(src)) return true;
+      src.stolenId = null; return false; // the duration has ended for good
+    },
+    control: (g, src) => src.controller,
+  },
+});
+
+IMPLEMENTED.push('Dandân', "Drafna's Restoration", 'Fishliver Oil', 'Flying Men', 'Giant Tortoise', 'Merchant Ship', 'Old Man of the Sea', 'Power Artifact', 'Sage of Lat-Nam', 'Serendib Djinn', 'Sindbad', 'Transmute Artifact');

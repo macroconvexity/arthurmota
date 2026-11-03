@@ -354,3 +354,81 @@ add('Nova Pentacle', [{
     });
   },
 }]);
+
+// ================= Arabian Nights / Antiquities colourless (artifacts_a) =================
+const fromSet = (def, set) => def.set === set;
+add('Amulet of Kroog', [{ cost: { mana: '{2}', tap: true }, targets: ['any'], ai: 'heal', text: 'Prevent the next 1 damage that would be dealt to any target this turn.', resolve: (g, it) => g.preventDamage(it.targets[0], 1, { until: 'eot' }) }]);
+add("Ashnod's Transmogrant", [{
+  cost: { tap: true, sac: true }, ai: 'pump', text: 'Put a +1/+1 counter on target nonartifact creature. It becomes an artifact in addition to its other types.',
+  targets: [{ kind: 'perm', test: (g, c) => g.isCreature(c) && !g.hasType(c, 'Artifact') }],
+  resolve: (g, it) => { const p = g.perm(it.targets[0]); if (!p) return; g.addCounters(p, '+1/+1', 1); g.addMod(p, { addTypes: ['Artifact'], until: 'forever' }); },
+}]);
+trig('Battering Ram', {
+  onBeginCombat: (g, perm, pid) => { if (pid === perm.controller) g.addMod(perm, { kw: 'banding', until: 'endCombat' }); },
+  onBlocked: (g, perm, blockers) => { for (const b of blockers || []) if (g.hasSubtype(b, 'Wall')) g.delay('endCombat', () => { if (g.perm(b.id)) g.destroy(g.perm(b.id)); }); },
+});
+add('Bronze Tablet', [{
+  cost: { mana: '{4}', tap: true }, ai: 'utility', text: 'Exile this artifact and target nontoken permanent an opponent owns. That player may pay 10 life.',
+  targets: [{ kind: 'perm', test: (g, c, ctx) => c.card.owner !== ctx.pid && !c.card.token }],
+  resolve: (g, it) => {
+    const tab = it.source; const t = g.perm(it.targets[0]); if (!t || !g.perm(tab.id)) return;
+    const mine = it.controller, tc = tab.card, oc = t.card, foe = oc.owner;
+    g.exile(tab); g.exile(t);
+    const take = (card, to) => { for (const p of g.players) p.ex = p.ex.filter((x) => x !== card); card.owner = to; g.players[to].ex.push(card); };
+    g.ask(foe, { type: 'yesno', prompt: 'Bronze Tablet: pay 10 life to put it into the graveyard?', source: tc.id, auto: (g2) => g2.players[foe].life >= 16 }, (yes) => {
+      if (yes && g.players[foe].life > 10) { g.loseLife(foe, 10); for (const p of g.players) p.ex = p.ex.filter((x) => x !== tc); g.players[tc.owner].gy.push(tc); }
+      else { take(tc, foe); take(oc, mine); }
+    });
+  },
+}]);
+trig('Bronze Tablet', { onEnter: (g, perm) => { perm.tapped = true; } });
+add('Candelabra of Tawnos', [{
+  cost: { mana: '{X}', tap: true }, targets: [], multi: { spec: 'land', min: 'x', max: 'x' }, ai: 'ramp', text: 'Untap X target lands.',
+  resolve: (g, it) => { const seen = new Set(); for (const t of it.targets) { const p = g.perm(t); if (p && !seen.has(p.id) && seen.size < (it.x ?? it.targets.length)) { seen.add(p.id); g.untapPerm(p); } } },
+}]);
+add('Clay Statue', [{ cost: { mana: '{2}' }, ai: 'utility', text: 'Regenerate this creature.', resolve: (g, it) => g.regenerate(it.source) }]);
+// Clockwork Avian: same counter engine as Clockwork Beast, cap four
+TRIGGERS['Clockwork Avian'] = {
+  onEnter: (g, perm) => g.addCounters(perm, BEAST, 4),
+  onAttack: (g, perm) => { perm.fought = true; }, onBlock: (g, perm) => { perm.fought = true; },
+  onEndCombat: (g, perm) => { if (perm.fought) { perm.fought = false; if ((perm.counters?.[BEAST] || 0) > 0) perm.counters[BEAST]--; } },
+};
+ABILITIES['Clockwork Avian'] = [{
+  cost: { x: true, tap: true }, timing: 'upkeep', ai: 'utility', text: 'Put up to X +1/+0 counters on this creature (max four in total).',
+  resolve: (g, it) => { const have = it.source.counters?.[BEAST] || 0; const n = Math.min(it.x || 0, 4 - have); if (n > 0) g.addCounters(it.source, BEAST, n); },
+}];
+done('Clockwork Avian');
+stat('Colossus of Sardia', { noUntap: (g, src, p) => p === src });
+ABILITIES['Colossus of Sardia'] = [{ cost: { mana: '{9}' }, timing: 'upkeep', ai: 'utility', text: 'Untap this creature.', resolve: (g, it) => g.untapPerm(it.source) }];
+add("Feldon's Cane", [{
+  cost: { tap: true, sac: true }, ai: 'utility', text: 'Exile this artifact: shuffle your graveyard into your library.',
+  resolve: (g, it) => {
+    const p = g.players[it.controller]; const i = p.gy.indexOf(it.card); if (i >= 0) { p.gy.splice(i, 1); p.ex.push(it.card); }
+    p.library.push(...p.gy); p.gy = []; g.shuffleLibrary(it.controller);
+  },
+}]);
+add('Golgothian Sylex', [{
+  cost: { mana: '{1}', tap: true }, ai: 'sweeper', text: 'Each nontoken permanent with a name originally printed in Antiquities is sacrificed by its controller.',
+  resolve: (g) => { for (const p of g.players.flatMap((x) => [...x.bf])) if (!p.card.token && fromSet(p.card.def, 'ATQ')) g.sacrifice(p); },
+}]);
+add('Grapeshot Catapult', [{ cost: { tap: true }, targets: ['flyingCreature'], ai: 'removal', text: '1 damage to target creature with flying.', resolve: (g, it) => g.damage(it, it.targets[0], 1) }]);
+add('Jalum Tome', [{ cost: { mana: '{2}', tap: true }, ai: 'draw', text: 'Draw a card, then discard a card.', resolve: (g, it) => { g.draw(it.controller); g.discardChoice(it.controller, 1); } }]);
+stat('Mightstone', { affects: (g, s, t) => !!t.attacking, power: 1 });
+
+// ---- ARN/ATQ second pass (engine section 16) ----
+add("Ashnod's Altar", [{ cost: { sacOther: 'creature' }, mana: { colors: ['C'], amount: 2 } }]);
+add("Ashnod's Battle Gear", [{
+  cost: { mana: '{2}', tap: true }, ai: 'pump', text: 'Target creature you control gets +2/-2 for as long as this artifact remains tapped.',
+  targets: [{ kind: 'perm', test: (g, c, ctx) => g.isCreature(c) && c.controller === ctx.pid }],
+  resolve: (g, it) => { it.source.gearTarget = it.targets[0].id; },
+}]);
+stat("Ashnod's Battle Gear", { affects: (g, s, t) => s.tapped && s.gearTarget === t.id && t.controller === s.controller, power: 2, toughness: -2 });
+trig("Ashnod's Battle Gear", { mayNotUntap: true });
+const isArn = (def) => def.set === 'ARN';
+stat('City in a Bottle', { cantCast: (g, s, card) => isArn(card.def), cantPlayLand: (g, s, card) => isArn(card.def) });
+trig('City in a Bottle', { onState: (g, perm) => { for (const p of g.players.flatMap((x) => [...x.bf])) if (p !== perm && !p.card.token && isArn(p.card.def) && g.perm(p.id)) g.sacrifice(p); } });
+add('Coral Helm', [{
+  cost: { mana: '{3}', discardRandom: 1 }, targets: ['creature'], ai: 'pump', text: 'Target creature gets +2/+2 until end of turn.',
+  resolve: (g, it) => { const p = g.perm(it.targets[0]); if (p) g.addMod(p, { p: 2, t: 2 }); },
+}]);
+stat('Cursed Rack', { maxHandSize: (g, s, pid) => (pid !== s.controller ? 4 : null) });

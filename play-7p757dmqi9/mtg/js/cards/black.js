@@ -291,3 +291,79 @@ IMPLEMENTED.push("All Hallow's Eve", 'Chains of Mephistopheles', 'Glyph of Doom'
   'Ghosts of the Damned', 'Giant Slug', 'Greed', 'Headless Horseman', 'Hell Swarm', "Hell's Caretaker", 'Hellfire', 'Horror of Horrors', 'Infernal Medusa', 
   'Lesser Werewolf', 'Lost Soul', 'Mold Demon', 'Nether Void', 'Pit Scorpion', 'Shimian Night Stalker', 'Spirit Shackle', 'Syphon Soul', 'Takklemaggot', 'The Abyss',
   'The Wretched', 'Touch of Darkness', 'Underworld Dreams', 'Vampire Bats', 'Walking Dead', 'Wall of Putrid Flesh', 'Wall of Shadows', 'Wall of Tombstones');
+
+// ================= Arabian Nights / Antiquities (black) =================
+const artifactCtl = (g, host) => host && host.controller;
+Object.assign(ABILITIES, {
+  'Cuombajj Witches': [{ cost: { tap: true }, targets: ['any'], ai: 'burn', text: '{T}: 1 damage to any target and 1 damage to any target of an opponent\'s choice.',
+    resolve: (g, it) => {
+      const me = it.controller, opp = g.opp(me), t1 = it.targets[0];
+      const opts = [{ value: 'p0', label: g.players[0].name, ref: pRef(0), score: me === 0 ? 1 : -10 }, { value: 'p1', label: g.players[1].name, ref: pRef(1), score: me === 1 ? 1 : -10 }];
+      for (const p of g.allPerms()) if (g.isCreature(p)) opts.push({ value: 'c' + p.id, label: p.card.def.name, card: p.card.def, ref: permRef(p), score: p.controller === me ? (g.toughness(p) - p.damage <= 1 ? 5 : 0) : -10 });
+      const hit = (ref) => g.damage(it, ref, 1);
+      g.damage(it, t1, 1);
+      g.ask(opp, { type: 'pick', prompt: 'Cuombajj Witches: choose a target for 1 damage', source: it.source.card.def, min: 1, max: 1, options: opts }, ([v]) => {
+        const o = opts.find((x) => x.value === v); if (o) hit(o.ref);
+      });
+    } }],
+  'Gate to Phyrexia': [{ cost: { sacOther: 'creature' }, targets: ['artifact'], timing: 'upkeep', limit: 1, ai: 'removal', text: 'Sacrifice a creature: Destroy target artifact. Activate only during your upkeep and only once each turn.',
+    resolve: (g, it) => g.destroy(g.perm(it.targets[0])) }],
+  'Xenic Poltergeist': [{ cost: { tap: true }, ai: 'utility', text: '{T}: Until your next upkeep, target noncreature artifact becomes an artifact creature with power and toughness each equal to its mana value.',
+    targets: [{ kind: 'perm', test: (g, p) => g.hasType(p, 'Artifact') && !g.isCreature(p) }],
+    resolve: (g, it) => { const t = g.perm(it.targets[0]); if (!t) return; const mv = t.card.def.manaValue || 0; g.addMod(t, { setPT: [mv, mv], addTypes: ['Creature'], until: 'myNextTurn', owner: it.controller }); } }],
+});
+
+const dmgArtifactOwner = (g, aura, art, n) => { const c = artifactCtl(g, art); if (c != null) g.damage(aura, pRef(c), n); };
+Object.assign(TRIGGERS, {
+  'Artifact Possession': {
+    onAnyTap: (g, aura, tapped) => { if (aura.attachedTo != null && tapped.id === aura.attachedTo) dmgArtifactOwner(g, aura, tapped, 2); },
+    onAbilityActivated: (g, aura, item) => { if (aura.attachedTo != null && item.source && item.source.id === aura.attachedTo && !item.tapCost) dmgArtifactOwner(g, aura, item.source, 2); },
+  },
+  'Haunting Wind': {
+    onAnyTap: (g, perm, tapped) => { if (g.hasType(tapped, 'Artifact')) dmgArtifactOwner(g, perm, tapped, 1); },
+    onAbilityActivated: (g, perm, item) => { if (item.source && g.hasType(item.source, 'Artifact') && !item.tapCost) dmgArtifactOwner(g, perm, item.source, 1); },
+  },
+  'Hasran Ogress': { onAttack: (g, perm) => g.mayPay(perm.controller, '{2}', { prompt: 'Hasran Ogress: pay {2} or it deals 3 damage to you', source: perm.card.def }, (paid) => { if (!paid) g.damage(perm, pRef(perm.controller), 3); }) },
+  'Junún Efreet': { onUpkeep: (g, perm, pid) => { if (pid === perm.controller) g.mayPay(pid, '{B}{B}', { prompt: 'Junún Efreet: pay {B}{B} or sacrifice it', source: perm.card.def }, (paid) => { if (!paid) g.sacrifice(perm); }); } },
+  'Juzám Djinn': { onUpkeep: (g, perm, pid) => { if (pid === perm.controller) g.damage(perm, pRef(pid), 1); } },
+  'Khabál Ghoul': { onEndTurn: (g, perm) => { if (g.diedThisTurn > 0) g.addCounters(perm, '+1/+1', g.diedThisTurn); } },
+  'Yawgmoth Demon': { onUpkeep: (g, perm, pid) => {
+    if (pid !== perm.controller) return;
+    const arts = g.players[pid].bf.filter((p) => g.hasType(p, 'Artifact'));
+    const punish = () => { g.tap(perm); g.damage(perm, pRef(pid), 2); };
+    if (!arts.length) return punish();
+    g.ask(pid, { type: 'yesno', prompt: 'Yawgmoth Demon: sacrifice an artifact (otherwise it taps and deals 2 damage to you)?', source: perm.card.def, auto: true }, (yes) => {
+      if (!yes) return punish();
+      g.pickPerms(pid, arts, { prompt: 'Sacrifice an artifact', score: (p) => -(p.card.def.manaValue || 0) }, ([a]) => { if (a) g.sacrifice(a); else punish(); });
+    });
+  } },
+});
+
+IMPLEMENTED.push('Artifact Possession', 'Cuombajj Witches', 'Gate to Phyrexia', 'Hasran Ogress', 'Haunting Wind', 'Junún Efreet', 'Juzám Djinn', 'Khabál Ghoul', 'Stone-Throwing Devils', 'Xenic Poltergeist', 'Yawgmoth Demon');
+
+// ---- ARN/ATQ second round (engine section 16) ----
+const nonCreatureArtifact = (g, p) => g.hasType(p, 'Artifact') && !g.isCreature(p);
+Object.assign(ABILITIES, {
+  'Priest of Yawgmoth': [{ cost: { tap: true, sacOther: 'Artifact' }, mana: { colors: ['B'], amount: (g, paid) => (paid?.sacrificed?.[0]?.card.def.manaValue || 0) }, text: '{T}, Sacrifice an artifact: Add {B} equal to the sacrificed artifact\'s mana value.' }],
+  'Phyrexian Gremlins': [{ cost: { tap: true }, targets: ['artifact'], ai: 'utility', text: '{T}: Tap target artifact. It doesn\'t untap during its controller\'s untap step for as long as this creature remains tapped.',
+    resolve: (g, it) => { const t = g.perm(it.targets[0]); if (!t) return; g.tap(t); (t.gremlinLocks ||= []).push(it.source.id); } }],
+});
+Object.assign(TRIGGERS, {
+  'Phyrexian Gremlins': { optionalUntap: true, onUntap: (g, perm) => { for (const p of g.allPerms()) if (p.gremlinLocks) p.gremlinLocks = p.gremlinLocks.filter((id) => id !== perm.id); } },
+  'Oubliette': { onEnter: (g, perm) => {
+    const pid = perm.controller;
+    const cands = g.allPerms().filter((p) => p !== perm && g.isCreature(p) && !g.kw(p).has('shroud') && !g.kw(p).has('pro:B'));
+    if (!cands.length) return;
+    g.pickPerms(pid, cands, { prompt: 'Oubliette: choose a creature to phase out', source: perm.card.def, score: (p) => (p.controller === pid ? -1 : 1) * (g.power(p) + g.toughness(p)) },
+      ([t]) => { if (t && g.perm(perm)) g.phaseOut(t, { until: perm, tap: true }); });
+  } },
+});
+Object.assign(STATIC, {
+  'Guardian Beast': [
+    { cantBeEnchanted: (g, src, host) => !src.tapped && host.controller === src.controller && nonCreatureArtifact(g, host) },
+    { affects: (g, src, t) => !src.tapped && t.controller === src.controller && nonCreatureArtifact(g, t), kw: 'indestructible' },
+    { cantGainControl: (g, src, perm, who) => !src.tapped && perm.controller === src.controller && who !== src.controller && nonCreatureArtifact(g, perm) },
+  ],
+  'Phyrexian Gremlins': { noUntap: (g, src, perm) => src.tapped && (perm.gremlinLocks || []).includes(src.id) },
+});
+IMPLEMENTED.push('Priest of Yawgmoth', 'Guardian Beast', 'Oubliette', 'Phyrexian Gremlins');

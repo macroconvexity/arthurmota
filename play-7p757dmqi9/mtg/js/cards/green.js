@@ -384,3 +384,118 @@ Object.assign(STATIC, {
 });
 
 IMPLEMENTED.push('Cocoon', 'Radjan Spirit', 'Shelkin Brownie', 'Master of the Hunt', 'Floral Spuzzem', 'Ichneumon Druid', 'Arboria', 'Rust', 'Reincarnation', 'Glyph of Reincarnation', 'Revelation', 'Sylvan Library');
+
+// ======================= Arabian Nights / Antiquities (green) =======================
+const artifactSrc = (g, s) => !!s?.card && s.card.def.types.includes('Artifact');
+const opp = (perm) => 1 - perm.controller;
+
+Object.assign(EFFECTS, {
+  'Metamorphosis': {
+    targets: [], cost: { sacOther: 'creature' }, ai: 'ramp',
+    text: "Additional cost: sacrifice a creature. Add X mana of any one color, X = 1 + the sacrificed creature's mana value. Spend this mana only to cast creature spells.",
+    resolve: (g, it) => {
+      const s = it.paid?.sacrificed?.[0]; const x = 1 + (s ? s.card.def.manaValue || 0 : 0);
+      const hand = g.players[it.controller].hand;
+      const options = ['W', 'U', 'B', 'R', 'G'].map((c) => ({ value: c, label: c, score: hand.filter((h) => h.def.types.includes('Creature') && (h.def.colors || []).includes(c)).length }));
+      g.ask(it.controller, { type: 'pick', prompt: `Choose a color for ${x} mana (creature spells only)`, options, min: 1, max: 1, source: it.card.id }, ([c]) => g.addMana(it.controller, c, x, 'Creature'));
+    },
+  },
+  'Sandstorm': {
+    targets: [], ai: 'sweeper', text: 'Sandstorm deals 1 damage to each attacking creature.',
+    resolve: (g, it) => { for (const p of allPerms(g)) if (g.combat.attackers.includes(p.id) && g.isCreature(p)) g.damage(it, ref(p), 1); },
+  },
+});
+
+Object.assign(ABILITIES, {
+  'Ifh-Bíff Efreet': [{
+    cost: { mana: '{G}' }, anyPlayer: true, ai: 'sweeper', text: '{G}: 1 damage to each creature with flying and each player. Any player may activate this ability.',
+    resolve: (g, it) => {
+      for (const p of allPerms(g)) if (g.isCreature(p) && g.kw(p).has('flying')) g.damage(it, ref(p), 1);
+      for (const pl of g.players) g.damage(it, pref(pl.id), 1);
+    },
+  }],
+  'Wyluli Wolf': [{ cost: { tap: true }, targets: ['creature'], ai: 'pump', text: '{T}: Target creature gets +1/+1 until end of turn.', resolve: (g, it) => g.addMod(g.perm(it.targets[0]), { p: 1, t: 1 }) }],
+  'Singing Tree': [{
+    cost: { tap: true }, targets: ['attackingCreature'], ai: 'utility', text: '{T}: Target attacking creature has base power 0 until end of turn.',
+    resolve: (g, it) => {
+      const p = g.perm(it.targets[0]); if (!p) return;
+      let bt = +p.card.def.toughness || 0;
+      for (const { src, e } of g.statics()) if (e.setPT && g.applies(e, src, p)) bt = e.setPT(g, src, p)[1];
+      for (const m of p.mods) if (m.setPT) bt = m.setPT[1];
+      g.addMod(p, { setPT: [0, bt] });
+    },
+  }],
+});
+
+Object.assign(TRIGGERS, {
+  'Citanul Druid': {
+    onSpellCast: (g, perm, item) => { if (item.controller !== perm.controller && item.card.def.types.includes('Artifact')) g.addCounters(perm, '+1/+1', 1); },
+  },
+  'Cyclone': {
+    onUpkeep: (g, perm, pid) => {
+      if (pid !== perm.controller) return;
+      g.addCounters(perm, 'wind', 1);
+      const n = perm.counters.wind;
+      g.mayPay(pid, '{G}'.repeat(n), { prompt: `Pay ${'{G}'.repeat(n)} to keep Cyclone?`, source: perm.card.id }, (paid) => {
+        if (!paid) return g.sacrifice(perm);
+        for (const p of allPerms(g)) if (g.isCreature(p)) g.damage(perm, ref(p), n);
+        for (const pl of g.players) g.damage(perm, pref(pl.id), n);
+      });
+    },
+  },
+  'Drop of Honey': {
+    onUpkeep: (g, perm, pid) => {
+      if (pid !== perm.controller) return;
+      const cs = allPerms(g).filter((p) => g.isCreature(p));
+      if (!cs.length) return;
+      const least = Math.min(...cs.map((p) => g.power(p)));
+      const tied = cs.filter((p) => g.power(p) === least);
+      const kill = (p) => { if (p) g.destroy(p, { noRegen: true }); };
+      if (tied.length === 1) return kill(tied[0]);
+      g.pickPerms(pid, tied, { prompt: 'Destroy which creature with the least power?', min: 1, source: perm.card.id, score: (p) => -(p.card.def.manaValue || 0) }, ([p]) => kill(p));
+    },
+    onState: (g, perm) => { if (!allPerms(g).some((p) => g.isCreature(p))) g.sacrifice(perm); },
+  },
+  'Erhnam Djinn': {
+    onUpkeep: (g, perm, pid) => {
+      if (pid !== perm.controller) return;
+      const spec = { kind: 'perm', test: (gg, p) => gg.isCreature(p) && p.controller !== pid && !gg.hasSubtype(p, 'Wall') };
+      const cands = g.validTargets(spec, pid, perm.id).map((r) => g.perm(r)).filter(Boolean);
+      if (!cands.length) return;
+      g.pickPerms(pid, cands, { prompt: 'Erhnam Djinn: target creature gains forestwalk', min: 1, source: perm.card.id, score: (p) => g.power(p) }, ([t]) => { if (t) g.addMod(t, { kw: 'forestwalk', until: 'myNextTurn', owner: pid }); });
+    },
+  },
+  'Ghazbán Ogre': {
+    onUpkeep: (g, perm, pid) => {
+      if (pid !== perm.controller) return;
+      const [a, b] = g.players;
+      if (a.life === b.life) return;
+      const top = a.life > b.life ? 0 : 1;
+      if (top !== perm.controller) g.setController(perm, top, { permanent: true });
+    },
+  },
+  'Nafs Asp': {
+    onDamagePlayer: (g, perm, target) => {
+      const pid = target.id;
+      g.delay('upkeep', (gg) => gg.mayPay(pid, '{1}', { prompt: 'Pay {1} so Nafs Asp does not make you lose 1 life?', auto: false }, (paid) => { if (!paid) gg.loseLife(pid, 1); }), { pid });
+    },
+  },
+  'Powerleech': {
+    onAnyTap: (g, perm, tapped) => { if (tapped.controller !== perm.controller && g.hasType(tapped, 'Artifact')) g.gainLife(perm.controller, 1); },
+    onAbilityActivated: (g, perm, item) => {
+      const src = item.source;
+      if (item.controller !== perm.controller && src && g.hasType(src, 'Artifact') && !item.tapCost) g.gainLife(perm.controller, 1);
+    },
+  },
+});
+
+Object.assign(STATIC, {
+  'Argothian Pixies': [
+    { cantBlock: (g, src, blocker, attacker) => attacker === src && g.hasType(blocker, 'Artifact') },
+    { preventDamage: (g, src, d) => (d.target.kind === 'perm' && d.target.id === src.id && d.src?.card && d.src.card.def.types.includes('Artifact') && d.src.card.def.types.includes('Creature') ? 0 : d.n) },
+  ],
+  'Argothian Treefolk': { preventDamage: (g, src, d) => (d.target.kind === 'perm' && d.target.id === src.id && artifactSrc(g, d.src) ? 0 : d.n) },
+  "Gaea's Avenger": { affects: (g, s, t) => t === s, setPT: (g, s) => { const n = 1 + g.players[1 - s.controller].bf.filter((p) => g.hasType(p, 'Artifact')).length; return [n, n]; } },
+});
+
+IMPLEMENTED.push('Metamorphosis', 'Sandstorm', 'Ifh-Bíff Efreet', 'Wyluli Wolf', 'Singing Tree', 'Citanul Druid', 'Cyclone', 'Drop of Honey', 'Erhnam Djinn', 'Ghazbán Ogre', 'Nafs Asp', 'Powerleech', 'Argothian Pixies', 'Argothian Treefolk', "Gaea's Avenger");

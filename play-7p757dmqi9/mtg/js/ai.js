@@ -1,8 +1,8 @@
 // Computer opponent. Generic: card use is driven by the `ai` hint of EFFECTS / ABILITIES entries
 // (see docs/CARD_MODULE_CONTRACT.md); when a hint is missing it is inferred from the Oracle text.
 // Contract: every aiAct(g, pid) call changes the game state or returns false (never loops silently).
-import { EFFECTS, abilitiesOf } from './cards.js?v=20261102222924';
-import { parseCost } from './engine.js?v=20261102222924';
+import { EFFECTS, abilitiesOf } from './cards.js?v=20261103062100';
+import { parseCost } from './engine.js?v=20261103062100';
 
 export const LEVELS = ['easy', 'normal', 'hard'];
 let CUR = { level: 'normal', g: null };
@@ -96,6 +96,7 @@ function availMana(g, pid) {
 function annotate(g, pid, r) {
   if (r.kind === 'player') return { ref: r, mine: r.id === pid, player: true };
   if (r.kind === 'perm') { const p = g.perm(r); if (!p) return null; return { ref: r, perm: p, mine: p.controller === pid, creature: g.isCreature(p), land: g.isLand(p) }; }
+  if (r.kind === 'card') { const c = g.findCard ? g.findCard(r.id) : null; if (!c) return null; return { ref: r, gcard: c, mine: c.owner === pid }; }
   const s = g.stack.find((x) => x.id === r.id); if (!s) return null;
   return { ref: r, item: s, mine: s.controller === pid };
 }
@@ -131,7 +132,8 @@ function bestTarget(g, pid, spec, hint, ctx, exclude) {
         else if (o.player && !o.mine) consider(o, 2);
         break;
       default: // beneficial utility
-        if (o.perm && o.mine) consider(o, permWorth(g, o));
+        if (o.gcard && o.mine) consider(o, comboWeight(g, pid, o.gcard.def.name) ?? cardValue(g, pid, o.gcard.def) * 0.5);
+        else if (o.perm && o.mine) consider(o, permWorth(g, o));
         else if (o.player && o.mine) consider(o, 2);
     }
   }
@@ -182,6 +184,7 @@ function evalHintUse(g, pid, hint, entry, def, ctx, mode, specs, isPermanentSpel
     }
     case 'draw': {
       if (mode === 'oppCombat' || mode === 'combat' || me.library.length < 4) return null;
+      if (has(ctx.text, /discards? (their|his or her|your) hand|each player shuffles/i) && has(ctx.text, /draws? seven/i) && me.hand.length - 1 > 2) return null;   // Wheel / Timetwister: empty the hand first
       const t = pickTargets(g, pid, specs, 'draw', ctx); if (!t) return null;
       return { score: 85 - me.hand.length * 6 + (mode === 'end' ? 20 : 0), targets: t.refs };
     }
@@ -202,7 +205,7 @@ function evalHintUse(g, pid, hint, entry, def, ctx, mode, specs, isPermanentSpel
     case 'discard': {
       if (!main || !foe.hand.length) return null;
       const t = pickTargets(g, pid, specs, 'discard', ctx); if (!t) return null;
-      return { score: 45, targets: t.refs };
+      return { score: foe.hand.length >= 3 ? 170 : 45, targets: t.refs };
     }
     case 'landhate': {
       if (!main) return null;
@@ -214,10 +217,23 @@ function evalHintUse(g, pid, hint, entry, def, ctx, mode, specs, isPermanentSpel
     }
     case 'sweeper': {
       if (!main) return null;
+      if (ctx.card?.def.name === 'Balance') {
+        const lands = (pl) => g.players[pl].bf.filter((p) => g.isLand(p)).length;
+        const hand = (pl) => g.players[pl].hand.length - (pl === pid ? 1 : 0);
+        const cr = (pl) => creaturesOf(g, pl);
+        const cut = (a, b) => Math.max(0, a - b);
+        const crVal = (pl, keep) => [...cr(pl)].sort((x, y) => valuePerm(g, x) - valuePerm(g, y)).slice(0, Math.max(0, cr(pl).length - keep)).reduce((t, p) => t + valuePerm(g, p), 0);
+        const mc = Math.min(cr(0).length, cr(1).length);
+        const foeLoss = cut(lands(1 - pid), lands(pid)) * 3 + cut(hand(1 - pid), hand(pid)) * 2 + crVal(1 - pid, mc);
+        const myLoss = cut(lands(pid), lands(1 - pid)) * 3 + cut(hand(pid), hand(1 - pid)) * 2 + crVal(pid, mc);
+        return foeLoss - myLoss >= 5 ? { score: 175 + foeLoss - myLoss, targets: [] } : null;
+      }
       const t = ctx.text || '';
       const mine = boardValue(g, pid), theirs = boardValue(g, 1 - pid);
       const myLands = me.bf.filter((p) => g.isLand(p)).length, foeLands = foe.bf.filter((p) => g.isLand(p)).length;
       if (has(t, /all lands/i) && !has(t, /creature/i)) {
+        const rocks = (pl) => g.players[pl].bf.filter((p) => !g.isLand(p) && abilitiesOf(p.card.def).some((a) => a.mana)).length;     // Moxen, Lotus, Sol Ring survive Armageddon
+        if (rocks(pid) - rocks(1 - pid) >= 2 && foeLands >= 3) return { score: 150, targets: [] };
         if (mine >= theirs + 3 && creaturesOf(g, pid).length >= 2 && myLands >= foeLands - 1 && foe.life <= me.life + 5) return { score: 120, targets: [] };
         return null;
       }
@@ -236,7 +252,8 @@ function evalHintUse(g, pid, hint, entry, def, ctx, mode, specs, isPermanentSpel
     default: { // utility
       if (!main && mode !== 'end') return null;
       if (!specs.length) return ctx.skipUtility ? null : { score: has(ctx.text, /extra turn/i) ? 110 : 32, targets: [] };
-      const harmful = has((entry?.text || '') + ' ' + (def.text || ''), /destroy|damage|exile|tap target|return target|-\d\/-\d|can't|loses|sacrifice/i);
+      const utext = (entry?.text || '') + ' ' + (def.text || '');
+      const harmful = has(utext, /destroy|damage|exile|tap target|return target|-\d\/-\d|can't|loses|sacrifice/i) && !has(utext, /from your graveyard/i);
       const t = pickTargets(g, pid, specs, harmful ? 'harmful' : 'beneficial', ctx);
       if (!t || t.score < (harmful ? 3 : 2)) return null;
       return { score: harmful ? 60 + t.score : 40 + t.score, targets: t.refs };
@@ -244,11 +261,51 @@ function evalHintUse(g, pid, hint, entry, def, ctx, mode, specs, isPermanentSpel
   }
 }
 
+// ---------------------------------------------------------------- combos (unrestricted metagame)
+const onBf = (g, pid, name) => g.players[pid].bf.filter((p) => p.card.def.name === name);
+const inHand = (g, pid, name) => g.players[pid].hand.filter((c) => c.def.name === name);
+const inGy = (g, pid, name) => g.players[pid].gy.filter((c) => c.def.name === name);
+// Basalt Monolith enchanted by Power Artifact: the untap costs {1} instead of {3}
+function reactorOf(g, pid) {
+  return onBf(g, pid, 'Basalt Monolith').find((mo) => g.players[pid].bf.some((a) => a.card.def.name === 'Power Artifact' && a.attachedTo === mo.id)) || null;
+}
+// How much the AI wants a given card (library search, Regrowth, bottoming) given what its combos still miss. null = no opinion.
+function comboWeight(g, pid, name) {
+  const me = g.players[pid];
+  const have = (n) => inHand(g, pid, n).length + onBf(g, pid, n).length;
+  const reactor = reactorOf(g, pid);
+  const kill = have('Braingeyser') || have('Fireball');
+  const base = { 'Power Artifact': 60, 'Basalt Monolith': 60, Braingeyser: 55, Fireball: 58, Channel: 50, 'Mind Twist': 45, Balance: 40, 'Ancestral Recall': 52, 'Time Walk': 48, Timetwister: 44, 'Wheel of Fortune': 40, 'Black Lotus': 30, 'Demonic Tutor': 35 }[name];
+  if (base === undefined) return null;
+  let w = base - have(name) * 25;
+  if (name === 'Power Artifact') { if (!have('Basalt Monolith')) w -= 15; if (reactor) w = -50; }
+  if (name === 'Basalt Monolith') { if (onBf(g, pid, 'Basalt Monolith').length) w = -50; else if (!have('Power Artifact') && !kill) w -= 10; }
+  if (name === 'Braingeyser' || name === 'Fireball') { if (reactor || have('Basalt Monolith') || have('Channel')) w += 15; }
+  if (name === 'Channel') { if (!inHand(g, pid, 'Fireball').length) w -= 30; else w += 20; }
+  if (name === 'Fireball' && inHand(g, pid, 'Channel').length) w += 25;
+  return w;
+}
+
 // Legends-era rules the AI respects instead of casting blindly.
+// Channel is only cast when it unlocks a lethal Fireball, or a big creature this turn
+function channelWorth(g, pid) {
+  const me = g.players[pid], foe = g.players[1 - pid];
+  const avail = availMana(g, pid);
+  const ch = inHand(g, pid, 'Channel')[0]; if (!ch) return false;
+  const left = avail - cmc(ch);
+  for (const fb of inHand(g, pid, 'Fireball')) {
+    if (left - 1 + (me.life - 1) >= foe.life + 1 && left >= 1) return true;            // R pip from mana, X from life + mana
+  }
+  if (me.life <= 8) return false;
+  return me.hand.some((c) => c.def.types.includes('Creature') && cmc(c) > left && cmc(c) <= left + me.life - 7 && !g.canCast(pid, c));
+}
 function blockedByRules(g, pid, c) {
   const d = c.def, me = g.players[pid], foe = g.players[1 - pid];
   const sup = d.supertypes || [];
   if (sup.includes('Legendary') && me.bf.some((p) => p.card.def.name === d.name)) return true;          // legend rule: never cast a second copy
+  if (d.name === 'Power Artifact' && !onBf(g, pid, 'Basalt Monolith').length) return true;         // only useful on the Monolith
+  if (d.name === 'Channel' && !channelWorth(g, pid)) return true;
+  if (d.name === 'Nether Void' && inHand(g, pid, 'Mind Twist').some((c) => g.canCast(pid, c)) && foe.hand.length >= 2) return true; // Mind Twist first
   if (sup.includes('World') && g.players.some((pl) => pl.bf.some((p) => (p.card.def.supertypes || []).includes('World') && p.controller === pid))) return true;
   const text = d.text || '';
   const types = d.types || [];
@@ -285,6 +342,11 @@ function spellPlans(g, pid, mode) {
     const fixed = parseCost(d.manaCost).total;
     const xCard = isX(d) || eff?.x;
     const x = xCard ? (g.maxX ? g.maxX(pid, c) : Math.max(0, avail - fixed)) : 0;
+    if (d.name === 'Power Artifact') {     // always on the Basalt Monolith; the loop itself is in comboStep
+      const mono = onBf(g, pid, 'Basalt Monolith')[0]; if (!mono) continue;
+      plans.push({ score: 158, targets: [ref(mono)], card: c, x: 0, label: d.name, hint: 'aura', cost: fixed }); continue;
+    }
+    if (d.name === 'Channel') { plans.push({ score: 165, targets: [], card: c, x: 0, label: d.name, hint: 'ramp', cost: fixed }); continue; }
     const text = (eff?.text || '') + ' ' + (d.text || '');
     const instant = d.types.includes('Instant') || d.types.includes('Sorcery');
     const permanent = !instant;
@@ -297,7 +359,7 @@ function spellPlans(g, pid, mode) {
       const creature = d.types.includes('Creature'), artifact = d.types.includes('Artifact');
       const behind = boardValue(g, 1 - pid) > boardValue(g, pid);
       const mana = abilitiesOf(d).some((a) => a.mana);
-      plan = { score: creature ? 100 + fixed * 3 + (behind ? 25 : 0) : artifact ? (mana ? 150 + (level() === 'hard' && g.turn <= 8 ? 20 : 0) : 60 + fixed) : 20, targets: [], creature };
+      plan = { score: creature ? 100 + fixed * 3 + (behind ? 25 : 0) : artifact ? (mana ? 150 + (level() === 'hard' && g.turn <= 8 ? 20 : 0) + (d.name === 'Basalt Monolith' && inHand(g, pid, 'Power Artifact').length ? 15 : 0) : 60 + fixed) : 20, targets: [], creature };
     } else if (eff) {
       const hint = hintOf(eff, d);
       const forms = eff.modes ? eff.modes.map((md, i) => ({ md, i })) : [{ md: null, i: null }];
@@ -314,6 +376,11 @@ function spellPlans(g, pid, mode) {
         plan = null;
       }
       if (plan && permanent && !eff.targets.length && hint === 'utility') plan.score = 100 + fixed * 3;
+    }
+    if (plan && xCard && eff) {
+      const hh = hintOf(eff, d);
+      if (hh === 'discard') plan.x = Math.min(x, Math.max(1, g.players[1 - pid].hand.length));          // Mind Twist: only as many as they hold
+      if (hh === 'draw' && plan.targets?.[0]?.id === pid) { plan.x = Math.min(x, 7, me.library.length - 8); if (plan.x < 1) continue; }
     }
     if (plan && xCard && plan.targets?.length && hintOf(eff, d) === 'burn') { // spend only what the kill needs
       const tr = plan.targets[0];
@@ -417,7 +484,7 @@ function combatPumpPlans(g, pid) {
     if (!c.def.types.includes('Instant') || !g.canCast(pid, c)) continue;
     const text = (eff.text || '') + ' ' + (c.def.text || '');
     if (hintOf(eff, c.def) !== 'pump') continue;
-    sources.push({ card: c, eff, pump: pumpOf(text), specs: eff.targets, cost: cmc(c) });
+    sources.push({ card: c, eff, pump: pumpOf(text) || (has(text, /double|equal to its power|where X is its power/i) ? { p: 0, t: 0, save: false, doubles: true } : null), specs: eff.targets, cost: cmc(c) });
   }
   for (const a of g.activatable(pid)) {
     const key = `a${a.perm.id}:${a.idx}`;
@@ -435,7 +502,8 @@ function combatPumpPlans(g, pid) {
         if (s.specs.length > 1) continue;
         targets = [ref(f.m)];
       } else if (!s.ability || s.ability.perm !== f.m) continue;
-      const b = pumpBenefit(g, pid, f, s.pump);
+      const pu = s.pump.doubles ? { ...s.pump, p: g.power(f.m) } : s.pump;
+      const b = pumpBenefit(g, pid, f, pu);
       if (b >= 3) plans.push({ score: 300 + b - s.cost, targets, card: s.card, ability: s.ability, key: s.key, label: 'pump' });
     }
   }
@@ -553,7 +621,7 @@ function answerChoice(g, pid, w) {
     if (o.ref?.kind === 'perm') {
       const p = g.perm(o.ref); if (p) { const mine = p.controller === pid; const val = g.isCreature(p) ? valuePerm(g, p) : permWorth(g, { perm: p, creature: false, land: g.isLand(p) }); v += harm ? (mine ? -50 : val) : bad ? -val : (mine ? val : -val); }
     } else if (o.ref?.kind === 'player') v += harm ? (o.ref.id === pid ? -50 : 5) : (o.ref.id === pid ? 5 : 0);
-    else if (o.card) v += cardValue(g, pid, o.card) * (bad ? -1 : 1);
+    else if (o.card) v += (bad ? -1 : 1) * (comboWeight(g, pid, o.card.name) ?? cardValue(g, pid, o.card));
     return v;
   };
   return [...opts].sort((a, b) => score(b) - score(a)).slice(0, need).map((o) => o.value);
@@ -618,9 +686,42 @@ function fallback(g, pid, w) {
   }
 }
 
+// Power Artifact + Basalt Monolith loop (needs g.tapForMana, see ENGINE_REQUESTS 'ai unrestricted'):
+// tap the Monolith for CCC, untap it for {1}, repeat until a kill is payable. Capped per turn; stops the moment the kill is available.
+const MAX_CYCLES = 120;
+function comboStep(g, pid) {
+  const me = g.players[pid], foe = g.players[1 - pid];
+  if (level() === 'easy') return false;
+  const mono = reactorOf(g, pid);
+  if (!mono || typeof g.tapForMana !== 'function') return false;
+  const m = mem(g);
+  // 1. kill available right now?
+  for (const c of me.hand) {
+    if (m.failed.has('c' + c.id) || !g.canCast(pid, c)) continue;
+    const mx = g.maxX ? g.maxX(pid, c) : 0;
+    if (c.def.name === 'Fireball' && mx >= foe.life && foe.life > 0) { if (runPlan(g, pid, { card: c, targets: [PLAYER(1 - pid)], x: foe.life })) return true; }
+    if (c.def.name === 'Braingeyser' && foe.library.length + 1 <= mx) { if (runPlan(g, pid, { card: c, targets: [PLAYER(1 - pid)], x: foe.library.length + 1 })) return true; }
+    // engine X cap (40): with a second Braingeyser in hand, draw them out in two bites
+    if (c.def.name === 'Braingeyser' && mx >= 40 && foe.library.length + 1 > mx && me.hand.filter((h) => h.def.name === 'Braingeyser').length >= 2) { if (runPlan(g, pid, { card: c, targets: [PLAYER(1 - pid)], x: mx })) return true; }
+  }
+  // 2. only loop when a payoff is in hand (otherwise normal play)
+  const payoff = me.hand.some((c) => (c.def.name === 'Fireball' || c.def.name === 'Braingeyser') && g.canCast(pid, c));
+  if (!payoff || turnUse(g, 'cycle') >= MAX_CYCLES) return false;
+  const idx = g.abilitiesOf(mono).findIndex((a) => !a.mana);
+  if (idx < 0) return false;
+  bumpUse(g, 'cycle');
+  if (mono.tapped) {
+    const before = sig(g);
+    const ok = g.activate(pid, mono.id, idx, [], {});
+    if (!ok || sig(g) === before) { m.failed.add('combo'); bumpUse(g, 'cycle'); return false; }
+    return true;
+  }
+  return !!g.tapForMana(pid, mono.id);
+}
+
 function priority(g, pid) {
   const m = mem(g);
-  if (++m.n > 60) return void g.pass(pid);                  // runaway guard
+  if (++m.n > 400) return void g.pass(pid);                  // runaway guard (the Monolith loop needs a few hundred calls)
   const top = g.stack[g.stack.length - 1];
   if (top) {
     if (top.controller !== pid && !(level() === 'easy' && rnd() < 0.5) && respondToStack(g, pid, top)) return;
@@ -634,6 +735,7 @@ function priority(g, pid) {
   }
   if (mode === 'main' || mode === 'end' || (mode === 'oppCombat' && (g.step === 'attackers' || g.step === 'blockers'))) {
     if (mode === 'main' && playLand(g, pid)) return;
+    if (mode === 'main' && !m.failed.has('combo') && comboStep(g, pid)) return;
     let plans = [...spellPlans(g, pid, mode), ...abilityPlans(g, pid, mode)].sort((a, b) => b.score - a.score);
     if (level() === 'easy') {
       // holds back removal, forgets to cast things now and then
