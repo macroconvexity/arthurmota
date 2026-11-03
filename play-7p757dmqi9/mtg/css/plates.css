@@ -31,3 +31,6 @@ html #action button#act-alt,html #action button#act-undo{font-size:max(11px,2.1c
 html .homebox .ghost{--cap:16px;border-style:solid!important;border-width:0 var(--cap)!important;border-color:transparent!important;border-radius:0!important;
   border-image:var(--pl-navy) 0 62 fill/0 var(--cap) stretch!important;background:none!important;box-shadow:none!important;color:#e4ecff!important;
   font:700 13px/1.1 Georgia,serif!important;letter-spacing:1.4px;text-transform:uppercase;padding:9px 4px!important;margin-top:8px;width:calc(100% - 2*var(--cap) + 2*var(--cap))}
+html #action button{white-space:nowrap}
+html.phone #action{width:max(34cqh,132px)}
+html.phone #action button{font-size:max(11px,2.5cqh)!important;letter-spacing:.8px;--cap:15px}

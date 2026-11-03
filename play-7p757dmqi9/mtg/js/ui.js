@@ -1,20 +1,20 @@
-import { Game, parseCost, makeRng } from './engine.js?v=20261102200655';
-import { aiAct } from './ai.js?v=20261102200655';
-import { EFFECTS, abilitiesOf } from './cards.js?v=20261102200655';
-import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261102200655';
-import { initMenu, showApp, hideApp, costHtml, myDecks, myDeckCounts, setMyDeck } from './menu.js?v=20261102200655';
-import { askConfirm, askNumber, askPick, modal, askName, askDivide } from './dialog.js?v=20261102200655';
-import * as FX from './fx.js?v=20261102200655';
-import * as ST from './settings.js?v=20261102200655';
-import sfx from './sfx.js?v=20261102200655';
-import * as SC from './screens.js?v=20261102200655';
-import * as AI from './ai.js?v=20261102200655';
-import * as DK from './decks.js?v=20261102200655';
-import * as AN from './anim.js?v=20261102200655';
-import * as SX from './anim/status.js?v=20261102200655';
-import * as ZN from './anim/zones.js?v=20261102200655';
-import * as TG from './anim/targeting.js?v=20261102200655';
-import * as AMB from './anim/ambient.js?v=20261102200655';
+import { Game, parseCost, makeRng } from './engine.js?v=20261102200947';
+import { aiAct } from './ai.js?v=20261102200947';
+import { EFFECTS, abilitiesOf } from './cards.js?v=20261102200947';
+import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261102200947';
+import { initMenu, showApp, hideApp, costHtml, myDecks, myDeckCounts, setMyDeck } from './menu.js?v=20261102200947';
+import { askConfirm, askNumber, askPick, modal, askName, askDivide } from './dialog.js?v=20261102200947';
+import * as FX from './fx.js?v=20261102200947';
+import * as ST from './settings.js?v=20261102200947';
+import sfx from './sfx.js?v=20261102200947';
+import * as SC from './screens.js?v=20261102200947';
+import * as AI from './ai.js?v=20261102200947';
+import * as DK from './decks.js?v=20261102200947';
+import * as AN from './anim.js?v=20261102200947';
+import * as SX from './anim/status.js?v=20261102200947';
+import * as ZN from './anim/zones.js?v=20261102200947';
+import * as TG from './anim/targeting.js?v=20261102200947';
+import * as AMB from './anim/ambient.js?v=20261102200947';
 AMB.init({ me: 0 });
 
 // animation speed setting (Fast/Normal/Slow, minimal under prefers-reduced-motion): scales every WAAPI duration/delay
