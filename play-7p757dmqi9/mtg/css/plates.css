@@ -55,3 +55,7 @@ html .cf{box-shadow:0 1px 4px #0009}html .cf.on{box-shadow:0 0 0 2px #f3c978,0 0
 html.phone #life-0,html.phone #life-1{transform:none;width:14cqh;height:14cqh;aspect-ratio:1}
 html.phone #opp-hand{top:-4.5cqh}
 html.phone #opp-hand .cb{--cw:10.5cqh;margin:0 -1.8cqh}
+
+/* cost pips on cards were clutter (the printed cost is on the art); attack/defence numbers smaller */
+html .ovl.pips{display:none!important}
+html.phone .card .pt{font-size:max(10px,calc(var(--cw)*.135))!important;padding:.05cqh .7cqh!important;border-width:max(1px,.25cqh)!important;right:-.4cqh!important;bottom:-.4cqh!important}

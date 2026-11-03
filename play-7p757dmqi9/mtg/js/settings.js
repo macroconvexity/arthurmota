@@ -1,10 +1,10 @@
 // Persisted user settings (localStorage) with change listeners.
 const KEY = 'mtgclassic.settings.v1';
-const DEFAULTS = { sound: true, volume: 0.7, speed: 'normal', stopOppSpell: true, stopMyBegin: false, stopOppEnd: false, difficulty: 'normal', playmat: 5, haptics: true, pips: true, lefty: false, ambient: true, onboarded: false };
+const DEFAULTS = { sound: true, volume: 0.7, speed: 'normal', stopOppSpell: true, stopMyBegin: false, stopOppEnd: false, difficulty: 'normal', playmat: 5, haptics: true, pips: false, lefty: false, ambient: true, onboarded: false };
 let cur = { ...DEFAULTS };
 const subs = new Set();
 const rd = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
-try { cur = { ...DEFAULTS, ...rd() }; const old = localStorage.getItem('mtgclassic.playmat'); if (old && !rd().playmat) cur.playmat = +old || 1; if (!cur.matv) { cur.playmat = 5; cur.matv = 1; } } catch {}
+try { cur = { ...DEFAULTS, ...rd() }; const old = localStorage.getItem('mtgclassic.playmat'); if (old && !rd().playmat) cur.playmat = +old || 1; if (!cur.matv) { cur.playmat = 5; cur.matv = 1; } if (!cur.p2) { cur.pips = false; cur.p2 = 1; } } catch {}
 export const reducedMotion = () => { try { return matchMedia('(prefers-reduced-motion: reduce)').matches; } catch { return false; } };
 export const get = (k) => cur[k];
 export const all = () => ({ ...cur });
