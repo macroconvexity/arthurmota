@@ -59,3 +59,9 @@ html.phone #opp-hand .cb{--cw:10.5cqh;margin:0 -1.8cqh}
 /* cost pips on cards were clutter (the printed cost is on the art); attack/defence numbers smaller */
 html .ovl.pips{display:none!important}
 html.phone .card .pt{font-size:max(10px,calc(var(--cw)*.135))!important;padding:.05cqh .7cqh!important;border-width:max(1px,.25cqh)!important;right:-.4cqh!important;bottom:-.4cqh!important}
+
+/* header logo (user-supplied artwork, recoloured for dark UI) */
+.logo{align-items:center}
+.logo .mtgl{height:44px;width:auto;display:block;filter:drop-shadow(0 2px 3px #000a)}
+html.compact .logo .mtgl{height:30px}
+@media (max-width:760px){.logo .mtgl{height:30px}}
