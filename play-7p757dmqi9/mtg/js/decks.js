@@ -1,4 +1,4 @@
-import { isImplemented } from './cards.js?v=20261102220002';
+import { isImplemented } from './cards.js?v=20261102222924';
 
 // BEGIN GENERATED DECKS (node test/build_decks.mjs --write)
 export const DECK_LISTS = {
@@ -37,6 +37,7 @@ export const DECK_LISTS = {
   "Storm Burn (R)": { "Chain Lightning": 4, "Lightning Bolt": 4, "Storm World": 1, Backdraft: 2, Pyrotechnics: 2, Fireball: 3, Disintegrate: 3, "Mountain Yeti": 3, "Tempest Efreet": 2, "Crimson Manticore": 3, "Hyperion Blacksmith": 2, "Aerathi Berserker": 2, "Frost Giant": 2, "Fire Elemental": 2, "Sol Ring": 1, "Black Lotus": 1, "Mox Ruby": 1, Mountain: 22 },
   "Rampage Stompers (G)": { "Craw Giant": 2, "Wolverine Pack": 4, "Llanowar Elves": 4, "Birds of Paradise": 3, "Moss Monster": 3, "Durkwood Boars": 3, "Elven Riders": 2, "Giant Turtle": 2, "Giant Spider": 3, "Giant Growth": 3, "Craw Wurm": 2, "Grizzly Bears": 3, "Sol Ring": 1, "Black Lotus": 1, "Mox Emerald": 1, Forest: 23 },
   "Esper Elders (W/U/B)": { Chromium: 1, "Dakkon Blackblade": 1, Halfdane: 1, "Lady Evangela": 1, Counterspell: 3, "Swords to Plowshares": 3, Terror: 3, "Wrath of God": 1, "Serra Angel": 2, "Hypnotic Specter": 3, "Black Knight": 2, "Mahamoti Djinn": 2, "Air Elemental": 2, "Force Spike": 2, "Sol Ring": 1, "Black Lotus": 1, "Mox Pearl": 1, Juggernaut: 1, "Serendib Efreet": 1, "Phantasmal Forces": 1, "Enchanted Being": 1, "Headless Horseman": 1, "Keepers of the Faith": 1, "Lost Soul": 1, Tundra: 2, Scrubland: 2, "Underground Sea": 2, Plains: 5, Island: 6, Swamp: 6 },
+  "Turbo Twister / Channel (Power)": { "Black Lotus": 4, "Mox Sapphire": 4, "Mox Jet": 4, "Mox Ruby": 4, "Mox Emerald": 4, "Mox Pearl": 4, "Sol Ring": 4, "Ancestral Recall": 4, "Time Walk": 4, "Timetwister": 4, "Wheel of Fortune": 4, "Demonic Tutor": 4, "Balance": 4, "Channel": 4, "Fireball": 4 },
 };
 export const DECK_META = {
   "White Weenie (W)": { name: "White Weenie (W)", colors: ["W"], archetype: "aggro", blurb: "Cheap white creatures and Swords to Plowshares try to win before anything big lands.", aiLevelHint: "normal", rating: 45 },
@@ -74,6 +75,7 @@ export const DECK_META = {
   "Storm Burn (R)": { name: "Storm Burn (R)", colors: ["R"], archetype: "burn", blurb: "Chain Lightning, Bolt and Storm World punish slow hands; rampage giants finish.", aiLevelHint: "normal", rating: 37 },
   "Rampage Stompers (G)": { name: "Rampage Stompers (G)", colors: ["G"], archetype: "stompy", blurb: "Wolverine Pack and Craw Giant trample over chump blockers with rampage.", aiLevelHint: "normal", rating: 44 },
   "Esper Elders (W/U/B)": { name: "Esper Elders (W/U/B)", colors: ["W","U","B"], archetype: "elder dragon", blurb: "Chromium and friends on a Tundra, Scrubland and Underground Sea mana base.", aiLevelHint: "hard", rating: 49 },
+  "Turbo Twister / Channel (Power)": { name: "Turbo Twister / Channel (Power)", colors: ["W","U","B","R","G"], archetype: "combo", blurb: "Unrestricted power: five Moxen, Lotus and Sol Ring into Timetwister, Wheel, Channel and Fireball.", aiLevelHint: "hard", rating: 60, unrestricted: true },
 };
 // END GENERATED DECKS
 
