@@ -1,1 +1,1 @@
-MTG Classic+ PWA build 20261102193827
+MTG Classic+ PWA build 20261102200655

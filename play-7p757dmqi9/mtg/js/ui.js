@@ -1,20 +1,20 @@
-import { Game, parseCost, makeRng } from './engine.js?v=20261102193827';
-import { aiAct } from './ai.js?v=20261102193827';
-import { EFFECTS, abilitiesOf } from './cards.js?v=20261102193827';
-import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261102193827';
-import { initMenu, showApp, hideApp, costHtml, myDecks, myDeckCounts, setMyDeck } from './menu.js?v=20261102193827';
-import { askConfirm, askNumber, askPick, modal, askName, askDivide } from './dialog.js?v=20261102193827';
-import * as FX from './fx.js?v=20261102193827';
-import * as ST from './settings.js?v=20261102193827';
-import sfx from './sfx.js?v=20261102193827';
-import * as SC from './screens.js?v=20261102193827';
-import * as AI from './ai.js?v=20261102193827';
-import * as DK from './decks.js?v=20261102193827';
-import * as AN from './anim.js?v=20261102193827';
-import * as SX from './anim/status.js?v=20261102193827';
-import * as ZN from './anim/zones.js?v=20261102193827';
-import * as TG from './anim/targeting.js?v=20261102193827';
-import * as AMB from './anim/ambient.js?v=20261102193827';
+import { Game, parseCost, makeRng } from './engine.js?v=20261102200655';
+import { aiAct } from './ai.js?v=20261102200655';
+import { EFFECTS, abilitiesOf } from './cards.js?v=20261102200655';
+import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261102200655';
+import { initMenu, showApp, hideApp, costHtml, myDecks, myDeckCounts, setMyDeck } from './menu.js?v=20261102200655';
+import { askConfirm, askNumber, askPick, modal, askName, askDivide } from './dialog.js?v=20261102200655';
+import * as FX from './fx.js?v=20261102200655';
+import * as ST from './settings.js?v=20261102200655';
+import sfx from './sfx.js?v=20261102200655';
+import * as SC from './screens.js?v=20261102200655';
+import * as AI from './ai.js?v=20261102200655';
+import * as DK from './decks.js?v=20261102200655';
+import * as AN from './anim.js?v=20261102200655';
+import * as SX from './anim/status.js?v=20261102200655';
+import * as ZN from './anim/zones.js?v=20261102200655';
+import * as TG from './anim/targeting.js?v=20261102200655';
+import * as AMB from './anim/ambient.js?v=20261102200655';
 AMB.init({ me: 0 });
 
 // animation speed setting (Fast/Normal/Slow, minimal under prefers-reduced-motion): scales every WAAPI duration/delay
@@ -875,9 +875,9 @@ function showResult() {
   const o = $('over'); if (!o.hidden) return; const draw = g.winner.id === -1 || g.winner.draw; const win = !draw && g.winner.id === ME; const st = window.__stats || { dmg: [0, 0], cast: 0, died: 0 };
   o.className = draw ? 'draw' : win ? 'win' : 'lose'; o.hidden = false; clearSave(); closeLog();
   const why = draw ? 'Neither player can win this game' : g.winner.reason === 'poison' ? (win ? 'Opponent has 10 poison counters' : 'You have 10 poison counters') : g.winner.reason === 'deck' ? (win ? 'Opponent ran out of cards' : 'You ran out of cards') : (win ? 'Opponent life reached 0' : 'Your life reached 0');
-  o.innerHTML = `<div class="rays"></div><img class="emblem" src="assets/ui/${win || draw ? 'emblem_victory' : 'emblem_defeat'}.jpg" alt=""><h1>${draw ? 'DRAW' : win ? 'VICTORY' : 'DEFEAT'}</h1><div class="sub">${why}</div>
+  o.innerHTML = `${draw ? `<img class="emblem" src="assets/ui/emblem_victory.jpg" alt=""><h1>DRAW</h1>` : `<img class="ttl" src="assets/ui/${win ? 'victory' : 'defeat'}_title.jpg" alt="${win ? 'Victory' : 'Defeat'}">`}<div class="sub">${why}</div>
     <div class="stats"><div><b>${g.turn}</b><span>Turns</span></div><div><b>${g.players[ME].life}</b><span>Your life</span></div><div><b>${st.dmg[1]}</b><span>Damage dealt</span></div><div><b>${st.dmg[0]}</b><span>Damage taken</span></div><div><b>${st.cast}</b><span>Spells cast</span></div><div><b>${st.died}</b><span>Creatures lost</span></div></div>
-    <div class="obtns"><button id="rematch">Rematch</button><button id="again" class="alt">Menu</button><button id="editdeck" class="alt">Edit deck</button></div>`;
+    <div class="obtns"><button id="rematch" class="alt">Rematch</button><button id="again">Menu</button><button id="editdeck" class="alt">Edit deck</button></div>`;
   $('again').onclick = leave;
   $('rematch').onclick = () => { const r = lastRun; leave(); if (r) playFlow(r.counts, { foe: r.foe, level: r.level }); };
   $('editdeck').onclick = () => { leave(); showApp('decks'); };

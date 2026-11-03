@@ -1,0 +1,33 @@
+/* Image-plate buttons (ChatGPT-made navy + orange metal plates, text overlaid). Caps are 9-sliced so any width works. */
+html{--pl-orange:url(../assets/ui/btn/plate_orange.png);--pl-navy:url(../assets/ui/btn/plate_navy.png)}
+/* primary = orange */
+html #action button,html .play,html .scrbtns button,html #over .obtns button,html .homebox .play{
+  --cap:16px;border-style:solid!important;border-width:0 var(--cap)!important;border-color:transparent!important;border-radius:0!important;
+  border-image:var(--pl-orange) 0 62 fill/0 var(--cap) stretch!important;background:none!important;box-shadow:none!important;
+  color:#fbefd6!important;font:700 15px/1.1 Georgia,serif!important;letter-spacing:1.5px;text-transform:uppercase;text-shadow:0 1px 3px #000c;
+  padding:10px 4px!important;min-width:0;transition:filter .15s,transform .15s}
+html #action button:hover,html .play:not(:disabled):hover,html .scrbtns button:hover,html #over .obtns button:hover{filter:brightness(1.12)}
+html #action button:active,html .play:active,html .scrbtns button:active,html #over .obtns button:active{transform:translateY(1px) scale(.985)}
+html .play{--cap:26px;font-size:24px!important;padding:14px 4px!important}
+html .play:disabled,html .scrbtns button:disabled{filter:grayscale(.8) brightness(.7);opacity:.7}
+html #over .obtns button{--cap:22px;min-width:150px;font-size:17px!important;padding:14px 4px!important}
+html .scrbtns button{--cap:20px;min-width:130px;font-size:16px!important;padding:12px 4px!important}
+/* secondary = navy */
+html #action button#act-alt,html #action button#act-undo,html .scrbtns .no,html #over .obtns .alt{
+  border-image:var(--pl-navy) 0 62 fill/0 var(--cap) stretch!important;color:#e4ecff!important}
+html #action button#act-alt,html #action button#act-undo{font-size:max(11px,2.1cqh)!important;--cap:14px;letter-spacing:1px}
+@media (max-height:520px){html #over .obtns button{--cap:18px;min-width:120px;font-size:14px!important;padding:10px 4px!important}}
+/* victory / defeat screen: title art on black blends into the dimmed board */
+#over{background:radial-gradient(#000b,#000e)}
+#over .ttl{position:relative;width:min(76cqh,640px);max-width:92%;mix-blend-mode:screen;-webkit-mask-image:radial-gradient(ellipse 52% 54% at 50% 50%,#000 62%,#0000 100%);mask-image:radial-gradient(ellipse 52% 54% at 50% 50%,#000 62%,#0000 100%);animation:ttlIn 1.2s cubic-bezier(.2,1.1,.4,1) both;pointer-events:none;margin:-3cqh 0 -4cqh}
+@keyframes ttlIn{from{opacity:0;transform:scale(1.18);filter:blur(10px) brightness(2)}to{opacity:1;transform:none;filter:none}}
+#over .sub{margin-top:0}
+#over .stats{gap:0;flex-wrap:nowrap;max-width:94%}
+#over .stats div{flex:1;padding:0 clamp(8px,2.2vw,26px);border-left:1px solid #f3c97833}
+#over .stats div:first-child{border-left:0}
+#over .stats b{font-weight:600}
+#over .rays{display:none!important}
+/* Home: Edit deck + game dialogs as navy plates */
+html .homebox .ghost{--cap:16px;border-style:solid!important;border-width:0 var(--cap)!important;border-color:transparent!important;border-radius:0!important;
+  border-image:var(--pl-navy) 0 62 fill/0 var(--cap) stretch!important;background:none!important;box-shadow:none!important;color:#e4ecff!important;
+  font:700 13px/1.1 Georgia,serif!important;letter-spacing:1.4px;text-transform:uppercase;padding:9px 4px!important;margin-top:8px;width:calc(100% - 2*var(--cap) + 2*var(--cap))}
