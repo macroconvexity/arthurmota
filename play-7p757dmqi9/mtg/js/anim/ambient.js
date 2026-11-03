@@ -2,9 +2,9 @@
 // Exports init(ctx) and onEvents(evs) plus refresh(), stop(), emote(text), toss(won), roll(sides, value), endSequence(win, avatar).
 // Everything is skipped when window.__fxOff is set (reduced motion / speed Off); WAAPI durations are scaled by the
 // global Element.animate wrapper in ui.js, CSS animations read --as (animScale) set below. See docs/ANIMATIONS.md.
-import * as FX from '../fx.js?v=20261102202757';
-import * as ST from '../settings.js?v=20261102202757';
-import * as AN from '../anim.js?v=20261102202757';
+import * as FX from '../fx.js?v=20261102203456';
+import * as ST from '../settings.js?v=20261102203456';
+import * as AN from '../anim.js?v=20261102203456';
 
 const rnd = (a, b) => a + Math.random() * (b - a);
 const off = () => !!window.__fxOff;

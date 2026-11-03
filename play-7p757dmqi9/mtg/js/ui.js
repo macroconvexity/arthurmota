@@ -1,20 +1,20 @@
-import { Game, parseCost, makeRng } from './engine.js?v=20261102202757';
-import { aiAct } from './ai.js?v=20261102202757';
-import { EFFECTS, abilitiesOf } from './cards.js?v=20261102202757';
-import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261102202757';
-import { initMenu, showApp, hideApp, costHtml, myDecks, myDeckCounts, setMyDeck } from './menu.js?v=20261102202757';
-import { askConfirm, askNumber, askPick, modal, askName, askDivide } from './dialog.js?v=20261102202757';
-import * as FX from './fx.js?v=20261102202757';
-import * as ST from './settings.js?v=20261102202757';
-import sfx from './sfx.js?v=20261102202757';
-import * as SC from './screens.js?v=20261102202757';
-import * as AI from './ai.js?v=20261102202757';
-import * as DK from './decks.js?v=20261102202757';
-import * as AN from './anim.js?v=20261102202757';
-import * as SX from './anim/status.js?v=20261102202757';
-import * as ZN from './anim/zones.js?v=20261102202757';
-import * as TG from './anim/targeting.js?v=20261102202757';
-import * as AMB from './anim/ambient.js?v=20261102202757';
+import { Game, parseCost, makeRng } from './engine.js?v=20261102203456';
+import { aiAct } from './ai.js?v=20261102203456';
+import { EFFECTS, abilitiesOf } from './cards.js?v=20261102203456';
+import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261102203456';
+import { initMenu, showApp, hideApp, costHtml, myDecks, myDeckCounts, setMyDeck } from './menu.js?v=20261102203456';
+import { askConfirm, askNumber, askPick, modal, askName, askDivide } from './dialog.js?v=20261102203456';
+import * as FX from './fx.js?v=20261102203456';
+import * as ST from './settings.js?v=20261102203456';
+import sfx from './sfx.js?v=20261102203456';
+import * as SC from './screens.js?v=20261102203456';
+import * as AI from './ai.js?v=20261102203456';
+import * as DK from './decks.js?v=20261102203456';
+import * as AN from './anim.js?v=20261102203456';
+import * as SX from './anim/status.js?v=20261102203456';
+import * as ZN from './anim/zones.js?v=20261102203456';
+import * as TG from './anim/targeting.js?v=20261102203456';
+import * as AMB from './anim/ambient.js?v=20261102203456';
 AMB.init({ me: 0 });
 
 // animation speed setting (Fast/Normal/Slow, minimal under prefers-reduced-motion): scales every WAAPI duration/delay
@@ -40,8 +40,10 @@ function fitViewport() {
   if (standalone) {
     bw = Math.max(bw, innerWidth); bh = Math.max(bh, innerHeight);
     const land = bw > bh, sMin = Math.min(screen.width, screen.height), sMax = Math.max(screen.width, screen.height);
-    if (land && sMin > 200 && bh < sMin) bh = sMin;
-    if (land && sMax > 400 && bw < sMax) bw = sMax;
+    if (land && sMax <= 940) {   // phones only: a tablet's visible box can be smaller than its screen (home indicator / status bar)
+      if (sMin > 200 && bh < sMin) bh = sMin;
+      if (sMax > 400 && bw < sMax) bw = sMax;
+    }
   }
   document.documentElement.classList.toggle('standalone', standalone);
   const cs = getComputedStyle(saProbe), st = parseFloat(cs.paddingTop) || 0, sr = parseFloat(cs.paddingRight) || 0, sb = parseFloat(cs.paddingBottom) || 0, sl = parseFloat(cs.paddingLeft) || 0;

@@ -50,3 +50,8 @@ html .cf.C{background:url(../assets/ui/mana/C.png) center/cover no-repeat!import
 html .pip.C{background:url(../assets/ui/mana/C.png) center/cover no-repeat!important;color:transparent!important;border:0!important;font-size:0!important}
 html .cf.M{background:url(../assets/ui/mana/M.png) center/cover no-repeat!important;font-size:0!important;border:0!important}
 html .cf{box-shadow:0 1px 4px #0009}html .cf.on{box-shadow:0 0 0 2px #f3c978,0 0 12px #f3c97888}
+
+/* phone/tablet avatars: the desktop #life-* rules (ID specificity) were shifting them left by 50% and squeezing the width */
+html.phone #life-0,html.phone #life-1{transform:none;width:14cqh;height:14cqh;aspect-ratio:1}
+html.phone #opp-hand{top:-4.5cqh}
+html.phone #opp-hand .cb{--cw:10.5cqh;margin:0 -1.8cqh}
