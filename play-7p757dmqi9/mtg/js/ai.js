@@ -1,8 +1,8 @@
 // Computer opponent. Generic: card use is driven by the `ai` hint of EFFECTS / ABILITIES entries
 // (see docs/CARD_MODULE_CONTRACT.md); when a hint is missing it is inferred from the Oracle text.
 // Contract: every aiAct(g, pid) call changes the game state or returns false (never loops silently).
-import { EFFECTS, abilitiesOf } from './cards.js?v=20261102204342';
-import { parseCost } from './engine.js?v=20261102204342';
+import { EFFECTS, abilitiesOf } from './cards.js?v=20261102204808';
+import { parseCost } from './engine.js?v=20261102204808';
 
 export const LEVELS = ['easy', 'normal', 'hard'];
 let CUR = { level: 'normal', g: null };

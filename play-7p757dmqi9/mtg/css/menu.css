@@ -118,8 +118,8 @@ button.ghost,.dtools button{background:#2a1d15;color:#e6d6b0;border:1px solid #6
 }
 
 /* generated art plates */
-#app{background:#06121f url(../assets/ui/menu_bg_arena.jpg) center/cover no-repeat}
-#app[data-view=collection],#app[data-view=decks]{background:#06121f url(../assets/ui/menu_bg_arena.jpg) center/cover no-repeat}
+#app{background:#0a0f08 linear-gradient(#0009,#000b),url(../assets/ui/menu_bg_lotus.jpg) center/cover no-repeat}
+#app[data-view=collection],#app[data-view=decks]{background:#0a0f08 linear-gradient(#0009,#000b),url(../assets/ui/menu_bg_lotus.jpg) center/cover no-repeat}
 #nav{background:linear-gradient(#150e0ccc,#150e0c66);border-bottom:2px solid #5a431f99;backdrop-filter:blur(2px)}
 .homebox{backdrop-filter:blur(3px);background:#150e0cd9}
 .side,.dpanel{background:#120b09e6}
