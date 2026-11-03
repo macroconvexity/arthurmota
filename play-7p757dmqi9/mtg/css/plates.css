@@ -68,3 +68,11 @@ html.compact .logo .mtgl{height:30px}
 /* legibility over the Black Lotus wallpaper */
 .home h1,.home .tag{text-shadow:0 2px 6px #000,0 0 18px #000c}
 .home .tag{color:#e8dcc0;font-weight:600}
+
+/* deck panel: Done = navy plate, Play a bit smaller than the home button */
+html .dpanel2 .play{font-size:20px!important;padding:10px 4px!important}
+html .dpanel2 .done{--cap:16px;border-style:solid!important;border-width:0 var(--cap)!important;border-color:transparent!important;border-radius:0!important;
+  border-image:var(--pl-navy) 0 62 fill/0 var(--cap) stretch!important;background:none!important;box-shadow:none!important;color:#e4ecff!important;
+  font:700 13px/1.1 Georgia,serif!important;letter-spacing:1.4px;text-transform:uppercase;padding:9px 4px!important;width:auto}
+html.compact .dpanel2 .play{font-size:15px!important;padding:7px 4px!important;--cap:18px}
+html.compact .dpanel2 .done{font-size:12px!important;padding:7px 4px!important;margin-top:0}

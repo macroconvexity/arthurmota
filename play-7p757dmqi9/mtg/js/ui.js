@@ -1,20 +1,20 @@
-import { Game, parseCost, makeRng } from './engine.js?v=20261102211832';
-import { aiAct } from './ai.js?v=20261102211832';
-import { EFFECTS, abilitiesOf } from './cards.js?v=20261102211832';
-import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261102211832';
-import { initMenu, showApp, hideApp, costHtml, myDecks, myDeckCounts, setMyDeck } from './menu.js?v=20261102211832';
-import { askConfirm, askNumber, askPick, modal, askName, askDivide } from './dialog.js?v=20261102211832';
-import * as FX from './fx.js?v=20261102211832';
-import * as ST from './settings.js?v=20261102211832';
-import sfx from './sfx.js?v=20261102211832';
-import * as SC from './screens.js?v=20261102211832';
-import * as AI from './ai.js?v=20261102211832';
-import * as DK from './decks.js?v=20261102211832';
-import * as AN from './anim.js?v=20261102211832';
-import * as SX from './anim/status.js?v=20261102211832';
-import * as ZN from './anim/zones.js?v=20261102211832';
-import * as TG from './anim/targeting.js?v=20261102211832';
-import * as AMB from './anim/ambient.js?v=20261102211832';
+import { Game, parseCost, makeRng } from './engine.js?v=20261102220002';
+import { aiAct } from './ai.js?v=20261102220002';
+import { EFFECTS, abilitiesOf } from './cards.js?v=20261102220002';
+import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261102220002';
+import { initMenu, showApp, hideApp, costHtml, myDecks, myDeckCounts, setMyDeck } from './menu.js?v=20261102220002';
+import { askConfirm, askNumber, askPick, modal, askName, askDivide } from './dialog.js?v=20261102220002';
+import * as FX from './fx.js?v=20261102220002';
+import * as ST from './settings.js?v=20261102220002';
+import sfx from './sfx.js?v=20261102220002';
+import * as SC from './screens.js?v=20261102220002';
+import * as AI from './ai.js?v=20261102220002';
+import * as DK from './decks.js?v=20261102220002';
+import * as AN from './anim.js?v=20261102220002';
+import * as SX from './anim/status.js?v=20261102220002';
+import * as ZN from './anim/zones.js?v=20261102220002';
+import * as TG from './anim/targeting.js?v=20261102220002';
+import * as AMB from './anim/ambient.js?v=20261102220002';
 AMB.init({ me: 0 });
 
 // animation speed setting (Fast/Normal/Slow, minimal under prefers-reduced-motion): scales every WAAPI duration/delay
@@ -97,6 +97,7 @@ async function boot() {
   $('concede').onclick = async () => { if (await askConfirm('Leave this game?', 'Leave')) leave(); };
   $('gear').onclick = openSettings;
   { let lp; const g0 = $('gear'); g0.addEventListener('pointerdown', () => { lp = setTimeout(() => { lp = 'done'; startDebug(); }, 1200); }); const cancel = () => { if (lp && lp !== 'done') clearTimeout(lp); }; g0.addEventListener('pointerup', cancel); g0.addEventListener('pointerleave', cancel); g0.addEventListener('click', (e) => { if (lp === 'done') { lp = null; e.stopImmediatePropagation(); } }, true); }
+  $('phases').addEventListener('click', (e) => { const d = e.target.closest('[data-ph]'); if (!d || !g || g.winner) return; holdPh = holdPh === d.dataset.ph ? null : d.dataset.ph; toast(holdPh ? `Will stop at ${d.textContent.toLowerCase()}` : 'Auto-skip resumed'); snd('click'); render(); });
   $('mute').onclick = () => { ST.set('sound', !ST.get('sound')); applySettings(); updMute(); };
   $('help').onclick = () => startCoach(true);
   $('emote').onclick = (e) => { e.stopPropagation(); $('emotemenu').classList.toggle('on'); };
@@ -130,7 +131,7 @@ async function openSettings() {
     box.innerHTML = `<p><b>Settings</b></p>
       <div class="setlbl">Sound</div><label class="row2"><input type="checkbox" data-k="sound" ${v('sound') ? 'checked' : ''}> Sound effects</label><input type="range" data-k="volume" min="0" max="1" step="0.05" value="${v('volume')}">
       <div class="setlbl">Animation speed</div>${seg('speed', [['off', 'Off'], ['fast', 'Fast'], ['normal', 'Normal'], ['slow', 'Slow']])}${ST.reducedMotion() ? '<small class="muted">Reduced motion is on in your system: animations stay minimal.</small>' : ''}
-      <div class="setlbl">Auto-pass stops</div>${chk('stopOppSpell', 'When the opponent casts a spell I can answer')}${chk('stopMyBegin', 'In my upkeep and draw step')}${chk('stopOppEnd', 'At the opponent\'s end step')}
+      <div class="setlbl">Auto-pass stops</div>${chk('stopOppSpell', 'When the opponent casts a spell I can answer')}${chk('stopMyBegin', 'In my upkeep and draw step')}${chk('stopOppEnd', 'At the opponent\'s end step')}${chk('autoSkip', 'Auto-skip phases when I have no actions')}
       <div class="setlbl">AI difficulty (next game)</div>${seg('difficulty', [['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']])}
       <div class="setlbl">Display</div>${chk('pips', 'Show mana costs on cards (phone)')}${isPhone() ? chk('lefty', 'Left-handed layout') + chk('ambient', 'Ambient playmat particles') : ''}${navigator.vibrate ? chk('haptics', 'Haptic feedback') : ''}
       ${mats.length ? `<div class="setlbl">Playmat</div><div class="mats">${mats.map((n) => `<button class="mat ${n === +v('playmat') ? 'sel' : ''}" data-n="${n}"><img src="${matUrl(n)}" draggable="false"><span>Playmat ${n}</span></button>`).join('')}</div>` : ''}
@@ -170,7 +171,7 @@ async function playFlow(counts, again) {
   if (!foe || !DECK_LISTS[foe]) { const names = Object.keys(DECK_LISTS); foe = names[Math.floor(Math.random() * names.length)]; }
   lastRun = { counts, foe, level: pick.level };
   const quick = window.__fast || window.__auto || window.__quick;
-  g = new Game([buildDeckFrom(counts, byName), buildDeck(foe, byName)], { names: ['You', 'Opponent'], mulligan: true, autoMulligan: quick ? true : [1], rng: makeRng((Date.now() ^ (Math.random() * 1e9)) >>> 0) });
+  g = new Game([buildDeckFrom(counts, byName), buildDeck(foe, byName)], { names: ['You', 'Opponent'], mulligan: true, undo: [ME], autoMulligan: quick ? true : [1], rng: makeRng((Date.now() ^ (Math.random() * 1e9)) >>> 0) });
   g.aiLevel = pick.level; g.aiDifficulty = pick.level; window.g = g; window.__stats = { dmg: [0, 0], cast: 0, died: 0 };
   shownLife[0] = shownLife[1] = displayLife[0] = displayLife[1] = null; displayDmg.clear(); prevHand = null; peekId = null; needCoach = !quick && !ST.get('onboarded');
   hideApp(); $('board').hidden = false; $('over').hidden = true; mode = null; closeLog(); refreshAmbient(); 
@@ -223,7 +224,7 @@ function resumable() {
 }
 function resumeGame() {
   try {
-    const d = JSON.parse(localStorage.getItem(SAVE_KEY)); g = Game.restore(d.ser, { byName, rng: makeRng(1) }); lastRun = { counts: d.counts, foe: d.foe, level: d.level }; window.g = g; window.__stats = { dmg: [0, 0], cast: 0, died: 0 };
+    const d = JSON.parse(localStorage.getItem(SAVE_KEY)); g = Game.restore(d.ser, { byName, rng: makeRng(1) }); lastRun = { counts: d.counts, foe: d.foe, level: d.level }; g.undoFor = [ME]; window.g = g; window.__stats = { dmg: [0, 0], cast: 0, died: 0 };
     if (d.playmat) ST.set('playmat', d.playmat); applyMat(+ST.get('playmat') || 5);
     shownLife[0] = shownLife[1] = displayLife[0] = displayLife[1] = null; displayDmg.clear(); prevHand = null; peekId = null; g.events.length = 0;
     hideApp(); $('board').hidden = false; $('over').hidden = true; mode = null; noAnimOnce = true; refreshAmbient(); tick();
@@ -254,16 +255,32 @@ document.addEventListener('click', (e) => {
 }, true);
 
 // ---------- driver ----------
+// ---- smart auto-pass: my own phases are skipped when I have nothing to do (needs g.hasAnyAction; old behaviour otherwise)
+let holdPh = null, idleSkip = false;   // holdPh: phase id the player tapped in the phase list to stop at
+const PH_OF = (step) => (PHASES.find((p) => p[2].includes(step)) || [])[0];
+const skipOn = () => ST.get('autoSkip') !== false && typeof g.hasAnyAction === 'function' && !window.__auto;
+const NEXT_LBL = { main1: 'combat', attackers: 'combat damage', blockers: 'combat damage', damage: 'main phase 2', main2: 'the end step', upkeep: 'draw', draw: 'main phase' };
+function myAttackers() { if (typeof g.canAttackAny === 'function') { try { return g.canAttackAny(ME); } catch { return true; } } return g.players[ME].bf.some((p) => { try { return g.canAttack(p); } catch { return true; } }); }
+function myBlockers() { return g.players[ME].bf.some((p) => g.isCreature(p) && !p.tapped && g.combat.attackers.some((a) => { const at = g.perm(a); try { return at && g.canBlock(p, at); } catch { return true; } })); }
 function shouldStop() {
+  idleSkip = false;
   const w = g.waiting; if (!w) return false;
+  const ph = PH_OF(g.step);
+  if (holdPh && g.active === ME && ph === holdPh && !g.stack.length && (w.kind === 'priority' || w.kind === 'attackers' || w.kind === 'blockers')) { holdPh = null; return true; }
+  if (w.kind === 'attackers' && w.player === ME && skipOn() && !myAttackers()) { idleSkip = true; return false; }
+  if (w.kind === 'blockers' && w.player === ME && skipOn() && !myBlockers()) { idleSkip = true; return false; }
   if (w.kind !== 'priority') return true;
   const top = g.stack[g.stack.length - 1];
   if (g.active === ME && ST.get('stopMyBegin') && (g.step === 'upkeep' || g.step === 'draw') && !top) return true;
   if (g.active !== ME && ST.get('stopOppEnd') && g.step === 'end' && !top) return true;
   if (top) return top.controller === ME || (ST.get('stopOppSpell') && g.hasResponse(ME));
-  if (g.active === ME) { if (g.step === 'main1' || g.step === 'main2') return true; return (g.step === 'attackers' || g.step === 'blockers') && g.hasResponse(ME); }
+  if (g.active === ME) {
+    if (g.step === 'main1' || g.step === 'main2') { if (skipOn()) { let any = true; try { any = g.hasAnyAction(ME); } catch { any = true; } if (!any) { idleSkip = true; return false; } } return true; }
+    return (g.step === 'attackers' || g.step === 'blockers') && g.hasResponse(ME);
+  }
   return (g.step === 'attackers' || g.step === 'blockers') && g.hasResponse(ME);
 }
+function toast(t) { let el = $('toast'); if (!el) { el = document.createElement('div'); el.id = 'toast'; $('board').appendChild(el); } el.textContent = t; el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 1800); }
 async function tick() {
   if (busy) return; busy = true;
   try {
@@ -274,7 +291,12 @@ async function tick() {
       const w = g.waiting; if (!w) return;
       await fxWait(); if (!g) return;
       if (w.player !== ME || window.__auto) { await sleep(w.kind === 'priority' && !g.stack.length ? 420 : 750); if (!g) return; aiAct(g, w.player); continue; }
-      if (!shouldStop()) { await sleep(g.stack.length ? 400 : 120); g.pass(ME); continue; }
+      if (!shouldStop()) {
+        if (idleSkip) toast(`Nothing to do: skipping to ${NEXT_LBL[g.step] || 'the next step'}`);
+        await sleep(g.stack.length ? 400 : idleSkip ? 260 : 120);
+        if (w.kind === 'attackers') g.declareAttackers(ME, []); else if (w.kind === 'blockers') g.declareBlockers(ME, {}); else g.pass(ME);
+        continue;
+      }
       return; // wait for the human
     }
   } finally { busy = false; }
@@ -369,7 +391,7 @@ function renderRaw() {
   lifeNoEvent();
   for (const i of [0, 1]) { const l = $('life-' + i); l.querySelector('.who').textContent = g.players[i].name; { let ps = l.querySelector('.psn'); if (!ps) { ps = document.createElement('span'); ps.className = 'psn'; l.appendChild(ps); } const pn = g.players[i].poison || 0; ps.textContent = pn ? `\u2620 ${pn}` : ''; ps.hidden = !pn; ps.title = `${pn} poison counter${pn === 1 ? '' : 's'} (10 loses)`; } setLifeText(i, displayLife[i] ?? g.players[i].life); l.classList.toggle('active', g.active === i); }
   const curPh = PHASES.findIndex((p) => p[2].includes(g.step)); $('stage').classList.toggle('lowme', g.players[ME].life <= 5 && !g.winner); $('stage').classList.toggle('lowopp', g.players[1].life <= 5 && !g.winner);
-  setHtml('phases', PHASES.map((p, i) => `<div class="${i === curPh ? 'on' : i < curPh ? 'done' : ''}">${p[1]}</div>`).join(''));
+  setHtml('phases', PHASES.map((p, i) => `<div data-ph="${p[0]}" class="${i === curPh ? 'on' : i < curPh ? 'done' : ''} ${holdPh === p[0] ? 'hold' : ''}">${p[1]}</div>`).join(''));
   $('turnno').textContent = g.turn; phaseMark();
   $('log').innerHTML = g.log.slice(-7).map((l) => `<div>${l}</div>`).join('');
   renderStack();
@@ -469,6 +491,7 @@ function effects() {
       case 'flip': P('click'); break;
       case 'shuffle': P('drawmany', { volume: 0.4 }); break;
       case 'extraTurn': P('turn', { pitch: 1.2 }); break;
+      case 'undo': P('close'); break;
       case 'tap': P('tap', { volume: 0.5 }); break;
       case 'untap': P('untap', { volume: 0.5 }); break;
       case 'sweep': P('sweeper'); break;
@@ -534,6 +557,8 @@ function effects() {
     } else if (e.type === 'extraTurn') { setBanner(e.pid === ME ? 'Extra turn for you' : 'Opponent takes an extra turn', true); t += 600;
     } else if (e.type === 'shuffle') {
       const el = document.querySelector(e.pid === ME ? '#zones-me .pile' : '#zones-opp .pile'); const rf = el?.getBoundingClientRect(); later(t, () => ZN.riffle(rf)); el?.animate([{ translate: '0 0' }, { translate: '-5px 0' }, { translate: '5px 0' }, { translate: '-3px 0' }, { translate: '0 0' }], { duration: 380, delay: t }); end = Math.max(end, t + 380);
+    } else if (e.type === 'undo') {   // card flies back to hand (ghost), glow where it returns
+      const hr = $('hand').getBoundingClientRect(); later(t + 150, () => { FX.glow(hr.left + hr.width / 2, hr.top + hr.height * 0.4, { color: '#8fd0ff', size: hr.width * 0.5, dur: 600 }); setBanner('Undone'); }); t += 300;
     } else if (e.type === 'worldRule') {
       later(t, () => setBanner(`World rule: ${e.name || 'the older World enchantment'} goes to the graveyard`)); t += 500;
     } else if (e.type === 'legend' || e.type === 'legendRule') {   // legend rule fired (event name per engine docs; gated on existing)
@@ -648,7 +673,8 @@ function buttons() {
   if (w.kind === 'priority') b.classList.add('glow');
   b.textContent = top ? (top.controller === ME ? 'RESOLVE' : 'PASS') : g.step === 'main1' ? 'To combat' : g.step === 'main2' ? 'End turn' : 'Pass';
   b.onclick = () => { g.pass(ME); refresh(); };
-  if (typeof g.canUndoLand === 'function' && g.canUndoLand(ME)) { undo.hidden = false; undo.onclick = () => { if (g.undoLandDrop(ME)) { snd('click'); refresh(); } }; }
+  if (typeof g.canUndoAction === 'function' && g.canUndoAction(ME)) { undo.hidden = false; undo.textContent = 'Undo'; undo.onclick = () => { if (g.undoAction(ME) !== false) { snd('close'); peekId = null; refresh(); } }; }
+  else if (typeof g.canUndoLand === 'function' && g.canUndoLand(ME)) { undo.hidden = false; undo.textContent = 'Undo land'; undo.onclick = () => { if (g.undoLandDrop(ME)) { snd('click'); refresh(); } }; }
   if (!top && g.active === ME && g.step === 'main1') { alt.hidden = false; alt.textContent = 'Pular combate'; alt.onclick = () => { g.pass(ME); refresh(); }; alt.hidden = true; }
 }
 

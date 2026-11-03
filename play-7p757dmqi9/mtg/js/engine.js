@@ -1,4 +1,4 @@
-import { COLORS, EFFECTS, ABILITIES, TRIGGERS, STATIC, COUNTER_ABILITIES, abilitiesOf as defAbilities, keywordsOf, auraSpecOf } from './cards.js?v=20261102211832';
+import { COLORS, EFFECTS, ABILITIES, TRIGGERS, STATIC, COUNTER_ABILITIES, abilitiesOf as defAbilities, keywordsOf, auraSpecOf } from './cards.js?v=20261102220002';
 
 export const STEPS = ['untap', 'upkeep', 'draw', 'main1', 'attackers', 'blockers', 'damage', 'main2', 'end'];
 const NOLOST = new Set();
@@ -83,7 +83,8 @@ const defRef = (d) => ({ name: d.name, set: d.set, number: d.number });
 
 export class Game {
   constructor(decks, opts = {}) {
-    this.rng = opts.rng || makeRng((Math.random() * 4294967296) >>> 0);
+    this.rngCalls = 0; this.logSeq = 0; this.undoEpoch = 0; this.undoSnap = null; this.undoFor = opts.undo === true ? [0, 1] : Array.isArray(opts.undo) ? [...opts.undo] : [];
+    this.rng = this.wrapRng(opts.rng || makeRng((Math.random() * 4294967296) >>> 0));
     this.names = opts.names || ['You', 'Opponent'];
     this.auto = new Set(opts.auto || []);   // players whose choices are answered automatically
     this.log = []; this.logEvents = [];
@@ -180,7 +181,14 @@ export class Game {
   shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(this.rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
   shuffleLibrary(pid) { this.shuffle(this.players[pid].library); this.emit({ type: 'shuffle', pid }); }
   // text log (g.log) plus structured entries (g.logEvents): {turn, step, player, kind, text, cardIds}
+  // counts rng uses so undo can tell whether anything random happened since a snapshot
+  wrapRng(base) {
+    const f = () => { this.rngCalls++; return base(); };
+    if (base.getState) { f.getState = base.getState; f.setState = base.setState; }
+    return f;
+  }
   say(m, meta = {}) {
+    this.logSeq++;
     this.log.push(m); if (this.log.length > 200) this.log.shift();
     this.logEvents.push({ turn: this.turn, step: this.step, player: meta.player ?? this.active, kind: meta.kind || 'info', text: m, cardIds: meta.cards || [] });
     if (this.logEvents.length > 600) this.logEvents.shift();
@@ -495,6 +503,7 @@ export class Game {
 
   // ---------- zones ----------
   draw(pid, n = 1, silent) {
+    this.undoBarrier();
     const p = this.players[pid];
     let drawn = 0;
     for (let i = 0; i < n; i++) {
@@ -508,7 +517,8 @@ export class Game {
     }
     if (!silent) { this.say(`${p.name} draws ${n > 1 ? n + ' cards' : 'a card'}.`, { kind: 'draw', player: pid }); if (drawn) this.fire('onDraw', pid, drawn); }
   }
-  reveal(viewer, target, zone = 'hand') { this.emit({ type: 'reveal', viewer, target, zone, cards: this.players[target][zone].map((c) => ({ id: c.id, name: c.def.name })) }); }
+  reveal(viewer, target, zone = 'hand') {
+    this.undoBarrier(); this.emit({ type: 'reveal', viewer, target, zone, cards: this.players[target][zone].map((c) => ({ id: c.id, name: c.def.name })) }); }
   // Drain Power: `from` activates a mana ability of each land (choosing colours), then `to` gets all the mana in from's pool
   drainMana(from, to, cb) {
     const lands = this.players[from].bf.filter((l) => this.isLand(l) && !l.tapped && this.abilitiesOf(l).some((a) => a.mana && a.cost.tap && !a.cost.mana));
@@ -521,7 +531,9 @@ export class Game {
     };
     step(0);
   }
-  mill(pid, n) { const p = this.players[pid]; for (let i = 0; i < n && p.library.length; i++) p.gy.push(p.library.pop()); }
+  undoBarrier() { this.undoEpoch++; this.undoSnap = null; }
+  mill(pid, n) {
+    this.undoBarrier(); const p = this.players[pid]; for (let i = 0; i < n && p.library.length; i++) p.gy.push(p.library.pop()); }
   discardRandom(pid) {
     const p = this.players[pid]; if (!p.hand.length) return;
     const c = p.hand.splice(Math.floor(this.rng() * p.hand.length), 1)[0]; p.gy.push(c);
@@ -1050,6 +1062,7 @@ export class Game {
     if (info.hasX && x > this.maxX(pid, card)) return false;
     const cost = this.spellCost(pid, card, info.hasX ? x : 0, targets.length, mode);
     if (!this.canPay(pid, cost)) return false;
+    const snap = this.captureUndo(pid, card.id);
     let paidExtra = null;
     if (eff?.cost) { paidExtra = this.payExtraCosts(pid, null, eff.cost, extra.choices || {}); if (!paidExtra) return false; }
     this.pay(pid, cost);
@@ -1063,6 +1076,7 @@ export class Game {
     this.emit({ type: 'cast', id: card.id });
     this.passes = 0; this.setPriority(pid);
     this.fire('onSpellCast', item);
+    this.commitUndo(snap);
     return true;
   }
   // ---- costs shared by spells and abilities ----
@@ -1173,6 +1187,7 @@ export class Game {
     const x = choices.x || 0;
     const mc = this.abCost(pid, a.perm, ab, x);
     if (mc.total && !this.canPay(pid, mc)) return false;
+    const snap = this.captureUndo(pid, a.perm.id);
     const paid = this.payExtraCosts(pid, a.perm, cost, choices); if (!paid) return false;
     if (mc.total) this.pay(pid, mc);
     if (cost.tap) this.tap(a.perm);
@@ -1182,6 +1197,7 @@ export class Game {
     this.say(`${this.players[pid].name} activates ${a.perm.card.def.name}.`, { kind: 'activate', cards: [a.perm.id], player: pid });
     this.passes = 0; this.setPriority(pid);
     this.fire('onActivate', this.stack[this.stack.length - 1]); this.fire('onAbilityActivated', this.stack[this.stack.length - 1]);
+    this.commitUndo(snap);
     return true;
   }
   hasResponse(pid) {
@@ -1616,6 +1632,56 @@ export class Game {
     } finally { [this.combat.blocks, this.combat.blocked] = saved; }
   }
 
+  // ---------- undo of the last cast / activation (opt-in: new Game(..., {undo: true | [pid]}) or g.undoFor = [pid]) ----------
+  captureUndo(pid, cardId) {
+    if (!this.undoFor.includes(pid)) return null;
+    try { return { pid, cardId, data: this.encodeState(true), rngCalls: this.rngCalls, logSeq: this.logSeq, epoch: this.undoEpoch }; } catch (e) { return null; }
+  }
+  commitUndo(snap) {
+    if (!snap || snap.epoch !== this.undoEpoch || this.winner) { if (snap) this.undoSnap = null; return; }
+    snap.afterSeq = this.logSeq; snap.afterRng = this.rngCalls; snap.stackLen = this.stack.length; snap.topId = this.stack[this.stack.length - 1]?.id;
+    this.undoSnap = snap;
+  }
+  canUndoAction(pid) {
+    const s = this.undoSnap;
+    return !!s && s.pid === pid && !this.winner && s.epoch === this.undoEpoch && this.logSeq === s.afterSeq && this.rngCalls === s.afterRng && s.afterRng === s.rngCalls
+      && this.waiting?.kind === 'priority' && this.waiting.player === pid && this.passes === 0 && !this.curAsk && !this.asks.length
+      && this.stack.length === s.stackLen && this.stack[this.stack.length - 1]?.id === s.topId;
+  }
+  undoAction(pid) {
+    if (!this.canUndoAction(pid)) return false;
+    const s = this.undoSnap;
+    const keep = { rng: this.rng, events: this.events, opts: this.opts, undoFor: this.undoFor, rngCalls: s.rngCalls, logSeq: s.logSeq, epoch: this.undoEpoch + 1 };
+    const h = Game.restore(s.data, { live: true, rng: this.rng });
+    for (const k of Object.keys(h)) this[k] = h[k];
+    this.rng = keep.rng; this.events = keep.events; this.opts = keep.opts; this.undoFor = keep.undoFor; this.rngCalls = keep.rngCalls; this.logSeq = keep.logSeq; this.undoEpoch = keep.epoch; this.undoSnap = null;
+    this.emit({ type: 'undo', id: s.cardId, pid });
+    return true;
+  }
+
+  // ---------- "does this player have anything to do?" (UI auto-pass) ----------
+  canAttackAny(pid) { return !this.winner && this.players[pid].bf.some((p) => this.attackAllowed(p, this.opp(pid))); }
+  // Conservative: true when the player could legally play a land, cast a spell, activate a non-mana ability, attack or block in the current
+  // step/window (as if they held priority now). Evaluated with the real canCast/activatable; when in doubt returns true.
+  hasAnyAction(pid) {
+    if (this.winner) return false;
+    const w = this.waiting;
+    if (w && w.kind !== 'priority') {
+      if (w.player !== pid) return false;
+      if (w.kind === 'attackers') return this.canAttackAny(pid);
+      if (w.kind === 'blockers') return this.players[pid].bf.some((b) => this.isCreature(b) && !b.tapped);
+      return true; // discard, choice, mulligan, bottom: the player must answer
+    }
+    const saved = this.waiting;
+    try {
+      this.waiting = { kind: 'priority', player: pid };
+      const p = this.players[pid];
+      if (p.hand.some((c) => this.canPlayLand(pid, c) || this.canCast(pid, c))) return true;
+      if (this.activatable(pid).length) return true;
+      return false;
+    } catch (e) { return true; } finally { this.waiting = saved; }
+  }
+
   // ---------- mercy: take back a land drop ----------
   canUndoLand(pid) {
     const l = this.players[pid].lastLand;
@@ -1635,13 +1701,13 @@ export class Game {
   // ---------- save / resume ----------
   // Only possible between decisions: no pending choice, no function-valued state (delayed effects, shield callbacks, stack triggers).
   canSerialize() { try { this.encodeState(); return true; } catch (e) { return false; } }
-  encodeState() {
+  encodeState(live = false) {
     if (this.curAsk || this.asks.length || this.idle.length || this.delayed.length || this.ghosts.length || this.pendingCallbacks?.length) throw new Error('pending decision or effect');
     const cards = {};
     const cardRef = (c) => {
       if (!cards[c.id]) {
         const d = c.baseDef || c.def;
-        cards[c.id] = { id: c.id, owner: c.owner, ref: defRef(d), art: c.art, token: c.token || undefined, counters: c.counters, tokenDef: c.token ? c.def : undefined, cur: c.baseDef ? defRef(c.def) : undefined, copyOf: c.copyOf };
+        cards[c.id] = { id: c.id, owner: c.owner, ref: defRef(d), art: c.art, token: c.token || undefined, counters: c.counters && { ...c.counters }, tokenDef: c.token ? c.def : undefined, cur: c.baseDef ? defRef(c.def) : undefined, copyOf: c.copyOf, ...(live ? { defObj: d, curObj: c.baseDef ? c.def : undefined } : {}) };
         if (c.baseDef) cards[c.id].curFull = c.def;
       }
       return { $c: c.id };
@@ -1658,7 +1724,7 @@ export class Game {
       if (v instanceof Set) return { $set: [...v].map(enc) };
       if (isCard(v)) return cardRef(v);
       if (isPerm(v)) return { $p: v.id };
-      if (isDef(v)) return { $def: defRef(v) };
+      if (isDef(v)) return v.token ? { $tdef: JSON.parse(JSON.stringify(v)), obj: live ? v : undefined } : live ? { $def: defRef(v), obj: v } : { $def: defRef(v) };
       const o = {}; for (const [k, x] of Object.entries(v)) if (x !== undefined) o[k] = enc(x); return o;
     };
     const encPerm = (p) => { const o = {}; for (const [k, x] of Object.entries(p)) if (x !== undefined && k !== 'kw' && k !== 'auraSpec') o[k] = k === 'card' ? cardRef(x) : enc(x); return o; };
@@ -1684,13 +1750,13 @@ export class Game {
     const g = Object.create(Game.prototype);
     const cards = {}; const perms = {};
     for (const c of Object.values(data.cards)) {
-      const def = c.token ? c.tokenDef : lookup(c.ref);
+      const def = c.token ? c.tokenDef : (c.defObj || lookup(c.ref));
       const card = { id: c.id, def, owner: c.owner };
       if (c.art !== undefined) card.art = c.art; else if (def.art) card.art = def.art;
       if (c.token) card.token = true;
       if (c.copyOf !== undefined) card.copyOf = c.copyOf;
       if (c.counters) card.counters = c.counters;
-      if (c.cur) { card.baseDef = def; card.def = c.curFull ? lookup(c.cur) : def; if (c.curFull) card.def = { ...lookup(c.cur), ...c.curFull }; }
+      if (c.cur) { card.baseDef = def; card.def = c.curObj || (c.curFull ? { ...lookup(c.cur), ...c.curFull } : def); }
       cards[c.id] = card;
     }
     const dec = (v) => {
@@ -1699,7 +1765,8 @@ export class Game {
       if ('$c' in v) return cards[v.$c];
       if ('$p' in v) return perms[v.$p];
       if ('$ps' in v) { const t = {}; for (const [kk, vv] of Object.entries(v.$ps)) t[kk] = kk === 'card' ? cards[vv.$c] : dec(vv); return t; }
-      if ('$def' in v) return lookup(v.$def);
+      if ('$tdef' in v) return v.obj || v.$tdef;
+      if ('$def' in v) return v.obj || lookup(v.$def);
       if ('$n' in v) return v.$n === 'inf' ? Infinity : v.$n === '-inf' ? -Infinity : NaN;
       if ('$set' in v) return new Set(v.$set.map(dec));
       const o = {}; for (const [k, x] of Object.entries(v)) o[k] = dec(x); return o;
@@ -1716,7 +1783,8 @@ export class Game {
     Object.assign(g, gd);
     g.auto = new Set(gd.auto);
     g.opts = gd.opts;
-    g.rng = opts.rng || makeRng(1);
+    g.rngCalls = 0; g.logSeq = 0; g.undoEpoch = 0; g.undoSnap = null; g.undoFor = [];
+    g.rng = opts.live ? opts.rng : g.wrapRng(opts.rng || makeRng(1));
     if (data.rng !== null && g.rng.setState) g.rng.setState(data.rng);
     g.events = []; g.asks = []; g.curAsk = null; g.idle = []; g.inAsk = false; g.prevWaiting = null; g.delayed = []; g.ghosts = []; g.pendingCallbacks = [];
     g.inSba = false; g.sbaAgain = false; g._tyGuard = false; g._depth = 0; g._lg = false; g.ver = 0; g._stSig = null;

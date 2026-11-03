@@ -1,4 +1,4 @@
-import { isImplemented } from './cards.js?v=20261102211832';
+import { isImplemented } from './cards.js?v=20261102220002';
 
 // BEGIN GENERATED DECKS (node test/build_decks.mjs --write)
 export const DECK_LISTS = {

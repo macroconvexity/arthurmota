@@ -1,6 +1,6 @@
-import { isImplemented } from './cards.js?v=20261102211832';
-import { DECK_LISTS, copyLimit } from './decks.js?v=20261102211832';
-import { askConfirm, askText } from './dialog.js?v=20261102211832';
+import { isImplemented } from './cards.js?v=20261102220002';
+import { DECK_LISTS, copyLimit } from './decks.js?v=20261102220002';
+import { askConfirm, askText } from './dialog.js?v=20261102220002';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
@@ -12,11 +12,9 @@ const KEY = 'mtgclassic.decks.v1';
 
 let byName, uniq, onPlay, ctx;
 let store = { decks: {}, current: '' };
-const f = { q: '', colors: new Set(), set: '', type: '', playable: false, legend: false, page: 1 };
 const PAGE = 120;   // collection grid renders in pages (651+ cards; phones)
 const isLegend = (d) => (d.supertypes || []).includes('Legendary');
 const isGold = (d) => (d.colors || []).length > 1;
-let sideQ = '';
 
 const cmc = (d) => { let n = 0; for (const m of (d.manaCost || '').matchAll(/\{([^}]+)\}/g)) { const t = m[1]; n += /^\d+$/.test(t) ? +t : t === 'X' ? 0 : /^\d+\//.test(t) ? parseInt(t) : 1; } return n; };
 const isLand = (d) => d.types.includes('Land');
@@ -117,82 +115,160 @@ function renderHome() {
   <div class="homebox">${(() => { const r = ctx.canResume?.(); return r ? `<button class="resume" data-act="resume"><b>Resume game</b><span>vs ${esc(r.foe || 'Opponent')} · Turn ${r.turn} · You ${r.life[0]} - ${r.life[1]} Opp</span></button>` : ''; })()}<label>Your deck</label>${deckSelect()}<div class="hcount">${total()} cards</div>${playBtn()}
   <button class="ghost" data-act="goto" data-v="decks">Edit deck</button></div><p class="muted">${cov.implemented} of ${cov.total} cards have implemented rules. The rest are shown locked in the collection.</p></div>`;
 }
+// ---------- shared card browser (Collection = browse, Decks = browse + build) ----------
+const TYPES = ['Creature', 'Instant', 'Sorcery', 'Enchantment', 'Artifact', 'Land'];
+const COSTS = [0, 1, 2, 3, 4, 5, 6];
+const RARITIES = { '': 'All rarities', common: 'Common', uncommon: 'Uncommon', rare: 'Rare' };
+const SORTS = { color: 'Colour', cmc: 'Mana cost', name: 'Name', type: 'Type' };
+const TYPE_ORDER = ['Creature', 'Instant', 'Sorcery', 'Enchantment', 'Artifact', 'Land'];
+const inSet = (d, s) => byName[d.name].some((v) => v.set === s || (v.also_in || []).includes(s));
+const typeKey = (d) => { const i = TYPE_ORDER.findIndex((t) => d.types.includes(t)); return i < 0 ? 99 : i; };
+const SORT_FN = {
+  color: (a, b) => colorKey(a) - colorKey(b) || cmc(a) - cmc(b) || a.name.localeCompare(b.name),
+  cmc: (a, b) => cmc(a) - cmc(b) || colorKey(a) - colorKey(b) || a.name.localeCompare(b.name),
+  name: (a, b) => a.name.localeCompare(b.name),
+  type: (a, b) => typeKey(a) - typeKey(b) || colorKey(a) - colorKey(b) || cmc(a) - cmc(b) || a.name.localeCompare(b.name),
+};
+const mkFilters = () => ({ q: '', colors: new Set(), types: new Set(), costs: new Set(), legend: false, set: '', rarity: '', playable: false, inDeck: false, sort: 'color' });
+const F = mkFilters();   // one filter state shared by Collection and Decks
+let page = 1, gobs = null, bmode = 'collection', drawerOpen = false;
 
-// ---------- collection ----------
 function filtered() {
-  const q = f.q.trim().toLowerCase();
-  return uniq.filter((d) => {
+  const q = F.q.trim().toLowerCase(), cur = deck();
+  const list = uniq.filter((d) => {
     if (q && !(d.name.toLowerCase().includes(q) || (d.text || '').toLowerCase().includes(q) || d.type.toLowerCase().includes(q))) return false;
-    if (f.colors.size) { const c = d.colors || []; const ok = [...f.colors].some((k) => (k === 'C' ? !c.length : k === 'M' ? c.length > 1 : c.includes(k))); if (!ok) return false; }
-    if (f.legend && !isLegend(d)) return false;
-    if (f.set && !byName[d.name].some((v) => v.set === f.set)) return false;
-    if (f.type && !d.types.includes(f.type)) return false;
-    if (f.playable && !isImplemented(d)) return false;
+    if (F.colors.size) { const c = d.colors || []; if (![...F.colors].some((k) => (k === 'C' ? !c.length : k === 'M' ? c.length > 1 : c.includes(k)))) return false; }
+    if (F.types.size && ![...F.types].some((t) => d.types.includes(t))) return false;
+    if (F.costs.size && !F.costs.has(Math.min(cmc(d), 6))) return false;
+    if (F.legend && !isLegend(d)) return false;
+    if (F.set && !inSet(d, F.set)) return false;
+    if (F.rarity && d.rarity !== F.rarity) return false;
+    if (F.playable && !isImplemented(d)) return false;
+    if (F.inDeck && !cur[d.name]) return false;
     return true;
   });
+  const fn = SORT_FN[F.sort] || SORT_FN.color;
+  return list.sort((a, b) => isImplemented(b) - isImplemented(a) || fn(a, b));
 }
-function filterBar() {
-  return `<div class="filters"><div class="search"><input id="q" placeholder="Search…" value="${esc(f.q)}"><svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="M15 15l6 6"/></svg></div>
-  <div class="colors">${COLORS.map((c) => `<button class="cf ${c} ${f.colors.has(c) ? 'on' : ''}" data-c="${c}" title="${c === 'M' ? 'Multicolor' : c === 'C' ? 'Colorless' : c}">${{ W: '☀', U: '💧', B: '☠', R: '🔥', G: '🌲', C: '◇', M: '✦' }[c]}</button>`).join('')}</div>
-  <select id="fset">${Object.entries(SETS).map(([k, v]) => `<option value="${k}" ${k === f.set ? 'selected' : ''}>${v}</option>`).join('')}</select>
-  <select id="ftype">${['', 'Creature', 'Instant', 'Sorcery', 'Artifact', 'Land', 'Enchantment'].map((t) => `<option value="${t}" ${t === f.type ? 'selected' : ''}>${t || 'All types'}</option>`).join('')}</select>
-  <label class="chk"><input type="checkbox" id="fplay" ${f.playable ? 'checked' : ''}> Playable only</label><label class="chk"><input type="checkbox" id="fleg" ${f.legend ? 'checked' : ''}> Legendary</label></div>`;
+const activeCount = () => F.colors.size + F.types.size + F.costs.size + (F.legend ? 1 : 0) + (F.set ? 1 : 0) + (F.rarity ? 1 : 0) + (F.playable ? 1 : 0) + (F.inDeck ? 1 : 0) + (F.q ? 1 : 0);
+
+const chip = (grp, val, label, on, cls = '') => `<button class="chip ${cls} ${on ? 'on' : ''}" data-g="${grp}" data-v="${val}">${label}</button>`;
+function filterBar(building) {
+  const colorChips = COLORS.map((c) => `<button class="cf ${c} ${F.colors.has(c) ? 'on' : ''}" data-g="color" data-v="${c}" title="${c === 'M' ? 'Multicolor' : c === 'C' ? 'Colorless' : { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' }[c]}" aria-label="${c}"></button>`).join('');
+  const opts = (o, cur) => Object.entries(o).map(([k, v]) => `<option value="${k}" ${k === cur ? 'selected' : ''}>${v}</option>`).join('');
+  return `<div class="ftop">
+    <div class="search"><input id="q" placeholder="Search name or text…" value="${esc(F.q)}"><svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="M15 15l6 6"/></svg></div>
+    <label class="sortl">Sort <select id="fsort">${opts(SORTS, F.sort)}</select></label>
+    <button class="fbtn" data-fb="1">Filters<b id="fcnt"></b></button>
+    <span class="rescount" id="rescount"></span>
+    ${building ? '<button class="dkbtn" data-dk="1">Deck <b id="dkcnt"></b></button>' : ''}
+  </div>
+  <div class="fpanel" id="fpanel">
+    <div class="fgrp colors">${colorChips}</div>
+    <div class="fgrp costs"><span class="fl">Cost</span>${COSTS.map((n) => chip('cost', n, n === 6 ? '6+' : n, F.costs.has(n), 'sm')).join('')}</div>
+    <div class="fgrp types">${TYPES.map((t) => chip('type', t, t, F.types.has(t))).join('')}${chip('legend', 'L', '&#9733; Legendary', F.legend)}</div>
+    <div class="fgrp sels"><select id="fset">${opts({ '': 'All sets', LEA: 'Alpha', LEB: 'Beta', '2ED': 'Unlimited', ARN: 'Arabian Nights', ATQ: 'Antiquities', LEG: 'Legends' }, F.set)}</select>
+      <select id="frar">${opts(RARITIES, F.rarity)}</select></div>
+    <div class="fgrp tog">${chip('playable', 1, 'Playable only', F.playable, 'tg')}${building ? chip('indeck', 1, 'Only cards in deck', F.inDeck, 'tg') : ''}<button class="chip clr" data-g="clear">Clear filters</button></div>
+  </div>`;
 }
 function cell(d) {
-  const n = deck()[d.name] || 0, lim = copyLimit(d.name), ok = isImplemented(d);
-  const pips = Array.from({ length: Math.min(lim, 4) }, (_, i) => `<i class="${i < n ? 'f' : ''}"></i>`).join('');
-  return `<div class="cc ${ok ? '' : 'locked'} ${n ? 'in' : ''} ${isGold(d) ? 'gold' : ''} ${isLegend(d) ? 'leg' : ''}" data-n="${esc(d.name)}"><img loading="lazy" src="${d.art}" alt="${esc(d.name)}">${ok ? '' : '<span class="lock">Coming soon</span>'}<div class="cfoot"><span class="pips">${pips}</span><span class="qty">x${n}</span></div></div>`;
+  const n = deck()[d.name] || 0, lim = copyLimit(d.name), ok = isImplemented(d), b = bmode === 'decks';
+  return `<div class="cc ${ok ? '' : 'locked'} ${n ? 'in' : ''} ${isGold(d) ? 'gold' : ''} ${isLegend(d) ? 'leg' : ''}" data-n="${esc(d.name)}"><img loading="lazy" decoding="async" src="${d.art}" alt="${esc(d.name)}">${ok ? '' : '<span class="lock">Coming soon</span>'}${b && ok ? footHtml(n, lim) : ''}</div>`;
 }
-function deckPanel() {
-  const rows = entries().map(([n, c]) => ({ n, c, d: byName[n][0] })).sort((a, b) => isLand(a.d) - isLand(b.d) || cmc(a.d) - cmc(b.d) || a.n.localeCompare(b.n));
-  return `<aside class="dpanel"><div class="dhead"><div class="back"></div><div><div class="dname">${deckSelect()}</div><div class="dcount ${total() < MIN_DECK ? 'bad' : ''}">${total()} Cards</div></div></div>${deckTools()}
-  <div class="dlist">${rows.map((r) => `<div class="drow" data-rm="${esc(r.n)}" data-n="${esc(r.n)}"><span class="dcost">${costHtml(r.d.manaCost)}</span><span class="dn">${esc(r.n)}</span><b>x${r.c}</b></div>`).join('') || '<p class="muted">Click cards to add them.</p>'}</div>
-  <div class="dfoot">${playBtn()}</div></aside>`;
+function footHtml(n, lim) {
+  return `<div class="cfoot"><button class="cb" data-dec="1" ${n ? '' : 'disabled'} aria-label="Remove one">&minus;</button><span class="qty">x${n}</span><button class="cb" data-inc="1" ${n >= lim ? 'disabled' : ''} aria-label="Add one">+</button></div>`;
+}
+function updateTile(el) {
+  const n = deck()[el.dataset.n] || 0, ft = $('.cfoot', el);
+  el.classList.toggle('in', n > 0);
+  if (ft) { const t = document.createElement('div'); t.innerHTML = footHtml(n, copyLimit(el.dataset.n)); ft.replaceWith(t.firstElementChild); }
 }
 // paged grid: first PAGE cards, the rest appended when the sentinel scrolls into view
-function gridHtml(list) { if (!list.length) return '<p class="muted">No cards match.</p>'; return list.slice(0, f.page * PAGE).map(cell).join('') + (list.length > f.page * PAGE ? `<div class="gmore" id="gmore">${list.length - f.page * PAGE} more…</div>` : ''); }
-let gobs = null;
+let curList = [];
+function gridHtml() {
+  if (!curList.length) return '<p class="muted pad">No cards match these filters.</p>';
+  return curList.slice(0, page * PAGE).map(cell).join('') + (curList.length > page * PAGE ? `<div class="gmore" id="gmore">${curList.length - page * PAGE} more…</div>` : '');
+}
+function loadMore() {
+  const g = $('#cgrid'), m = $('#gmore'); if (!g || !m) return;
+  const from = page * PAGE; page++; m.remove();
+  g.insertAdjacentHTML('beforeend', curList.slice(from, page * PAGE).map(cell).join('') + (curList.length > page * PAGE ? `<div class="gmore" id="gmore">${curList.length - page * PAGE} more…</div>` : ''));
+  watchMore();
+}
 function watchMore() {
   gobs?.disconnect(); const m = $('#gmore'); if (!m || !window.IntersectionObserver) return;
-  gobs = new IntersectionObserver((en) => { if (en.some((e) => e.isIntersecting)) { gobs.disconnect(); f.page++; $('#cgrid').innerHTML = gridHtml(filtered()); watchMore(); } }, { root: $('#cgrid'), rootMargin: '400px' }); gobs.observe(m);
+  gobs = new IntersectionObserver((en) => { if (en.some((e) => e.isIntersecting)) { gobs.disconnect(); loadMore(); } }, { root: $('#cgrid'), rootMargin: '600px' }); gobs.observe(m);
 }
-function renderCollection() {
-  const list = filtered();
-  f.page = 1;
-  $('#v-collection').innerHTML = `<div class="colwrap"><div class="colmain">${filterBar()}<div class="grid" id="cgrid">${gridHtml(list)}</div></div>${deckPanel()}</div>`;
-  wireCollection(); watchMore();
+function refreshGrid(keep) {
+  const g = $('#cgrid'); if (!g) return; const st = keep ? g.scrollTop : 0;
+  curList = filtered(); page = 1; g.innerHTML = gridHtml(); g.scrollTop = st; watchMore();
+  $('#rescount').textContent = `${curList.length} card${curList.length === 1 ? '' : 's'}`;
+  const a = activeCount(); $('#fcnt').textContent = a ? ' · ' + a : '';
+  $('.clr').disabled = !a;
 }
-function wireCollection() {
-  const root = $('#v-collection');
-  const refreshGrid = () => { f.page = 1; $('#cgrid').innerHTML = gridHtml(filtered()); $('#cgrid').scrollTop = 0; watchMore(); };
-  const refreshDeck = () => { const old = $('.dpanel', root); const t = document.createElement('div'); t.innerHTML = deckPanel(); old.replaceWith(t.firstElementChild); };
-  $('#q').oninput = (e) => { f.q = e.target.value; refreshGrid(); };
-  $('#fset').onchange = (e) => { f.set = e.target.value; refreshGrid(); };
-  $('#ftype').onchange = (e) => { f.type = e.target.value; refreshGrid(); };
-  $('#fleg').onchange = (e) => { f.legend = e.target.checked; refreshGrid(); };
-  $('#fplay').onchange = (e) => { f.playable = e.target.checked; refreshGrid(); };
-  root.querySelector('.colors').onclick = (e) => { const b = e.target.closest('.cf'); if (!b) return; const c = b.dataset.c; f.colors.has(c) ? f.colors.delete(c) : f.colors.add(c); b.classList.toggle('on'); refreshGrid(); };
-  $('#cgrid').onclick = (e) => { const c = e.target.closest('.cc'); if (!c) return; add(c.dataset.n); const d = byName[c.dataset.n][0]; c.outerHTML = cell(d); refreshDeck(); };
-  root.onclick = (e) => { const r = e.target.closest('[data-rm]'); if (!r) return; remove(r.dataset.rm); refreshGrid(); refreshDeck(); };
+function syncChips(root) {
+  root.querySelectorAll('[data-g]').forEach((b) => {
+    const g = b.dataset.g, v = b.dataset.v; let on = null;
+    if (g === 'color') on = F.colors.has(v); else if (g === 'cost') on = F.costs.has(+v); else if (g === 'type') on = F.types.has(v);
+    else if (g === 'legend') on = F.legend; else if (g === 'playable') on = F.playable; else if (g === 'indeck') on = F.inDeck;
+    if (on !== null) b.classList.toggle('on', on);
+  });
 }
 
-// ---------- deck builder (columns by mana value + side list) ----------
-function renderDecks() {
-  const cols = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], L: [] };
-  for (const [n, c] of entries()) { const d = byName[n][0]; const k = isLand(d) ? 'L' : Math.min(cmc(d), 6); for (let i = 0; i < c; i++) cols[k].push(d); }
-  const labels = { 0: '0', 1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6+', L: 'Lands' };
-  const colHtml = Object.entries(cols).filter(([, l]) => l.length).map(([k, l]) => `<div class="dcol"><h4>${labels[k]} <small>${l.length}</small></h4><div class="stk">${l.sort((a, b) => a.name.localeCompare(b.name)).map((d) => `<div class="sc" data-rm="${esc(d.name)}" data-n="${esc(d.name)}"><img src="${d.art}" loading="lazy"></div>`).join('')}</div></div>`).join('');
-  const sideAll = uniq.filter((d) => isImplemented(d) && (!sideQ || d.name.toLowerCase().includes(sideQ))); const sideMore = Math.max(0, sideAll.length - 200);
-  const side = sideAll.slice(0, 200).map((d) => { const n = deck()[d.name] || 0, lim = copyLimit(d.name); const ck = isLand(d) ? 'L' : (d.colors || []).length > 1 ? 'M' : (d.colors || [])[0] || 'A'; return `<div class="srow c${ck} ${n >= lim ? 'full' : ''}" data-add="${esc(d.name)}" data-n="${esc(d.name)}"><span>${esc(d.name)}</span><span class="dcost">${costHtml(d.manaCost)}</span><b>${n}/${lim > 9 ? '∞' : lim}</b></div>`; }).join('');
-  const curve = [0, 0, 0, 0, 0, 0, 0]; for (const [n, c] of entries()) { const d = byName[n][0]; if (!isLand(d)) curve[Math.min(cmc(d), 6)] += c; }
+// the deck panel (right column on wide screens, slide-over drawer on phones)
+function deckPanelInner() {
+  const rows = entries().map(([n, c]) => ({ n, c, d: byName[n][0] })).sort((a, b) => isLand(a.d) - isLand(b.d) || cmc(a.d) - cmc(b.d) || a.n.localeCompare(b.n));
+  const t = total(), curve = [0, 0, 0, 0, 0, 0, 0];
+  for (const r of rows) if (!isLand(r.d)) curve[Math.min(cmc(r.d), 6)] += r.c;
   const cmax = Math.max(1, ...curve);
   const curveHtml = `<div class="curve" title="Mana curve (non-land cards)">${curve.map((v, i) => `<div class="cb2"><span class="cn">${v || ''}</span><i style="height:${Math.round((v / cmax) * 100)}%"></i><span class="cl">${i === 6 ? '6+' : i}</span></div>`).join('')}</div>`;
-  $('#v-decks').innerHTML = `<div class="dbwrap"><div class="dbmain"><div class="dbbar"><div class="dbplate"><div class="dbname">${deckSelect()}</div><div class="dbcount ${total() < MIN_DECK ? 'bad' : ''}">${total()}/${MIN_DECK}+ cards</div></div>${curveHtml}${deckTools()}</div><div class="dcols">${colHtml || '<p class="muted pad">Empty deck. Add cards from the list on the right.</p>'}</div></div>
-  <aside class="side"><h3>Sideboard <small>${uniq.filter(isImplemented).length} playable cards</small></h3><input id="sq" placeholder="Search…" value="${esc(sideQ)}"><div class="slist">${side}${sideMore ? `<p class="muted">${sideMore} more cards: type to search</p>` : ''}</div><button class="play" data-act="done">Done</button></aside></div>`;
-  $('#sq').oninput = (e) => { sideQ = e.target.value.toLowerCase(); const keep = $('#sq'); renderDecks(); const n = $('#sq'); n.focus(); n.setSelectionRange(n.value.length, n.value.length); };
-  const root = $('#v-decks');
-  root.onclick = (e) => {
-    const r = e.target.closest('[data-rm]'), a = e.target.closest('[data-add]');
-    if (r) { remove(r.dataset.rm); renderDecks(); } else if (a) { add(a.dataset.add); renderDecks(); }
-  };
+  return `<div class="dph"><div class="dname">${deckSelect()}</div><button class="dx" data-dk="1" aria-label="Close deck">&times;</button></div>
+  <div class="dsub"><span class="dcount ${t < MIN_DECK ? 'bad' : ''}">${t} / ${MIN_DECK}+ cards</span>${deckTools()}</div>
+  ${curveHtml}
+  <div class="dlist">${rows.map((r) => `<div class="drow" data-rm="${esc(r.n)}" data-n="${esc(r.n)}" title="Click to remove one copy"><span class="dc">${r.c}</span><span class="dn">${esc(r.n)}</span><span class="dcost">${costHtml(r.d.manaCost)}</span></div>`).join('') || '<p class="muted pad">Empty deck. Click cards in the catalogue to add them.</p>'}</div>
+  <div class="dfoot">${playBtn()}<button class="ghost done" data-act="done">Done</button></div>`;
 }
+function refreshDeck() {
+  const p = $('#v-decks .dpanel2'); if (!p) return; const ls = $('.dlist', p)?.scrollTop || 0;
+  p.innerHTML = deckPanelInner(); const l = $('.dlist', p); if (l) l.scrollTop = ls;
+  const c = $('#dkcnt'); if (c) { c.textContent = `${total()}/${MIN_DECK}+`; c.parentElement.classList.toggle('bad', total() < MIN_DECK); }
+}
+
+function renderBrowser(mode) {
+  bmode = mode; const building = mode === 'decks', root = $('#v-' + mode);
+  gobs?.disconnect(); drawerOpen = false;
+  root.innerHTML = `<div class="bw ${building ? 'building' : ''}"><div class="bmain">${filterBar(building)}<div class="grid" id="cgrid"></div></div>${building ? `<aside class="dpanel2">${deckPanelInner()}</aside><div class="dbackdrop" data-dk="1"></div>` : ''}</div>`;
+  const setDrawer = (v) => { drawerOpen = v; $('.bw', root).classList.toggle('dopen', v); };
+  const bw = $('.bw', root);
+  $('#cgrid').addEventListener('scroll', (e) => { const g = e.target; if ($('#gmore') && g.scrollTop + g.clientHeight > g.scrollHeight - 700) loadMore(); }, { passive: true });
+  $('#q').oninput = (e) => { F.q = e.target.value; refreshGrid(); };
+  $('#fsort').onchange = (e) => { F.sort = e.target.value; refreshGrid(); };
+  $('#fset').onchange = (e) => { F.set = e.target.value; refreshGrid(); };
+  $('#frar').onchange = (e) => { F.rarity = e.target.value; refreshGrid(); };
+  const syncSelects = () => { $('#q').value = F.q; $('#fsort').value = F.sort; $('#fset').value = F.set; $('#frar').value = F.rarity; };
+  root.onclick = (e) => {
+    const t = e.target;
+    if (bw.classList.contains('fopen') && !t.closest('#fpanel') && !t.closest('[data-fb]')) { bw.classList.remove('fopen'); if (t.closest('#cgrid')) return; }
+    const fb = t.closest('[data-fb]'); if (fb) { bw.classList.toggle('fopen'); return; }
+    if (t.closest('[data-dk]')) { setDrawer(!drawerOpen); return; }
+    const ch = t.closest('[data-g]');
+    if (ch) {
+      const g = ch.dataset.g, v = ch.dataset.v, tog = (s, k) => (s.has(k) ? s.delete(k) : s.add(k));
+      if (g === 'color') tog(F.colors, v); else if (g === 'cost') tog(F.costs, +v); else if (g === 'type') tog(F.types, v);
+      else if (g === 'legend') F.legend = !F.legend; else if (g === 'playable') F.playable = !F.playable; else if (g === 'indeck') F.inDeck = !F.inDeck;
+      else if (g === 'clear') { const s = F.sort; Object.assign(F, mkFilters(), { sort: s }); syncSelects(); }
+      syncChips(root); refreshGrid(); return;
+    }
+    const r = t.closest('[data-rm]');
+    if (r) { remove(r.dataset.rm); refreshDeck(); const el = $(`#cgrid [data-n="${CSS.escape(r.dataset.rm)}"]`); if (el) { if (F.inDeck && !deck()[r.dataset.rm]) refreshGrid(true); else updateTile(el); } else if (F.inDeck) refreshGrid(true); return; }
+    const c = t.closest('.cc'); if (!c) return;
+    if (!building) { bigView(c.dataset.n); return; }
+    if (t.closest('[data-dec]')) remove(c.dataset.n); else add(c.dataset.n);
+    if (F.inDeck && !deck()[c.dataset.n]) { c.remove(); $('#rescount').textContent = `${$('#cgrid').querySelectorAll('.cc').length} cards`; } else updateTile(c);
+    refreshDeck();
+  };
+  refreshGrid(); if (building) refreshDeck();
+}
+const renderCollection = () => renderBrowser('collection');
+const renderDecks = () => renderBrowser('decks');

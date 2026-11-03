@@ -222,3 +222,89 @@ html.compact .cfoot{margin-top:2px}
 .cc.leg::after{content:"\2605";position:absolute;top:4px;left:6px;color:#ffe08a;font-size:18px;text-shadow:0 0 6px #000,0 0 10px #f08a24;pointer-events:none}
 .pip.H{color:#111;border:1px solid #0006}.pip.X{background:#cfc8bb}
 .gmore{grid-column:1/-1;text-align:center;color:#a89a78;padding:12px;font-size:13px}
+
+/* ===== shared card browser (Collection + Decks) ===== */
+.bw{position:relative;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr);height:100%;overflow:hidden}
+.bw.building{grid-template-columns:minmax(0,1fr) clamp(280px,25vw,350px)}
+.bmain{position:relative;display:flex;flex-direction:column;min-width:0;min-height:0;padding:12px 14px 0 18px}
+.ftop{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;margin-bottom:8px;flex:none}
+.ftop .search input{width:240px;font:italic 18px Georgia;padding:8px 42px 8px 18px}
+.sortl{display:flex;align-items:center;gap:6px;font-size:13px;color:#a89a78;text-transform:uppercase;letter-spacing:1px}
+.bw select{font:600 15px Georgia;border-radius:20px;border-width:2px;padding:6px 12px}
+.rescount{margin-left:auto;font:600 14px Georgia;color:#a89a78}
+.fbtn,.dkbtn{display:none;background:#2a1d15;color:#f3c978;border:1px solid #7a5a28;border-radius:18px;padding:6px 14px;font:700 13px Georgia;flex:none}
+.fbtn b,.dkbtn b{font-weight:700;color:#fff}
+.dkbtn.bad b{color:#ff9c8a}
+.fpanel{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;margin-bottom:8px;flex:none}
+.fgrp{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.fgrp.colors{flex-wrap:nowrap}
+.fl{font-size:11px;letter-spacing:1px;text-transform:uppercase;color:#8f836b;margin-right:2px}
+.chip{background:#150e0c;color:#d9cdb0;border:1.5px solid #6a5226;border-radius:16px;padding:5px 11px;font:600 13px Georgia;line-height:1.1;cursor:pointer}
+.chip.sm{min-width:30px;padding:5px 8px;text-align:center}
+.chip.on{background:linear-gradient(#ffb25a,#d9631a);border-color:#ffcf94;color:#fff;box-shadow:0 0 10px #f08a2466}
+.chip.clr{border-style:dashed;color:#e6b8a8}.chip.clr:disabled{opacity:.35;cursor:default}
+.bw .grid{flex:1;min-height:0;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:18px 14px;padding:6px 8px 30px 4px;overscroll-behavior:contain}
+.cfoot{display:flex;justify-content:center;align-items:center;gap:6px;margin-top:6px}
+.cb{width:28px;height:28px;border-radius:50%;border:1.5px solid #7a5a28;background:#2a1d15;color:#f3c978;font:700 18px/1 Georgia;padding:0;flex:none}
+.cb:disabled{opacity:.3}
+.cb:not(:disabled):active{background:#f08a24;color:#fff}
+.cc.locked .cfoot{display:none}
+.cc.locked .lock{background:#0009;padding:3px 0}
+/* deck panel */
+.dpanel2{display:flex;flex-direction:column;min-height:0;margin:12px 14px 12px 0;padding:12px;gap:8px;background:#120b09ee;border:2px solid #5a431f;border-radius:14px}
+.dph{display:flex;gap:8px;align-items:center}.dph .dname{flex:1;min-width:0}.dph .dsel{width:100%;font-size:18px;padding:6px 12px}
+.dx{display:none;width:34px;height:34px;border-radius:50%;border:1px solid #7a5a28;background:#2a1d15;color:#f3c978;font:700 22px/1 Georgia;padding:0;flex:none}
+.dsub{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.dsub .dcount{margin:0;font:700 18px Georgia}
+.dsub .dtools{margin:0}
+.dpanel2 .curve{height:64px;gap:4px;justify-content:space-between;padding:6px 10px 2px}
+.dpanel2 .cb2{flex:1;width:auto}
+.dpanel2 .dlist{flex:1;min-height:0;overflow-y:auto;margin:0;border:1px solid #3a2a18;border-radius:8px;background:#0c0705aa;overscroll-behavior:contain}
+.dpanel2 .drow{display:flex;align-items:center;gap:8px;padding:5px 8px;margin:0;border-bottom:1px solid #2a1d12;font-size:14px;background:linear-gradient(90deg,#2a1d15,#1a110e)}
+.dpanel2 .drow:hover{background:linear-gradient(90deg,#4a3015,#2a1d15)}
+.dpanel2 .drow .dc{min-width:24px;text-align:center;font:700 13px Georgia;color:#f3c978;background:#150e0c;border:1px solid #7a5a28;border-radius:10px;padding:1px 0}
+.dpanel2 .drow .dn{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dpanel2 .drow .dcost{order:0;min-width:0;display:flex;font-size:13px}
+.dfoot{flex:none;display:flex;flex-direction:column;gap:2px}
+.dfoot .need{margin:2px 0 0}
+.dfoot .done{margin-top:6px}
+.dbackdrop{display:none}
+/* phones / short screens: compact filter sheet + slide-over deck drawer */
+html.compact .bmain,html.portrait .bmain{padding:6px 8px 0}
+html.compact .ftop,html.portrait .ftop{flex-wrap:nowrap;gap:6px;height:36px;margin-bottom:6px;overflow:hidden}
+html.compact .ftop .search input,html.portrait .ftop .search input{width:min(150px,22vw);font-size:14px;padding:6px 28px 6px 12px;border-width:1px}
+html.compact .sortl,html.portrait .sortl{font-size:0;gap:0}
+html.compact .bw select,html.portrait .bw select{font-size:13px;padding:5px 8px;border-width:1px;max-width:120px}
+html.compact .fbtn,html.compact .dkbtn,html.portrait .fbtn,html.portrait .dkbtn{display:block}
+html.compact .rescount,html.portrait .rescount{font-size:12px;white-space:nowrap}
+html.compact .fpanel,html.portrait .fpanel{display:none;position:absolute;left:8px;right:8px;top:44px;z-index:25;max-height:calc(100% - 52px);overflow:auto;padding:10px;margin:0;background:#120b09f7;border:2px solid #7a5a28;border-radius:12px;box-shadow:0 10px 30px #000c}
+html.compact .bw.fopen .fpanel,html.portrait .bw.fopen .fpanel{display:flex}
+html.compact .bw .grid,html.portrait .bw .grid{grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:10px 8px;padding:4px 4px 16px 2px}
+html.compact .cb,html.portrait .cb{width:24px;height:24px;font-size:15px}
+html.compact .cfoot{gap:4px;margin-top:3px}
+html.compact .chip{padding:4px 9px;font-size:12px}
+html.compact .bw.building,html.portrait .bw.building{grid-template-columns:minmax(0,1fr)}
+html.compact .dpanel2,html.portrait .dpanel2{position:absolute;top:0;right:0;bottom:0;z-index:30;width:min(330px,62%);margin:0;border-radius:14px 0 0 14px;border-right:0;transform:translateX(105%);transition:transform .22s ease-out;box-shadow:-10px 0 30px #000c;padding:8px;gap:6px}
+html.compact .bw.dopen .dpanel2,html.portrait .bw.dopen .dpanel2{transform:none}
+html.compact .dbackdrop,html.portrait .dbackdrop{position:absolute;inset:0;z-index:28;background:#0008;display:block;opacity:0;pointer-events:none;transition:opacity .2s}
+html.compact .bw.dopen .dbackdrop,html.portrait .bw.dopen .dbackdrop{opacity:1;pointer-events:auto}
+html.compact .dx,html.portrait .dx{display:block}
+html.compact .dpanel2 .curve{display:flex;height:42px;padding:3px 8px 0}
+html.compact .dpanel2 .dsel{font-size:14px;padding:4px 10px}
+html.compact .dsub .dcount{font-size:14px}
+html.compact .dpanel2 .drow{font-size:12px;padding:3px 6px}
+html.compact .dpanel2 .dtools button{font-size:10px;padding:3px 8px}
+html.compact .dfoot{flex-direction:row;align-items:center;gap:8px;flex-wrap:wrap}
+html.compact .dfoot .need{display:none}
+html.compact .dfoot .play,html.compact .dfoot .done{flex:1;margin:0}
+@media (max-height:800px) and (min-width:901px){
+  .bmain{padding-top:8px}.ftop{margin-bottom:6px}.fpanel{gap:6px 10px;margin-bottom:6px}
+  .ftop .search input{font-size:16px;padding:6px 38px 6px 16px}
+  .chip{padding:4px 9px;font-size:12px}
+  .cf{width:30px;height:30px}.bw select{font-size:13px;padding:4px 10px}
+  .bw .grid{gap:14px 12px;grid-template-columns:repeat(auto-fill,minmax(128px,1fr))}
+  .dpanel2{margin:8px 10px 8px 0;padding:10px;gap:6px}
+  .dpanel2 .curve{height:52px}
+}
+.dpanel2 .dcost .pip{width:18px;height:18px;margin-left:2px;font-size:11px;flex:none}
+html.compact .dpanel2 .dcost .pip{width:14px;height:14px;font-size:9px}
