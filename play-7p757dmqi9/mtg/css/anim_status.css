@@ -30,10 +30,10 @@ html.phone .sxkw{height:max(10px,calc(var(--cw)*.16))}
 .sxdrain{border-radius:50%}
 /* action button */
 #act-btn{position:relative}
-#act-btn.sx-go::after{content:"";position:absolute;inset:-2px;border-radius:inherit;border:2px solid #ffcf94;pointer-events:none;animation:sxripple 1.8s ease-out infinite}
-@keyframes sxripple{0%{transform:scale(1);opacity:.85}100%{transform:scale(1.22,1.5);opacity:0}}
+#act-btn.sx-go{animation:sxglow 1.8s ease-in-out infinite}
+@keyframes sxglow{0%,100%{filter:drop-shadow(0 0 0 #ffb25a00)}50%{filter:drop-shadow(0 0 7px #ffb25aaa)}}
 #act-btn.sx-wait{animation:sxwait 2.2s ease-in-out infinite;opacity:.8}
 #act-btn.sx-wait::after{content:"";display:inline-block;width:1.2em;text-align:left;animation:sxdots 1.4s steps(4,end) infinite;overflow:hidden;vertical-align:bottom;white-space:nowrap}
 @keyframes sxwait{50%{opacity:.5}}
 @keyframes sxdots{0%{content:""}25%{content:"."}50%{content:".."}75%,100%{content:"..."}}
-html.reduced #act-btn.sx-go::after,html.reduced #act-btn.sx-wait,html.reduced .sxkw.shield{animation:none}
+html.reduced #act-btn.sx-go,html.reduced #act-btn.sx-wait,html.reduced .sxkw.shield{animation:none}
