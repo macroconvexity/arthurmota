@@ -34,3 +34,19 @@ html .homebox .ghost{--cap:16px;border-style:solid!important;border-width:0 var(
 html #action button{white-space:nowrap}
 html.phone #action{width:max(34cqh,132px)}
 html.phone #action button{font-size:max(11px,2.5cqh)!important;letter-spacing:.8px;--cap:15px}
+
+/* real mana symbols (ChatGPT-made tokens) for filter chips and cost pips */
+html .cf.W{background:url(../assets/ui/mana/W.png) center/cover no-repeat!important;font-size:0!important;border:0!important}
+html .pip.W{background:url(../assets/ui/mana/W.png) center/cover no-repeat!important;color:transparent!important;border:0!important;font-size:0!important}
+html .cf.U{background:url(../assets/ui/mana/U.png) center/cover no-repeat!important;font-size:0!important;border:0!important}
+html .pip.U{background:url(../assets/ui/mana/U.png) center/cover no-repeat!important;color:transparent!important;border:0!important;font-size:0!important}
+html .cf.B{background:url(../assets/ui/mana/B.png) center/cover no-repeat!important;font-size:0!important;border:0!important}
+html .pip.B{background:url(../assets/ui/mana/B.png) center/cover no-repeat!important;color:transparent!important;border:0!important;font-size:0!important}
+html .cf.R{background:url(../assets/ui/mana/R.png) center/cover no-repeat!important;font-size:0!important;border:0!important}
+html .pip.R{background:url(../assets/ui/mana/R.png) center/cover no-repeat!important;color:transparent!important;border:0!important;font-size:0!important}
+html .cf.G{background:url(../assets/ui/mana/G.png) center/cover no-repeat!important;font-size:0!important;border:0!important}
+html .pip.G{background:url(../assets/ui/mana/G.png) center/cover no-repeat!important;color:transparent!important;border:0!important;font-size:0!important}
+html .cf.C{background:url(../assets/ui/mana/C.png) center/cover no-repeat!important;font-size:0!important;border:0!important}
+html .pip.C{background:url(../assets/ui/mana/C.png) center/cover no-repeat!important;color:transparent!important;border:0!important;font-size:0!important}
+html .cf.M{background:url(../assets/ui/mana/M.png) center/cover no-repeat!important;font-size:0!important;border:0!important}
+html .cf{box-shadow:0 1px 4px #0009}html .cf.on{box-shadow:0 0 0 2px #f3c978,0 0 12px #f3c97888}
