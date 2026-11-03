@@ -1,7 +1,7 @@
 // Priority A: card motion between zones (draw, mill, discard, resolve, bounce, reanimate, return-to-library, shuffle,
 // pile pulses) and the untap stagger. Everything is skipped when window.__fxOff is set; durations are scaled by the
 // global Element.animate wrapper in ui.js. See docs/ANIMATIONS.md.
-import * as FX from '../fx.js?v=20261102205945';
+import * as FX from '../fx.js?v=20261102211327';
 const rnd = (a, b) => a + Math.random() * (b - a);
 const off = () => !!window.__fxOff;
 const ctr = (r) => [r.left + r.width / 2, r.top + r.height / 2];
