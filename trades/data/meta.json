@@ -1,8 +1,8 @@
 {
- "updated": "2026-11-03T23:12:21Z",
- "slot": "manual",
- "as_of_ny": "2026-11-03 18:10",
- "last_close": "2026-11-02",
+ "updated": "2026-11-04T13:09:22Z",
+ "slot": "open",
+ "as_of_ny": "2026-11-04 08:07",
+ "last_close": "2026-11-03",
  "live_since": "2026-10-07",
  "in_sample": true,
  "positions": [
@@ -11,13 +11,13 @@
    "name": "State Street Energy Select Sector SPDR ETF",
    "lev": 1,
    "w": 0.250123,
-   "w_target": 0.216479,
+   "w_target": 0.215587,
    "px": 66.68,
-   "chg_pct": -0.848,
+   "chg_pct": 0.0,
    "since": "2026-10-30",
    "pnl_pct": -4.104,
    "locked": false,
-   "band_pct": 5.432,
+   "band_pct": 5.306,
    "breach": false
   },
   {
@@ -25,13 +25,13 @@
    "name": "iShares Biotechnology ETF",
    "lev": 1,
    "w": 0.248522,
-   "w_target": 0.27758,
+   "w_target": 0.279712,
    "px": 215.47,
-   "chg_pct": 0.786,
+   "chg_pct": 0.0,
    "since": "2026-11-02",
    "pnl_pct": -1.135,
    "locked": false,
-   "band_pct": 4.618,
+   "band_pct": 4.458,
    "breach": false
   },
   {
@@ -39,13 +39,13 @@
    "name": "State Street SPDR S&P Oil & Gas Exploration & Production ETF",
    "lev": 1,
    "w": 0.2005,
-   "w_target": 0.172051,
+   "w_target": 0.171006,
    "px": 191.52,
-   "chg_pct": -1.054,
+   "chg_pct": 0.0,
    "since": "2026-11-02",
    "pnl_pct": -4.01,
    "locked": false,
-   "band_pct": 6.889,
+   "band_pct": 6.742,
    "breach": false
   },
   {
@@ -53,13 +53,13 @@
    "name": "Direxion Daily Healthcare Bull 3X ETF",
    "lev": 3,
    "w": 0.131916,
-   "w_target": 0.166267,
+   "w_target": 0.166177,
    "px": 165.52,
-   "chg_pct": -0.75,
+   "chg_pct": 0.0,
    "since": "2026-10-15",
    "pnl_pct": 11.321,
    "locked": false,
-   "band_pct": 7.152,
+   "band_pct": 6.961,
    "breach": false
   },
   {
@@ -67,13 +67,13 @@
    "name": "Direxion Energy Bull 2X ETF",
    "lev": 2,
    "w": 0.111141,
-   "w_target": 0.10118,
+   "w_target": 0.101046,
    "px": 116.5,
-   "chg_pct": -1.571,
+   "chg_pct": 0.0,
    "since": "2026-10-09",
    "pnl_pct": -2.571,
    "locked": false,
-   "band_pct": 11.179,
+   "band_pct": 10.888,
    "breach": false
   },
   {
@@ -81,13 +81,13 @@
    "name": "Direxion Daily S&P Biotech Bull 3X ETF",
    "lev": 3,
    "w": 0.057798,
-   "w_target": 0.066443,
+   "w_target": 0.066471,
    "px": 241.18,
-   "chg_pct": 5.605,
+   "chg_pct": 0.0,
    "since": "2026-10-26",
    "pnl_pct": 5.759,
    "locked": false,
-   "band_pct": 16.345,
+   "band_pct": 15.893,
    "breach": false
   }
  ],
@@ -105,22 +105,22 @@
     "label": "Since 2012",
     "start": "2012-01-03",
     "end": "2026-11-03",
-    "sys_cagr": 0.196856,
+    "sys_cagr": 0.196681,
     "spy_cagr": 0.148428,
-    "sys_maxdd": -0.522559,
+    "sys_maxdd": -0.523593,
     "spy_maxdd": -0.337173,
-    "sys_sharpe": 0.6188,
+    "sys_sharpe": 0.6185,
     "spy_sharpe": 0.8209
    },
    {
     "label": "2012 to 2022-09",
     "start": "2012-01-03",
     "end": "2022-09-30",
-    "sys_cagr": 0.138555,
+    "sys_cagr": 0.138325,
     "spy_cagr": 0.123395,
-    "sys_maxdd": -0.522559,
+    "sys_maxdd": -0.523593,
     "spy_maxdd": -0.337173,
-    "sys_sharpe": 0.5274,
+    "sys_sharpe": 0.5269,
     "spy_sharpe": 0.7402
    },
    {
@@ -143,17 +143,17 @@
    },
    {
     "year": 2013,
-    "sys": 1.021605,
+    "sys": 1.021604,
     "spy": 0.323078
    },
    {
     "year": 2014,
-    "sys": 0.260904,
+    "sys": 0.260905,
     "spy": 0.134638
    },
    {
     "year": 2015,
-    "sys": -0.349607,
+    "sys": -0.349608,
     "spy": 0.012343
    },
    {
@@ -163,28 +163,28 @@
    },
    {
     "year": 2017,
-    "sys": 0.607547,
+    "sys": 0.607546,
     "spy": 0.217054
    },
    {
     "year": 2018,
-    "sys": -0.306285,
+    "sys": -0.308307,
     "spy": -0.04569
    },
    {
     "year": 2019,
-    "sys": 0.152651,
-    "spy": 0.312239
+    "sys": 0.153515,
+    "spy": 0.312238
    },
    {
     "year": 2020,
-    "sys": 0.430776,
-    "spy": 0.183316
+    "sys": 0.430777,
+    "spy": 0.183317
    },
    {
     "year": 2021,
     "sys": 0.219714,
-    "spy": 0.287288
+    "spy": 0.287287
    },
    {
     "year": 2022,
@@ -199,7 +199,7 @@
    {
     "year": 2024,
     "sys": 0.36158,
-    "spy": 0.248864
+    "spy": 0.248865
    },
    {
     "year": 2025,
@@ -208,7 +208,7 @@
    },
    {
     "year": 2026,
-    "sys": 0.202934,
+    "sys": 0.202935,
     "spy": 0.114855
    }
   ],
@@ -857,6 +857,11 @@
   },
   {
    "date": "2026-11-03",
+   "slot": "open",
+   "orders": []
+  },
+  {
+   "date": "2026-11-04",
    "slot": "open",
    "orders": []
   }
