@@ -1,7 +1,7 @@
 {
- "updated": "2026-11-06T21:27:46Z",
+ "updated": "2026-11-06T21:58:46Z",
  "slot": "manual",
- "as_of_ny": "2026-11-06 16:26",
+ "as_of_ny": "2026-11-06 16:57",
  "last_close": "2026-11-05",
  "live_since": "2026-10-07",
  "in_sample": true,
@@ -73,7 +73,7 @@
    "since": "2026-11-05",
    "pnl_pct": 0.002,
    "locked": false,
-   "band_pct": 0.077,
+   "band_pct": 0.08,
    "breach": false
   },
   {
@@ -87,7 +87,7 @@
    "since": "2026-10-26",
    "pnl_pct": -1.412,
    "locked": true,
-   "band_pct": 24.443,
+   "band_pct": 24.444,
    "breach": false
   }
  ],
@@ -148,7 +148,7 @@
    "name": "iShares Biotechnology ETF",
    "side": "buy",
    "w_from": 0.0,
-   "w_to": 0.248058
+   "w_to": 0.248059
   },
   {
    "t": "XLE",
@@ -182,64 +182,64 @@
   "live": {
    "days": 22,
    "sys_pct": -22.1549,
-   "spy_pct": -5.209
+   "spy_pct": -5.218
   },
   "windows": [
    {
     "label": "Since 2012",
     "start": "2012-01-03",
     "end": "2026-11-06",
-    "sys_cagr": 0.19263,
-    "spy_cagr": 0.146326,
-    "sys_maxdd": -0.523593,
+    "sys_cagr": 0.192053,
+    "spy_cagr": 0.146318,
+    "sys_maxdd": -0.524716,
     "spy_maxdd": -0.337173,
-    "sys_sharpe": 0.6095,
-    "spy_sharpe": 0.8082
+    "sys_sharpe": 0.6083,
+    "spy_sharpe": 0.8081
    },
    {
     "label": "2012 to 2022-09",
     "start": "2012-01-03",
     "end": "2022-09-30",
-    "sys_cagr": 0.13938,
+    "sys_cagr": 0.138667,
     "spy_cagr": 0.123395,
-    "sys_maxdd": -0.523593,
+    "sys_maxdd": -0.524716,
     "spy_maxdd": -0.337173,
-    "sys_sharpe": 0.5294,
+    "sys_sharpe": 0.5277,
     "spy_sharpe": 0.7402
    },
    {
     "label": "Since 2022-10",
     "start": "2022-10-03",
     "end": "2026-11-06",
-    "sys_cagr": 0.344939,
-    "spy_cagr": 0.208926,
+    "sys_cagr": 0.344795,
+    "spy_cagr": 0.208898,
     "sys_maxdd": -0.406124,
     "spy_maxdd": -0.187552,
-    "sys_sharpe": 0.7871,
-    "spy_sharpe": 0.9988
+    "sys_sharpe": 0.7869,
+    "spy_sharpe": 0.9986
    },
    {
     "label": "Live",
     "start": "2026-10-07",
     "end": "2026-11-06",
     "sys_cagr": -0.943232,
-    "spy_cagr": -0.484021,
+    "spy_cagr": -0.484583,
     "sys_maxdd": -0.236436,
     "spy_maxdd": -0.059159,
     "sys_sharpe": -7.217,
-    "spy_sharpe": -3.6066
+    "spy_sharpe": -3.6131
    }
   ],
   "yearly": [
    {
     "year": 2012,
-    "sys": 0.107252,
+    "sys": 0.107251,
     "spy": 0.159904
    },
    {
     "year": 2013,
     "sys": 1.021607,
-    "spy": 0.323077
+    "spy": 0.323078
    },
    {
     "year": 2014,
@@ -248,38 +248,38 @@
    },
    {
     "year": 2015,
-    "sys": -0.345964,
+    "sys": -0.345965,
     "spy": 0.012343
    },
    {
     "year": 2016,
-    "sys": 0.18613,
+    "sys": 0.180971,
     "spy": 0.119979
    },
    {
     "year": 2017,
-    "sys": 0.607548,
+    "sys": 0.607549,
     "spy": 0.217054
    },
    {
     "year": 2018,
-    "sys": -0.308307,
+    "sys": -0.309937,
     "spy": -0.04569
    },
    {
     "year": 2019,
-    "sys": 0.153517,
+    "sys": 0.153516,
     "spy": 0.312239
    },
    {
     "year": 2020,
-    "sys": 0.430775,
+    "sys": 0.430776,
     "spy": 0.183316
    },
    {
     "year": 2021,
-    "sys": 0.219713,
-    "spy": 0.287288
+    "sys": 0.219714,
+    "spy": 0.287287
    },
    {
     "year": 2022,
@@ -288,23 +288,23 @@
    },
    {
     "year": 2023,
-    "sys": 0.361132,
+    "sys": 0.361131,
     "spy": 0.261758
    },
    {
     "year": 2024,
-    "sys": 0.36217,
+    "sys": 0.361578,
     "spy": 0.248865
    },
    {
     "year": 2025,
-    "sys": 0.568608,
+    "sys": 0.568604,
     "spy": 0.177191
    },
    {
     "year": 2026,
     "sys": 0.134601,
-    "spy": 0.08679
+    "spy": 0.086686
    }
   ],
   "cost": {
