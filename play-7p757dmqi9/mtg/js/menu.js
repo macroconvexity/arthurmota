@@ -1,13 +1,18 @@
-import { isImplemented } from './cards.js?v=20261107215859';
-import { DECK_LISTS, DECK_META, copyLimit as rawLimit, RESTRICTED, isLegal } from './decks.js?v=20261107215859';
-import * as DKN from './decks.js?v=20261107215859';
-import { tileHtml, colorsOf } from './decktile.js?v=20261107215859';
-import * as ST from './settings.js?v=20261107215859';
-import { askConfirm, askText, modal } from './dialog.js?v=20261107215859';
+import { isImplemented } from './cards.js?v=20261108114946';
+import { DECK_LISTS, DECK_META, copyLimit as rawLimit, RESTRICTED, isLegal } from './decks.js?v=20261108114946';
+import * as DKN from './decks.js?v=20261108114946';
+import { tileHtml, colorsOf } from './decktile.js?v=20261108114946';
+import * as ST from './settings.js?v=20261108114946';
+import { askConfirm, askText, modal } from './dialog.js?v=20261108114946';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
-const MIN_DECK = 40;
+const MIN_DECK = DKN.MIN_DECK || 60;   // decks must have exactly this many cards or more (decks.js exports MIN_DECK)
+// one-time notice for custom decks saved under the minimum (saved decks are never deleted)
+const NOTE_KEY = 'mtgclassic.short.notified';
+function shortNotice() {
+  try { const n = total(); if (n >= MIN_DECK || n === 0 || deck()._premade || DECK_LISTS[store.current]) return; const seen = JSON.parse(localStorage.getItem(NOTE_KEY) || '[]'); if (seen.includes(store.current)) return; seen.push(store.current); localStorage.setItem(NOTE_KEY, JSON.stringify(seen)); menuToast(`This deck has ${n} cards; add ${MIN_DECK - n} more to play`); } catch {}
+}
 // ---- format (Restricted / Unrestricted): limits come from decks.js copyLimit(name, fmt)
 export const FMT_TEXT = { restricted: 'Restricted: Power 9, Sol Ring, Demonic Tutor, Balance... limited to 1 copy', unrestricted: 'Unrestricted: up to 4 copies per card (basic lands unlimited)' };
 const fmt = () => (ST.get('format') === 'restricted' ? 'restricted' : 'unrestricted');
@@ -68,7 +73,7 @@ const total = (d = deck()) => entries(d).reduce((a, [, n]) => a + n, 0);
 // the player's decks for the pre-game picker: [{name, size, legal}], plus counts of one deck
 export const myDecks = (f = fmt(), ed = edId()) => ({ current: store.current, list: Object.keys(store.decks).map((n) => {
   const c = Object.fromEntries(entries(store.decks[n])), sz = total(store.decks[n]), pr = deckProblem(c, f, ed); const meta = DECK_META[n] || {};
-  return { name: n, size: sz, legal: sz >= MIN_DECK, ok: sz >= MIN_DECK && !pr, reason: sz < MIN_DECK ? `Needs ${MIN_DECK} cards` : pr, premade: !!store.decks[n]._premade || !!DECK_LISTS[n], counts: c, colors: meta.colors || colorsOf(c, byName), archetype: meta.archetype || (DECK_LISTS[n] ? '' : 'custom deck'), rating: meta.rating, keyCards: meta.keyCards, blurb: meta.blurb };
+  return { name: n, size: sz, legal: sz >= MIN_DECK, ok: sz >= MIN_DECK && !pr, reason: sz < MIN_DECK ? `Needs ${MIN_DECK} cards (has ${sz})` : pr, premade: !!store.decks[n]._premade || !!DECK_LISTS[n], counts: c, colors: meta.colors || colorsOf(c, byName), archetype: meta.archetype || (DECK_LISTS[n] ? '' : 'custom deck'), rating: meta.rating, keyCards: meta.keyCards, blurb: meta.blurb };
 }) });
 export const myDeckCounts = (n) => Object.fromEntries(entries(store.decks[n] || {}));
 export const setMyDeck = (n) => { if (store.decks[n]) { store.current = n; save(); } };
@@ -332,7 +337,7 @@ function renderBrowser(mode) {
     if (F.inDeck && !deck()[c.dataset.n]) { c.remove(); $('#rescount').textContent = `${$('#cgrid').querySelectorAll('.cc').length} cards`; } else updateTile(c);
     refreshDeck();
   };
-  refreshGrid(); if (building) refreshDeck();
+  refreshGrid(); if (building) { refreshDeck(); shortNotice(); }
 }
 const renderCollection = () => renderBrowser('collection');
 const renderDecks = () => renderBrowser('decks');

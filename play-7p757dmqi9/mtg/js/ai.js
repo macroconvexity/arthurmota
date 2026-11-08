@@ -1,10 +1,12 @@
 // Computer opponent. Generic: card use is driven by the `ai` hint of EFFECTS / ABILITIES entries
 // (see docs/CARD_MODULE_CONTRACT.md); when a hint is missing it is inferred from the Oracle text.
 // Contract: every aiAct(g, pid) call changes the game state or returns false (never loops silently).
-import { EFFECTS, abilitiesOf } from './cards.js?v=20261107215859';
-import { parseCost } from './engine.js?v=20261107215859';
+import { EFFECTS, abilitiesOf } from './cards.js?v=20261108114946';
+import { parseCost } from './engine.js?v=20261108114946';
 
 export const LEVELS = ['easy', 'normal', 'hard'];
+// Easy is deliberately weak (casual player should win most games): probabilities per decision. Never info-cheats, never illegal.
+export const EASY = { hold: 0.3, random: 0.55, landDelay: 0.3, noAttack: 0.35, randomAttack: 0.3, missBlock: 0.5, randomBlock: 0.3, randomTarget: 0.6, abilityDrop: 0.8, counter: 0.1 };
 let CUR = { level: 'normal', g: null };
 const level = () => CUR.level;
 const rnd = () => (CUR.g && CUR.g.rng ? CUR.g.rng() : Math.random());
@@ -106,7 +108,8 @@ const permWorth = (g, o) => (o.creature ? valuePerm(g, o.perm) : o.land ? 2 + (a
 function bestTarget(g, pid, spec, hint, ctx, exclude) {
   const foe = g.players[1 - pid], me = g.players[pid];
   let best = null;
-  const consider = (o, score) => { if (score != null && (!best || score > best.score)) best = { ref: o.ref, score }; };
+  const cands = [];
+  const consider = (o, score) => { if (score != null) cands.push({ ref: o.ref, score }); if (score != null && (!best || score > best.score)) best = { ref: o.ref, score }; };
   for (const r of g.validTargets(spec, pid, ctx.sourceId ?? null, ctx.card)) {
     if (exclude.some((e) => same(e, r))) continue;
     const o = annotate(g, pid, r); if (!o) continue;
@@ -137,6 +140,7 @@ function bestTarget(g, pid, spec, hint, ctx, exclude) {
         else if (o.player && o.mine) consider(o, 2);
     }
   }
+  if (level() === 'easy' && cands.length > 1 && rnd() < EASY.randomTarget) return cands[Math.floor(rnd() * cands.length)];   // random or weakest target
   return best;
 }
 function pickTargets(g, pid, specs, hint, ctx) {
@@ -304,6 +308,7 @@ function blockedByRules(g, pid, c) {
   const d = c.def, me = g.players[pid], foe = g.players[1 - pid];
   const sup = d.supertypes || [];
   if (sup.includes('Legendary') && me.bf.some((p) => p.card.def.name === d.name)) return true;          // legend rule: never cast a second copy
+  if (level() === 'easy' && (d.name === 'Power Artifact' || d.name === 'Channel')) return true;       // easy never plays the combos
   if (d.name === 'Power Artifact' && !onBf(g, pid, 'Basalt Monolith').length) return true;         // only useful on the Monolith
   if (d.name === 'Channel' && !channelWorth(g, pid)) return true;
   if (d.name === 'Nether Void' && inHand(g, pid, 'Mind Twist').some((c) => g.canCast(pid, c)) && foe.hand.length >= 2) return true; // Mind Twist first
@@ -748,7 +753,7 @@ function priority(g, pid) {
   if (++m.n > 400) return void g.pass(pid);                  // runaway guard (the Monolith loop needs a few hundred calls)
   const top = g.stack[g.stack.length - 1];
   if (top) {
-    if (top.controller !== pid && !(level() === 'easy' && rnd() < 0.5) && respondToStack(g, pid, top)) return;
+    if (top.controller !== pid && !(level() === 'easy' && rnd() >= EASY.counter) && respondToStack(g, pid, top)) return;
     if (top.controller === pid && top.kind === 'spell' && level() !== 'easy' && forkOwn(g, pid, top)) return;
     return void g.pass(pid);
   }
@@ -759,16 +764,50 @@ function priority(g, pid) {
     for (const p of plans) if (runPlan(g, pid, p)) return;
   }
   if (mode === 'main' || mode === 'end' || (mode === 'oppCombat' && (g.step === 'attackers' || g.step === 'blockers'))) {
-    if (mode === 'main' && playLand(g, pid)) return;
+    if (level() === 'easy' && mode === 'main') {
+      if (!me0(g, pid).landPlayed && rnd() >= EASY.landDelay && playLand(g, pid)) return;
+      const r = rnd();
+      if (r < EASY.hold) return void g.pass(pid);                                   // does nothing this time
+      if (r < EASY.hold + EASY.random && randomLegalAction(g, pid)) return;         // any legal action, no judgement
+    } else if (mode === 'main' && playLand(g, pid)) return;
     if (mode === 'main' && !m.failed.has('combo') && comboStep(g, pid)) return;
     let plans = [...spellPlans(g, pid, mode), ...abilityPlans(g, pid, mode)].sort((a, b) => b.score - a.score);
     if (level() === 'easy') {
       // holds back removal, forgets to cast things now and then
-      plans = plans.filter((p) => !(['removal', 'sweeper'].includes(p.hint) && rnd() < 0.5) && !(p.score < 1000 && rnd() < 0.08));
+      plans = plans.filter((p) => !(['removal', 'sweeper'].includes(p.hint) && rnd() < 0.5) && !(p.ability && rnd() < EASY.abilityDrop) && !(p.score < 1000 && rnd() < 0.08));
     } else if (level() === 'hard' && mode === 'main') plans = hardOrder(g, pid, plans);
     for (const p of plans) if (runPlan(g, pid, p)) return;
   }
   g.pass(pid);
+}
+
+const me0 = (g, pid) => g.players[pid];
+// a uniformly random castable card / activatable ability with random legal targets (Easy's blunders)
+function randomLegalAction(g, pid) {
+  const me = g.players[pid], m = mem(g), acts = [];
+  const pick = (a) => a[Math.floor(rnd() * a.length)];
+  for (const c of me.hand) {
+    if (c.def.types.includes('Land') || m.failed.has('c' + c.id) || !g.canCast(pid, c)) continue;
+    const info = g.castInfo ? g.castInfo(c) : { targets: [], hasX: false };
+    if (info.multi && (info.multi.min ?? 1) > 1) continue;
+    const eff = EFFECTS[c.def.name]; if (eff?.cost && (eff.cost.sacOther || eff.cost.tapOther || eff.cost.discard || eff.cost.life)) continue;
+    const tl = info.targets.map((sp) => g.validTargets(sp, pid, null, c));
+    if (tl.some((l) => !l.length)) continue;
+    const targets = tl.map((l) => pick(l));
+    if (info.multi) targets.push(pick(g.validTargets(info.multi.spec, pid, null, c)));
+    const x = info.hasX && g.maxX ? Math.floor(rnd() * (g.maxX(pid, c) + 1)) : 0;
+    if (info.hasX && x < 1) continue;
+    acts.push({ card: c, targets, x, mode: info.modes ? 0 : undefined, label: c.def.name });
+  }
+  for (const a of g.activatable(pid)) {
+    const co = a.ab.cost || {}, key = `a${a.perm.id}:${a.idx}`;
+    if (co.sac || co.sacOther || co.tapOther || co.discard || co.life || co.x || a.ab.multi || m.failed.has(key) || turnUse(g, key) >= 2) continue;
+    const tl = (a.ab.targets || []).map((sp) => g.validTargets(sp, pid, a.perm.id, a.perm.card));
+    if (tl.some((l) => !l.length)) continue;
+    acts.push({ ability: a, key, targets: tl.map((l) => pick(l)), label: 'ability' });
+  }
+  while (acts.length) { const i = Math.floor(rnd() * acts.length); const act = acts.splice(i, 1)[0]; if (runPlan(g, pid, act)) return true; }
+  return false;
 }
 
 function playLand(g, pid) {
@@ -858,7 +897,10 @@ function hardAttackers(g, pid, mine) {
 export function chooseAttackers(g, pid) {
   const ids = chooseAttackers0(g, pid);
   if (level() === 'hard') { const mine = g.players[pid].bf.filter((p) => g.canAttack(p)); if (mine.length) return hardAttackers(g, pid, mine); }
-  if (level() === 'easy') {            // conservative: only attackers no blocker can kill, and sometimes stays home
+  if (level() === 'easy') {            // sometimes no attack at all, sometimes a random subset, else conservative
+    const r = rnd(), elig = g.players[pid].bf.filter((p) => g.canAttack(p));
+    if (r < EASY.noAttack) return [];
+    if (r < EASY.noAttack + EASY.randomAttack) return elig.filter(() => rnd() < 0.5).map((p) => p.id);
     const foeB = g.players[1 - pid].bf.filter((p) => g.isCreature(p) && !p.tapped);
     return ids.filter((id) => { const a = g.perm(id); return !foeB.some((b) => g.canBlock(b, a) && duel(g, a, b).aDies) && rnd() > 0.1; });
   }
@@ -920,7 +962,12 @@ export function chooseBlocks(g, pid) {
   if (level() === 'easy') {
     const me = g.players[pid];
     const inc = (g.combat.attackers || []).map((a) => g.perm(a)).filter(Boolean).reduce((t, a) => t + g.power(a), 0);
-    if (inc < me.life - 4) for (const k of Object.keys(map)) if (rnd() < 0.2) delete map[k];   // misses a block when not in danger
+    if (rnd() < EASY.randomBlock) {                                   // sloppy: blocks at random
+      const rm = {}, used = new Set();
+      for (const aid of g.combat.attackers || []) { const a = g.perm(aid); if (!a) continue; const opts = me.bf.filter((b) => g.isCreature(b) && !b.tapped && !used.has(b.id) && g.canBlock(b, a)); if (opts.length && rnd() < 0.5) { const b = opts[Math.floor(rnd() * opts.length)]; used.add(b.id); rm[aid] = [b.id]; } }
+      return rm;
+    }
+    if (inc < me.life) for (const k of Object.keys(map)) if (rnd() < EASY.missBlock) delete map[k];   // misses obvious blocks unless it would die
   }
   return map;
 }
