@@ -1,9 +1,9 @@
-import { isImplemented } from './cards.js?v=20261107211532';
-import { DECK_LISTS, DECK_META, copyLimit as rawLimit, RESTRICTED, isLegal } from './decks.js?v=20261107211532';
-import * as DKN from './decks.js?v=20261107211532';
-import { tileHtml, colorsOf } from './decktile.js?v=20261107211532';
-import * as ST from './settings.js?v=20261107211532';
-import { askConfirm, askText, modal } from './dialog.js?v=20261107211532';
+import { isImplemented } from './cards.js?v=20261107213201';
+import { DECK_LISTS, DECK_META, copyLimit as rawLimit, RESTRICTED, isLegal } from './decks.js?v=20261107213201';
+import * as DKN from './decks.js?v=20261107213201';
+import { tileHtml, colorsOf } from './decktile.js?v=20261107213201';
+import * as ST from './settings.js?v=20261107213201';
+import { askConfirm, askText, modal } from './dialog.js?v=20261107213201';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
@@ -127,9 +127,9 @@ document.addEventListener('click', async (e) => {
   const a = b.dataset.act;
   if (a === 'resume') { ctx.onResume?.(); return; }
   if (a === 'fmt') { ST.set('format', b.dataset.v); renderAll(); return; }
-  if (a === 'ed') { ST.set('edition', b.dataset.v); renderAll(); return; }
+  if (a === 'ed') { pickEdition(b.dataset.v, b); return; }
+  if (a === 'homeplay') { onPlay(null); return; }
   if (a === 'fmtinfo') { fmtInfoModal(); return; }
-  if (a === 'legalpick') { const m = myDecks(); const ok = m.list.find((d) => d.ok); if (ok) { store.current = ok.name; save(); renderAll(); } else menuToast(`No deck is legal in ${fmtName()} · ${edLabel()}`); return; }
   if (a === 'play') { if (total() >= MIN_DECK && !deckProblem(Object.fromEntries(entries()))) onPlay({ ...Object.fromEntries(entries()) }); }
   if (a === 'new') { const n = (await askText('Deck name?', 'My Deck'))?.trim(); if (n && !store.decks[n]) { store.decks[n] = {}; store.current = n; save(); renderAll(); } }
   if (a === 'dup') { const n = store.current + ' copy'; store.decks[n] = Object.fromEntries(entries()); store.current = n; save(); renderAll(); }
@@ -139,20 +139,35 @@ document.addEventListener('click', async (e) => {
 });
 
 // ---------- home ----------
-const curInfo = () => { const n = store.current, c = Object.fromEntries(entries()), m = DECK_META[n] || {}; return { name: n, counts: c, colors: m.colors, archetype: m.archetype || (DECK_LISTS[n] ? '' : 'custom deck'), rating: m.rating, keyCards: m.keyCards, size: total() }; };
+// edition showcase tile: three iconic card arts of the selected edition (names are checked against the catalogue; extras are fallbacks)
+const SHOWCASE = {
+  all: { keys: ['Black Lotus', 'Mox Sapphire', 'Time Walk', 'Ancestral Recall'], blurb: 'Every edition: Alpha to Legends' },
+  LEA: { keys: ['Black Lotus', 'Lightning Bolt', 'Serra Angel', 'Shivan Dragon'], blurb: 'Alpha, 1993: the original 295 cards' },
+  LEB: { keys: ['Ancestral Recall', 'Shivan Dragon', 'Wrath of God', 'Mox Pearl'], blurb: 'Beta, 1993: the corrected printing' },
+  '2ED': { keys: ['Time Walk', 'Juggernaut', 'Counterspell', 'Sol Ring'], blurb: 'Unlimited, 1993: white border, wider print' },
+  ARN: { keys: ['Juzám Djinn', 'Library of Alexandria', 'Bazaar of Baghdad', 'Serendib Efreet'], blurb: 'Arabian Nights, 1993: the first expansion' },
+  ATQ: { keys: ["Mishra's Workshop", 'Strip Mine', 'Su-Chi', 'Tawnos\'s Wand'], blurb: 'Antiquities, 1994: the artifact war' },
+  LEG: { keys: ['Nicol Bolas', 'Moat', 'Mana Drain', 'Gauntlet of Might'], blurb: 'Legends, 1994: legendary creatures' },
+};
+const showcaseHtml = (id = edId()) => { const sc = SHOWCASE[id] || SHOWCASE.all; return tileHtml({ name: edLabel(id), archetype: sc.blurb, keyCards: sc.keys, colors: [], noMana: true }, byName, { sel: true, cls: 'big show', eager: true }); };
 function renderHome() {
-  const cov = ctx.coverage, c = Object.fromEntries(entries()), pr = deckProblem(c), n = total(), bad = n < MIN_DECK || !!pr;
-  const r = ctx.canResume?.();
+  const cov = ctx.coverage, r = ctx.canResume?.();
   const chips = EDITIONS.map((e) => `<button class="edchip ${e.id === edId() ? 'on' : ''}" data-act="ed" data-v="${e.id}">${esc(e.label)}</button>`).join('');
   $('#v-home').innerHTML = `<div class="home"><h1>MTG Classic<em>+</em></h1><p class="tag">Vintage Magic, Arena style · Alpha · Beta · Unlimited · Arabian Nights · Antiquities · Legends</p>
-  <div class="hpanel"><div class="hl">${tileHtml(curInfo(), byName, { sel: true, cls: 'big', eager: true })}<div class="hsel">${deckSelect()}</div></div>
+  <div class="hpanel"><div class="hl" id="showcase">${showcaseHtml()}</div>
   <div class="hr">${r ? `<button class="resume" data-act="resume"><b>Resume game</b><span>vs ${esc(r.foe || 'Opponent')} · Turn ${r.turn} · You ${r.life[0]} - ${r.life[1]} Opp</span></button>` : ''}
     <label>Edition</label><div class="edrow" id="edrow">${chips}</div>
     <label>Format <button class="info" data-act="fmtinfo" aria-label="What is Restricted?">i</button></label>${fmtSeg()}<div class="fmtnote">${esc(FMT_TEXT[fmt()])}</div>
-    ${playBtn()}${bad && n >= MIN_DECK ? '<button class="ghost legalpick" data-act="legalpick">Pick a legal deck</button>' : ''}
+    <button class="play" data-act="homeplay">Play</button>
     <button class="ghost edit" data-act="goto" data-v="decks">Edit deck</button></div></div>
   <p class="muted">${cov.implemented} of ${cov.total} cards have implemented rules. The rest are shown locked in the collection.</p></div>`;
   requestAnimationFrame(() => $('#edrow .on')?.scrollIntoView?.({ inline: 'center', block: 'nearest' }));
+}
+// edition chip: swap the showcase with a short fade (no full re-render, the chip row keeps its scroll)
+function pickEdition(id, btn) {
+  ST.set('edition', id); document.querySelectorAll('#edrow .edchip').forEach((x) => x.classList.toggle('on', x === btn));
+  const sc = $('#showcase'); if (!sc) return; sc.classList.add('fadeout');
+  setTimeout(() => { sc.innerHTML = showcaseHtml(id); sc.classList.remove('fadeout'); sc.classList.add('fadein'); setTimeout(() => sc.classList.remove('fadein'), 320); }, 160);
 }
 // modal explaining the format rule, with the restricted cards
 function fmtInfoModal() {

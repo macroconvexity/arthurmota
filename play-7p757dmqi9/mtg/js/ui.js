@@ -1,22 +1,22 @@
-import { Game, parseCost, makeRng } from './engine.js?v=20261107211532';
-import { aiAct } from './ai.js?v=20261107211532';
-import { EFFECTS, abilitiesOf } from './cards.js?v=20261107211532';
-import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261107211532';
-import { initMenu, showApp, hideApp, costHtml, myDecks, myDeckCounts, setMyDeck } from './menu.js?v=20261107211532';
-import { askConfirm, askNumber, askPick, modal, askName, askDivide } from './dialog.js?v=20261107211532';
-import * as FX from './fx.js?v=20261107211532';
-import * as ST from './settings.js?v=20261107211532';
-import sfx from './sfx.js?v=20261107211532';
-import * as SC from './screens.js?v=20261107211532';
-import * as AI from './ai.js?v=20261107211532';
-import * as DK from './decks.js?v=20261107211532';
-import * as AN from './anim.js?v=20261107211532';
-import * as SX from './anim/status.js?v=20261107211532';
-import * as ZN from './anim/zones.js?v=20261107211532';
-import { tileHtml } from './decktile.js?v=20261107211532';
+import { Game, parseCost, makeRng } from './engine.js?v=20261107213201';
+import { aiAct } from './ai.js?v=20261107213201';
+import { EFFECTS, abilitiesOf } from './cards.js?v=20261107213201';
+import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261107213201';
+import { initMenu, showApp, hideApp, costHtml, myDecks, myDeckCounts, setMyDeck } from './menu.js?v=20261107213201';
+import { askConfirm, askNumber, askPick, modal, askName, askDivide } from './dialog.js?v=20261107213201';
+import * as FX from './fx.js?v=20261107213201';
+import * as ST from './settings.js?v=20261107213201';
+import sfx from './sfx.js?v=20261107213201';
+import * as SC from './screens.js?v=20261107213201';
+import * as AI from './ai.js?v=20261107213201';
+import * as DK from './decks.js?v=20261107213201';
+import * as AN from './anim.js?v=20261107213201';
+import * as SX from './anim/status.js?v=20261107213201';
+import * as ZN from './anim/zones.js?v=20261107213201';
+import { tileHtml } from './decktile.js?v=20261107213201';
 const EDLABEL = (id) => (DK.EDITIONS || []).find((e) => e.id === id)?.label || { all: 'All Editions', LEA: 'Alpha', LEB: 'Beta', '2ED': 'Unlimited', ARN: 'Arabian Nights', ATQ: 'Antiquities', LEG: 'Legends' }[id] || id;
-import * as TG from './anim/targeting.js?v=20261107211532';
-import * as AMB from './anim/ambient.js?v=20261107211532';
+import * as TG from './anim/targeting.js?v=20261107213201';
+import * as AMB from './anim/ambient.js?v=20261107213201';
 AMB.init({ me: 0 });
 
 // animation speed setting (Fast/Normal/Slow, minimal under prefers-reduced-motion): scales every WAAPI duration/delay
@@ -163,9 +163,9 @@ async function playFlow(counts, again) {
   const rid = ++runId; let pick = again;
   if (!pick) {
     const md = myDecks(); const fmtNow0 = ST.get('format') === 'restricted' ? 'restricted' : 'unrestricted', edNow = ST.get('edition') || 'all';
-    const legalDecks = md.list.filter((d) => d.ok);
-    const decks = legalDecks.map((d) => ({ name: d.name, tile: tileHtml({ name: d.name, counts: d.counts, colors: d.colors, archetype: d.archetype, rating: d.rating, keyCards: d.keyCards, size: d.size }, byName, {}) }));
-    pick = await SC.showPicker(decks, ST.get('difficulty'), md.current, `${fmtNow0 === 'restricted' ? 'Restricted' : 'Unrestricted'} · ${EDLABEL(edNow)}`, md.list.length - legalDecks.length); if (!pick || rid !== runId) return;
+    const shown = md.list.filter((d) => d.ok || (!d.premade && d.size > 0));   // premade decks that are not legal are hidden; custom ones stay, greyed with the reason
+    const decks = shown.map((d) => ({ name: d.name, ok: d.ok, reason: d.reason, tile: tileHtml({ name: d.name, counts: d.counts, colors: d.colors, archetype: d.archetype, rating: d.rating, keyCards: d.keyCards, size: d.size }, byName, { cls: d.ok ? '' : 'bad', note: d.ok ? '' : d.reason }) }));
+    pick = await SC.showPicker(decks, ST.get('difficulty'), md.current, `${fmtNow0 === 'restricted' ? 'Restricted' : 'Unrestricted'} · ${EDLABEL(edNow)}`, md.list.filter((d) => d.premade && !d.ok).length); if (!pick || rid !== runId) return;
     ST.set('difficulty', pick.level);
     if (pick.mine !== md.current) setMyDeck(pick.mine);
     counts = myDeckCounts(pick.mine); pick.foe = null;

@@ -9,7 +9,6 @@ html #action button,html .play,html .scrbtns button,html #over .obtns button,htm
 html #action button:hover,html .play:not(:disabled):hover,html .scrbtns button:hover,html #over .obtns button:hover{filter:brightness(1.12)}
 html #action button:active,html .play:active,html .scrbtns button:active,html #over .obtns button:active{transform:translateY(1px) scale(.985)}
 html .play{--cap:26px;font-size:24px!important;padding:14px 4px!important}
-html .hpanel .legalpick{--cap:14px;font-size:12px!important;margin-top:4px}
 html .play:disabled,html .scrbtns button:disabled{filter:grayscale(.8) brightness(.7);opacity:.7}
 html #over .obtns button{--cap:22px;min-width:150px;font-size:17px!important;padding:14px 4px!important}
 html .scrbtns button{--cap:20px;min-width:130px;font-size:16px!important;padding:12px 4px!important}

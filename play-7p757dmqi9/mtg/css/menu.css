@@ -335,7 +335,6 @@ html.compact .homebox .need{font-size:10px;margin-top:2px}
 .edchip{flex:none;scroll-snap-align:center;padding:6px 14px;border-radius:99px;border:1px solid #6a5226;background:#241810;color:#e6d6b0;font:600 13px Georgia;min-height:34px;white-space:nowrap;cursor:pointer}
 .edchip.on{background:linear-gradient(#ff9b3d,#d9631a);border-color:#ffcf94;color:#fff;box-shadow:0 0 12px #f08a2488}
 .hpanel .need{text-align:center}
-.hpanel .legalpick{align-self:center;width:70%}
 @media (max-aspect-ratio:1/1),(max-width:640px){.hpanel{grid-template-columns:1fr;gap:12px;padding:12px 14px;border-width:34px;border-image-width:34px}.hpanel .hl .dtile{width:min(46vw,200px)}.home h1{font-size:44px}}
 html.compact .hpanel{padding:6px 10px;gap:14px;border-width:26px;border-image-width:26px;width:min(720px,94vw)}
 html.compact .hpanel .hl .dtile{width:min(150px,36vh)}
@@ -381,3 +380,14 @@ html.compact:not(.portrait) .home>.muted{display:none}
 html.compact:not(.portrait) .hpanel .dsel{font-size:13px;padding:3px 10px}
 html.compact:not(.portrait) .tbtn{flex-basis:min(26vw,calc(var(--app-h,100vh)*.3))}
 html.compact:not(.portrait) .scrbox.pickbox2{padding:8px 14px}html.compact:not(.portrait) .pickbox2 h2{font-size:20px;margin-bottom:4px}html.compact:not(.portrait) .pickbox2 .oppnote{margin:2px 0}
+
+/* Home v3: edition showcase instead of a deck tile */
+.tbtn.bad{opacity:.55;filter:grayscale(.75);cursor:not-allowed}.tbtn.bad .dtnote{display:block}
+.dtile.show .dtsub{white-space:normal;line-height:1.2;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:3.4cqw;text-transform:none;padding:0 2%}
+.dtile.show .dtname{font-size:7cqw}
+#showcase{transition:opacity .16s ease}#showcase.fadeout{opacity:0}#showcase.fadein{animation:scin .32s ease-out}
+@keyframes scin{from{opacity:0;transform:scale(.97)}}
+html.reduced #showcase{transition:none}html.reduced #showcase.fadein{animation:none}
+.dtile .dtnote{white-space:normal;line-height:1.15;text-align:center;overflow:hidden;max-height:2.4em}
+html.compact.portrait .hpanel .fmtnote{display:block}
+html.compact:not(.portrait) .hpanel .hl .dtile{width:min(132px,31vh)}

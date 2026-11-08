@@ -31,7 +31,7 @@ export function tileHtml(info, byName, opts = {}) {
   const arts = (keys.length ? keys : []).map((n) => byName[n][0].art);
   const win = arts.length >= 3 ? arts.slice(0, 3).map((a) => `<span class="dta"><img loading="${opts.eager ? 'eager' : 'lazy'}" decoding="async" src="${esc(a)}" alt=""></span>`).join('')
     : arts.length ? `<span class="dta one"><img loading="${opts.eager ? 'eager' : 'lazy'}" decoding="async" src="${esc(arts[0])}" alt=""></span>` : '<span class="dta one empty"></span>';
-  const mana = (cols.length ? cols : ['C']).map((c) => `<img src="assets/ui/mana/${c}.png" alt="${c}">`).join('');
+  const mana = info.noMana ? '' : (cols.length ? cols : ['C']).map((c) => `<img src="assets/ui/mana/${c}.png" alt="${c}">`).join('');
   const sub = [info.archetype, info.size ? `${info.size} cards` : ''].filter(Boolean).join(' · ');
   return `<div class="dtile ${opts.cls || ''} ${opts.sel ? 'sel' : ''}" ${opts.attrs || ''}>
     <div class="dtwin">${win}<i class="dtint" style="background:${tintOf(cols)}"></i><i class="dtvig"></i><span class="dtmana">${mana}</span></div>

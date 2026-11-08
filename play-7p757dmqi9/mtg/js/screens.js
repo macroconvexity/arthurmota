@@ -7,15 +7,15 @@ const COL = { W: '#f6efc8', U: '#6fb4ea', B: '#7d7480', R: '#ee7a5c', G: '#6cbd7
 // badge: e.g. 'Restricted · Alpha' (read-only, chosen on Home). Returns {mine, level} or null when cancelled.
 export function showPicker(decks, level = 'normal', current = null, badge = '', hidden = 0) {
   return new Promise((resolve) => {
-    let sel = decks.some((d) => d.name === current) ? current : decks[0]?.name ?? null;
+    let sel = decks.some((d) => d.name === current && d.ok !== false) ? current : decks.find((d) => d.ok !== false)?.name ?? null;
     const el = layer('picker', `<div class="scrbox pickbox2"><h2>Choose your deck</h2><div class="pickctl"><span class="fmtbadges">${esc(badge)}</span><div class="lvl">${['easy', 'normal', 'hard'].map((l) => `<button data-l="${l}" class="${l === level ? 'on' : ''}">${l[0].toUpperCase() + l.slice(1)}</button>`).join('')}</div></div>
       <div class="oppnote">Opponent: random deck, legal in the same format and edition</div>
-      <div class="tiles dtiles">${decks.map((d) => `<button class="tbtn ${d.name === sel ? 'sel' : ''}" data-n="${esc(d.name)}">${d.tile}</button>`).join('') || '<p class="muted">No deck is legal for this format and edition. Change them on Home or edit a deck.</p>'}</div>
+      <div class="tiles dtiles">${decks.map((d) => `<button class="tbtn ${d.name === sel ? 'sel' : ''} ${d.ok === false ? 'bad' : ''}" data-n="${esc(d.name)}" ${d.ok === false ? 'disabled' : ''}>${d.tile}</button>`).join('') || '<p class="muted">No deck is legal for this format and edition. Change them on Home or edit a deck.</p>'}</div>
       ${hidden ? `<div class="oppnote">${hidden} deck${hidden > 1 ? 's' : ''} hidden (not legal here)</div>` : ''}
       <div class="scrbtns"><button class="no">Back</button><button class="yes" ${sel ? '' : 'disabled'}>Play</button></div></div>`);
     const go = el.querySelector('.yes'), tiles = el.querySelector('.tiles'); const done = (v) => { el.remove(); resolve(v); };
     el.querySelector('.lvl').onclick = (e) => { const l = e.target.closest('[data-l]'); if (!l) return; level = l.dataset.l; el.querySelectorAll('[data-l]').forEach((x) => x.classList.toggle('on', x === l)); };
-    tiles.onclick = (e) => { const b = e.target.closest('.tbtn'); if (!b) return; sel = b.dataset.n; tiles.querySelectorAll('.tbtn').forEach((x) => x.classList.toggle('sel', x === b)); tiles.querySelectorAll('.dtile').forEach((x) => x.classList.toggle('sel', x.parentElement.classList.contains('sel'))); go.disabled = false; if (e.detail === 2) go.click(); };
+    tiles.onclick = (e) => { const b = e.target.closest('.tbtn'); if (!b || b.disabled) return; sel = b.dataset.n; tiles.querySelectorAll('.tbtn').forEach((x) => x.classList.toggle('sel', x === b)); tiles.querySelectorAll('.dtile').forEach((x) => x.classList.toggle('sel', x.parentElement.classList.contains('sel'))); go.disabled = false; if (e.detail === 2) go.click(); };
     go.onclick = () => done({ mine: sel, level });
     el.querySelector('.no').onclick = () => done(null);
     tiles.querySelectorAll('.tbtn.sel .dtile').forEach((x) => x.classList.add('sel')); tiles.querySelector('.tbtn.sel')?.scrollIntoView?.({ block: 'center', inline: 'center' });
