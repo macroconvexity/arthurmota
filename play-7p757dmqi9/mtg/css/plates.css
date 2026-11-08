@@ -79,3 +79,7 @@ html.compact .dpanel2 .done{font-size:12px!important;padding:7px 4px!important;m
 
 /* hand: centre it with plain values so a bad/missing safe-area variable can never push it to the corner */
 html.phone #hand{left:50%!important;margin-left:calc((var(--pl,10px) - var(--pr,10px))/2);transform:translateX(-50%)}
+
+/* the 'Opponent…' wait label must never spill outside the plate */
+html #action button{overflow:hidden;text-overflow:ellipsis}
+html.phone #act-btn.sx-wait{letter-spacing:.4px}

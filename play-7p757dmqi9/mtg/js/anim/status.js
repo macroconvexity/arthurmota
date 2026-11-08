@@ -3,8 +3,8 @@
 // end-of-turn damage heal-off. DOM/WAAPI only, no assets. Everything visual is skipped when window.__fxOff is set;
 // Element.animate durations are already scaled by the wrapper in ui.js, timeouts use ST.animScale() explicitly.
 // Hooks in ui.js: init, onEvents, afterRender, decoPT, reset, dieStep, batchSize, implode, shatter, lifeGain, lifeShift.
-import * as FX from '../fx.js?v=20261107214121';
-import * as ST from '../settings.js?v=20261107214121';
+import * as FX from '../fx.js?v=20261107215859';
+import * as ST from '../settings.js?v=20261107215859';
 const NS = 'http://www.w3.org/2000/svg';
 const rnd = (a, b) => a + Math.random() * (b - a);
 const off = () => !!window.__fxOff;
@@ -137,7 +137,7 @@ export function afterRender(quiet = false) {
   const b = document.getElementById('act-btn');
   if (b) {
     const waiting = b.classList.contains('wait') && /^(Opponent|Waiting)/.test(b.textContent);
-    if (waiting) b.textContent = 'Waiting for opponent';
+    if (waiting) b.textContent = document.documentElement.classList.contains('phone') ? 'Opponent' : 'Waiting for opponent';
     b.classList.toggle('sx-wait', waiting); b.classList.toggle('sx-go', b.classList.contains('glow') && !b.hidden);
     const key = b.className + b.textContent;
     if (b.classList.contains('sx-go') && key !== lastBtnKey && !quiet && !off()) b.animate([{ transform: 'scale(.92)' }, { transform: 'scale(1.06)', offset: 0.5 }, { transform: 'scale(1)' }], { duration: 420, easing: 'cubic-bezier(.2,1.6,.4,1)' });
