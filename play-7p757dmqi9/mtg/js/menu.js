@@ -1,9 +1,9 @@
-import { isImplemented } from './cards.js?v=20261107213201';
-import { DECK_LISTS, DECK_META, copyLimit as rawLimit, RESTRICTED, isLegal } from './decks.js?v=20261107213201';
-import * as DKN from './decks.js?v=20261107213201';
-import { tileHtml, colorsOf } from './decktile.js?v=20261107213201';
-import * as ST from './settings.js?v=20261107213201';
-import { askConfirm, askText, modal } from './dialog.js?v=20261107213201';
+import { isImplemented } from './cards.js?v=20261107213808';
+import { DECK_LISTS, DECK_META, copyLimit as rawLimit, RESTRICTED, isLegal } from './decks.js?v=20261107213808';
+import * as DKN from './decks.js?v=20261107213808';
+import { tileHtml, colorsOf } from './decktile.js?v=20261107213808';
+import * as ST from './settings.js?v=20261107213808';
+import { askConfirm, askText, modal } from './dialog.js?v=20261107213808';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));

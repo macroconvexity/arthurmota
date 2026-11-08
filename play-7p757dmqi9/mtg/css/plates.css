@@ -76,3 +76,6 @@ html .dpanel2 .done{--cap:16px;border-style:solid!important;border-width:0 var(-
   font:700 13px/1.1 Georgia,serif!important;letter-spacing:1.4px;text-transform:uppercase;padding:9px 4px!important;width:auto}
 html.compact .dpanel2 .play{font-size:15px!important;padding:7px 4px!important;--cap:18px}
 html.compact .dpanel2 .done{font-size:12px!important;padding:7px 4px!important;margin-top:0}
+
+/* hand: centre it with plain values so a bad/missing safe-area variable can never push it to the corner */
+html.phone #hand{left:50%!important;margin-left:calc((var(--pl,10px) - var(--pr,10px))/2);transform:translateX(-50%)}
