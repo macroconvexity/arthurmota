@@ -1,8 +1,8 @@
 // Computer opponent. Generic: card use is driven by the `ai` hint of EFFECTS / ABILITIES entries
 // (see docs/CARD_MODULE_CONTRACT.md); when a hint is missing it is inferred from the Oracle text.
 // Contract: every aiAct(g, pid) call changes the game state or returns false (never loops silently).
-import { EFFECTS, abilitiesOf } from './cards.js?v=20261107201805';
-import { parseCost } from './engine.js?v=20261107201805';
+import { EFFECTS, abilitiesOf } from './cards.js?v=20261107203900';
+import { parseCost } from './engine.js?v=20261107203900';
 
 export const LEVELS = ['easy', 'normal', 'hard'];
 let CUR = { level: 'normal', g: null };
@@ -178,6 +178,7 @@ function evalHintUse(g, pid, hint, entry, def, ctx, mode, specs, isPermanentSpel
       const t = pickTargets(g, pid, specs, 'burn', ctx); if (!t) return null;
       if (t.score >= 1000) return { score: 1000, targets: t.refs };
       const face = t.refs.some((r) => r.kind === 'player');
+      if (face && burnReach(g, pid) >= foe.life) return { score: 900, targets: t.refs };       // the burn in hand adds up to lethal: start throwing
       const need = face ? (foe.life <= 8 && me.hand.length > 1 ? 5 : me.hand.length >= 7 ? 3 : 99) : (me.life <= 10 || threatened(g, pid) ? 2 : 3.5);
       if (t.score < need) return null;
       return { score: 190 + t.score, targets: t.refs };
@@ -325,6 +326,15 @@ function blockedByRules(g, pid, c) {
 }
 const voidTax = (g) => g.players.some((pl) => pl.bf.some((p) => p.card.def.name === 'Nether Void'));
 
+// total damage of the castable burn spells in hand (greedy by mana), used to decide when burn goes to the face
+function burnReach(g, pid) {
+  const me = g.players[pid]; let mana = availMana(g, pid), dmg = 0;
+  const burns = me.hand.filter((c) => { const e = EFFECTS[c.def.name]; return e && hintOf(e, c.def) === 'burn' && c.def.types.some((t) => t === 'Instant' || t === 'Sorcery') && e.targets && (e.targets.includes?.('any') || e.targets.length === 0 || !!e.multi); })
+    .map((c) => ({ c, d: damageOf((EFFECTS[c.def.name].text || '') + ' ' + (c.def.text || ''), 0), x: isX(c.def) || EFFECTS[c.def.name].x, cost: cmc(c) }))
+    .sort((a, b) => b.d / Math.max(1, b.cost) - a.d / Math.max(1, a.cost));
+  for (const b of burns) { if (b.x) { const x = Math.max(0, mana - b.cost); if (x) { dmg += x; mana = 0; } continue; } if (b.cost <= mana) { mana -= b.cost; dmg += b.d; } }
+  return dmg;
+}
 function spellPlans(g, pid, mode) {
   const me = g.players[pid], m = mem(g), plans = [];
   const avail = availMana(g, pid);
@@ -719,12 +729,27 @@ function comboStep(g, pid) {
   return !!g.tapForMana(pid, mono.id);
 }
 
+// Fork my own burn / draw spell while it is on the stack (copy resolves too)
+function forkOwn(g, pid, top) {
+  const eff = top.effect || EFFECTS[top.card.def.name]; if (!eff) return false;
+  const h = hintOf(eff, top.card.def), m = mem(g);
+  if (!(h === 'burn' || (h === 'draw' && g.players[pid].hand.length <= 2))) return false;
+  if (top.card.def.name === 'Fork') return false;
+  if (turnUse(g, 'fork' + top.id) >= 1) return false;
+  for (const c of g.players[pid].hand) {
+    if (c.def.name !== 'Fork' || m.failed.has('c' + c.id) || !g.canCast(pid, c)) continue;
+    bumpUse(g, 'fork' + top.id);
+    if (g.validTargets(EFFECTS.Fork.targets[0], pid, c.id, c).some((r) => r.id === top.id) && runPlan(g, pid, { card: c, targets: [{ kind: 'spell', id: top.id }] })) return true;
+  }
+  return false;
+}
 function priority(g, pid) {
   const m = mem(g);
   if (++m.n > 400) return void g.pass(pid);                  // runaway guard (the Monolith loop needs a few hundred calls)
   const top = g.stack[g.stack.length - 1];
   if (top) {
     if (top.controller !== pid && !(level() === 'easy' && rnd() < 0.5) && respondToStack(g, pid, top)) return;
+    if (top.controller === pid && top.kind === 'spell' && level() !== 'easy' && forkOwn(g, pid, top)) return;
     return void g.pass(pid);
   }
   const mine = g.active === pid;

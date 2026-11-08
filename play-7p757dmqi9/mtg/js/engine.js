@@ -1,7 +1,8 @@
-import { COLORS, EFFECTS, ABILITIES, TRIGGERS, STATIC, COUNTER_ABILITIES, abilitiesOf as defAbilities, keywordsOf, auraSpecOf } from './cards.js?v=20261107201805';
+import { COLORS, EFFECTS, ABILITIES, TRIGGERS, STATIC, COUNTER_ABILITIES, abilitiesOf as defAbilities, keywordsOf, auraSpecOf } from './cards.js?v=20261107203900';
 
 export const STEPS = ['untap', 'upkeep', 'draw', 'main1', 'attackers', 'blockers', 'damage', 'main2', 'end'];
 const NOLOST = new Set();
+const MAX_X = 200; // engine-level bound for X in spells
 const LOOP_LIMIT = 400; // casts + activations per step: stops unbounded mana loops (Power Artifact + Basalt Monolith) from hanging bots
 const emptyPool = () => ({ W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 });
 const COLOR_WORD = { white: 'W', blue: 'U', black: 'B', red: 'R', green: 'G' };
@@ -1090,12 +1091,17 @@ export class Game {
     addGeneric(c, this.ruleSum('spellCostIncrease', card, pid));
     return c;
   }
+  // Highest X the player can pay (pool mana included), found by binary search (payment is monotonic in X), bounded by MAX_X.
   maxX(pid, card) {
-    let lo = 0; const hadCache = !!this._msc; if (!hadCache) this._msc = new Map();
+    const hadCache = !!this._msc; if (!hadCache) this._msc = new Map();
     try {
-    for (let x = 0; x < 40; x++) { if (this.canPay(pid, this.spellCost(pid, card, x, 1), { card })) lo = x; else break; }
+      const ok = (x) => this.canPay(pid, this.spellCost(pid, card, x, 1), { card });
+      if (!ok(0)) return 0;
+      if (ok(MAX_X)) return MAX_X;
+      let lo = 0, hi = MAX_X; // ok(lo), !ok(hi)
+      while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (ok(mid)) lo = mid; else hi = mid; }
+      return lo;
     } finally { if (!hadCache) this._msc = null; }
-    return lo;
   }
 
   // ---------- actions ----------
