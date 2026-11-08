@@ -1,22 +1,23 @@
-import { Game, parseCost, makeRng } from './engine.js?v=20261108130645';
-import { aiAct } from './ai.js?v=20261108130645';
-import { EFFECTS, abilitiesOf } from './cards.js?v=20261108130645';
-import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261108130645';
-import { initMenu, showApp, hideApp, costHtml, myDecks, myDeckCounts, setMyDeck } from './menu.js?v=20261108130645';
-import { askConfirm, askNumber, askPick, modal, askName, askDivide } from './dialog.js?v=20261108130645';
-import * as FX from './fx.js?v=20261108130645';
-import * as ST from './settings.js?v=20261108130645';
-import sfx from './sfx.js?v=20261108130645';
-import * as SC from './screens.js?v=20261108130645';
-import * as AI from './ai.js?v=20261108130645';
-import * as DK from './decks.js?v=20261108130645';
-import * as AN from './anim.js?v=20261108130645';
-import * as SX from './anim/status.js?v=20261108130645';
-import * as ZN from './anim/zones.js?v=20261108130645';
-import { tileHtml } from './decktile.js?v=20261108130645';
+import { Game, parseCost, makeRng } from './engine.js?v=20261108130904';
+import { decideStop } from './autopass.js?v=20261108130904';
+import { aiAct } from './ai.js?v=20261108130904';
+import { EFFECTS, abilitiesOf } from './cards.js?v=20261108130904';
+import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261108130904';
+import { initMenu, showApp, hideApp, costHtml, myDecks, myDeckCounts, setMyDeck } from './menu.js?v=20261108130904';
+import { askConfirm, askNumber, askPick, modal, askName, askDivide } from './dialog.js?v=20261108130904';
+import * as FX from './fx.js?v=20261108130904';
+import * as ST from './settings.js?v=20261108130904';
+import sfx from './sfx.js?v=20261108130904';
+import * as SC from './screens.js?v=20261108130904';
+import * as AI from './ai.js?v=20261108130904';
+import * as DK from './decks.js?v=20261108130904';
+import * as AN from './anim.js?v=20261108130904';
+import * as SX from './anim/status.js?v=20261108130904';
+import * as ZN from './anim/zones.js?v=20261108130904';
+import { tileHtml } from './decktile.js?v=20261108130904';
 const EDLABEL = (id) => (DK.EDITIONS || []).find((e) => e.id === id)?.label || { all: 'All Editions', LEA: 'Alpha', LEB: 'Beta', '2ED': 'Unlimited', ARN: 'Arabian Nights', ATQ: 'Antiquities', LEG: 'Legends' }[id] || id;
-import * as TG from './anim/targeting.js?v=20261108130645';
-import * as AMB from './anim/ambient.js?v=20261108130645';
+import * as TG from './anim/targeting.js?v=20261108130904';
+import * as AMB from './anim/ambient.js?v=20261108130904';
 AMB.init({ me: 0 });
 
 // animation speed setting (Fast/Normal/Slow, minimal under prefers-reduced-motion): scales every WAAPI duration/delay
@@ -133,7 +134,7 @@ async function openSettings() {
     box.innerHTML = `<p><b>Settings</b></p>
       <div class="setlbl">Sound</div><label class="row2"><input type="checkbox" data-k="sound" ${v('sound') ? 'checked' : ''}> Sound effects</label><input type="range" data-k="volume" min="0" max="1" step="0.05" value="${v('volume')}">
       <div class="setlbl">Animation speed</div>${seg('speed', [['off', 'Off'], ['fast', 'Fast'], ['normal', 'Normal'], ['slow', 'Slow']])}${ST.reducedMotion() ? '<small class="muted">Reduced motion is on in your system: animations stay minimal.</small>' : ''}
-      <div class="setlbl">Auto-pass stops</div>${chk('stopOppSpell', 'When the opponent casts a spell I can answer')}${chk('stopMyBegin', 'In my upkeep and draw step')}${chk('stopOppEnd', 'At the opponent\'s end step')}${chk('autoSkip', 'Auto-skip phases when I have no actions')}
+      <div class="setlbl">Auto-pass stops</div>${chk('respectPhases', 'In every step where I can cast or activate something')}${chk('stopOppSpell', 'When the opponent casts a spell I can answer')}${chk('stopMyBegin', 'In my upkeep and draw step')}${chk('stopOppEnd', 'At the opponent\'s end step')}${chk('autoSkip', 'Auto-skip phases when I have no actions')}
       <div class="setlbl">AI difficulty (next game)</div>${seg('difficulty', [['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']])}<div class="setlbl">Edition (next game)</div><select data-k="edition" class="edsel">${((DK.EDITIONS) || [{ id: 'all', label: 'All Editions' }, { id: 'LEA', label: 'Alpha' }, { id: 'LEB', label: 'Beta' }, { id: '2ED', label: 'Unlimited' }, { id: 'ARN', label: 'Arabian Nights' }, { id: 'ATQ', label: 'Antiquities' }, { id: 'LEG', label: 'Legends' }]).map((e) => `<option value="${e.id}" ${v('edition') === e.id ? 'selected' : ''}>${e.label}</option>`).join('')}</select><div class="setlbl">Format (next game)</div>${seg('format', [['restricted', 'Restricted'], ['unrestricted', 'Unrestricted']])}<small class="muted">Restricted: Power 9, Sol Ring, Demonic Tutor, Balance... limited to 1 copy</small>
       <div class="setlbl">Display</div>${chk('pips', 'Show mana costs on cards (phone)')}${isPhone() ? chk('lefty', 'Left-handed layout') + chk('ambient', 'Ambient playmat particles') : ''}${navigator.vibrate ? chk('haptics', 'Haptic feedback') : ''}
       ${mats.length ? `<div class="setlbl">Playmat</div><div class="mats">${mats.map((n) => `<button class="mat ${n === +v('playmat') ? 'sel' : ''}" data-n="${n}"><img src="${matUrl(n)}" draggable="false"><span>Playmat ${n}</span></button>`).join('')}</div>` : ''}
@@ -268,24 +269,9 @@ const NEXT_LBL = { main1: 'combat', attackers: 'combat damage', blockers: 'comba
 function myAttackers() { if (typeof g.canAttackAny === 'function') { try { return g.canAttackAny(ME); } catch { return true; } } return g.players[ME].bf.some((p) => { try { return g.canAttack(p); } catch { return true; } }); }
 function myBlockers() { return g.players[ME].bf.some((p) => g.isCreature(p) && !p.tapped && g.combat.attackers.some((a) => { const at = g.perm(a); try { return at && g.canBlock(p, at); } catch { return true; } })); }
 function shouldStop() {
-  idleSkip = false;
-  const w = g.waiting; if (!w) return false;
-  const ph = PH_OF(g.step);
-  if (holdPh && g.active === ME && ph === holdPh && !g.stack.length && (w.kind === 'priority' || w.kind === 'attackers' || w.kind === 'blockers')) { holdPh = null; return true; }
-  if (w.kind === 'attackers' && w.player === ME && skipOn() && !myAttackers()) { idleSkip = true; return false; }
-  if (w.kind === 'blockers' && w.player === ME && skipOn() && !myBlockers()) { idleSkip = true; return false; }
-  if (w.kind !== 'priority') return true;
-  const top = g.stack[g.stack.length - 1];
-  if (g.active === ME && ST.get('stopMyBegin') && (g.step === 'upkeep' || g.step === 'draw') && !top) return true;
-  if (g.active !== ME && ST.get('stopOppEnd') && g.step === 'end' && !top) return true;
-  if (top) return top.controller === ME || (ST.get('stopOppSpell') && g.hasResponse(ME));
-  if (g.active === ME) {
-    if (g.step === 'main1' || g.step === 'main2') { if (skipOn()) { let any = true; try { any = g.hasAnyAction(ME); } catch { any = true; } if (!any) { idleSkip = true; return false; } } return true; }
-    return (g.step === 'attackers' || g.step === 'blockers') && g.hasResponse(ME);
-  }
-  // opponent's turn, empty stack: stop after the opponent cast/activated something this step (e.g. a creature just resolved and I hold a bounce/removal instant)
-  if (ST.get('stopOppSpell') && g.stepActions > 0 && ['main1', 'main2', 'damage', 'end'].includes(g.step) && g.hasResponse(ME)) return true;
-  return (g.step === 'attackers' || g.step === 'blockers') && g.hasResponse(ME);
+  const d = decideStop(g, ME, { stopOppSpell: ST.get('stopOppSpell'), stopMyBegin: ST.get('stopMyBegin'), stopOppEnd: ST.get('stopOppEnd'), respectPhases: ST.get('respectPhases'), autoSkip: ST.get('autoSkip') !== false && !window.__auto, holdPh, phOf: PH_OF });
+  if (d.stop && holdPh && g.active === ME && PH_OF(g.step) === holdPh && !g.stack.length) holdPh = null;
+  idleSkip = d.idle; return d.stop;
 }
 function toast(t) { let el = $('toast'); if (!el) { el = document.createElement('div'); el.id = 'toast'; $('board').appendChild(el); } el.textContent = t; el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 1800); }
 async function tick() {

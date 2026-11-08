@@ -1,6 +1,6 @@
 // Persisted user settings (localStorage) with change listeners.
 const KEY = 'mtgclassic.settings.v1';
-const DEFAULTS = { sound: true, volume: 0.7, speed: 'normal', stopOppSpell: true, stopMyBegin: false, stopOppEnd: false, format: 'unrestricted', edition: 'all', autoSkip: true, difficulty: 'normal', playmat: 5, haptics: true, pips: false, lefty: false, ambient: true, onboarded: false };
+const DEFAULTS = { sound: true, volume: 0.7, speed: 'normal', stopOppSpell: true, respectPhases: true, stopMyBegin: false, stopOppEnd: false, format: 'unrestricted', edition: 'all', autoSkip: true, difficulty: 'normal', playmat: 5, haptics: true, pips: false, lefty: false, ambient: true, onboarded: false };
 let cur = { ...DEFAULTS };
 const subs = new Set();
 const rd = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
