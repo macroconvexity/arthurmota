@@ -1,22 +1,22 @@
-import { Game, parseCost, makeRng } from './engine.js?v=20261107213808';
-import { aiAct } from './ai.js?v=20261107213808';
-import { EFFECTS, abilitiesOf } from './cards.js?v=20261107213808';
-import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261107213808';
-import { initMenu, showApp, hideApp, costHtml, myDecks, myDeckCounts, setMyDeck } from './menu.js?v=20261107213808';
-import { askConfirm, askNumber, askPick, modal, askName, askDivide } from './dialog.js?v=20261107213808';
-import * as FX from './fx.js?v=20261107213808';
-import * as ST from './settings.js?v=20261107213808';
-import sfx from './sfx.js?v=20261107213808';
-import * as SC from './screens.js?v=20261107213808';
-import * as AI from './ai.js?v=20261107213808';
-import * as DK from './decks.js?v=20261107213808';
-import * as AN from './anim.js?v=20261107213808';
-import * as SX from './anim/status.js?v=20261107213808';
-import * as ZN from './anim/zones.js?v=20261107213808';
-import { tileHtml } from './decktile.js?v=20261107213808';
+import { Game, parseCost, makeRng } from './engine.js?v=20261107214121';
+import { aiAct } from './ai.js?v=20261107214121';
+import { EFFECTS, abilitiesOf } from './cards.js?v=20261107214121';
+import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261107214121';
+import { initMenu, showApp, hideApp, costHtml, myDecks, myDeckCounts, setMyDeck } from './menu.js?v=20261107214121';
+import { askConfirm, askNumber, askPick, modal, askName, askDivide } from './dialog.js?v=20261107214121';
+import * as FX from './fx.js?v=20261107214121';
+import * as ST from './settings.js?v=20261107214121';
+import sfx from './sfx.js?v=20261107214121';
+import * as SC from './screens.js?v=20261107214121';
+import * as AI from './ai.js?v=20261107214121';
+import * as DK from './decks.js?v=20261107214121';
+import * as AN from './anim.js?v=20261107214121';
+import * as SX from './anim/status.js?v=20261107214121';
+import * as ZN from './anim/zones.js?v=20261107214121';
+import { tileHtml } from './decktile.js?v=20261107214121';
 const EDLABEL = (id) => (DK.EDITIONS || []).find((e) => e.id === id)?.label || { all: 'All Editions', LEA: 'Alpha', LEB: 'Beta', '2ED': 'Unlimited', ARN: 'Arabian Nights', ATQ: 'Antiquities', LEG: 'Legends' }[id] || id;
-import * as TG from './anim/targeting.js?v=20261107213808';
-import * as AMB from './anim/ambient.js?v=20261107213808';
+import * as TG from './anim/targeting.js?v=20261107214121';
+import * as AMB from './anim/ambient.js?v=20261107214121';
 AMB.init({ me: 0 });
 
 // animation speed setting (Fast/Normal/Slow, minimal under prefers-reduced-motion): scales every WAAPI duration/delay
@@ -958,6 +958,7 @@ function flip(el, src, srcW, delay = 0) {
 }
 let prevGyIds = new Set();
 function animateFrom(prev) {
+  if (noFlip) return;
   const now = new Set(); let n = 0;
   const newHand = [...document.querySelectorAll('#hand .card')].filter((el) => !prev.has(+el.dataset.id)).length; const drawStep = newHand >= 3 ? 40 : 90;
   const gyNow = new Set(g.players.flatMap((pl) => pl.gy.map((c) => c.id)));
@@ -1155,7 +1156,11 @@ function endDrag(d, e) {
   }
   d.el.style.opacity = ''; render();
 }
-addEventListener('resize', () => { if (g && !$('board').hidden) render(); });
+// rotating/resizing must never leave cards mid-flight: drop running animations and redraw without FLIP (iOS can freeze them at their first frame)
+let noFlip = false;
+const relayout = () => { if (!g || $('board').hidden) return; noFlip = true; try { document.getAnimations().filter((a) => !(a instanceof CSSAnimation) && !(a instanceof CSSTransition)).forEach((a) => a.cancel()); } catch {} render(); noFlip = false; };
+addEventListener('resize', relayout);
+addEventListener('orientationchange', () => { for (const t of [200, 800, 1700]) setTimeout(relayout, t); });
 $('rotate-go')?.addEventListener('click', () => $('board').classList.add('norotate'));
 TG.init({ g: () => g, mode: () => mode, ME, permEl: (id) => permEl(id), refOf: (el) => refOf(el) });
 window.__tick = () => tick(); window.__render = render; Object.defineProperty(window, '__mode', { get: () => mode });
