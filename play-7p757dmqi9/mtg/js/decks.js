@@ -1,4 +1,4 @@
-import { isImplemented } from './cards.js?v=20261103062100';
+import { isImplemented } from './cards.js?v=20261107201805';
 
 // BEGIN GENERATED DECKS (node test/build_decks.mjs --write)
 export const DECK_LISTS = {
@@ -55,6 +55,25 @@ export const DECK_LISTS = {
   "Bayou Twist (B/G)": { "Black Lotus": 4, "Mox Jet": 4, "Mox Emerald": 4, "Sol Ring": 4, Bayou: 4, Swamp: 6, Forest: 6, "Dark Ritual": 4, "Demonic Tutor": 4, "Mind Twist": 4, Sinkhole: 4, Regrowth: 4, "Erhnam Djinn": 4, "Juzám Djinn": 4 },
   "Channel Firestorm (R/G)": { "Black Lotus": 4, "Mox Pearl": 4, "Mox Sapphire": 4, "Mox Jet": 4, "Mox Ruby": 4, "Mox Emerald": 4, Taiga: 4, Forest: 4, Channel: 4, Fireball: 4, "Wheel of Fortune": 4, Regrowth: 4, "Lightning Bolt": 4, "Chain Lightning": 4, Fork: 4 },
   "Turbo Twister / Channel (Power)": { "Black Lotus": 4, "Mox Sapphire": 4, "Mox Jet": 4, "Mox Ruby": 4, "Mox Emerald": 4, "Mox Pearl": 4, "Sol Ring": 4, "Ancestral Recall": 4, "Time Walk": 4, Timetwister: 4, "Wheel of Fortune": 4, "Demonic Tutor": 4, Balance: 4, Channel: 4, Fireball: 4 },
+  "Mind Rot (U/B) [Restricted]": { "Mind Twist": 1, "Hypnotic Specter": 4, "Black Knight": 3, "Phantom Monster": 2, Counterspell: 3, Terror: 3, "Air Elemental": 2, "Sengir Vampire": 2, "Sol Ring": 1, "Black Lotus": 1, "Underground Sea": 3, Island: 4, Swamp: 8, "Mana Vault": 2, "Mana Drain": 1 },
+  "Singularity (UBRG) [Restricted]": { "Black Lotus": 1, "Mox Sapphire": 1, "Mox Jet": 1, "Mox Ruby": 1, "Mox Emerald": 1, "City of Brass": 4, "Ancestral Recall": 1, "Time Walk": 1, Timetwister: 1, "Wheel of Fortune": 1, "Demonic Tutor": 1, Channel: 1, Fireball: 4, "Power Artifact": 4, "Basalt Monolith": 4, Island: 9, Swamp: 1, Mountain: 4, Forest: 2, "Mana Vault": 2, "Mana Drain": 2, "Hypnotic Specter": 2, "Lightning Bolt": 2, Regrowth: 2, "Icy Manipulator": 2, Counterspell: 2, Terror: 2, "Chain Lightning": 1 },
+  "Pearl Prison (W) [Restricted]": { "Black Lotus": 1, "Mox Pearl": 1, "Mox Sapphire": 1, "Mox Jet": 1, "Mox Ruby": 1, "Mox Emerald": 1, Plains: 20, Balance: 1, "Swords to Plowshares": 4, Disenchant: 4, Armageddon: 4, Moat: 4, "Serra Angel": 4, "Wrath of God": 4, "Mana Vault": 2, "Icy Manipulator": 2, Juggernaut: 2, "Su-Chi": 2, Triskelion: 1 },
+  "Sapphire Reactor (U) [Restricted]": { "Black Lotus": 1, "Mox Pearl": 1, "Mox Sapphire": 1, "Mox Jet": 1, "Mox Ruby": 1, "Mox Emerald": 1, Island: 20, "Ancestral Recall": 1, "Time Walk": 1, Timetwister: 1, "Mana Drain": 4, "Power Artifact": 4, "Basalt Monolith": 4, Braingeyser: 1, "Mana Vault": 2, "Icy Manipulator": 2, Counterspell: 2, Juggernaut: 2, "Force Spike": 2, "Su-Chi": 2, "Mana Short": 2, Triskelion: 2, "Control Magic": 2 },
+  "Jet Void (B) [Restricted]": { "Black Lotus": 1, "Mox Pearl": 1, "Mox Sapphire": 1, "Mox Jet": 1, "Mox Ruby": 1, "Mox Emerald": 1, Swamp: 20, "Dark Ritual": 4, "Demonic Tutor": 1, "Mind Twist": 1, Sinkhole: 4, "Hypnotic Specter": 4, "Juzám Djinn": 4, "Nether Void": 4, "Mana Vault": 2, "Icy Manipulator": 2, Terror: 2, Juggernaut: 2, "Su-Chi": 2, Triskelion: 2 },
+  "Ruby Vise (R) [Restricted]": { "Black Lotus": 1, "Mox Pearl": 1, "Mox Sapphire": 1, "Mox Jet": 1, "Mox Ruby": 1, "Mox Emerald": 1, Mountain: 20, "Wheel of Fortune": 1, "Lightning Bolt": 4, "Chain Lightning": 4, Fork: 4, Fireball: 4, "Black Vise": 4, "Artifact Blast": 4, "Mana Vault": 2, "Icy Manipulator": 2, Juggernaut: 2, "Su-Chi": 2, Triskelion: 1 },
+  "Emerald Colossus (G) [Restricted]": { "Black Lotus": 1, "Mox Emerald": 1, "Sol Ring": 1, Forest: 20, Channel: 1, "Concordant Crossroads": 4, Regrowth: 4, "Sylvan Library": 4, Berserk: 4, "Erhnam Djinn": 4, "Colossus of Sardia": 4, Crumble: 4, "Mana Vault": 2, "Icy Manipulator": 2, Juggernaut: 2, "Su-Chi": 2 },
+  "Workshop Zero (C) [Restricted]": { "Black Lotus": 1, "Mox Pearl": 1, "Mox Sapphire": 1, "Mox Jet": 1, "Mox Ruby": 1, "Mox Emerald": 1, "Mishra's Workshop": 4, "Mishra's Factory": 4, "Strip Mine": 4, Juggernaut: 4, "Su-Chi": 4, Triskelion: 4, "Winter Orb": 4, "Relic Barrier": 4, "Icy Manipulator": 4, "Mana Vault": 4, "Jayemdae Tome": 2, "Obsianus Golem": 2, Ornithopter: 2, "Black Vise": 2, "Disrupting Scepter": 2, "Howling Mine": 2, "Ankh of Mishra": 2 },
+  "Balanced Reactor (W/U) [Restricted]": { "Black Lotus": 1, "Mox Pearl": 1, "Mox Sapphire": 1, "Mox Jet": 1, "Mox Ruby": 1, "Mox Emerald": 1, Tundra: 4, "City of Brass": 4, "Ancestral Recall": 1, "Time Walk": 1, Timetwister: 1, Balance: 1, "Power Artifact": 4, "Basalt Monolith": 4, Braingeyser: 1, Plains: 1, Island: 11, "Mana Vault": 2, "Swords to Plowshares": 2, "Mana Drain": 2, "Icy Manipulator": 2, "Wrath of God": 2, Counterspell: 2, Juggernaut: 2, Disenchant: 2, "Force Spike": 2, "Su-Chi": 2, "Serra Angel": 1 },
+  "Abyssal Reactor (U/B) [Restricted]": { "Black Lotus": 1, "Mox Pearl": 1, "Mox Sapphire": 1, "Mox Jet": 1, "Mox Ruby": 1, "Mox Emerald": 1, "Underground Sea": 4, "City of Brass": 4, "Ancestral Recall": 1, "Time Walk": 1, Timetwister: 1, "Demonic Tutor": 1, "Power Artifact": 4, "Basalt Monolith": 4, Braingeyser: 1, Island: 11, Swamp: 1, "Mana Vault": 2, "Mana Drain": 2, "Hypnotic Specter": 2, "Icy Manipulator": 2, Counterspell: 2, Terror: 2, Juggernaut: 2, "Force Spike": 2, Sinkhole: 2, "Su-Chi": 2, "Mana Short": 1 },
+  "Basalt Fire (U/R) [Restricted]": { "Black Lotus": 1, "Mox Pearl": 1, "Mox Sapphire": 1, "Mox Jet": 1, "Mox Ruby": 1, "Mox Emerald": 1, "Volcanic Island": 4, "City of Brass": 4, "Ancestral Recall": 1, "Time Walk": 1, Timetwister: 1, "Wheel of Fortune": 1, "Power Artifact": 4, "Basalt Monolith": 4, Fireball: 4, Island: 8, Mountain: 4, "Mana Vault": 2, "Mana Drain": 2, "Lightning Bolt": 2, "Icy Manipulator": 2, Counterspell: 2, "Chain Lightning": 2, Juggernaut: 2, "Force Spike": 2, "Su-Chi": 2 },
+  "Regrowth Reactor (U/G) [Restricted]": { "Black Lotus": 1, "Mox Pearl": 1, "Mox Sapphire": 1, "Mox Jet": 1, "Mox Ruby": 1, "Mox Emerald": 1, "Tropical Island": 4, "City of Brass": 4, "Ancestral Recall": 1, "Time Walk": 1, Timetwister: 1, Regrowth: 4, "Power Artifact": 4, "Basalt Monolith": 4, Braingeyser: 1, Island: 9, Forest: 3, "Mana Vault": 2, "Mana Drain": 2, "Icy Manipulator": 2, Counterspell: 2, "Sylvan Library": 2, Juggernaut: 2, "Force Spike": 2, "Erhnam Djinn": 2, "Su-Chi": 2 },
+  "Void Balance (W/B) [Restricted]": { "Black Lotus": 1, "Mox Pearl": 1, "Mox Sapphire": 1, "Mox Jet": 1, "Mox Ruby": 1, "Mox Emerald": 1, Scrubland: 4, "City of Brass": 4, Balance: 1, "Swords to Plowshares": 4, Disenchant: 4, "Demonic Tutor": 1, "Mind Twist": 1, "Nether Void": 4, "The Rack": 4, Plains: 7, Swamp: 5, "Mana Vault": 2, "Hypnotic Specter": 2, "Icy Manipulator": 2, "Wrath of God": 2, Terror: 2, Juggernaut: 2, Sinkhole: 2, "Su-Chi": 1 },
+  "Sunfire Balance (W/R) [Restricted]": { "Black Lotus": 1, "Mox Pearl": 1, "Mox Sapphire": 1, "Mox Jet": 1, "Mox Ruby": 1, "Mox Emerald": 1, Plateau: 4, "City of Brass": 4, Balance: 1, "Swords to Plowshares": 4, "Wheel of Fortune": 1, "Lightning Bolt": 4, "Chain Lightning": 4, Fork: 4, "Black Vise": 4, Plains: 3, Mountain: 9, "Mana Vault": 2, "Icy Manipulator": 2, "Wrath of God": 2, Juggernaut: 2, Disenchant: 2, Fireball: 2 },
+  "Erhnamgeddon Unbound (W/G) [Restricted]": { "Black Lotus": 1, "Mox Pearl": 1, "Mox Sapphire": 1, "Mox Jet": 1, "Mox Ruby": 1, "Mox Emerald": 1, Savannah: 4, "City of Brass": 4, Balance: 1, "Swords to Plowshares": 4, Armageddon: 4, Regrowth: 4, "Sylvan Library": 4, "Erhnam Djinn": 4, Berserk: 4, Plains: 4, Forest: 8, "Mana Vault": 2, "Icy Manipulator": 2, "Wrath of God": 2, Juggernaut: 2, Disenchant: 1 },
+  "Demonic Wheel (B/R) [Restricted]": { "Black Lotus": 1, "Mox Pearl": 1, "Mox Sapphire": 1, "Mox Jet": 1, "Mox Ruby": 1, "Mox Emerald": 1, Badlands: 4, "City of Brass": 4, "Demonic Tutor": 1, "Mind Twist": 1, "Wheel of Fortune": 1, "Lightning Bolt": 4, "Chain Lightning": 4, Fork: 4, "Juzám Djinn": 4, Swamp: 4, Mountain: 8, "Mana Vault": 2, "Hypnotic Specter": 2, "Icy Manipulator": 2, Terror: 2, Juggernaut: 2, Sinkhole: 2, Fireball: 2, "Su-Chi": 1 },
+  "Bayou Twist (B/G) [Restricted]": { "Black Lotus": 1, "Mox Jet": 1, "Mox Emerald": 1, "Sol Ring": 1, Bayou: 4, Swamp: 6, Forest: 6, "Dark Ritual": 4, "Demonic Tutor": 1, "Mind Twist": 1, Sinkhole: 4, Regrowth: 4, "Erhnam Djinn": 4, "Juzám Djinn": 4, "City of Brass": 4, "Mana Vault": 2, "Hypnotic Specter": 2, "Icy Manipulator": 2, Terror: 2, "Sylvan Library": 2, Juggernaut: 2, "Su-Chi": 2 },
+  "Channel Firestorm (R/G) [Restricted]": { "Black Lotus": 1, "Mox Pearl": 1, "Mox Sapphire": 1, "Mox Jet": 1, "Mox Ruby": 1, "Mox Emerald": 1, Taiga: 4, Forest: 6, Channel: 1, Fireball: 4, "Wheel of Fortune": 1, Regrowth: 4, "Lightning Bolt": 4, "Chain Lightning": 4, Fork: 4, "City of Brass": 4, Mountain: 6, "Mana Vault": 2, "Icy Manipulator": 2, "Sylvan Library": 2, Juggernaut: 2, "Erhnam Djinn": 2, "Su-Chi": 2 },
+  "Turbo Twister / Channel (Power) [Restricted]": { "Black Lotus": 1, "Mox Sapphire": 1, "Mox Jet": 1, "Mox Ruby": 1, "Mox Emerald": 1, "Mox Pearl": 1, "Sol Ring": 1, "Ancestral Recall": 1, "Time Walk": 1, Timetwister: 1, "Wheel of Fortune": 1, "Demonic Tutor": 1, Balance: 1, Channel: 1, Fireball: 4, "City of Brass": 4, Plains: 1, Island: 4, Swamp: 1, Mountain: 7, Forest: 3, "Mana Vault": 2, "Swords to Plowshares": 2, "Mana Drain": 2, "Hypnotic Specter": 2, "Lightning Bolt": 2, Regrowth: 2, "Icy Manipulator": 2, "Wrath of God": 2, Counterspell: 2, Terror: 2, "Chain Lightning": 2 },
 };
 export const DECK_META = {
   "White Weenie (W)": { name: "White Weenie (W)", colors: ["W"], archetype: "aggro", blurb: "Cheap white creatures and Swords to Plowshares try to win before anything big lands.", aiLevelHint: "normal", rating: 45, pool: "classic" },
@@ -110,6 +129,47 @@ export const DECK_META = {
   "Bayou Twist (B/G)": { name: "Bayou Twist (B/G)", colors: ["B","G"], archetype: "discard", blurb: "Tutor into Mind Twist, then Sinkhole and the Djinns close without any draw-seven.", aiLevelHint: "hard", rating: 52, pool: "unrestricted", unrestricted: true },
   "Channel Firestorm (R/G)": { name: "Channel Firestorm (R/G)", colors: ["R","G"], archetype: "combo", blurb: "Channel plus Fireball is the fastest non-blue kill, with Wheel of Fortune to find the pieces.", aiLevelHint: "hard", rating: 64, pool: "unrestricted", unrestricted: true },
   "Turbo Twister / Channel (Power)": { name: "Turbo Twister / Channel (Power)", colors: ["W","U","B","R","G"], archetype: "combo", blurb: "Unrestricted power: five Moxen, Lotus and Sol Ring into Timetwister, Wheel, Channel and Fireball.", aiLevelHint: "hard", rating: 66, pool: "unrestricted", unrestricted: true },
+  "Mind Rot (U/B) [Restricted]": { name: "Mind Rot (U/B) [Restricted]", colors: ["U","B"], archetype: "discard", blurb: "Mind Twist and Hypnotic Specter empty the opponent's hand before the creatures arrive. Restricted version: the Power cards and draw engines are cut to one copy each.", aiLevelHint: "hard", rating: 54, pool: "classic", format: "restricted", twinOf: "Mind Rot (U/B)" },
+  "Singularity (UBRG) [Restricted]": { name: "Singularity (UBRG) [Restricted]", colors: ["U","B","R","G"], archetype: "combo", blurb: "Two kill routes, Channel plus Fireball and Power Artifact plus Basalt Monolith, found by the best draw spells and Demonic Tutor. Restricted version: the Power cards and draw engines are cut to one copy each.", aiLevelHint: "hard", rating: 68, pool: "restricted", format: "restricted", twinOf: "Singularity (UBRG)" },
+  "Pearl Prison (W) [Restricted]": { name: "Pearl Prison (W) [Restricted]", colors: ["W"], archetype: "prison", blurb: "Moxen into Balance, Moat and Armageddon, closed out by Serra Angel. Restricted version: the Power cards and draw engines are cut to one copy each.", aiLevelHint: "hard", rating: 54, pool: "restricted", format: "restricted", twinOf: "Pearl Prison (W)" },
+  "Sapphire Reactor (U) [Restricted]": { name: "Sapphire Reactor (U) [Restricted]", colors: ["U"], archetype: "combo", blurb: "Power Artifact and Basalt Monolith make endless mana, Braingeyser turns it into a kill, Mana Drain keeps it safe. Restricted version: the Power cards and draw engines are cut to one copy each.", aiLevelHint: "hard", rating: 64, pool: "restricted", format: "restricted", twinOf: "Sapphire Reactor (U)" },
+  "Jet Void (B) [Restricted]": { name: "Jet Void (B) [Restricted]", colors: ["B"], archetype: "discard", blurb: "Mind Twist off fast mana, then Sinkhole and Nether Void while Specter and Juzám Djinn beat down. Restricted version: the Power cards and draw engines are cut to one copy each.", aiLevelHint: "hard", rating: 54, pool: "restricted", format: "restricted", twinOf: "Jet Void (B)" },
+  "Ruby Vise (R) [Restricted]": { name: "Ruby Vise (R) [Restricted]", colors: ["R"], archetype: "burn", blurb: "Turbo burn: Wheel of Fortune refills, Black Vise punishes draws and Artifact Blast hits key artifacts. Restricted version: the Power cards and draw engines are cut to one copy each.", aiLevelHint: "hard", rating: 52, pool: "restricted", format: "restricted", twinOf: "Ruby Vise (R)" },
+  "Emerald Colossus (G) [Restricted]": { name: "Emerald Colossus (G) [Restricted]", colors: ["G"], archetype: "ramp", blurb: "Channel into Colossus of Sardia or Erhnam Djinn, with Concordant Crossroads and Berserk for sudden kills. Restricted version: the Power cards and draw engines are cut to one copy each.", aiLevelHint: "hard", rating: 48, pool: "restricted", format: "restricted", twinOf: "Emerald Colossus (G)" },
+  "Workshop Zero (C) [Restricted]": { name: "Workshop Zero (C) [Restricted]", colors: [], archetype: "prison", blurb: "Mishra's Workshop and Moxen flood the board with robots under Winter Orb and Strip Mine. Restricted version: the Power cards and draw engines are cut to one copy each.", aiLevelHint: "hard", rating: 52, pool: "restricted", format: "restricted", twinOf: "Workshop Zero (C)" },
+  "Balanced Reactor (W/U) [Restricted]": { name: "Balanced Reactor (W/U) [Restricted]", colors: ["W","U"], archetype: "combo", blurb: "The Basalt Monolith loop with Balance as a protective reset. Restricted version: the Power cards and draw engines are cut to one copy each.", aiLevelHint: "hard", rating: 60, pool: "restricted", format: "restricted", twinOf: "Balanced Reactor (W/U)" },
+  "Abyssal Reactor (U/B) [Restricted]": { name: "Abyssal Reactor (U/B) [Restricted]", colors: ["U","B"], archetype: "combo", blurb: "Demonic Tutor makes the Power Artifact, Basalt Monolith and Braingeyser combo extremely consistent. Restricted version: the Power cards and draw engines are cut to one copy each.", aiLevelHint: "hard", rating: 64, pool: "restricted", format: "restricted", twinOf: "Abyssal Reactor (U/B)" },
+  "Basalt Fire (U/R) [Restricted]": { name: "Basalt Fire (U/R) [Restricted]", colors: ["U","R"], archetype: "combo", blurb: "Endless mana from Basalt Monolith, then Fireball for lethal damage. Restricted version: the Power cards and draw engines are cut to one copy each.", aiLevelHint: "hard", rating: 63, pool: "restricted", format: "restricted", twinOf: "Basalt Fire (U/R)" },
+  "Regrowth Reactor (U/G) [Restricted]": { name: "Regrowth Reactor (U/G) [Restricted]", colors: ["U","G"], archetype: "combo", blurb: "The blue infinite-mana core with Regrowth to recover any missing piece. Restricted version: the Power cards and draw engines are cut to one copy each.", aiLevelHint: "hard", rating: 60, pool: "restricted", format: "restricted", twinOf: "Regrowth Reactor (U/G)" },
+  "Void Balance (W/B) [Restricted]": { name: "Void Balance (W/B) [Restricted]", colors: ["W","B"], archetype: "prison", blurb: "Balance, Mind Twist and Nether Void strip resources, The Rack punishes empty hands. Restricted version: the Power cards and draw engines are cut to one copy each.", aiLevelHint: "hard", rating: 56, pool: "restricted", format: "restricted", twinOf: "Void Balance (W/B)" },
+  "Sunfire Balance (W/R) [Restricted]": { name: "Sunfire Balance (W/R) [Restricted]", colors: ["W","R"], archetype: "burn", blurb: "Balance resets the board, Wheel of Fortune and burn finish. Restricted version: the Power cards and draw engines are cut to one copy each.", aiLevelHint: "hard", rating: 56, pool: "restricted", format: "restricted", twinOf: "Sunfire Balance (W/R)" },
+  "Erhnamgeddon Unbound (W/G) [Restricted]": { name: "Erhnamgeddon Unbound (W/G) [Restricted]", colors: ["W","G"], archetype: "aggro", blurb: "Fast mana puts Erhnam Djinn out early while Balance and Armageddon break the opponent's mana. Restricted version: the Power cards and draw engines are cut to one copy each.", aiLevelHint: "hard", rating: 54, pool: "restricted", format: "restricted", twinOf: "Erhnamgeddon Unbound (W/G)" },
+  "Demonic Wheel (B/R) [Restricted]": { name: "Demonic Wheel (B/R) [Restricted]", colors: ["B","R"], archetype: "burn", blurb: "Demonic Tutor finds Mind Twist, Wheel of Fortune or burn, with Juzám Djinn as a clock. Restricted version: the Power cards and draw engines are cut to one copy each.", aiLevelHint: "hard", rating: 58, pool: "restricted", format: "restricted", twinOf: "Demonic Wheel (B/R)" },
+  "Bayou Twist (B/G) [Restricted]": { name: "Bayou Twist (B/G) [Restricted]", colors: ["B","G"], archetype: "discard", blurb: "Tutor into Mind Twist, then Sinkhole and the Djinns close without any draw-seven. Restricted version: the Power cards and draw engines are cut to one copy each.", aiLevelHint: "hard", rating: 48, pool: "restricted", format: "restricted", twinOf: "Bayou Twist (B/G)" },
+  "Channel Firestorm (R/G) [Restricted]": { name: "Channel Firestorm (R/G) [Restricted]", colors: ["R","G"], archetype: "combo", blurb: "Channel plus Fireball is the fastest non-blue kill, with Wheel of Fortune to find the pieces. Restricted version: the Power cards and draw engines are cut to one copy each.", aiLevelHint: "hard", rating: 60, pool: "restricted", format: "restricted", twinOf: "Channel Firestorm (R/G)" },
+  "Turbo Twister / Channel (Power) [Restricted]": { name: "Turbo Twister / Channel (Power) [Restricted]", colors: ["W","U","B","R","G"], archetype: "combo", blurb: "Five Moxen, Lotus and Sol Ring into Timetwister, Wheel, Channel and Fireball. Restricted version: the Power cards and draw engines are cut to one copy each.", aiLevelHint: "hard", rating: 62, pool: "restricted", format: "restricted", twinOf: "Turbo Twister / Channel (Power)" },
+};
+// old twin names ('<Name> (R)') from saved state -> current names; use resolveDeckName()
+export const LEGACY_DECK_NAMES = {
+  "Mind Rot (U/B) (R)": "Mind Rot (U/B) [Restricted]",
+  "Singularity (UBRG) (R)": "Singularity (UBRG) [Restricted]",
+  "Pearl Prison (W) (R)": "Pearl Prison (W) [Restricted]",
+  "Sapphire Reactor (U) (R)": "Sapphire Reactor (U) [Restricted]",
+  "Jet Void (B) (R)": "Jet Void (B) [Restricted]",
+  "Ruby Vise (R) (R)": "Ruby Vise (R) [Restricted]",
+  "Emerald Colossus (G) (R)": "Emerald Colossus (G) [Restricted]",
+  "Workshop Zero (C) (R)": "Workshop Zero (C) [Restricted]",
+  "Balanced Reactor (W/U) (R)": "Balanced Reactor (W/U) [Restricted]",
+  "Abyssal Reactor (U/B) (R)": "Abyssal Reactor (U/B) [Restricted]",
+  "Basalt Fire (U/R) (R)": "Basalt Fire (U/R) [Restricted]",
+  "Regrowth Reactor (U/G) (R)": "Regrowth Reactor (U/G) [Restricted]",
+  "Void Balance (W/B) (R)": "Void Balance (W/B) [Restricted]",
+  "Sunfire Balance (W/R) (R)": "Sunfire Balance (W/R) [Restricted]",
+  "Erhnamgeddon Unbound (W/G) (R)": "Erhnamgeddon Unbound (W/G) [Restricted]",
+  "Demonic Wheel (B/R) (R)": "Demonic Wheel (B/R) [Restricted]",
+  "Bayou Twist (B/G) (R)": "Bayou Twist (B/G) [Restricted]",
+  "Channel Firestorm (R/G) (R)": "Channel Firestorm (R/G) [Restricted]",
+  "Turbo Twister / Channel (Power) (R)": "Turbo Twister / Channel (Power) [Restricted]",
 };
 // END GENERATED DECKS
 
@@ -125,9 +185,27 @@ export function buildDeckFrom(counts, byName, rng = Math.random) {
 }
 export const buildDeck = (name, byName, rng) => buildDeckFrom(DECK_LISTS[name], byName, rng);
 
-const RESTRICTED = new Set([]);   // unrestricted format: no restricted/banned list (max 4 per name, basics unlimited)
+// ---- formats ---------------------------------------------------------------------------------
+// 'unrestricted': max 4 copies per name (basics unlimited). 'restricted': old-school restricted list, 1 copy each (not banned).
+// RESTRICTED is the single editable list of restricted cards.
+export const RESTRICTED = new Set([
+  'Black Lotus', 'Mox Pearl', 'Mox Sapphire', 'Mox Jet', 'Mox Ruby', 'Mox Emerald', 'Ancestral Recall', 'Time Walk', 'Timetwister', 'Sol Ring',
+  'Demonic Tutor', 'Library of Alexandria', 'Wheel of Fortune', 'Balance', 'Channel', 'Mind Twist', 'Braingeyser',
+]);
+export const FORMATS = ['restricted', 'unrestricted'];
 const BASICS = new Set(['Plains', 'Island', 'Swamp', 'Mountain', 'Forest']);
-export const copyLimit = (name) => (BASICS.has(name) ? 99 : RESTRICTED.has(name) ? 1 : 4);
+export const copyLimit = (name, fmt = 'unrestricted') => (BASICS.has(name) ? 99 : fmt === 'restricted' && RESTRICTED.has(name) ? 1 : 4);
+// counts: {cardName: n}. Legal when every entry is within the format's copy limit.
+export const isLegal = (counts, fmt = 'unrestricted') => Object.entries(counts).every(([n, k]) => k <= copyLimit(n, fmt));
+// formats a premade deck is legal in, computed from its list
+export const deckFormats = (name) => (DECK_LISTS[name] ? FORMATS.filter((f) => isLegal(DECK_LISTS[name], f)) : []);
+// random premade deck legal in `fmt` (level is accepted for symmetry with pickOpponent; opts: {rng, byName (skips decks with unimplemented cards), exclude})
+export function pickOpponentDeck(fmt = 'unrestricted', level = 'normal', opts = {}) {
+  const rng = opts.rng || Math.random;
+  let pool = Object.keys(DECK_LISTS).filter((n) => isLegal(DECK_LISTS[n], fmt) && n !== opts.exclude && (!opts.byName || isDeckReady(n, opts.byName)));
+  if (!pool.length) pool = Object.keys(DECK_LISTS).filter((n) => isLegal(DECK_LISTS[n], fmt));
+  return pool.length ? pool[Math.floor(rng() * pool.length)] : null;
+}
 
 export function indexCards(cards) {
   const byName = {};
@@ -159,7 +237,7 @@ export function describeDeck(name, byName) {
   const entries = Object.entries(list);
   const size = entries.reduce((a, [, k]) => a + k, 0);
   const lands = entries.filter(([n]) => BASICS.has(n) || (byName?.[n]?.[0].types || []).includes('Land')).reduce((a, [, k]) => a + k, 0);
-  const keyCards = entries.filter(([n]) => !BASICS.has(n) && !RESTRICTED.has(n) && !(byName?.[n]?.[0].types || []).includes('Land')).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([n]) => n);
+  const keyCards = entries.filter(([n]) => !BASICS.has(n) && !(byName?.[n]?.[0].types || []).includes('Land')).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([n]) => n);
   const out = { ...meta, size, lands, keyCards };
   if (byName) {
     const spells = entries.filter(([n]) => byName[n] && !byName[n][0].types.includes('Land'));
@@ -187,3 +265,6 @@ export function pickOpponent(playerDeckName, level = 'normal', opts = {}) {
   const top = ranked.slice(0, Math.min(4, ranked.length));
   return top[Math.floor(rng() * top.length)].n;
 }
+
+// Saved games / custom decks may still carry an old twin name ('<Name> (R)'); resolve to the current deck name (unknown names pass through).
+export const resolveDeckName = (name) => (DECK_LISTS[name] ? name : LEGACY_DECK_NAMES[name] || name);

@@ -1,10 +1,25 @@
-import { isImplemented } from './cards.js?v=20261103062100';
-import { DECK_LISTS, copyLimit } from './decks.js?v=20261103062100';
-import { askConfirm, askText } from './dialog.js?v=20261103062100';
+import { isImplemented } from './cards.js?v=20261107201805';
+import { DECK_LISTS, copyLimit as rawLimit, RESTRICTED, isLegal } from './decks.js?v=20261107201805';
+import * as ST from './settings.js?v=20261107201805';
+import { askConfirm, askText } from './dialog.js?v=20261107201805';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
 const MIN_DECK = 40;
+// ---- format (Restricted / Unrestricted): limits come from decks.js copyLimit(name, fmt)
+export const FMT_TEXT = { restricted: 'Restricted: Power 9, Sol Ring, Demonic Tutor, Balance... limited to 1 copy', unrestricted: 'Unrestricted: up to 4 copies per card (basic lands unlimited)' };
+const fmt = () => (ST.get('format') === 'restricted' ? 'restricted' : 'unrestricted');
+const fmtName = (f = fmt()) => (f === 'restricted' ? 'Restricted' : 'Unrestricted');
+const copyLimit = (name, f = fmt()) => rawLimit(name, f);
+// reason a counts map is not legal in a format ('' when legal): 'Not legal in Restricted: 4x Black Lotus, 3x Mox Ruby'
+export function deckProblem(counts, f = fmt()) {
+  const bad = Object.entries(counts || {}).filter(([k, n]) => k[0] !== '_' && n > copyLimit(k, f)).map(([k, n]) => `${n}x ${k}`);
+  if (bad.length) return `Not legal in ${fmtName(f)}: ${bad.slice(0, 4).join(', ')}${bad.length > 4 ? ` +${bad.length - 4} more` : ''}`;
+  try { if (isLegal && !isLegal(counts, f)) return `Not legal in ${fmtName(f)}`; } catch {}
+  return '';
+}
+const fmtSeg = () => `<div class="seg fmtseg" data-fmtseg="1">${['restricted', 'unrestricted'].map((x) => `<button data-act="fmt" data-v="${x}" class="${fmt() === x ? 'on' : ''}">${fmtName(x)}</button>`).join('')}</div>`;
+function menuToast(t) { let el = $('#mtoast'); if (!el) { el = document.createElement('div'); el.id = 'mtoast'; $('#app').appendChild(el); } el.textContent = t; el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); clearTimeout(menuToast.t); menuToast.t = setTimeout(() => el.classList.remove('on'), 1800); }
 const SETS = { '': 'All sets', LEA: 'Alpha', LEB: 'Beta', ARN: 'Arabian Nights', ATQ: 'Antiquities', LEG: 'Legends' };
 const COLORS = ['W', 'U', 'B', 'R', 'G', 'C', 'M'];   // M = multicolour (gold)
 const COLOR_ORDER = { W: 0, U: 1, B: 2, R: 3, G: 4 };
@@ -43,11 +58,12 @@ const deck = () => store.decks[store.current];
 const entries = (d = deck()) => Object.entries(d).filter(([k]) => k[0] !== '_');
 const total = (d = deck()) => entries(d).reduce((a, [, n]) => a + n, 0);
 // the player's decks for the pre-game picker: [{name, size, legal}], plus counts of one deck
-export const myDecks = () => ({ current: store.current, list: Object.keys(store.decks).map((n) => ({ name: n, size: total(store.decks[n]), legal: total(store.decks[n]) >= MIN_DECK })) });
+export const myDecks = () => ({ current: store.current, list: Object.keys(store.decks).map((n) => { const c = Object.fromEntries(entries(store.decks[n])), sz = total(store.decks[n]); const info = {}; for (const f of ['restricted', 'unrestricted']) { const pr = deckProblem(c, f); info[f] = { ok: !pr, reason: pr }; }
+  return { name: n, size: sz, legal: sz >= MIN_DECK, premade: !!store.decks[n]._premade || (!!DECK_LISTS[n] && JSON.stringify(c) === JSON.stringify(Object.fromEntries(Object.entries(DECK_LISTS[n]).filter(([k]) => k[0] !== '_')))), formats: info }; }) });
 export const myDeckCounts = (n) => Object.fromEntries(entries(store.decks[n] || {}));
 export const setMyDeck = (n) => { if (store.decks[n]) { store.current = n; save(); } };
 const playableName = (n) => isImplemented(byName[n][0]);
-function add(n) { const d = deck(); if (!playableName(n)) return; if ((d[n] || 0) >= copyLimit(n)) return; d[n] = (d[n] || 0) + 1; delete d._premade; save(); }
+function add(n) { const d = deck(); if (!playableName(n)) return; if ((d[n] || 0) >= copyLimit(n)) { const l = copyLimit(n); menuToast(fmt() === 'restricted' && l === 1 ? 'Restricted: 1 copy max' : `${fmtName()}: ${l} copies max`); return; } d[n] = (d[n] || 0) + 1; delete d._premade; save(); }
 function remove(n) { const d = deck(); if (!d[n]) return; if (--d[n] <= 0) delete d[n]; delete d._premade; save(); }
 
 // ---------- shell ----------
@@ -92,15 +108,16 @@ function deckTools() {
   return `<div class="dtools"><button data-act="new">New deck</button><button data-act="dup">Duplicate</button>${custom ? '<button data-act="del">Delete</button>' : ''}</div>`;
 }
 function playBtn() {
-  const n = total();
-  return `<button class="play" data-act="play" ${n < MIN_DECK ? 'disabled' : ''}>Play</button>${n < MIN_DECK ? `<div class="need">Deck needs at least ${MIN_DECK} cards (${n}/${MIN_DECK})</div>` : ''}`;
+  const n = total(), pr = deckProblem(Object.fromEntries(entries())), bad = n < MIN_DECK || !!pr;
+  return `<button class="play" data-act="play" ${bad ? 'disabled' : ''}>Play</button>${n < MIN_DECK ? `<div class="need">Deck needs at least ${MIN_DECK} cards (${n}/${MIN_DECK})</div>` : pr ? `<div class="need">${esc(pr)}</div>` : ''}`;
 }
 document.addEventListener('change', (e) => { const a = e.target.dataset?.act; if (a === 'deck') { store.current = e.target.value; save(); renderAll(); } });
 document.addEventListener('click', async (e) => {
   const b = e.target.closest('#app [data-act]'); if (!b || b.tagName === 'SELECT') return;
   const a = b.dataset.act;
   if (a === 'resume') { ctx.onResume?.(); return; }
-  if (a === 'play') { if (total() >= MIN_DECK) onPlay({ ...Object.fromEntries(entries()) }); }
+  if (a === 'fmt') { ST.set('format', b.dataset.v); renderAll(); return; }
+  if (a === 'play') { if (total() >= MIN_DECK && !deckProblem(Object.fromEntries(entries()))) onPlay({ ...Object.fromEntries(entries()) }); }
   if (a === 'new') { const n = (await askText('Deck name?', 'My Deck'))?.trim(); if (n && !store.decks[n]) { store.decks[n] = {}; store.current = n; save(); renderAll(); } }
   if (a === 'dup') { const n = store.current + ' copy'; store.decks[n] = Object.fromEntries(entries()); store.current = n; save(); renderAll(); }
   if (a === 'del') { if (await askConfirm(`Delete "${store.current}"?`, 'Delete')) { delete store.decks[store.current]; store.current = Object.keys(store.decks)[0]; save(); renderAll(); } }
@@ -112,7 +129,7 @@ document.addEventListener('click', async (e) => {
 function renderHome() {
   const cov = ctx.coverage;
   $('#v-home').innerHTML = `<div class="home"><h1>MTG Classic<em>+</em></h1><p class="tag">Vintage Magic, Arena style · Alpha · Beta · Unlimited · Arabian Nights · Antiquities · Legends</p>
-  <div class="homebox">${(() => { const r = ctx.canResume?.(); return r ? `<button class="resume" data-act="resume"><b>Resume game</b><span>vs ${esc(r.foe || 'Opponent')} · Turn ${r.turn} · You ${r.life[0]} - ${r.life[1]} Opp</span></button>` : ''; })()}<label>Your deck</label>${deckSelect()}<div class="hcount">${total()} cards</div>${playBtn()}
+  <div class="homebox">${(() => { const r = ctx.canResume?.(); return r ? `<button class="resume" data-act="resume"><b>Resume game</b><span>vs ${esc(r.foe || 'Opponent')} · Turn ${r.turn} · You ${r.life[0]} - ${r.life[1]} Opp</span></button>` : ''; })()}<label>Your deck</label>${deckSelect()}<div class="hcount">${total()} cards</div><label>Format</label>${fmtSeg()}<div class="fmtnote">${esc(FMT_TEXT[fmt()])}</div>${playBtn()}
   <button class="ghost" data-act="goto" data-v="decks">Edit deck</button></div><p class="muted">${cov.implemented} of ${cov.total} cards have implemented rules. The rest are shown locked in the collection.</p></div>`;
 }
 // ---------- shared card browser (Collection = browse, Decks = browse + build) ----------
@@ -174,7 +191,7 @@ function filterBar(building) {
 }
 function cell(d) {
   const n = deck()[d.name] || 0, lim = copyLimit(d.name), ok = isImplemented(d), b = bmode === 'decks';
-  return `<div class="cc ${ok ? '' : 'locked'} ${n ? 'in' : ''} ${isGold(d) ? 'gold' : ''} ${isLegend(d) ? 'leg' : ''}" data-n="${esc(d.name)}"><img loading="lazy" decoding="async" src="${d.art}" alt="${esc(d.name)}">${ok ? '' : '<span class="lock">Coming soon</span>'}${b && ok ? footHtml(n, lim) : ''}</div>`;
+  return `<div class="cc ${ok ? '' : 'locked'} ${n ? 'in' : ''} ${isGold(d) ? 'gold' : ''} ${isLegend(d) ? 'leg' : ''}" data-n="${esc(d.name)}"><img loading="lazy" decoding="async" src="${d.art}" alt="${esc(d.name)}">${fmt() === 'restricted' && RESTRICTED.has(d.name) ? '<span class="rbadge" title="Restricted: 1 copy max">R</span>' : ''}${ok ? '' : '<span class="lock">Coming soon</span>'}${b && ok ? footHtml(n, lim) : ''}</div>`;
 }
 function footHtml(n, lim) {
   return `<div class="cfoot"><button class="cb" data-dec="1" ${n ? '' : 'disabled'} aria-label="Remove one">&minus;</button><span class="qty">x${n}</span><button class="cb" data-inc="1" ${n >= lim ? 'disabled' : ''} aria-label="Add one">+</button></div>`;
@@ -224,7 +241,8 @@ function deckPanelInner() {
   const cmax = Math.max(1, ...curve);
   const curveHtml = `<div class="curve" title="Mana curve (non-land cards)">${curve.map((v, i) => `<div class="cb2"><span class="cn">${v || ''}</span><i style="height:${Math.round((v / cmax) * 100)}%"></i><span class="cl">${i === 6 ? '6+' : i}</span></div>`).join('')}</div>`;
   return `<div class="dph"><div class="dname">${deckSelect()}</div><button class="dx" data-dk="1" aria-label="Close deck">&times;</button></div>
-  <div class="dsub"><span class="dcount ${t < MIN_DECK ? 'bad' : ''}">${t} / ${MIN_DECK}+ cards</span>${deckTools()}</div>
+  <div class="dsub"><span class="dcount ${t < MIN_DECK ? 'bad' : ''}">${t} / ${MIN_DECK}+ cards</span><span class="fmtbadge ${fmt()}">${fmtName()}</span>${deckTools()}</div>
+  ${fmtSeg()}${(() => { const pr = deckProblem(Object.fromEntries(entries())); return pr ? `<div class="illegal">${esc(fmt() === 'restricted' ? 'Illegal in Restricted' : 'Illegal in Unrestricted')}: ${esc(pr.replace(/^Not legal in \w+: ?/, ''))}</div>` : ''; })()}
   ${curveHtml}
   <div class="dlist">${rows.map((r) => `<div class="drow" data-rm="${esc(r.n)}" data-n="${esc(r.n)}" title="Click to remove one copy"><span class="dc">${r.c}</span><span class="dn">${esc(r.n)}</span><span class="dcost">${costHtml(r.d.manaCost)}</span></div>`).join('') || '<p class="muted pad">Empty deck. Click cards in the catalogue to add them.</p>'}</div>
   <div class="dfoot">${playBtn()}<button class="ghost done" data-act="done">Done</button></div>`;

@@ -1,20 +1,20 @@
-import { Game, parseCost, makeRng } from './engine.js?v=20261103062100';
-import { aiAct } from './ai.js?v=20261103062100';
-import { EFFECTS, abilitiesOf } from './cards.js?v=20261103062100';
-import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261103062100';
-import { initMenu, showApp, hideApp, costHtml, myDecks, myDeckCounts, setMyDeck } from './menu.js?v=20261103062100';
-import { askConfirm, askNumber, askPick, modal, askName, askDivide } from './dialog.js?v=20261103062100';
-import * as FX from './fx.js?v=20261103062100';
-import * as ST from './settings.js?v=20261103062100';
-import sfx from './sfx.js?v=20261103062100';
-import * as SC from './screens.js?v=20261103062100';
-import * as AI from './ai.js?v=20261103062100';
-import * as DK from './decks.js?v=20261103062100';
-import * as AN from './anim.js?v=20261103062100';
-import * as SX from './anim/status.js?v=20261103062100';
-import * as ZN from './anim/zones.js?v=20261103062100';
-import * as TG from './anim/targeting.js?v=20261103062100';
-import * as AMB from './anim/ambient.js?v=20261103062100';
+import { Game, parseCost, makeRng } from './engine.js?v=20261107201805';
+import { aiAct } from './ai.js?v=20261107201805';
+import { EFFECTS, abilitiesOf } from './cards.js?v=20261107201805';
+import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261107201805';
+import { initMenu, showApp, hideApp, costHtml, myDecks, myDeckCounts, setMyDeck } from './menu.js?v=20261107201805';
+import { askConfirm, askNumber, askPick, modal, askName, askDivide } from './dialog.js?v=20261107201805';
+import * as FX from './fx.js?v=20261107201805';
+import * as ST from './settings.js?v=20261107201805';
+import sfx from './sfx.js?v=20261107201805';
+import * as SC from './screens.js?v=20261107201805';
+import * as AI from './ai.js?v=20261107201805';
+import * as DK from './decks.js?v=20261107201805';
+import * as AN from './anim.js?v=20261107201805';
+import * as SX from './anim/status.js?v=20261107201805';
+import * as ZN from './anim/zones.js?v=20261107201805';
+import * as TG from './anim/targeting.js?v=20261107201805';
+import * as AMB from './anim/ambient.js?v=20261107201805';
 AMB.init({ me: 0 });
 
 // animation speed setting (Fast/Normal/Slow, minimal under prefers-reduced-motion): scales every WAAPI duration/delay
@@ -132,7 +132,7 @@ async function openSettings() {
       <div class="setlbl">Sound</div><label class="row2"><input type="checkbox" data-k="sound" ${v('sound') ? 'checked' : ''}> Sound effects</label><input type="range" data-k="volume" min="0" max="1" step="0.05" value="${v('volume')}">
       <div class="setlbl">Animation speed</div>${seg('speed', [['off', 'Off'], ['fast', 'Fast'], ['normal', 'Normal'], ['slow', 'Slow']])}${ST.reducedMotion() ? '<small class="muted">Reduced motion is on in your system: animations stay minimal.</small>' : ''}
       <div class="setlbl">Auto-pass stops</div>${chk('stopOppSpell', 'When the opponent casts a spell I can answer')}${chk('stopMyBegin', 'In my upkeep and draw step')}${chk('stopOppEnd', 'At the opponent\'s end step')}${chk('autoSkip', 'Auto-skip phases when I have no actions')}
-      <div class="setlbl">AI difficulty (next game)</div>${seg('difficulty', [['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']])}
+      <div class="setlbl">AI difficulty (next game)</div>${seg('difficulty', [['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']])}<div class="setlbl">Format (next game)</div>${seg('format', [['restricted', 'Restricted'], ['unrestricted', 'Unrestricted']])}<small class="muted">Restricted: Power 9, Sol Ring, Demonic Tutor, Balance... limited to 1 copy</small>
       <div class="setlbl">Display</div>${chk('pips', 'Show mana costs on cards (phone)')}${isPhone() ? chk('lefty', 'Left-handed layout') + chk('ambient', 'Ambient playmat particles') : ''}${navigator.vibrate ? chk('haptics', 'Haptic feedback') : ''}
       ${mats.length ? `<div class="setlbl">Playmat</div><div class="mats">${mats.map((n) => `<button class="mat ${n === +v('playmat') ? 'sel' : ''}" data-n="${n}"><img src="${matUrl(n)}" draggable="false"><span>Playmat ${n}</span></button>`).join('')}</div>` : ''}
       <div class="dlgbtns"><button class="help">How to play</button>${g ? '<button class="leave">Leave game</button>' : ''}<button class="yes">Close</button></div>`;
@@ -161,13 +161,15 @@ async function playFlow(counts, again) {
   const rid = ++runId; let pick = again;
   if (!pick) {
     const md = myDecks();
-    const decks = md.list.map((d) => { const c = myDeckCounts(d.name); const cols = new Set(); for (const n of Object.keys(c)) (byName[n]?.[0]?.colors || []).forEach((x) => cols.add(x)); return { name: d.name, legal: d.legal, colors: ['W', 'U', 'B', 'R', 'G'].filter((x) => cols.has(x)), blurb: DECK_LISTS[d.name] ? blurbOf(d.name) : `Your deck · ${d.size} cards` }; });
-    pick = await SC.showPicker(decks, ST.get('difficulty'), md.current); if (!pick || rid !== runId) return;
-    ST.set('difficulty', pick.level);
+    const decks = md.list.map((d) => { const c = myDeckCounts(d.name); const cols = new Set(); for (const n of Object.keys(c)) (byName[n]?.[0]?.colors || []).forEach((x) => cols.add(x)); return { name: d.name, legal: d.legal, premade: d.premade, formats: d.formats, colors: ['W', 'U', 'B', 'R', 'G'].filter((x) => cols.has(x)), blurb: DECK_LISTS[d.name] ? blurbOf(d.name) : `Your deck · ${d.size} cards` }; });
+    pick = await SC.showPicker(decks, ST.get('difficulty'), md.current, ST.get('format')); if (!pick || rid !== runId) return;
+    ST.set('difficulty', pick.level); ST.set('format', pick.format);
     if (pick.mine !== md.current) setMyDeck(pick.mine);
     counts = myDeckCounts(pick.mine); pick.foe = null;
   }
   let foe = pick.foe;
+  const fmtNow = ST.get('format') === 'restricted' ? 'restricted' : 'unrestricted';
+  if (!foe || !DECK_LISTS[foe]) { try { foe = DK.pickOpponentDeck?.(fmtNow, pick.level, { byName }); } catch {} }
   if (!foe || !DECK_LISTS[foe]) { const names = Object.keys(DECK_LISTS); foe = names[Math.floor(Math.random() * names.length)]; }
   lastRun = { counts, foe, level: pick.level };
   const quick = window.__fast || window.__auto || window.__quick;

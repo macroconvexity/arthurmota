@@ -174,8 +174,8 @@ export const IMPLEMENTED = [
   ...Object.keys(EFFECTS), ...Object.keys(ABILITIES), ...Object.keys(TRIGGERS),
 ];
 
-import { auraSpecOf } from '../cards.js?v=20261103062100';
-import { parseCost as parseManaCost } from '../engine.js?v=20261103062100';
+import { auraSpecOf } from '../cards.js?v=20261107201805';
+import { parseCost as parseManaCost } from '../engine.js?v=20261107201805';
 
 // ===================== Legends (mono-blue) =====================
 const permSpec = (test) => ({ kind: 'perm', test });

@@ -1,6 +1,6 @@
 // Arena-parity animation helpers (DOM/WAAPI only, no assets). Every effect is skipped when window.__fxOff is set
 // (reduced motion / speed Off); durations and delays are scaled globally by the Element.animate wrapper in ui.js.
-import * as FX from './fx.js?v=20261103062100';
+import * as FX from './fx.js?v=20261107201805';
 const NS = 'http://www.w3.org/2000/svg';
 const rnd = (a, b) => a + Math.random() * (b - a);
 const off = () => !!window.__fxOff;
@@ -20,4 +20,4 @@ export function floatText(x, y, text, color = '#7dff9a') {
   if (off()) return; const el = sprite('ftxt', { left: x + 'px', top: y + 'px', color, zIndex: 246, font: '700 26px Georgia', textShadow: '0 0 10px #000,0 0 14px ' + color, transform: 'translate(-50%,-50%)' }, text);
   fin(el.animate([{ opacity: 0, transform: 'translate(-50%,-30%) scale(.6)' }, { opacity: 1, offset: 0.2, transform: 'translate(-50%,-80%) scale(1.1)' }, { opacity: 0, transform: 'translate(-50%,-190%) scale(1)' }], { duration: 1100, easing: 'ease-out', fill: 'forwards' }), el);
 }
-export { shatter, implode, drainStream } from './anim/status.js?v=20261103062100';
+export { shatter, implode, drainStream } from './anim/status.js?v=20261107201805';

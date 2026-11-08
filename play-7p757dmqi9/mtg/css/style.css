@@ -443,3 +443,5 @@ a.cl.lg{color:#ffe08a;font-weight:700}a.cl.lg::before{content:"\2605 ";color:#ff
 #toast{position:absolute;left:50%;bottom:calc(var(--sa-b,0px) + 18cqh);transform:translateX(-50%) translateY(10px);padding:.7cqh 2cqh;border-radius:99px;background:#050914e6;border:1px solid #6a5420;color:#e9d9a8;font:max(11px,2.4cqh) Georgia;opacity:0;pointer-events:none;z-index:70;white-space:nowrap;transition:opacity .25s,transform .25s}
 #toast.on{opacity:1;transform:translateX(-50%)}
 #phases div[data-ph]{cursor:pointer}#phases div.hold::after{content:"\25CF";color:#ff7a33;margin-left:6px;font-size:.8em}
+.pickctl{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:6px}.pickctl .lvl{margin-bottom:0}
+.tile.bad{opacity:.5;filter:grayscale(.7);cursor:not-allowed}.tile.bad small{color:#ff9c8a}

@@ -308,3 +308,18 @@ html.compact .dfoot .play,html.compact .dfoot .done{flex:1;margin:0}
 }
 .dpanel2 .dcost .pip{width:18px;height:18px;margin-left:2px;font-size:11px;flex:none}
 html.compact .dpanel2 .dcost .pip{width:14px;height:14px;font-size:9px}
+
+/* format (Restricted / Unrestricted) */
+.fmtseg{display:flex;margin:6px 0}.fmtseg button{flex:1;padding:6px 8px;background:#241810;color:#e6d6b0;border:1px solid #5a4422;font:600 13px Georgia;min-height:34px}
+.fmtseg button:first-child{border-radius:10px 0 0 10px}.fmtseg button:last-child{border-radius:0 10px 10px 0}.fmtseg button.on{background:linear-gradient(#ff9b3d,#d9631a);color:#fff;border-color:#ffcf94}
+.fmtnote{font-size:11px;color:#a89a78;line-height:1.35;margin:2px 0 6px;text-align:center}
+.fmtbadge{padding:1px 8px;border-radius:99px;font:700 11px Georgia;border:1px solid #6a5226;color:#e6d6b0}.fmtbadge.restricted{border-color:#ee7a5c;color:#ffb8a6}
+.illegal{margin:6px 0;padding:6px 8px;border-radius:8px;background:#3a1512;border:1px solid #a44;color:#ffb0a0;font-size:12px;line-height:1.35}
+.rbadge{position:absolute;top:4px;right:6px;z-index:3;min-width:20px;height:20px;border-radius:50%;background:#7a1a12;border:1.5px solid #ffb8a6;color:#fff;font:700 12px/17px Georgia;text-align:center;pointer-events:none}
+#mtoast{position:absolute;left:50%;bottom:calc(var(--sa-b,0px) + 24px);transform:translateX(-50%) translateY(10px);padding:8px 18px;border-radius:99px;background:#050914f0;border:1px solid #ee7a5c;color:#ffd8c8;font:600 14px Georgia;opacity:0;pointer-events:none;z-index:600;transition:opacity .25s,transform .25s}
+#mtoast.on{opacity:1;transform:translateX(-50%)}
+.play:disabled+.need{color:#ff9c8a}
+html.compact .homebox .fmtnote{display:none}
+html.compact .homebox .fmtseg button{min-height:28px;padding:3px 6px;font-size:12px}
+html.compact .homebox label{font-size:9px;margin:0}
+html.compact .homebox .need{font-size:10px;margin-top:2px}
