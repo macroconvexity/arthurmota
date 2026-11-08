@@ -1,22 +1,22 @@
-import { Game, parseCost, makeRng } from './engine.js?v=20261108120447';
-import { aiAct } from './ai.js?v=20261108120447';
-import { EFFECTS, abilitiesOf } from './cards.js?v=20261108120447';
-import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261108120447';
-import { initMenu, showApp, hideApp, costHtml, myDecks, myDeckCounts, setMyDeck } from './menu.js?v=20261108120447';
-import { askConfirm, askNumber, askPick, modal, askName, askDivide } from './dialog.js?v=20261108120447';
-import * as FX from './fx.js?v=20261108120447';
-import * as ST from './settings.js?v=20261108120447';
-import sfx from './sfx.js?v=20261108120447';
-import * as SC from './screens.js?v=20261108120447';
-import * as AI from './ai.js?v=20261108120447';
-import * as DK from './decks.js?v=20261108120447';
-import * as AN from './anim.js?v=20261108120447';
-import * as SX from './anim/status.js?v=20261108120447';
-import * as ZN from './anim/zones.js?v=20261108120447';
-import { tileHtml } from './decktile.js?v=20261108120447';
+import { Game, parseCost, makeRng } from './engine.js?v=20261108130645';
+import { aiAct } from './ai.js?v=20261108130645';
+import { EFFECTS, abilitiesOf } from './cards.js?v=20261108130645';
+import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261108130645';
+import { initMenu, showApp, hideApp, costHtml, myDecks, myDeckCounts, setMyDeck } from './menu.js?v=20261108130645';
+import { askConfirm, askNumber, askPick, modal, askName, askDivide } from './dialog.js?v=20261108130645';
+import * as FX from './fx.js?v=20261108130645';
+import * as ST from './settings.js?v=20261108130645';
+import sfx from './sfx.js?v=20261108130645';
+import * as SC from './screens.js?v=20261108130645';
+import * as AI from './ai.js?v=20261108130645';
+import * as DK from './decks.js?v=20261108130645';
+import * as AN from './anim.js?v=20261108130645';
+import * as SX from './anim/status.js?v=20261108130645';
+import * as ZN from './anim/zones.js?v=20261108130645';
+import { tileHtml } from './decktile.js?v=20261108130645';
 const EDLABEL = (id) => (DK.EDITIONS || []).find((e) => e.id === id)?.label || { all: 'All Editions', LEA: 'Alpha', LEB: 'Beta', '2ED': 'Unlimited', ARN: 'Arabian Nights', ATQ: 'Antiquities', LEG: 'Legends' }[id] || id;
-import * as TG from './anim/targeting.js?v=20261108120447';
-import * as AMB from './anim/ambient.js?v=20261108120447';
+import * as TG from './anim/targeting.js?v=20261108130645';
+import * as AMB from './anim/ambient.js?v=20261108130645';
 AMB.init({ me: 0 });
 
 // animation speed setting (Fast/Normal/Slow, minimal under prefers-reduced-motion): scales every WAAPI duration/delay
@@ -283,6 +283,8 @@ function shouldStop() {
     if (g.step === 'main1' || g.step === 'main2') { if (skipOn()) { let any = true; try { any = g.hasAnyAction(ME); } catch { any = true; } if (!any) { idleSkip = true; return false; } } return true; }
     return (g.step === 'attackers' || g.step === 'blockers') && g.hasResponse(ME);
   }
+  // opponent's turn, empty stack: stop after the opponent cast/activated something this step (e.g. a creature just resolved and I hold a bounce/removal instant)
+  if (ST.get('stopOppSpell') && g.stepActions > 0 && ['main1', 'main2', 'damage', 'end'].includes(g.step) && g.hasResponse(ME)) return true;
   return (g.step === 'attackers' || g.step === 'blockers') && g.hasResponse(ME);
 }
 function toast(t) { let el = $('toast'); if (!el) { el = document.createElement('div'); el.id = 'toast'; $('board').appendChild(el); } el.textContent = t; el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('on'), 1800); }
