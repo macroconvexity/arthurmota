@@ -83,3 +83,11 @@ html.phone #hand{left:50%!important;margin-left:calc((var(--pl,10px) - var(--pr,
 /* the 'Opponent…' wait label must never spill outside the plate */
 html #action button{overflow:hidden;text-overflow:ellipsis}
 html.phone #act-btn.sx-wait{letter-spacing:.4px}
+
+/* usable cards and abilities: clearly visible ring + breathing glow */
+html .card.playable:not(.selected):not(.targetable),html #hand .card.playable:not(.selected):not(.targetable){
+  box-shadow:0 0 0 3px #8fd8ff,0 0 14px 4px #3aa6ffcc,0 0 34px 10px #2a80ffaa;animation:playPulse 1.4s ease-in-out infinite}
+@keyframes playPulse{50%{box-shadow:0 0 0 4px #d2f0ff,0 0 22px 8px #62c0ffee,0 0 52px 18px #3a8dffcc}}
+html .card.ready:not(.selected):not(.targetable){animation:readyGlow2 1.4s ease-in-out infinite}
+@keyframes readyGlow2{0%,100%{box-shadow:0 0 0 3px color-mix(in srgb,var(--rc,#fff) 85%,transparent),0 0 16px 4px color-mix(in srgb,var(--rc,#fff) 70%,transparent)}50%{box-shadow:0 0 0 4px var(--rc,#fff),0 0 34px 12px color-mix(in srgb,var(--rc,#fff) 85%,transparent)}}
+html.reduced .card.playable,html.reduced .card.ready{animation:none}
