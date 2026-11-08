@@ -3,36 +3,22 @@ const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<
 function layer(cls, html) { const d = document.createElement('div'); d.className = 'scr ' + cls; d.innerHTML = html; document.body.appendChild(d); return d; }
 const COL = { W: '#f6efc8', U: '#6fb4ea', B: '#7d7480', R: '#ee7a5c', G: '#6cbd78' };
 
-// decks: [{name, blurb, colors, legal (size ok), premade, formats:{restricted:{ok,reason}, unrestricted:{ok,reason}}}] are the PLAYER's decks.
-// Returns {mine, level, format} or null when cancelled. Premade decks not legal in the chosen format are hidden; custom decks are greyed with the reason.
-const FMT_TEXT = { restricted: 'Restricted: Power 9, Sol Ring, Demonic Tutor, Balance... limited to 1 copy', unrestricted: 'Unrestricted: up to 4 copies per card (basic lands unlimited)' };
-export function showPicker(decks, level = 'normal', current = null, format = 'unrestricted') {
+// decks: the PLAYER's decks that are legal for the chosen format + edition: [{name, tile (HTML from decktile.js)}].
+// badge: e.g. 'Restricted · Alpha' (read-only, chosen on Home). Returns {mine, level} or null when cancelled.
+export function showPicker(decks, level = 'normal', current = null, badge = '', hidden = 0) {
   return new Promise((resolve) => {
-    let fmt = format === 'restricted' ? 'restricted' : 'unrestricted', sel = current;
-    const info = (d) => d.formats?.[fmt] || { ok: true, reason: '' };
-    const visible = () => decks.filter((d) => !d.premade || info(d).ok);
-    const usable = (d) => d.legal && info(d).ok;
-    const why = (d) => (!d.legal ? 'Needs 40 cards' : info(d).ok ? '' : info(d).reason);
-    const tile = (d, i) => `<button class="tile ${d.name === sel ? 'sel' : ''} ${usable(d) ? '' : 'bad'}" data-n="${esc(d.name)}" ${usable(d) ? '' : 'disabled'}><span class="pt" style="filter:hue-rotate(${(i * 47) % 360}deg)"></span><b>${esc(d.name)}</b><span class="dots">${(d.colors || []).map((c) => `<i style="background:${COL[c] || '#bbb'}"></i>`).join('')}</span><small>${esc(why(d) || d.blurb || '')}</small></button>`;
-    const el = layer('picker', `<div class="scrbox"><h2>Choose your deck</h2><div class="pickctl"><div class="lvl">${['easy', 'normal', 'hard'].map((l) => `<button data-l="${l}" class="${l === level ? 'on' : ''}">${l[0].toUpperCase() + l.slice(1)}</button>`).join('')}</div><div class="lvl fmtl">${['restricted', 'unrestricted'].map((f) => `<button data-f="${f}" class="${f === fmt ? 'on' : ''}">${f[0].toUpperCase() + f.slice(1)}</button>`).join('')}</div></div>
-      <div class="fmtnote">${FMT_TEXT[fmt]}</div><div class="oppnote">Opponent: random deck legal in this format · difficulty above</div>
-      <div class="tiles"></div>
-      <div class="scrbtns"><button class="no">Back</button><button class="yes" disabled>Play</button></div></div>`);
+    let sel = decks.some((d) => d.name === current) ? current : decks[0]?.name ?? null;
+    const el = layer('picker', `<div class="scrbox pickbox2"><h2>Choose your deck</h2><div class="pickctl"><span class="fmtbadges">${esc(badge)}</span><div class="lvl">${['easy', 'normal', 'hard'].map((l) => `<button data-l="${l}" class="${l === level ? 'on' : ''}">${l[0].toUpperCase() + l.slice(1)}</button>`).join('')}</div></div>
+      <div class="oppnote">Opponent: random deck, legal in the same format and edition</div>
+      <div class="tiles dtiles">${decks.map((d) => `<button class="tbtn ${d.name === sel ? 'sel' : ''}" data-n="${esc(d.name)}">${d.tile}</button>`).join('') || '<p class="muted">No deck is legal for this format and edition. Change them on Home or edit a deck.</p>'}</div>
+      ${hidden ? `<div class="oppnote">${hidden} deck${hidden > 1 ? 's' : ''} hidden (not legal here)</div>` : ''}
+      <div class="scrbtns"><button class="no">Back</button><button class="yes" ${sel ? '' : 'disabled'}>Play</button></div></div>`);
     const go = el.querySelector('.yes'), tiles = el.querySelector('.tiles'); const done = (v) => { el.remove(); resolve(v); };
-    const draw = () => {
-      const vis = visible(); const cur = vis.find((d) => d.name === sel && usable(d)); if (!cur) sel = vis.find(usable)?.name ?? null;   // keep the selection if still legal
-      tiles.innerHTML = vis.map(tile).join('') || '<p class="muted">No decks are legal in this format.</p>'; go.disabled = !sel; el.querySelector('.fmtnote').textContent = FMT_TEXT[fmt];
-      el.querySelector('.tile.sel')?.scrollIntoView?.({ block: 'center' });
-    };
-    el.querySelector('.pickctl').onclick = (e) => {
-      const l = e.target.closest('[data-l]'), f = e.target.closest('[data-f]');
-      if (l) { level = l.dataset.l; el.querySelectorAll('[data-l]').forEach((x) => x.classList.toggle('on', x === l)); }
-      if (f) { fmt = f.dataset.f; el.querySelectorAll('[data-f]').forEach((x) => x.classList.toggle('on', x === f)); draw(); }
-    };
-    tiles.onclick = (e) => { const b = e.target.closest('.tile'); if (!b || b.disabled) return; sel = b.dataset.n; tiles.querySelectorAll('.tile').forEach((x) => x.classList.toggle('sel', x === b)); go.disabled = false; if (e.detail === 2) go.click(); };
-    go.onclick = () => done({ mine: sel, level, format: fmt });
+    el.querySelector('.lvl').onclick = (e) => { const l = e.target.closest('[data-l]'); if (!l) return; level = l.dataset.l; el.querySelectorAll('[data-l]').forEach((x) => x.classList.toggle('on', x === l)); };
+    tiles.onclick = (e) => { const b = e.target.closest('.tbtn'); if (!b) return; sel = b.dataset.n; tiles.querySelectorAll('.tbtn').forEach((x) => x.classList.toggle('sel', x === b)); tiles.querySelectorAll('.dtile').forEach((x) => x.classList.toggle('sel', x.parentElement.classList.contains('sel'))); go.disabled = false; if (e.detail === 2) go.click(); };
+    go.onclick = () => done({ mine: sel, level });
     el.querySelector('.no').onclick = () => done(null);
-    draw();
+    tiles.querySelectorAll('.tbtn.sel .dtile').forEach((x) => x.classList.add('sel')); tiles.querySelector('.tbtn.sel')?.scrollIntoView?.({ block: 'center', inline: 'center' });
   });
 }
 

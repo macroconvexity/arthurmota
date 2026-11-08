@@ -1,7 +1,9 @@
-import { isImplemented } from './cards.js?v=20261107203900';
-import { DECK_LISTS, copyLimit as rawLimit, RESTRICTED, isLegal } from './decks.js?v=20261107203900';
-import * as ST from './settings.js?v=20261107203900';
-import { askConfirm, askText } from './dialog.js?v=20261107203900';
+import { isImplemented } from './cards.js?v=20261107211532';
+import { DECK_LISTS, DECK_META, copyLimit as rawLimit, RESTRICTED, isLegal } from './decks.js?v=20261107211532';
+import * as DKN from './decks.js?v=20261107211532';
+import { tileHtml, colorsOf } from './decktile.js?v=20261107211532';
+import * as ST from './settings.js?v=20261107211532';
+import { askConfirm, askText, modal } from './dialog.js?v=20261107211532';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
@@ -11,10 +13,16 @@ export const FMT_TEXT = { restricted: 'Restricted: Power 9, Sol Ring, Demonic Tu
 const fmt = () => (ST.get('format') === 'restricted' ? 'restricted' : 'unrestricted');
 const fmtName = (f = fmt()) => (f === 'restricted' ? 'Restricted' : 'Unrestricted');
 const copyLimit = (name, f = fmt()) => rawLimit(name, f);
-// reason a counts map is not legal in a format ('' when legal): 'Not legal in Restricted: 4x Black Lotus, 3x Mox Ruby'
-export function deckProblem(counts, f = fmt()) {
+// ---- editions (decks.js EDITIONS / cardAllowed when present, else local fallback)
+const EDITIONS = DKN.EDITIONS || [{ id: 'all', label: 'All Editions' }, { id: 'LEA', label: 'Alpha' }, { id: 'LEB', label: 'Beta' }, { id: '2ED', label: 'Unlimited' }, { id: 'ARN', label: 'Arabian Nights' }, { id: 'ATQ', label: 'Antiquities' }, { id: 'LEG', label: 'Legends' }];
+const edId = () => (EDITIONS.some((e) => e.id === ST.get('edition')) ? ST.get('edition') : 'all');
+const edLabel = (id = edId()) => EDITIONS.find((e) => e.id === id)?.label || id;
+const cardOK = (d, ed) => (DKN.cardAllowed ? DKN.cardAllowed(d, ed) : ed === 'all' || d.set === ed || (d.also_in || []).includes(ed));
+// reason a counts map is not legal for the chosen format / edition ('' when legal)
+export function deckProblem(counts, f = fmt(), ed = edId()) {
   const bad = Object.entries(counts || {}).filter(([k, n]) => k[0] !== '_' && n > copyLimit(k, f)).map(([k, n]) => `${n}x ${k}`);
   if (bad.length) return `Not legal in ${fmtName(f)}: ${bad.slice(0, 4).join(', ')}${bad.length > 4 ? ` +${bad.length - 4} more` : ''}`;
+  if (ed !== 'all') { const off = Object.keys(counts || {}).filter((k) => k[0] !== '_' && byName[k] && !cardOK(byName[k][0], ed)); if (off.length) return `Not in ${edLabel(ed)}: ${off.slice(0, 4).join(', ')}${off.length > 4 ? ` +${off.length - 4} more` : ''}`; }
   try { if (isLegal && !isLegal(counts, f)) return `Not legal in ${fmtName(f)}`; } catch {}
   return '';
 }
@@ -58,8 +66,10 @@ const deck = () => store.decks[store.current];
 const entries = (d = deck()) => Object.entries(d).filter(([k]) => k[0] !== '_');
 const total = (d = deck()) => entries(d).reduce((a, [, n]) => a + n, 0);
 // the player's decks for the pre-game picker: [{name, size, legal}], plus counts of one deck
-export const myDecks = () => ({ current: store.current, list: Object.keys(store.decks).map((n) => { const c = Object.fromEntries(entries(store.decks[n])), sz = total(store.decks[n]); const info = {}; for (const f of ['restricted', 'unrestricted']) { const pr = deckProblem(c, f); info[f] = { ok: !pr, reason: pr }; }
-  return { name: n, size: sz, legal: sz >= MIN_DECK, premade: !!store.decks[n]._premade || (!!DECK_LISTS[n] && JSON.stringify(c) === JSON.stringify(Object.fromEntries(Object.entries(DECK_LISTS[n]).filter(([k]) => k[0] !== '_')))), formats: info }; }) });
+export const myDecks = (f = fmt(), ed = edId()) => ({ current: store.current, list: Object.keys(store.decks).map((n) => {
+  const c = Object.fromEntries(entries(store.decks[n])), sz = total(store.decks[n]), pr = deckProblem(c, f, ed); const meta = DECK_META[n] || {};
+  return { name: n, size: sz, legal: sz >= MIN_DECK, ok: sz >= MIN_DECK && !pr, reason: sz < MIN_DECK ? `Needs ${MIN_DECK} cards` : pr, premade: !!store.decks[n]._premade || !!DECK_LISTS[n], counts: c, colors: meta.colors || colorsOf(c, byName), archetype: meta.archetype || (DECK_LISTS[n] ? '' : 'custom deck'), rating: meta.rating, keyCards: meta.keyCards, blurb: meta.blurb };
+}) });
 export const myDeckCounts = (n) => Object.fromEntries(entries(store.decks[n] || {}));
 export const setMyDeck = (n) => { if (store.decks[n]) { store.current = n; save(); } };
 const playableName = (n) => isImplemented(byName[n][0]);
@@ -117,6 +127,9 @@ document.addEventListener('click', async (e) => {
   const a = b.dataset.act;
   if (a === 'resume') { ctx.onResume?.(); return; }
   if (a === 'fmt') { ST.set('format', b.dataset.v); renderAll(); return; }
+  if (a === 'ed') { ST.set('edition', b.dataset.v); renderAll(); return; }
+  if (a === 'fmtinfo') { fmtInfoModal(); return; }
+  if (a === 'legalpick') { const m = myDecks(); const ok = m.list.find((d) => d.ok); if (ok) { store.current = ok.name; save(); renderAll(); } else menuToast(`No deck is legal in ${fmtName()} · ${edLabel()}`); return; }
   if (a === 'play') { if (total() >= MIN_DECK && !deckProblem(Object.fromEntries(entries()))) onPlay({ ...Object.fromEntries(entries()) }); }
   if (a === 'new') { const n = (await askText('Deck name?', 'My Deck'))?.trim(); if (n && !store.decks[n]) { store.decks[n] = {}; store.current = n; save(); renderAll(); } }
   if (a === 'dup') { const n = store.current + ' copy'; store.decks[n] = Object.fromEntries(entries()); store.current = n; save(); renderAll(); }
@@ -126,11 +139,29 @@ document.addEventListener('click', async (e) => {
 });
 
 // ---------- home ----------
+const curInfo = () => { const n = store.current, c = Object.fromEntries(entries()), m = DECK_META[n] || {}; return { name: n, counts: c, colors: m.colors, archetype: m.archetype || (DECK_LISTS[n] ? '' : 'custom deck'), rating: m.rating, keyCards: m.keyCards, size: total() }; };
 function renderHome() {
-  const cov = ctx.coverage;
+  const cov = ctx.coverage, c = Object.fromEntries(entries()), pr = deckProblem(c), n = total(), bad = n < MIN_DECK || !!pr;
+  const r = ctx.canResume?.();
+  const chips = EDITIONS.map((e) => `<button class="edchip ${e.id === edId() ? 'on' : ''}" data-act="ed" data-v="${e.id}">${esc(e.label)}</button>`).join('');
   $('#v-home').innerHTML = `<div class="home"><h1>MTG Classic<em>+</em></h1><p class="tag">Vintage Magic, Arena style · Alpha · Beta · Unlimited · Arabian Nights · Antiquities · Legends</p>
-  <div class="homebox">${(() => { const r = ctx.canResume?.(); return r ? `<button class="resume" data-act="resume"><b>Resume game</b><span>vs ${esc(r.foe || 'Opponent')} · Turn ${r.turn} · You ${r.life[0]} - ${r.life[1]} Opp</span></button>` : ''; })()}<label>Your deck</label>${deckSelect()}<div class="hcount">${total()} cards</div><label>Format</label>${fmtSeg()}<div class="fmtnote">${esc(FMT_TEXT[fmt()])}</div>${playBtn()}
-  <button class="ghost" data-act="goto" data-v="decks">Edit deck</button></div><p class="muted">${cov.implemented} of ${cov.total} cards have implemented rules. The rest are shown locked in the collection.</p></div>`;
+  <div class="hpanel"><div class="hl">${tileHtml(curInfo(), byName, { sel: true, cls: 'big', eager: true })}<div class="hsel">${deckSelect()}</div></div>
+  <div class="hr">${r ? `<button class="resume" data-act="resume"><b>Resume game</b><span>vs ${esc(r.foe || 'Opponent')} · Turn ${r.turn} · You ${r.life[0]} - ${r.life[1]} Opp</span></button>` : ''}
+    <label>Edition</label><div class="edrow" id="edrow">${chips}</div>
+    <label>Format <button class="info" data-act="fmtinfo" aria-label="What is Restricted?">i</button></label>${fmtSeg()}<div class="fmtnote">${esc(FMT_TEXT[fmt()])}</div>
+    ${playBtn()}${bad && n >= MIN_DECK ? '<button class="ghost legalpick" data-act="legalpick">Pick a legal deck</button>' : ''}
+    <button class="ghost edit" data-act="goto" data-v="decks">Edit deck</button></div></div>
+  <p class="muted">${cov.implemented} of ${cov.total} cards have implemented rules. The rest are shown locked in the collection.</p></div>`;
+  requestAnimationFrame(() => $('#edrow .on')?.scrollIntoView?.({ inline: 'center', block: 'nearest' }));
+}
+// modal explaining the format rule, with the restricted cards
+function fmtInfoModal() {
+  const names = [...RESTRICTED].filter((n) => byName[n]).sort();
+  modal((box, close) => {
+    box.classList.add('infobox');
+    box.innerHTML = `<p><b>Formats</b></p><div class="infotxt"><p><b>Restricted:</b> the Power 9 and other bombs are limited to <b>1 copy</b> per deck. They are restricted, not banned.</p><p><b>Unrestricted:</b> up to <b>4 copies</b> of any card (basic lands unlimited).</p></div><div class="setlbl">Restricted cards (${names.length})</div><div class="rgrid">${names.map((n) => `<div class="rc" title="${esc(n)}"><img loading="lazy" src="${byName[n][0].art}" alt=""><span>${esc(n)}</span></div>`).join('')}</div><div class="dlgbtns"><button class="yes">Close</button></div>`;
+    box.querySelector('.yes').onclick = () => close(); box.querySelector('.yes').focus();
+  });
 }
 // ---------- shared card browser (Collection = browse, Decks = browse + build) ----------
 const TYPES = ['Creature', 'Instant', 'Sorcery', 'Enchantment', 'Artifact', 'Land'];
@@ -242,7 +273,7 @@ function deckPanelInner() {
   const curveHtml = `<div class="curve" title="Mana curve (non-land cards)">${curve.map((v, i) => `<div class="cb2"><span class="cn">${v || ''}</span><i style="height:${Math.round((v / cmax) * 100)}%"></i><span class="cl">${i === 6 ? '6+' : i}</span></div>`).join('')}</div>`;
   return `<div class="dph"><div class="dname">${deckSelect()}</div><button class="dx" data-dk="1" aria-label="Close deck">&times;</button></div>
   <div class="dsub"><span class="dcount ${t < MIN_DECK ? 'bad' : ''}">${t} / ${MIN_DECK}+ cards</span><span class="fmtbadge ${fmt()}">${fmtName()}</span>${deckTools()}</div>
-  ${fmtSeg()}${(() => { const pr = deckProblem(Object.fromEntries(entries())); return pr ? `<div class="illegal">${esc(fmt() === 'restricted' ? 'Illegal in Restricted' : 'Illegal in Unrestricted')}: ${esc(pr.replace(/^Not legal in \w+: ?/, ''))}</div>` : ''; })()}
+  ${fmtSeg()}${(() => { const pr = deckProblem(Object.fromEntries(entries())); return pr ? `<div class="illegal">${esc(pr.replace(/^Not legal in/, 'Illegal in'))}</div>` : ''; })()}
   ${curveHtml}
   <div class="dlist">${rows.map((r) => `<div class="drow" data-rm="${esc(r.n)}" data-n="${esc(r.n)}" title="Click to remove one copy"><span class="dc">${r.c}</span><span class="dn">${esc(r.n)}</span><span class="dcost">${costHtml(r.d.manaCost)}</span></div>`).join('') || '<p class="muted pad">Empty deck. Click cards in the catalogue to add them.</p>'}</div>
   <div class="dfoot">${playBtn()}<button class="ghost done" data-act="done">Done</button></div>`;

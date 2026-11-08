@@ -323,3 +323,61 @@ html.compact .homebox .fmtnote{display:none}
 html.compact .homebox .fmtseg button{min-height:28px;padding:3px 6px;font-size:12px}
 html.compact .homebox label{font-size:9px;margin:0}
 html.compact .homebox .need{font-size:10px;margin-top:2px}
+
+/* ===== start flow: Home panel, edition chips, deck tiles, picker ===== */
+.hpanel{display:grid;grid-template-columns:minmax(150px,34%) minmax(0,1fr);gap:22px;width:min(800px,94vw);box-sizing:border-box;padding:22px 26px;border:42px solid transparent;border-image:url(../assets/ui/panel_frame.png) 112 fill/42px stretch;background:none;text-align:left;margin:4px 0}
+.hpanel .hl{display:flex;flex-direction:column;gap:10px;align-items:center;justify-content:center}
+.hpanel .hl .dtile{width:min(100%,250px)}.hpanel .hsel{width:100%}.hpanel .dsel{width:100%;font-size:16px}
+.hpanel .hr{display:flex;flex-direction:column;gap:8px;min-width:0;justify-content:center}
+.hpanel label{font-size:11px;letter-spacing:2px;color:#a89a78;text-transform:uppercase;display:flex;align-items:center;gap:8px;margin-top:4px}
+.hpanel .info{width:22px;height:22px;border-radius:50%;border:1px solid #d9a54a;background:#241810;color:#f3c978;font:700 13px Georgia;padding:0;cursor:pointer}
+.edrow{display:flex;gap:6px;overflow-x:auto;padding:2px 2px 6px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;scrollbar-width:none}.edrow::-webkit-scrollbar{display:none}
+.edchip{flex:none;scroll-snap-align:center;padding:6px 14px;border-radius:99px;border:1px solid #6a5226;background:#241810;color:#e6d6b0;font:600 13px Georgia;min-height:34px;white-space:nowrap;cursor:pointer}
+.edchip.on{background:linear-gradient(#ff9b3d,#d9631a);border-color:#ffcf94;color:#fff;box-shadow:0 0 12px #f08a2488}
+.hpanel .need{text-align:center}
+.hpanel .legalpick{align-self:center;width:70%}
+@media (max-aspect-ratio:1/1),(max-width:640px){.hpanel{grid-template-columns:1fr;gap:12px;padding:12px 14px;border-width:34px;border-image-width:34px}.hpanel .hl .dtile{width:min(46vw,200px)}.home h1{font-size:44px}}
+html.compact .hpanel{padding:6px 10px;gap:14px;border-width:26px;border-image-width:26px;width:min(720px,94vw)}
+html.compact .hpanel .hl .dtile{width:min(150px,36vh)}
+html.compact .hpanel label{font-size:9px;margin:0}
+html.compact .home .tag{display:none}
+html.compact .hpanel .fmtnote{display:none}html.compact .edchip{padding:3px 11px;min-height:28px;font-size:12px}
+html.portrait .hpanel,html.compact.portrait .hpanel{grid-template-columns:1fr;border-width:34px;border-image-width:34px;padding:10px 12px}
+html.portrait .hpanel .hl .dtile{width:min(46vw,190px)}
+/* info modal */
+.infobox{max-width:min(560px,92vw)}.infotxt p{margin:0 0 8px;font-size:14px;line-height:1.4}
+.rgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:8px;max-height:calc(var(--app-h,100vh)*.42);overflow:auto;margin-bottom:12px}
+.rc{text-align:center;font-size:10px;color:#cdbf9a}.rc img{width:100%;border-radius:5px;display:block;aspect-ratio:488/680;object-fit:cover;box-shadow:0 2px 6px #000a}
+/* deck tile (assets/ui/deck_tile_frame.png over real card art crops) */
+.dtile{position:relative;aspect-ratio:600/805;width:100%;container-type:inline-size;filter:drop-shadow(0 6px 12px #000a);transition:filter .2s,transform .2s;user-select:none}
+.dtwin{position:absolute;left:6%;top:5.6%;width:87.8%;height:63.9%;overflow:hidden;border-radius:4cqw;display:flex;background:#0d0907}
+.dta{position:relative;flex:1;overflow:hidden}.dta+.dta{border-left:1px solid #d9a54a88}
+.dta img{position:absolute;height:224.7%;width:auto;max-width:none;left:50%;top:-25.8%;transform:translateX(-50%)}
+.dtint,.dtvig{position:absolute;inset:0;pointer-events:none}.dtvig{background:radial-gradient(ellipse at 50% 45%,#0000 52%,#000b 100%)}
+.dtmana{position:absolute;right:3%;bottom:3%;display:flex;gap:2%}.dtmana img{width:10cqw;height:10cqw;filter:drop-shadow(0 1px 2px #000)}
+.dtframe{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.dtplate{position:absolute;left:9%;top:72.5%;width:82%;height:16.7%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:.6cqw;overflow:hidden}
+.dtname{font:700 6.2cqw/1.08 Georgia,serif;color:#f3c978;max-width:94%;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-shadow:0 1px 2px #000}
+.dtsub{font:3.3cqw Georgia,serif;color:#cdbf9a;text-transform:capitalize}.dtstars{font-size:4cqw;color:#f3c978;letter-spacing:1px;line-height:1}.dtnote{font-size:3cqw;color:#ff9c8a}
+.dtile.sel{filter:drop-shadow(0 0 14px #ffb25a) drop-shadow(0 0 3px #ffcf94);transform:translateY(-3px)}
+/* picker */
+.pickbox2{max-width:94vw}.fmtbadges{padding:5px 14px;border-radius:99px;border:1px solid #d9a54a;background:#150e0c;color:#f3c978;font:700 13px Georgia;letter-spacing:1px}
+.dtiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px;max-width:880px;max-height:calc(var(--app-h,100vh)*.62);overflow:auto;padding:10px 6px;margin:0 auto;-webkit-overflow-scrolling:touch}
+.tbtn{background:none;border:0;padding:0;cursor:pointer;min-width:0}
+.tbtn:focus-visible .dtile{filter:drop-shadow(0 0 10px #fff)}
+html.compact .dtiles{display:flex;gap:12px;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;max-height:none;max-width:94vw;padding:8px 18px}
+html.compact .tbtn{flex:0 0 min(30vw,calc(var(--app-h,100vh)*.52*.745));scroll-snap-align:center}
+html.compact.portrait .dtiles{display:grid;grid-template-columns:repeat(2,1fr);overflow-y:auto;max-height:calc(var(--app-h,100vh)*.62)}
+html.compact.portrait .tbtn{flex:none}
+html.portrait .home h1,html.compact.portrait .home h1{font-size:clamp(28px,9vw,42px);white-space:nowrap}
+html.compact:not(.portrait) .home{justify-content:flex-start;padding-top:6px;gap:2px}
+html.compact:not(.portrait) .home h1{font-size:24px;letter-spacing:2px;margin:0}
+html.compact:not(.portrait) .hpanel{border-width:22px;border-image-width:22px;padding:2px 8px;gap:12px}
+html.compact:not(.portrait) .hpanel .hl .dtile{width:min(120px,27vh)}
+html.compact:not(.portrait) .hpanel .hr{gap:3px}
+html.compact:not(.portrait) .hpanel .play{font-size:17px!important;padding:8px 4px!important}
+html.compact:not(.portrait) .hpanel .edit{padding:6px 4px!important;margin-top:2px}
+html.compact:not(.portrait) .home>.muted{display:none}
+html.compact:not(.portrait) .hpanel .dsel{font-size:13px;padding:3px 10px}
+html.compact:not(.portrait) .tbtn{flex-basis:min(26vw,calc(var(--app-h,100vh)*.3))}
+html.compact:not(.portrait) .scrbox.pickbox2{padding:8px 14px}html.compact:not(.portrait) .pickbox2 h2{font-size:20px;margin-bottom:4px}html.compact:not(.portrait) .pickbox2 .oppnote{margin:2px 0}
