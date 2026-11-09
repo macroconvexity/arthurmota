@@ -1,8 +1,8 @@
 {
- "updated": "2026-11-06T22:59:53Z",
- "slot": "manual",
- "as_of_ny": "2026-11-06 17:58",
- "last_close": "2026-11-05",
+ "updated": "2026-11-09T13:12:58Z",
+ "slot": "open",
+ "as_of_ny": "2026-11-09 08:11",
+ "last_close": "2026-11-06",
  "live_since": "2026-10-07",
  "in_sample": true,
  "positions": [
@@ -10,139 +10,88 @@
    "t": "XLV",
    "name": "State Street Health Care Select Sector SPDR ETF",
    "lev": 1,
-   "w": 0.333152,
+   "w": 0.333368,
    "w_target": 0.333333,
    "px": 184.8,
-   "chg_pct": -0.059,
+   "chg_pct": 0.0,
    "since": "2026-11-05",
-   "pnl_pct": -3.498,
-   "locked": false,
-   "band_pct": 4.212,
+   "pnl_pct": -3.496,
+   "locked": true,
+   "band_pct": 3.971,
    "breach": false
   },
   {
-   "t": "XLE",
-   "name": "State Street Energy Select Sector SPDR ETF",
+   "t": "IBB",
+   "name": "iShares Biotechnology ETF",
    "lev": 1,
-   "w": 0.231208,
-   "w_target": 0.234954,
-   "px": 61.62,
-   "chg_pct": -0.016,
-   "since": "2026-11-06",
-   "pnl_pct": 0.371,
+   "w": 0.248059,
+   "w_target": 0.248083,
+   "px": 213.63,
+   "chg_pct": 0.0,
+   "since": "2026-11-09",
+   "pnl_pct": -0.02,
    "locked": true,
-   "band_pct": 7.398,
+   "band_pct": 7.112,
    "breach": false
   },
   {
    "t": "CURE",
    "name": "Direxion Daily Healthcare Bull 3X ETF",
    "lev": 3,
-   "w": 0.149895,
-   "w_target": 0.145237,
+   "w": 0.143289,
+   "w_target": 0.143274,
    "px": 166.14,
-   "chg_pct": -0.276,
+   "chg_pct": 0.0,
    "since": "2026-10-15",
    "pnl_pct": 11.288,
-   "locked": true,
-   "band_pct": 12.103,
+   "locked": false,
+   "band_pct": 11.425,
    "breach": false
   },
   {
    "t": "ERX",
    "name": "Direxion Energy Bull 2X ETF",
    "lev": 2,
-   "w": 0.112289,
-   "w_target": 0.113813,
+   "w": 0.110371,
+   "w_target": 0.110359,
    "px": 99.21,
-   "chg_pct": -0.322,
+   "chg_pct": 0.0,
    "since": "2026-10-09",
    "pnl_pct": -11.502,
-   "locked": true,
-   "band_pct": 14.69,
+   "locked": false,
+   "band_pct": 14.108,
    "breach": false
   },
   {
    "t": "BIL",
    "name": "State Street SPDR Bloomberg 1-3 Month T-Bill ETF",
    "lev": 1,
-   "w": 0.104821,
-   "w_target": 0.106985,
+   "w": 0.101508,
+   "w_target": 0.101551,
    "px": 91.46,
-   "chg_pct": 0.033,
+   "chg_pct": 0.0,
    "since": "2026-11-05",
    "pnl_pct": 0.002,
    "locked": false,
-   "band_pct": 0.092,
+   "band_pct": 0.079,
    "breach": false
   },
   {
    "t": "LABU",
    "name": "Direxion Daily S&P Biotech Bull 3X ETF",
    "lev": 3,
-   "w": 0.068635,
-   "w_target": 0.065676,
+   "w": 0.063406,
+   "w_target": 0.063399,
    "px": 223.75,
-   "chg_pct": 7.252,
+   "chg_pct": 0.0,
    "since": "2026-10-26",
    "pnl_pct": -1.412,
-   "locked": true,
-   "band_pct": 24.443,
+   "locked": false,
+   "band_pct": 23.58,
    "breach": false
   }
  ],
  "orders": [
-  {
-   "t": "IBB",
-   "name": "iShares Biotechnology ETF",
-   "side": "sell",
-   "w_from": 0.276644,
-   "w_to": 0.0
-  },
-  {
-   "t": "XLE",
-   "name": "State Street Energy Select Sector SPDR ETF",
-   "side": "buy",
-   "w_from": 0.0,
-   "w_to": 0.234939
-  },
-  {
-   "t": "ERX",
-   "name": "Direxion Energy Bull 2X ETF",
-   "side": "buy",
-   "w_from": 0.073224,
-   "w_to": 0.113808
-  },
-  {
-   "t": "BIL",
-   "name": "State Street SPDR Bloomberg 1-3 Month T-Bill ETF",
-   "side": "sell",
-   "w_from": 0.117246,
-   "w_to": 0.106941
-  },
-  {
-   "t": "CURE",
-   "name": "Direxion Daily Healthcare Bull 3X ETF",
-   "side": "buy",
-   "w_from": 0.135747,
-   "w_to": 0.145252
-  },
-  {
-   "t": "LABU",
-   "name": "Direxion Daily S&P Biotech Bull 3X ETF",
-   "side": "buy",
-   "w_from": 0.057388,
-   "w_to": 0.065681
-  },
-  {
-   "t": "XLV",
-   "name": "State Street Health Care Select Sector SPDR ETF",
-   "side": "sell",
-   "w_from": 0.339751,
-   "w_to": 0.333378
-  }
- ],
- "preview": [
   {
    "t": "IBB",
    "name": "iShares Biotechnology ETF",
@@ -172,12 +121,8 @@
    "w_to": 0.063406
   }
  ],
- "alerts": [
-  {
-   "level": "info",
-   "text": "4 order(s) the next open signal would give at current prices."
-  }
- ],
+ "preview": [],
+ "alerts": [],
  "stats": {
   "live": {
    "days": 22,
@@ -191,7 +136,7 @@
     "end": "2026-11-06",
     "sys_cagr": 0.192053,
     "spy_cagr": 0.146318,
-    "sys_maxdd": -0.524715,
+    "sys_maxdd": -0.524716,
     "spy_maxdd": -0.337173,
     "sys_sharpe": 0.6083,
     "spy_sharpe": 0.8081
@@ -201,8 +146,8 @@
     "start": "2012-01-03",
     "end": "2022-09-30",
     "sys_cagr": 0.138667,
-    "spy_cagr": 0.123394,
-    "sys_maxdd": -0.524715,
+    "spy_cagr": 0.123395,
+    "sys_maxdd": -0.524716,
     "spy_maxdd": -0.337173,
     "sys_sharpe": 0.5277,
     "spy_sharpe": 0.7402
@@ -238,27 +183,27 @@
    },
    {
     "year": 2013,
-    "sys": 1.021606,
-    "spy": 0.323077
+    "sys": 1.021607,
+    "spy": 0.323078
    },
    {
     "year": 2014,
     "sys": 0.260904,
-    "spy": 0.134638
+    "spy": 0.134637
    },
    {
     "year": 2015,
-    "sys": -0.345965,
+    "sys": -0.345964,
     "spy": 0.012343
    },
    {
     "year": 2016,
-    "sys": 0.18097,
+    "sys": 0.180969,
     "spy": 0.119979
    },
    {
     "year": 2017,
-    "sys": 0.607548,
+    "sys": 0.607549,
     "spy": 0.217054
    },
    {
@@ -278,8 +223,8 @@
    },
    {
     "year": 2021,
-    "sys": 0.219713,
-    "spy": 0.287287
+    "sys": 0.219714,
+    "spy": 0.287288
    },
    {
     "year": 2022,
@@ -288,7 +233,7 @@
    },
    {
     "year": 2023,
-    "sys": 0.361132,
+    "sys": 0.361131,
     "spy": 0.261758
    },
    {
@@ -298,7 +243,7 @@
    },
    {
     "year": 2025,
-    "sys": 0.568604,
+    "sys": 0.568603,
     "spy": 0.177191
    },
    {
@@ -1047,6 +992,36 @@
      "side": "sell",
      "w_from": 0.339751,
      "w_to": 0.333378
+    }
+   ]
+  },
+  {
+   "date": "2026-11-09",
+   "slot": "open",
+   "orders": [
+    {
+     "t": "IBB",
+     "side": "buy",
+     "w_from": 0.0,
+     "w_to": 0.248059
+    },
+    {
+     "t": "XLE",
+     "side": "sell",
+     "w_from": 0.231208,
+     "w_to": 0.0
+    },
+    {
+     "t": "CURE",
+     "side": "sell",
+     "w_from": 0.149895,
+     "w_to": 0.143289
+    },
+    {
+     "t": "LABU",
+     "side": "sell",
+     "w_from": 0.068635,
+     "w_to": 0.063406
     }
    ]
   }
