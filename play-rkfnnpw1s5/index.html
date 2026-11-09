@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="robots" content="noindex">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Gridlet">
+<meta name="theme-color" content="#fffdf8">
+<meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
+<meta name="color-scheme" content="light only">
+<title>Gridlet</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+<link rel="stylesheet" href="style.css">
+<script>
+try {
+  // sem cache offline no localhost (desenvolvimento serviria arquivos velhos)
+  if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol) &&
+      !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    });
+    // versao nova do jogo: o SW novo assume (skipWaiting + claim) e dispara controllerchange.
+    // Recarrega so num ponto seguro: fora da fase 'run', sem balao do tutorial, menu ou ajuda
+    // aberto e sem dedo na tela. Senao adia ate a proxima tela inicial ou fase de plano.
+    // Primeira instalacao (pagina ainda sem SW) nao recarrega: os arquivos ja sao os novos.
+    var hadSW = !!navigator.serviceWorker.controller, wantReload = false, reloading = false, fingers = 0, poll = 0;
+    var dn = function () { fingers++; }, upf = function () { fingers = Math.max(0, fingers - 1); };
+    document.addEventListener('pointerdown', dn, true);
+    document.addEventListener('pointerup', upf, true);
+    document.addEventListener('pointercancel', function () { fingers = 0; }, true);
+    document.addEventListener('visibilitychange', function () { fingers = 0; });
+    var safeNow = function () {
+      var app = window.CRZ && window.CRZ.app, st = app && app.game && app.game.state;
+      if (!st || fingers > 0) return false;
+      var ov = app.render && app.render.overlay;
+      if (ov && (ov.ghostRoad || ov.finger)) return false;              // arrasto de rua
+      var q = function (s) { return !!document.querySelector(s); };
+      if (q('.crz-tut-box.on') || q('.crzm-menu.open') || q('.crzm-help.open')) return false;
+      if (st.phase === 'plan') return true;
+      // tela inicial aberta: seguro, menos no meio do dia e no fim de jogo (o save e de antes)
+      return q('.crzm-start.open') && st.phase !== 'run' && st.phase !== 'over';
+    };
+    var tryReload = function () {
+      if (!wantReload || reloading || !safeNow()) return;
+      reloading = true; clearInterval(poll);
+      window.location.reload();                 // pagehide salva o jogo (ui.js)
+    };
+    navigator.serviceWorker.addEventListener('controllerchange', function () {
+      if (!hadSW) { hadSW = true; return; }
+      if (wantReload) return;
+      wantReload = true;
+      tryReload();
+      if (!reloading) poll = setInterval(tryReload, 700);
+    });
+  }
+} catch (e) {}
+</script>
+</head>
+<body>
+<canvas id="stage" aria-label="City map" role="img"></canvas>
+<div id="hud"></div>
+<div id="crz-overlay-root"></div>
+<script src="js/config.js"></script>
+<script src="js/difficulty.js"></script>
+<script src="js/sim.js"></script>
+<script src="js/game.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/render.js"></script>
+<script src="js/ui.js"></script>
+<!-- tutorial e menu: de outros agentes; se faltarem, o 404 nao interrompe os outros scripts -->
+<script src="js/tutorial.js"></script>
+<script src="js/menu.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
