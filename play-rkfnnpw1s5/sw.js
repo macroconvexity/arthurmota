@@ -3,7 +3,7 @@
 // VERSION e gerada por tools/release.py (hash do conteudo de web/, sem dev/ e sem este arquivo):
 // qualquer mudanca em js/css/html/icone muda os bytes deste arquivo, e o navegador reinstala.
 // Nao edite a linha a mao; rode python3 tools/release.py (o build_single.py tambem roda).
-const VERSION = 'g-c5c6b522ed5f';
+const VERSION = 'g-2a343a9fdf45';
 const CACHE = 'cruzamento-' + VERSION;
 const ASSETS = [
   './',

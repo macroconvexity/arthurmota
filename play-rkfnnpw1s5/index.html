@@ -24,6 +24,15 @@ try {
     window.addEventListener('load', function () {
       navigator.serviceWorker.register('sw.js').catch(function () {});
     });
+    // PWA aberta por dias: ao voltar a aba, busca versao nova do SW (no maximo a cada 30 min)
+    var lastUpd = Date.now();
+    document.addEventListener('visibilitychange', function () {
+      try {
+        if (document.visibilityState !== 'visible' || Date.now() - lastUpd < 30 * 60 * 1000) return;
+        lastUpd = Date.now();
+        navigator.serviceWorker.getRegistration().then(function (r) { return r && r.update(); }).catch(function () {});
+      } catch (e) {}
+    });
     // versao nova do jogo: o SW novo assume (skipWaiting + claim) e dispara controllerchange.
     // Recarrega so num ponto seguro: fora da fase 'run', sem balao do tutorial, menu ou ajuda
     // aberto e sem dedo na tela. Senao adia ate a proxima tela inicial ou fase de plano.

@@ -312,10 +312,11 @@
 
     function unlock() {
       try {
-        // iOS: toca mesmo com o interruptor de silencio ligado
+        if (!enabled) { return; }          // som desligado: nao cria nem acorda o contexto
+        // iOS: 'ambient' mistura com a musica do jogador e respeita a chave de silencio
         try {
           var nav = root.navigator;
-          if (nav && nav.audioSession) { nav.audioSession.type = 'playback'; }
+          if (nav && nav.audioSession && nav.audioSession.type !== 'ambient') { nav.audioSession.type = 'ambient'; }
         } catch (e) {}
         if (!ctx) {
           var AC = root.AudioContext || root.webkitAudioContext;
@@ -323,8 +324,10 @@
           ctx = new AC();
           buildGraph();
           try {
+            var self = ctx;
             ctx.onstatechange = function () {
               try {
+                if (ctx !== self) { return; }
                 if (ctx.state === 'running') { updateAmbient(); } else { stopAmb(); }
               } catch (e) {}
             };
@@ -332,11 +335,12 @@
         }
         if (ctx.state === 'running') { unlocked = true; return; }
         if (ctx.resume) {
+          var cur = ctx;
           resuming = true;
           var p = ctx.resume();
           if (p && p.then) {
-            p.then(function () { resuming = false; unlocked = true; updateAmbient(); },
-                   function () { resuming = false; });
+            p.then(function () { if (ctx !== cur) { return; } resuming = false; unlocked = true; updateAmbient(); },
+                   function () { if (ctx === cur) { resuming = false; } });
           } else { resuming = false; unlocked = true; updateAmbient(); }
         } else { unlocked = true; }
       } catch (e) {}
@@ -345,22 +349,47 @@
     function setEnabled(v) {
       try {
         enabled = !!v;
+        if (enabled) {
+          unlock();                        // dentro do clique do menu: cria ou retoma
+        }
         if (!ctx || !master) { return; }
         var t = now();
         master.gain.cancelScheduledValues(t);
         master.gain.setTargetAtTime(enabled ? MASTER_VOL : 0, t, 0.03);
         updateAmbient();
+        if (!enabled && ctx.suspend) {
+          var a = ctx.suspend(); if (a && a.catch) { a.catch(function () {}); }
+        }
       } catch (e) {}
+    }
+
+    var hiddenAt = 0;
+    var LONG_BG_MS = 60000;
+    function nowMs() { return Date.now(); }
+
+    // fecha o contexto e zera o grafo; o proximo gesto recria em unlock()
+    function teardown() {
+      var c = ctx;
+      try { stopAmb(); } catch (e) {}
+      ctx = null; master = null; send = null; ambGain = null; ambLpNode = null;
+      ambOscs = []; unlocked = false; resuming = false; ambAccum = 0;
+      if (!c) { return; }
+      try { c.onstatechange = null; } catch (e) {}
+      try { if (c.close) { var x = c.close(); if (x && x.catch) { x.catch(function () {}); } } } catch (e) {}
     }
 
     function goHidden() {
       hidden = true;
+      if (!hiddenAt) { hiddenAt = nowMs(); }
       if (!ctx) { return; }
       stopAmb();
       if (ctx.suspend) { var a = ctx.suspend(); if (a && a.catch) { a.catch(function () {}); } }
     }
     function goVisible() {
+      var away = hiddenAt ? nowMs() - hiddenAt : 0;
+      hiddenAt = 0;
       hidden = false;
+      if (ctx && away > LONG_BG_MS) { teardown(); return; }
       if (ctx && unlocked && enabled && ctx.state !== 'running' && ctx.resume) {
         var b = ctx.resume(); if (b && b.catch) { b.catch(function () {}); }
       }

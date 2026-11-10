@@ -24,7 +24,7 @@
   // formas alem da cor (daltonismo): anel de estresse medio, fantasma invalido (picotado curto), flash ruim
   var DASH_STRESS = [5, 3.5], DASH_BAD = [2, 3.5];
   // marca NEW (cruzamento novo sem sinal): pontos redondos (traco 0,1 com ponta redonda), azul-acinzentado
-  var DASH_NEWJ = [0.1, 4.2], NEWJ_COLOR = '#5f7a96', NEWJ_FONT = '800 8px -apple-system, system-ui, sans-serif', NEWJ_TEXT = 'NEW';
+  var DASH_NEWJ = [0.1, 4.2], NEWJ_COLOR = '#7a6aa8', NEWJ_FONT = '800 8px -apple-system, system-ui, sans-serif', NEWJ_TEXT = 'NEW';
   var NEWJ_DX = Math.SQRT1_2;   // ponto pulsante no anel, embaixo a direita (o X do travado fica em cima a direita)
   var JUNCTION_TOOLS = { stop: 1, yield: 1, light: 1, round: 1, cross: 1 };
   // no travado com sinal: o anel vira arco aberto no canto de cima a direita, onde fica o X
@@ -38,6 +38,9 @@
   var CAR_COLOR = '#3d4f66';
   // anel de estresse medio (0,3 a 0,6, tracejado): ambar escuro, legivel no creme; vermelho so acima de 0,6
   var STRESS_MID = '#d98a00';
+  // mapa de problemas de ontem (plano/resumo): cinza-azulado escuro, tracejado fino. Nao e alerta de hoje:
+  // nao compete com o ambar (0,3 a 0,6) nem com o vermelho (> 0,6) quando os dois caem no mesmo no
+  var HOT_COLOR = '#6b7a8f', HOT_W = 1.2, HOT_ALPHA = 0.85;
   // miolo da rua de 2 faixas: um tom acima do grid (#efeae0), le como avenida no creme
   var LANE_FILL = '#e4dccb';
   // pulso de entrega: anel na ponta de destino quando um carro chega (pool fixo, sem alocar por quadro)
@@ -341,6 +344,7 @@
       if (canvas.height !== ph) canvas.height = ph;
       r.width = W; r.height = H; r.dpr = dpr;
       readSafe();
+      if (fitBox) fitBox.dirty = true;   // botao de enquadrar: rele a posicao na proxima consulta
     };
 
     // safe-area lateral (notch/ilha em paisagem), em px CSS. Lida so no resize, por uma sonda
@@ -449,8 +453,52 @@
       var sh = Math.min(1, (H * 0.45) / Math.max(1, mt + mb)), sw = Math.min(1, (W * 0.45) / Math.max(1, ml + mr));
       ua.l = ml * sw; ua.r = mr * sw; ua.t = mt * sh; ua.b = mb * sh;
       ua.w = Math.max(40, W - ua.l - ua.r); ua.h = Math.max(40, H - ua.t - ua.b);
+      // HUD mudou (ui.js reescreveu as margens): o botao de enquadrar pode ter andado, rele na proxima consulta
+      if (mt !== fitBox.mt || mb !== fitBox.mb || ml !== fitBox.ml || mr !== fitBox.mr) {
+        fitBox.mt = mt; fitBox.mb = mb; fitBox.ml = ml; fitBox.mr = mr; fitBox.dirty = true;
+      }
       return ua;
     }
+
+    // ---- botao de enquadrar (.crz-fit, DOM do ui.js): posicao real, cacheada ----
+    // O ui.js sobe o botao ate ~30 px (placeFit) para nao cobrir as cargas do Boost. A reserva dos rotulos e
+    // da lupa usa o topo real do botao. getBoundingClientRect so quando algo mudou: resize, margens novas
+    // (usable), r.layoutChanged() ou mudanca de style/class do botao (MutationObserver). Nunca por quadro.
+    // Sem DOM, sem botao ou botao escondido: a reserva fixa FIT_BTN_UP acima da area util.
+    var FIT_PAD = 4, FIT_RAISE_MAX = 80;
+    var fitBox = { dirty: true, top: NaN, reads: 0, mt: -1, mb: -1, ml: -1, mr: -1 }, fitEl = null, fitMo = null;
+    function readFit() {
+      fitBox.dirty = false; fitBox.top = NaN;
+      try {
+        var d = root.document;
+        if (!d || !d.querySelector) return;
+        if (!fitEl || fitEl.isConnected === false) {
+          if (fitMo) { try { fitMo.disconnect(); } catch (e0) {} fitMo = null; }
+          fitEl = d.querySelector('.crz-fit');
+          if (fitEl && typeof root.MutationObserver === 'function') {
+            fitMo = new root.MutationObserver(function () { fitBox.dirty = true; forceDraw = true; });
+            fitMo.observe(fitEl, { attributes: true, attributeFilter: ['style', 'class'] });
+          }
+        }
+        if (!fitEl || !fitEl.getBoundingClientRect) return;
+        if (fitEl.classList && fitEl.classList.contains && fitEl.classList.contains('gone')) return;
+        var fb = fitEl.getBoundingClientRect();
+        fitBox.reads++;
+        if (!fb || !(fb.height > 0) || !(fb.width > 0) || !isFinite(fb.top)) return;
+        var cb = canvas.getBoundingClientRect ? canvas.getBoundingClientRect() : null;
+        fitBox.top = fb.top - (cb && isFinite(cb.top) ? cb.top : 0);
+      } catch (e) { fitBox.top = NaN; }
+    }
+    // y (px CSS do canvas) a partir do qual o botao reserva a faixa da direita; u = usable()
+    function fitTop(u) {
+      if (fitBox.dirty) readFit();
+      var nat = H - u.b - FIT_BTN_UP;
+      if (!(fitBox.top === fitBox.top)) return nat;
+      return clamp(fitBox.top - FIT_PAD, nat - FIT_RAISE_MAX, nat);
+    }
+    // ui.js: chame depois de mexer no HUD/botao sem resize nem margem nova (opcional, o observer ja cobre)
+    r.layoutChanged = function () { fitBox.dirty = true; forceDraw = true; };
+    r._fitBox = function () { return fitBox; };   // so para testes
 
     // fit: enquadra a cidade, mas nunca abaixo do zoom confortavel (ZCOMF). Cidade maior que a tela
     // fica centrada no miolo (media dos nos) e o resto se ve arrastando; setas na borda avisam.
@@ -637,11 +685,73 @@
       return clamp(longest, CFG.minRoadLen, CFG.maxRoadLen) * 0.6;
     };
 
+    /* ---------- realce de via (API publica: ui.js chama r.highlightRoad por feature-detect) ---------- */
+    // Ate HL_N realces ao mesmo tempo em campos fixos (nada alocado por quadro). O relogio comeca no
+    // primeiro draw depois da chamada (t0 = -1 pendente), no mesmo relogio do quadro.
+    var HL_N = 2, HL_COLOR = '#d98a00', HL_DEF_MS = 2000, HL_MAX_MS = 60000, HL_EXTRA = 1.2;
+    var hlId = [null, null], hlT0 = new Float64Array(HL_N), hlMs = new Float64Array(HL_N), hlSeq = new Float64Array(HL_N);
+    var hlLive = 0, hlSeqN = 0, hlWorld = null;
+    function hlCancel() { for (var i = 0; i < HL_N; i++) hlId[i] = null; if (hlLive) forceDraw = true; hlLive = 0; }
+    // realca a via edgeId por ms (padrao 2000): traco +1,2 px ambar com alpha que decai; reduce-motion: fixo e
+    // some seco ao fim. Mesma via de novo reinicia; com HL_N ativos, troca o mais antigo. Devolve false se a
+    // via nao existe no mundo atual.
+    r.highlightRoad = function (edgeId, ms) {
+      var w = game && game.world;
+      if (edgeId === null || edgeId === undefined || !w || !w.edges || !w.edges[edgeId]) return false;
+      ms = (typeof ms === 'number' && isFinite(ms) && ms > 0) ? Math.min(ms, HL_MAX_MS) : HL_DEF_MS;
+      if (hlWorld !== w) { hlCancel(); hlWorld = w; }   // pedidos de outro mundo nao valem mais
+      var s = -1, i;
+      for (i = 0; i < HL_N; i++) if (hlId[i] !== null && hlId[i] == edgeId) { s = i; break; }   // eslint-disable-line eqeqeq
+      if (s < 0) for (i = 0; i < HL_N; i++) if (hlId[i] === null) { s = i; break; }
+      if (s < 0) { s = 0; for (i = 1; i < HL_N; i++) if (hlSeq[i] < hlSeq[s]) s = i; }
+      if (hlId[s] === null) hlLive++;
+      hlId[s] = edgeId; hlT0[s] = -1; hlMs[s] = ms; hlSeq[s] = ++hlSeqN;
+      forceDraw = true;
+      return true;
+    };
+    r._highlights = function () {   // so para testes: realces ativos
+      var out = [], i;
+      for (i = 0; i < HL_N; i++) if (hlId[i] !== null) out.push({ id: hlId[i], t0: hlT0[i], ms: hlMs[i] });
+      return out;
+    };
+    // desenha os realces ativos (chamado logo depois das ruas, antes dos carros)
+    function drawHighlights(edges, nodes, z, ox, oy, roadW, now) {
+      var i, j, e, a, b, t, al, lg, hit;
+      for (i = 0; i < HL_N; i++) {
+        if (hlId[i] === null) continue;
+        e = edges[hlId[i]];
+        a = e && nodes[e.a]; b = e && nodes[e.b];
+        if (!a || !b) { hlId[i] = null; hlLive--; continue; }   // via removida: realce sai
+        if (hlT0[i] < 0 || now < hlT0[i]) hlT0[i] = now;
+        t = (now - hlT0[i]) / hlMs[i];
+        if (t >= 1) { hlId[i] = null; hlLive--; continue; }      // fim: some (o quadro atual ja sai sem ele)
+        frameAnim = true;                                        // invalida so enquanto ativo
+        al = reduceMotion ? 1 : 1 - t * t;
+        ctx.beginPath();
+        if ((e.lanes || 1) >= 2) {
+          // 2 faixas: as duas linhas de contorno, com o recorte do quadro (laneGeo); sem ele, o eixo
+          hit = null;
+          for (j = 0; j < laneGeo.length; j++) if (laneGeo[j].id === e.id) { hit = laneGeo[j]; break; }
+          if (hit) {
+            var hdx = hit.x1 - hit.x0, hdy = hit.y1 - hit.y0, hl = Math.sqrt(hdx * hdx + hdy * hdy) || 1;
+            var hpx = -hdy / hl * hit.hw, hpy = hdx / hl * hit.hw;
+            ctx.moveTo(hit.x0 + hpx, hit.y0 + hpy); ctx.lineTo(hit.x1 + hpx, hit.y1 + hpy);
+            ctx.moveTo(hit.x0 - hpx, hit.y0 - hpy); ctx.lineTo(hit.x1 - hpx, hit.y1 - hpy);
+          } else { ctx.moveTo(a.x * z + ox, a.y * z + oy); ctx.lineTo(b.x * z + ox, b.y * z + oy); }
+        } else { ctx.moveTo(a.x * z + ox, a.y * z + oy); ctx.lineTo(b.x * z + ox, b.y * z + oy); }
+        ctx.strokeStyle = HL_COLOR; ctx.lineWidth = roadW + HL_EXTRA; ctx.globalAlpha = al;
+        ctx.lineCap = (e.lanes || 1) >= 2 ? 'butt' : 'round';
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1; ctx.lineCap = 'round';
+    }
+
     /* ---------- rastreio de mudancas ---------- */
 
     function resetTracking(w, now) {
       for (var di = 0; di < DELIV_N; di++) dvOn[di] = 0;
       dvLive = 0;
+      if (hlWorld !== w) hlCancel();   // troca de mundo: realce de via cancelado (o pedido do mundo novo fica)
       edgeBorn = {}; edgeFrom = {}; edgeSeen = {}; edgeGeom = {}; edgeCount = 0;
       nodeBorn = {}; nodeSeen = {}; nodeTool = {}; toolPop = {}; nodeCount = 0;
       var k, n, e;
@@ -987,6 +1097,7 @@
         ctx.stroke();
       }
       ctx.setLineDash(DASH_NONE); ctx.lineCap = 'round';
+      if (hlLive > 0) drawHighlights(edges, nodes, z, ox, oy, roadW, now);   // realce de via (r.highlightRoad)
 
       // setas de mao unica
       ctx.beginPath(); any = false;
@@ -1342,11 +1453,11 @@
           circle(cqx, cqy, clR[i]); hany = true;
         }
         if (hany) {
-          ctx.strokeStyle = C.red; ctx.lineWidth = 1.2; ctx.globalAlpha = 0.6;
+          ctx.strokeStyle = HOT_COLOR; ctx.lineWidth = HOT_W; ctx.globalAlpha = HOT_ALPHA;
           ctx.setLineDash(DASH_GHOST); ctx.lineCap = 'butt'; ctx.stroke(); ctx.setLineDash(DASH_NONE); ctx.lineCap = 'round';
         }
         if (hdot) {
-          ctx.globalAlpha = 0.6; ctx.fillStyle = C.red; ctx.beginPath();
+          ctx.globalAlpha = HOT_ALPHA; ctx.fillStyle = HOT_COLOR; ctx.beginPath();
           for (i = 0; i < hotN; i++) {
             n = hotNode[i]; if (!(hm[n.id] >= 0.8)) continue;
             var dx2 = n.x * z + ox, dy2 = n.y * z + oy;
@@ -1362,8 +1473,8 @@
             var cbx = clX[i] * z + ox + Math.cos(COUNT_A) * clR[i], cby = clY[i] * z + oy + Math.sin(COUNT_A) * clR[i];
             if (cbx < sx0 || cbx > sx1 || cby < sy0 || cby > sy1) continue;
             ctx.beginPath(); circle(cbx, cby, 7);
-            ctx.fillStyle = C.bg; ctx.fill(); ctx.strokeStyle = C.red; ctx.lineWidth = 1; ctx.stroke();
-            ctx.font = COUNT_FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = C.red;
+            ctx.fillStyle = C.bg; ctx.fill(); ctx.strokeStyle = HOT_COLOR; ctx.lineWidth = 1; ctx.stroke();
+            ctx.font = COUNT_FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = HOT_COLOR;
             ctx.fillText(clN[i] < COUNT_TXT.length ? COUNT_TXT[clN[i]] : COUNT_MANY, cbx, cby + 0.5);
           }
         }
@@ -1709,7 +1820,7 @@
       if (ly - R < topLim) { ly = fy - 24; lx = fx < W * 0.5 ? fx + LOUPE_UP : fx - LOUPE_UP; }
       lx = clamp(lx, R + 4, Math.max(R + 4, W - R - 4));
       // o botao de enquadrar (DOM) fica por cima do canvas: a lupa sobe para nao ficar atras dele
-      if (lx + R > W - safe.r - FIT_BTN_W) lyMax = Math.max(lyMin, Math.min(lyMax, H - u.b - FIT_BTN_UP - R));
+      if (lx + R > W - safe.r - FIT_BTN_W) lyMax = Math.max(lyMin, Math.min(lyMax, fitTop(u) - R));
       ly = clamp(ly, lyMin, lyMax);
       var sw = 2 * R / mag, sx0 = gx - sw * 0.5, sy0 = gy - sw * 0.5;
       var x0 = Math.max(0, sx0), y0 = Math.max(0, sy0), x1 = Math.min(W, sx0 + sw), y1 = Math.min(H, sy0 + sw);
@@ -1809,7 +1920,7 @@
       var u = ua, i, o;
       if (x0 < LAB_EDGE || x1 > W - LAB_EDGE) return true;
       if (y0 < u.t + 2 || y1 > H - u.b - 2) return true;                 // HUD do topo e bandeja
-      if (x1 > W - safe.r - FIT_BTN_W && y1 > H - u.b - FIT_BTN_UP) return true;   // botao de enquadrar
+      if (x1 > W - safe.r - FIT_BTN_W && y1 > fitTop(u)) return true;   // botao de enquadrar
       if (loupe.on && circHit(x0, y0, x1, y1, loupe.x, loupe.y, loupe.r + 6)) return true;
       for (i = 0; i < arrowN; i++) { o = i * 4; if (rectHit(x0, y0, x1, y1, arrowR[o], arrowR[o + 1], arrowR[o + 2], arrowR[o + 3])) return true; }
       for (i = 0; i < obsExtraN; i++) { o = i * 4; if (rectHit(x0, y0, x1, y1, obsExtra[o], obsExtra[o + 1], obsExtra[o + 2], obsExtra[o + 3])) return true; }
@@ -1899,7 +2010,7 @@
       var u = usable(), out = [], i, o;
       out.push({ name: 'hud-top', x0: 0, y0: -1e4, x1: W, y1: u.t });
       out.push({ name: 'tray', x0: 0, y0: H - u.b, x1: W, y1: H + 1e4 });
-      out.push({ name: 'fit', x0: W - safe.r - FIT_BTN_W, y0: H - u.b - FIT_BTN_UP, x1: W + 1e4, y1: H + 1e4 });
+      out.push({ name: 'fit', x0: W - safe.r - FIT_BTN_W, y0: fitTop(u), x1: W + 1e4, y1: H + 1e4 });
       for (i = 0; i < arrowN; i++) { o = i * 4; out.push({ name: 'arrow', x0: arrowR[o], y0: arrowR[o + 1], x1: arrowR[o + 2], y1: arrowR[o + 3] }); }
       if (loupe.on) out.push({ name: 'loupe', circle: true, cx: loupe.x, cy: loupe.y, r: loupe.r });
       return out;
@@ -1916,6 +2027,9 @@
         if (rmMql && rmOn) { if (rmMql.removeEventListener) rmMql.removeEventListener('change', rmOn); else if (rmMql.removeListener) rmMql.removeListener(rmOn); }
       } catch (e) {}
       rmOn = null;
+      hlCancel(); hlWorld = null;
+      if (fitMo) { try { fitMo.disconnect(); } catch (e) {} fitMo = null; }
+      fitEl = null;
     };
     r._idle = function () { return { skipped: idleSkipped, anim: frameAnim }; }; // so para testes
     r.hotRings = hotRingsT;

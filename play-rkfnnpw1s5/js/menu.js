@@ -19,14 +19,14 @@
     stats: function (d, max, del, s, ms) { return 'Day ' + d + ' of ' + max + ' \u00b7 ' + del + ' delivered \u00b7 ' + s + ' of ' + ms + ' strikes'; },
     helpTitle: 'How to play',
     goalH: 'Goal',
-    goal: 'Guide the cars through the city without letting any junction lock. Survive {d} days with fewer than {n} strikes.',
+    goal: 'Guide the cars through the city without letting any crossing jam. Survive {d} days with fewer than {n} strikes.',
     gestH: 'Gestures',
     gest: [
-      ['Tap', 'a tool to pick it, then tap a junction to place it.'],
+      ['Tap', 'a tool to pick it, then tap a crossing to place it.'],
       ['Drag from a road end', 'builds a road when New road is selected.'],
       ['Pinch', 'zooms the map in and out.'],
       ['Two fingers', 'move the map.'],
-      ['Hold a junction', 'shows how far it reaches.'],
+      ['Hold a crossing', 'shows how far it reaches.'],
       ['Two lights', 'tap one, then the other, to pair them (green wave).']
     ],
     toolsH: 'Tools', unlocksDay: function (d) { return 'Unlocks on day ' + d; }, fromDay: function (d) { return 'Day ' + d; },
@@ -35,19 +35,20 @@
       stop: ['Stop', 'Cheap. Cars take turns. Good where three or four quiet roads meet.'],
       yield: ['Yield', 'Main road never stops. Best where a busy road meets a side road.'],
       light: ['Traffic light', 'Handles the heaviest four-way traffic. Skips empty sides. Pair for green waves.'],
-      upgrade: ['Two lanes', 'Doubles a road\'s flow. Biggest boost with a traffic light.'],
-      cross: ['Crosswalk', 'Cars stay calm longer here. Rings fill slower. Works on any road.'],
+      upgrade: ['Two lanes', 'Doubles a road\'s flow. Works best with a traffic light.'],
+      cross: ['Crosswalk', 'Cars stay calm longer here, so rings show up later. Goes where 2 or more roads meet and replaces the sign there.'],
       round: ['Roundabout', 'For four or more roads with steady traffic. Weak at a T.'],
-      oneway: ['One-way', 'Flips direction. Cars with no way out wait, then count as lost.']
+      oneway: ['One-way', 'Cars drive away from the half of the road you tap. Tap again to flip, a third time for two-way. Cars with no way out wait, then count as lost.']
     },
     pts: function (c) { return c + (c === 1 ? ' build point' : ' build points'); },
     moreH: 'Daily rules',
     more: [
       ['Daily die', 'from day 2, the roll at the top gives build points, a free build, or more cars. Tap it to see why. You can reroll once a day for {rr}.'],
-      ['Strikes', 'a locked junction ends the day and counts 1. At {n}, the run is over.'],
+      ['Strikes', 'a jammed crossing ends the day and counts 1. At {n}, the run is over.'],
+      ['Ring colors', 'Amber ring: busy crossing. Red ring: about to jam.'],
       ['Rewards', 'at the end of each day, pick 1 of 3. Each one says what it changes, and it lasts one day.'],
       ['Speed', 'during the day, tap the play button to go faster. Faster earns bonus build points, but queues build up quicker.'],
-      ['Boost', 'during the day, tap a road end to send a car now, or a junction with a red ring to clear it. A few per day.'],
+      ['Boost', 'during the day, tap a road end to send a car now, or a crossing with a ring to clear it. A few per day.'],
       ['Undo', 'while planning, undo gives the build points back.']
     ],
     // seletor de dificuldade: uma frase por modo, em palavras simples. Os dois modos se comparam entre si:
@@ -58,10 +59,10 @@
     diffThan: function (label) { return ' than ' + label; },
     diffFeelMore: 'more cars', diffFeelLess: 'fewer cars',
     diffFeelImpatient: 'less patient drivers', diffFeelPatient: 'more patient drivers',
-    diffLock: function (pc) { return 'junctions take ' + pc + '% longer to lock'; },
+    diffLock: function (pc) { return 'crossings take ' + pc + '% longer to jam'; },
     diffWait: function (pc) { return 'drivers wait ' + pc + '% longer'; },
     diffEnds: function (n) { return 'the run ends at ' + n + ' strikes'; },
-    diffStrike: 'A strike is a junction that locks.',
+    diffStrike: 'A strike is a crossing that jams.',
     diffNew: 'Switching starts a new game.',
     // paisagem curta (altura <= 500): o jogo e de iPhone em pe
     landTitle: 'Best in portrait', landText: 'Turn your phone upright for the best view.', landGo: 'Play anyway'
@@ -157,7 +158,7 @@
     road: '<circle cx="5" cy="19" r="2.2" ' + G + '/><circle cx="19" cy="5" r="2.2" ' + G + '/><path d="M6.8 17.2L17.2 6.8" ' + G + '/>',
     stop: '<path d="M8.5 3.5h7l5 5v7l-5 5h-7l-5-5v-7z" ' + G + '/><path d="M8 12h8" ' + G + '/>',
     yield: '<path d="M3.5 5h17L12 20z" ' + G + '/>',
-    light: '<rect x="8" y="2.5" width="8" height="19" rx="4" ' + G + '/><circle cx="12" cy="7.5" r="1.6" fill="#d9261c"/><circle cx="12" cy="12" r="1.6" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="12" cy="16.5" r="1.6" fill="#27c24c"/>',
+    light: '<rect x="8" y="2.5" width="8" height="19" rx="4" ' + G + '/><circle cx="12" cy="7.5" r="1.6" fill="#d9261c"/><circle cx="12" cy="12" r="1.6" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="12" cy="16.5" r="1.6" style="fill:var(--green,#2f8f55)"/>',
     upgrade: '<path d="M8 3v18M16 3v18" ' + G + '/><path d="M12 8v8" ' + G + ' stroke-dasharray="2 2.5"/>',
     cross: '<path d="M4 6h16M4 10h16M4 14h16M4 18h16" ' + G + ' stroke-width="2.4"/>',
     round: '<circle cx="12" cy="12" r="6" ' + G + '/><path d="M12 2v4M12 18v4M2 12h4M18 12h4" ' + G + '/>',
@@ -183,8 +184,13 @@
     '.crzm-pausebtn::before{content:"";position:absolute;left:50%;top:50%;width:48px;height:48px;transform:translate(-50%,-50%);border-radius:6px;background:transparent}',
     '.crzm-pausebtn.show{display:flex}',
     '.crzm-pausebtn.on{border-color:var(--red,#d9261c);color:var(--red,#d9261c)}',
+    // legenda: o botao pequeno nao se confunde com o Play/velocidade grande (jogador-so-tela 2026-11-09)
+    '.crzm-pausebtn::after{content:"pause";position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:2px;font-size:11px;font-weight:600;line-height:1;color:var(--inkSoft,#555);white-space:nowrap;pointer-events:none}',
+    '.crzm-pausebtn.on::after{content:"resume";color:var(--red,#d9261c)}',
     '.crzm-stamp{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%);font-size:13px;letter-spacing:.28em;text-transform:uppercase;color:var(--ink,#111);border:1.5px solid var(--ink,#111);border-radius:14px;padding:8px 18px;background:var(--bg,#fffdf8);display:none;z-index:1;pointer-events:none}',
     '.crzm-stamp.show{display:block}',
+    // com balao do tutorial aberto o selo sobe para baixo do HUD (no meio cobria o alvo da dica)
+    'body.crz-tut-open .crzm-stamp{top:calc(var(--sat,0px) + 96px);transform:translate(-50%,0);font-size:11px;padding:4px 12px}',
     '.crzm-layer{position:fixed;inset:0;display:none;pointer-events:auto;opacity:0;transition:opacity .22s ease}',
     '.crzm-layer.open{display:flex}.crzm-layer.vis{opacity:1}',
     /* tela inicial */
