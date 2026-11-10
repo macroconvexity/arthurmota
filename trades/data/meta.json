@@ -1,7 +1,7 @@
 {
- "updated": "2026-11-10T21:46:48Z",
+ "updated": "2026-11-10T22:11:39Z",
  "slot": "manual",
- "as_of_ny": "2026-11-10 16:45",
+ "as_of_ny": "2026-11-10 17:10",
  "last_close": "2026-11-09",
  "live_since": "2026-10-07",
  "in_sample": true,
@@ -73,7 +73,7 @@
    "since": "2026-11-05",
    "pnl_pct": 0.035,
    "locked": false,
-   "band_pct": 0.045,
+   "band_pct": 0.072,
    "breach": false
   },
   {
@@ -133,7 +133,7 @@
    "name": "State Street Health Care Select Sector SPDR ETF",
    "side": "sell",
    "w_from": 0.332584,
-   "w_to": 0.303988
+   "w_to": 0.303987
   },
   {
    "t": "LABU",
@@ -160,22 +160,22 @@
     "label": "Since 2012",
     "start": "2012-01-03",
     "end": "2026-11-10",
-    "sys_cagr": 0.194251,
+    "sys_cagr": 0.194138,
     "spy_cagr": 0.147759,
-    "sys_maxdd": -0.523594,
+    "sys_maxdd": -0.522201,
     "spy_maxdd": -0.337173,
-    "sys_sharpe": 0.6131,
+    "sys_sharpe": 0.6128,
     "spy_sharpe": 0.8154
    },
    {
     "label": "2012 to 2022-09",
     "start": "2012-01-03",
     "end": "2022-09-30",
-    "sys_cagr": 0.139376,
+    "sys_cagr": 0.139227,
     "spy_cagr": 0.123394,
-    "sys_maxdd": -0.523594,
+    "sys_maxdd": -0.522201,
     "spy_maxdd": -0.337173,
-    "sys_sharpe": 0.5294,
+    "sys_sharpe": 0.5291,
     "spy_sharpe": 0.7402
    },
    {
@@ -209,22 +209,22 @@
    },
    {
     "year": 2013,
-    "sys": 1.021606,
-    "spy": 0.323078
+    "sys": 1.021605,
+    "spy": 0.323077
    },
    {
     "year": 2014,
-    "sys": 0.260904,
+    "sys": 0.260905,
     "spy": 0.134638
    },
    {
     "year": 2015,
-    "sys": -0.345965,
-    "spy": 0.012342
+    "sys": -0.345964,
+    "spy": 0.012343
    },
    {
     "year": 2016,
-    "sys": 0.186087,
+    "sys": 0.18097,
     "spy": 0.119979
    },
    {
@@ -234,7 +234,7 @@
    },
    {
     "year": 2018,
-    "sys": -0.308308,
+    "sys": -0.306285,
     "spy": -0.04569
    },
    {
@@ -269,7 +269,7 @@
    },
    {
     "year": 2025,
-    "sys": 0.568604,
+    "sys": 0.568603,
     "spy": 0.177191
    },
    {
