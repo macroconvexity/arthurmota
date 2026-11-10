@@ -3,7 +3,10 @@
 // VERSION e gerada por tools/release.py (hash do conteudo de web/, sem dev/ e sem este arquivo):
 // qualquer mudanca em js/css/html/icone muda os bytes deste arquivo, e o navegador reinstala.
 // Nao edite a linha a mao; rode python3 tools/release.py (o build_single.py tambem roda).
-const VERSION = 'g-2a343a9fdf45';
+// A pagina (index.html) busca este arquivo com cache:'no-store' ao abrir e ao voltar a aba,
+// le a VERSION e compara com a do SW ativo (mensagem 'version'): se mudou, pede update().
+// Fluxo completo e testes: dev/ios/REVIEW.md, secao "Atualizacao do app instalado".
+const VERSION = 'g-ff927047ad86';
 const CACHE = 'cruzamento-' + VERSION;
 const ASSETS = [
   './',
@@ -28,7 +31,8 @@ const ASSETS = [
 ];
 
 self.addEventListener('install', (e) => {
-  // cache: 'reload' passa por cima do cache HTTP do navegador: o precache nunca pega arquivo velho
+  // cache: 'reload' passa por cima do cache HTTP do navegador (GitHub Pages manda max-age=600):
+  // o precache nunca pega arquivo velho. skipWaiting: o SW novo assume sem esperar fechar abas.
   e.waitUntil(
     caches.open(CACHE)
       .then((c) => c.addAll(ASSETS.map((u) => new Request(u, { cache: 'reload' }))))
@@ -44,19 +48,27 @@ self.addEventListener('activate', (e) => {
   );
 });
 
+self.addEventListener('message', (e) => {
+  const d = e.data || {};
+  if (d.type === 'version' && e.ports && e.ports[0]) e.ports[0].postMessage(VERSION);
+  else if (d.type === 'skipWaiting') self.skipWaiting();
+});
+
 self.addEventListener('fetch', (e) => {
   const req = e.request;
-  if (req.method !== 'GET' || new URL(req.url).origin !== self.location.origin) return;
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return;
+  // verificacao de versao (sw.js, version.txt) vai sempre a rede e nunca entra no cache
+  if (/\/(sw\.js|version\.txt)$/.test(url.pathname)) return;
+  // so o cache desta VERSION: nunca mistura arquivo de uma versao com pagina de outra
   e.respondWith(
-    caches.match(req, { ignoreSearch: true }).then((hit) => {
+    caches.open(CACHE).then((c) => c.match(req, { ignoreSearch: true }).then((hit) => {
       if (hit) return hit;
       return fetch(req).then((res) => {
-        if (res && res.ok) {
-          const copy = res.clone();
-          caches.open(CACHE).then((c) => c.put(req, copy));
-        }
+        if (res && res.ok) c.put(req, res.clone()).catch(() => {});
         return res;
-      }).catch(() => (req.mode === 'navigate' ? caches.match('index.html') : Response.error()));
-    })
+      }).catch(() => (req.mode === 'navigate' ? c.match('index.html') : Response.error()));
+    }))
   );
 });

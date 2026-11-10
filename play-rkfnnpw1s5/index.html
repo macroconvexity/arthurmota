@@ -20,53 +20,114 @@
 try {
   // sem cache offline no localhost (desenvolvimento serviria arquivos velhos)
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol) &&
-      !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) {
-    window.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js').catch(function () {});
-    });
-    // PWA aberta por dias: ao voltar a aba, busca versao nova do SW (no maximo a cada 30 min)
-    var lastUpd = Date.now();
-    document.addEventListener('visibilitychange', function () {
-      try {
-        if (document.visibilityState !== 'visible' || Date.now() - lastUpd < 30 * 60 * 1000) return;
-        lastUpd = Date.now();
-        navigator.serviceWorker.getRegistration().then(function (r) { return r && r.update(); }).catch(function () {});
-      } catch (e) {}
-    });
-    // versao nova do jogo: o SW novo assume (skipWaiting + claim) e dispara controllerchange.
-    // Recarrega so num ponto seguro: fora da fase 'run', sem balao do tutorial, menu ou ajuda
-    // aberto e sem dedo na tela. Senao adia ate a proxima tela inicial ou fase de plano.
+      !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) (function () {
+    // Atualizacao do app instalado (fluxo e testes: dev/ios/REVIEW.md, "Atualizacao do app instalado").
+    // 1. Ao abrir e a cada volta a aba (no maximo a cada 5 min) busca sw.js com cache:'no-store',
+    //    le a VERSION e compara com a do SW ativo. Diferente: registration.update().
+    //    O iOS so confere o SW numa navegacao; o app da Tela de Inicio volta do segundo plano sem navegar.
+    // 2. O SW novo instala (precache com cache:'reload'), assume (skipWaiting + claim) e dispara
+    //    controllerchange: esta pagina ainda roda os arquivos velhos.
+    // 3. Ponto seguro: tela inicial aberta (fora do dia e do fim de jogo) recarrega sozinho;
+    //    plano ou resumo mostra a faixa "New version ready. Tap to update."; no meio do dia, pausa,
+    //    fim de jogo, balao do tutorial, menu, ajuda, dedo na tela ou arrasto de rua: espera.
+    //    O save sobrevive: o reload dispara pagehide, e o ui.js salva (o save de 'run' volta ao plano).
     // Primeira instalacao (pagina ainda sem SW) nao recarrega: os arquivos ja sao os novos.
-    var hadSW = !!navigator.serviceWorker.controller, wantReload = false, reloading = false, fingers = 0, poll = 0;
+    var SW = navigator.serviceWorker, GAP = 5 * 60 * 1000;
+    var U = window.CRZ_UPD = { checks: 0, remote: '', active: '', ready: false, shown: false, mode: '' };
+    var hadSW = !!SW.controller, reloading = false, fingers = 0, lastCheck = 0, poll = 0, bar = null;
     var dn = function () { fingers++; }, upf = function () { fingers = Math.max(0, fingers - 1); };
     document.addEventListener('pointerdown', dn, true);
     document.addEventListener('pointerup', upf, true);
     document.addEventListener('pointercancel', function () { fingers = 0; }, true);
-    document.addEventListener('visibilitychange', function () { fingers = 0; });
-    var safeNow = function () {
-      var app = window.CRZ && window.CRZ.app, st = app && app.game && app.game.state;
-      if (!st || fingers > 0) return false;
-      var ov = app.render && app.render.overlay;
-      if (ov && (ov.ghostRoad || ov.finger)) return false;              // arrasto de rua
-      var q = function (s) { return !!document.querySelector(s); };
-      if (q('.crz-tut-box.on') || q('.crzm-menu.open') || q('.crzm-help.open')) return false;
-      if (st.phase === 'plan') return true;
-      // tela inicial aberta: seguro, menos no meio do dia e no fim de jogo (o save e de antes)
-      return q('.crzm-start.open') && st.phase !== 'run' && st.phase !== 'over';
+    var register = function () { return SW.register('sw.js', { updateViaCache: 'none' }); };
+    var activeVersion = function () {          // VERSION do SW que controla a pagina ('' se nao responde)
+      return new Promise(function (res) {
+        var c = SW.controller; if (!c || !window.MessageChannel) { res(''); return; }
+        var ch = new MessageChannel(), t = setTimeout(function () { res(''); }, 1500);
+        ch.port1.onmessage = function (e) { clearTimeout(t); res(String(e.data || '')); };
+        try { c.postMessage({ type: 'version' }, [ch.port2]); } catch (e) { clearTimeout(t); res(''); }
+      });
     };
-    var tryReload = function () {
-      if (!wantReload || reloading || !safeNow()) return;
+    var check = function (force) {
+      if (reloading || U.ready || !SW.controller) return;   // sem SW ativo: o primeiro registro ja traz a versao do servidor
+      var now = Date.now();
+      if (!force && now - lastCheck < GAP) return;
+      lastCheck = now; U.checks++;
+      fetch('sw.js?check=' + now, { cache: 'no-store' }).then(function (r) { return r.ok ? r.text() : ''; }).then(function (t) {
+        var m = /const VERSION = '([^']+)'/.exec(t || '');
+        if (!m) return;
+        U.remote = m[1];
+        return activeVersion().then(function (cur) {
+          U.active = cur;
+          if (cur === U.remote) return;
+          return SW.getRegistration().then(function (r) {
+            if (!r) return register();
+            if (r.waiting) r.waiting.postMessage({ type: 'skipWaiting' });
+            return r.update().then(function () {
+              // CDN ainda com o sw.js velho: tenta de novo em 1 min, nao em 5
+              if (!r.installing && !r.waiting) lastCheck = Date.now() - GAP + 60 * 1000;
+            });
+          });
+        });
+      }).catch(function () {});
+    };
+    var q = function (s) { return !!document.querySelector(s); };
+    var mode = function () {                   // 'auto' | 'bar' | 'wait' | 'hold' (dedo na tela: nada muda)
+      var app = window.CRZ && window.CRZ.app, st = app && app.game && app.game.state;
+      if (!st) return 'wait';
+      var ov = app.render && app.render.overlay;
+      if (fingers > 0 || (ov && (ov.ghostRoad || ov.finger))) return 'hold';   // toque ou arrasto de rua
+      if (q('.crz-tut-box.on') || q('.crzm-menu.open') || q('.crzm-help.open')) return 'wait';
+      if (st.phase === 'run' || st.phase === 'over') return 'wait';     // dia em curso (ou pausado) e fim de jogo
+      if (q('.crzm-start.open')) return 'auto';
+      return (st.phase === 'plan' || st.phase === 'summary') ? 'bar' : 'wait';
+    };
+    var apply = function () {
+      if (reloading) return;
       reloading = true; clearInterval(poll);
       window.location.reload();                 // pagehide salva o jogo (ui.js)
     };
-    navigator.serviceWorker.addEventListener('controllerchange', function () {
+    var showBar = function (on) {
+      if (on && !bar) {
+        bar = document.createElement('div');
+        bar.setAttribute('role', 'button');
+        bar.setAttribute('data-crz-update', '');
+        bar.textContent = 'New version ready. Tap to update.';
+        bar.style.cssText = 'position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 56px);' +
+          'transform:translateX(-50%);z-index:40;max-width:calc(100% - 32px);box-sizing:border-box;' +
+          'padding:10px 16px;border-radius:999px;background:#111;color:#fffdf8;font:600 14px/1.2 -apple-system,system-ui,sans-serif;' +
+          'white-space:nowrap;pointer-events:auto;touch-action:manipulation;cursor:pointer;opacity:.94';
+        var stop = function (e) { e.stopPropagation(); };
+        bar.addEventListener('pointerdown', stop); bar.addEventListener('touchstart', stop, { passive: true });
+        bar.addEventListener('click', function (e) { e.stopPropagation(); fingers = 0; apply(); });
+        (document.body || document.documentElement).appendChild(bar);
+      }
+      if (bar) bar.style.display = on ? '' : 'none';
+      U.shown = !!on;
+    };
+    var tick = function () {
+      if (!U.ready || reloading) return;
+      var m = U.mode = mode();
+      if (m === 'hold') return;
+      if (m === 'auto') apply();
+      else showBar(m === 'bar');
+    };
+    SW.addEventListener('controllerchange', function () {
       if (!hadSW) { hadSW = true; return; }
-      if (wantReload) return;
-      wantReload = true;
-      tryReload();
-      if (!reloading) poll = setInterval(tryReload, 700);
+      if (U.ready) return;
+      U.ready = true;
+      tick();
+      if (!reloading) poll = setInterval(tick, 700);
     });
-  }
+    document.addEventListener('visibilitychange', function () {
+      fingers = 0;
+      if (document.visibilityState === 'visible') { check(false); tick(); }
+    });
+    window.addEventListener('pageshow', function (e) { if (e.persisted) check(false); });
+    window.addEventListener('load', function () {
+      register().then(function () { check(true); }, function () {});
+    });
+  })();
 } catch (e) {}
 </script>
 </head>

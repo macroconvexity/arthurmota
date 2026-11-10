@@ -11,25 +11,29 @@
   var STR = {
     // primeiro plano: os marcadores do topo, um balao por vez, antes da primeira rua
     days: 'Day 1 of {days}.',
+    // blind2: 'crossing' so e definida no dia 3; aqui palavras comuns
+    goal: 'Get cars across town. If traffic piles up and a road jams, that is a strike. {n} strikes and the game ends.',
     strikes: 'Strikes: a crossing jams. {n} strikes ends the run.',
     // primeira frase do jogo: o objetivo em palavras simples (nada de jargao antes de explicar)
-    road: 'Cars need roads to get from one end to another. Tap New road.',
+    road: 'Cars need roads to get from one end to another. Tap Road.',
     roadDrag: 'Cars enter at road ends. Drag outward from this road end to build.',
+    roadMissed: 'Drag from the circled end out to an empty spot.',
+    cars: 'The small blue squares are cars.',
     // uma acao so (Arthur no iPhone, 2026-11-09: 'Undo is free' + dois aneis confundiam o proximo passo)
     play: 'Good. Now tap \u25b6 to send the cars.',
     playOut: 'Out of build points. Tap \u25b6 to start the day.',
-    playNoRoad: 'Tap \u25b6 to send the cars.',
+    playNoRoad: 'Build one road first: tap Road, then drag from a circled end.',
     // dia 1 em corrida: o relogio pausa ate a jogadora mandar um carro (o dia 1 a 4x durava ~5 s)
     // apresenta o Boost e o icone dele (as bolinhas com raio ao lado do Play)
     // dia 1 em corrida: o dia corre (sem 'Paused' logo depois do Play); a camera mostra a ponta antes
     run: 'Day started. Boost: tap this road end to send an extra car (uses \u26a1).',
     // logo depois do primeiro carro extra: o que e o raio (Boost), com as bolinhas pulsando
-    boost: 'Each \u26a1 is one boost. You get {charges} a day.',
+    boost: 'Each \u26a1 is one boost. Recharges in the first days; {charges} a day after that.',
     runNoRoom: 'No room right now. Try another road end.',
     dest: 'Each car drives to another road end. Arriving counts as delivered.',
     summary: 'Cars delivered today. Now pick one reward; it only helps tomorrow.',
     summaryBonus: 'Cars delivered. A full Delivery bonus bar gives +1 build point. Pick a reward.',
-    grew: 'The city grew a new road end. Tap New road, then drag from it.',
+    grew: 'The city grew a new road end. Tap Road, then drag from it.',
     grewDrag: 'Now drag from a road end to link it to the city.',
     // tudo ja ligado: nao ha o que "ligar a cidade"
     grewDragAny: 'Now drag from the circled end to add a new road.',
@@ -60,7 +64,7 @@
       oneway: 'One-way, {c}: cars drive away from the half you tap.'
     },
     // vocabulario do anel igual a cor do render: {R}/{L}/{E} viram o nivel do no na hora (ringSay):
-    // ambar tracejado (0,3 a 0,6) 'Busy junction', vermelho continuo (acima de 0,6, travado) 'Red ring'
+    // ambar tracejado (0,3 a 0,6) 'Busy crossing', vermelho continuo (acima de 0,6, travado) 'Red ring'
     ringLead: {
       busy: 'Busy crossing: cars are queuing', red: 'Red ring: long queue',
       busyName: 'Busy crossing', redName: 'Red ring',
@@ -81,7 +85,8 @@
     slowDown: 'Slow down',
     boostBtn: 'Boost',
     // lembrete diario (Easy, dias 4 a 9, sem Boost ontem): aponta o chip do Boost da UI, sem pausar
-    ringAgain: 'Tap this Boost button to clear the ring.',
+    // faixa (blind2): sem seta; o chip do raio ja pulsa ao lado do anel
+    ringAgain: 'Tap the glowing \u26a1 next to the ring to clear it.',
     tipStrike: 'This crossing jammed: 1 strike. {n} strikes end the run.',
     tipHot: "Dashed rings: yesterday's trouble spots. Tap one to see what helps.",
     tipEndJunction: 'This road end is now a crossing. Stop, Yield and lights work here too.',
@@ -131,6 +136,9 @@
   // regra 'nunca sem instrucao' (Arthur, 2026-11-09): 10 s sem tocar em nada com um balao na tela: o balao
   // repete (pulo curto) e o anel do controle pulsa de novo; repete a cada 10 s parada
   var IDLE_AGAIN = 10;
+  // blind2 1: teto de baloes modais por dia (dias 1-2: 4, dia 3+: 2); acima dele o passo sai como faixa
+  var MODAL_CAP_EARLY = 4, MODAL_CAP = 2, EARLY_DAYS = 2;
+  var STRIP_S = 6;         // s de uma faixa de dica (nao bloqueia, some no primeiro toque)
   var ESCAPE_AFTER = 20;   // s num passo "agir" ate surgir um Continuar de escape
   var ARM_TIME = 5;        // s para confirmar o pulo (2026-11-09: 3 s era curto, o segundo toque se perdia)
   var STRESS_TIP = 0.5;
@@ -285,12 +293,26 @@
   }
   // ponta para mandar o carro: a da esquerda; depois de 'space', a proxima (da esquerda para a direita)
   // que ainda nao recusou. null: todas recusaram
+  // nv8 3: a ponta indicada ACEITA o carro: rua livre na saida (nenhum carro a 40 px) e o cruzamento a frente
+  // abaixo de 0,5 (o game recusa com 'portalQueue'). Entre as livres: menos carros perto, depois a da esquerda.
+  // A escolha fica presa enquanto continuar livre (a seta nao pula de ponta em ponta)
+  function endRoom(g, p) {
+    var w = g.world || {}, cars = w.cars || [], near = 0, i;
+    for (i = 0; i < cars.length; i++) { var dx = cars[i].x - p.x, dy = cars[i].y - p.y; if (dx * dx + dy * dy < 1600) near++; }
+    var e0 = p.edges && p.edges.length ? (w.edges || {})[typeof p.edges[0] === 'object' ? p.edges[0].id : p.edges[0]] : null;
+    var ah = e0 ? (w.nodes || {})[e0.a === p.id ? e0.b : e0.a] : null;
+    return { ok: near === 0 && !(ah && (ah.stress || 0) >= 0.5), near: near, ahead: ah ? (ah.stress || 0) : 0 };
+  }
   function sendPortal(c) {
     var full = (c.cur && c.cur.data.full) || {}, p = nodesOf(c.game), L = [], i;
-    for (i = 0; i < p.length; i++) if (p[i].portal && deg(p[i]) < 2 && !full[p[i].id]) L.push(p[i]);
-    if (!c.cur || !c.cur.data.full) return leftPortal(c.game);
-    L.sort(function (a, b) { return a.x - b.x || a.id - b.id; });
-    return L[0] || null;
+    for (i = 0; i < p.length; i++) if (p[i].portal && deg(p[i]) < 2 && deg(p[i]) > 0 && !full[p[i].id]) L.push(p[i]);
+    if (!L.length) return c.cur && c.cur.data.full ? null : leftPortal(c.game);
+    var keep = c.cur && c.cur.data.sendPick != null ? nodeById(c, c.cur.data.sendPick) : null;
+    if (keep && L.indexOf(keep) >= 0 && endRoom(c.game, keep).ok) return keep;
+    var S = L.map(function (n) { var r = endRoom(c.game, n); return { n: n, ok: r.ok, near: r.near, ahead: r.ahead }; });
+    S.sort(function (a, b) { return (b.ok - a.ok) || (a.near - b.near) || (a.ahead - b.ahead) || (a.n.x - b.n.x) || (a.n.id - b.n.id); });
+    if (c.cur) c.cur.data.sendPick = S[0].n.id;
+    return S[0].n;
   }
   function uiOf(c) { return c.ui || (CRZ.app && CRZ.app.ui) || null; }
   function selTool(c) { var u = uiOf(c); return u && u.getSelectedTool ? u.getSelectedTool() : undefined; }
@@ -317,6 +339,14 @@
     if (!r || !n) return;
     try { if (typeof r.reveal === 'function') r.reveal(n.x, n.y, true); } catch (e) {}
   }
+  // ponto do mundo fora da tela (ou sem como saber: nao mexe)
+  function offScreen(r, p, wv) {
+    if (!r || !p || typeof r.toScreen !== 'function') return false;
+    var w0 = wv || root, q = r.toScreen(p.x, p.y), W = r.width || (w0.innerWidth || 0), H = r.height || (w0.innerHeight || 0);
+    if (!W || !H) return false;
+    return q.x < 0 || q.y < 0 || q.x > W || q.y > H;
+  }
+  function firstCar(g) { var w = g && g.world; return w && w.cars && w.cars.length ? w.cars[0] : null; }
   function nodeById(c, id) { var w = c.game && c.game.world; return w && w.nodes ? w.nodes[id] || null : null; }
 
   // janela de um passo do roteiro: 'past' | 'now' | 'future'
@@ -343,32 +373,49 @@
    * Fora disso, silencio: so dicas de situacao, uma vez cada. */
   var MAIN = [
     // 0. os pontinhos (o vermelho e hoje) e os circulos de strike: um balao cada, Got it, sem pausa
-    { id: 'days', win: at(1, 'plan'), mode: 'nudge', btn: 'ok', text: STR.days, target: T('dots') },
+    // o que e perder, antes de tudo (playtest as cegas: 'Strikes' nao significava nada); um conceito por balao
+    { id: 'goal', win: at(1, 'plan'), mode: 'nudge', btn: 'ok', target: T('strikes', true),
+      enter: function (c) { c.mark('tip:strikes'); },   // o balao do primeiro anel nao repete o strike
+      text: function () { return STR.goal.replace('{n}', String((CRZ.CFG && CRZ.CFG.maxStrikes) || 3)); } },
+    // blind2: dias 1 e 2 com no maximo 4 baloes modais; o resto do roteiro vira faixa (strip)
+    { id: 'days', win: at(1, 'plan'), mode: 'nudge', btn: 'ok', strip: true, text: STR.days, target: T('dots') },
     // 1. Rua: bloqueante (o buraco deixa tocar); o mesmo balao segue para o arrasto
-    { id: 'road', win: at(1, 'plan'), mode: 'act', hand: true,
-      text: function (c) { return selTool(c) === 'road' ? STR.roadDrag : STR.road; },
+    // sem 'Got it'/escape: so avanca com a estrada feita (nv6: o Got it levava ao 'Tap play' sem estrada)
+    { id: 'road', win: at(1, 'plan'), mode: 'act', hand: true, noEscape: true,
+      text: function (c) { return selTool(c) === 'road' ? (c.cur && c.cur.data.missed ? STR.roadMissed : STR.roadDrag) : STR.road; },
       target: function (c) {
         if (selTool(c) !== 'road') return { sel: 'tool-road' };
         var p = rightPortal(c.game);
         return p ? W([p]) : null;
       },
       done: function (c) { return edgeCount(c.game) > 1; },
-      on: { roadBuilt: true } },
+      on: { roadBuilt: true, roadMiss: function (d, c) { if (c.cur) { c.cur.data.missed = true; c.cur.t = Math.max(c.cur.t, HAND_AFTER); } return false; } } },
     // 2. play: nao bloqueante (nada de dois bloqueantes no mesmo minuto)
     // sem 'Got it' (btn:'none'): o balao so pede o Play, e o botao ao lado de "Tap play" confundia
     // hide fit: o botao de enquadrar fica logo acima do Play e a seta parecia apontar para ele
     // hide clear: as bolinhas do raio ficavam entre a seta e o Play (a seta parecia apontar para elas)
     // sem pontos para nada: o mesmo texto da faixa da UI ('Out of build points'), senao 'Good. Now tap'
-    { id: 'play', win: at(1, 'plan'), mode: 'nudge', btn: 'none', target: T('play', true), hide: ['fit', 'clear'],
-      // sem rua nova (pulou o arrasto): sem o 'Good'
-      text: function (c) { return broke(c) ? STR.playOut : edgeCount(c.game) > 1 ? STR.play : STR.playNoRoad; },
+    // sem estrada (Undo depois da rua): o balao NUNCA manda apertar o Play que vai recusar; pede a rua e aponta o Road
+    { id: 'play', win: at(1, 'plan'), mode: 'nudge', btn: 'none', hide: ['fit', 'clear'],
+      target: function (c) { return edgeCount(c.game) > 1 ? { sel: 'play', round: true } : { sel: 'tool-road' }; },
+      text: function (c) { return edgeCount(c.game) <= 1 ? STR.playNoRoad : broke(c) ? STR.playOut : STR.play; },
       done: function (c) { return st(c).phase !== 'plan'; }, on: { playPressed: true } },
     // 3. no run (2026-11-09, jogador-so-tela): o dia CORRE (nada de 'Paused' como primeira coisa depois do Play).
     // A camera traz a ponta para a tela antes do balao (nunca alvo fora da tela). Nao bloqueia: o mapa segue
     // tocavel e o dia anda; sai com o carro mandado.
     // Ponta sem lugar para o carro (useClear 'space'): o balao diz e aponta a proxima ponta ainda nao tentada
     // Got it sem pausar (o dia corre); sem tempo limite: so a acao ou o Got it avancam
-    { id: 'run', win: at(1, 'run'), mode: 'nudge', btn: 'ok',
+    // os quadradinhos azuis sao carros (playtest as cegas: ninguem sabia); pausa e aponta um carro
+    { id: 'cars', win: at(1, 'run'), mode: 'nudge', btn: 'ok', strip: true, text: STR.cars,
+      wait: function (c) {
+        var w = c.game && c.game.world;
+        return c.clock - c.phaseAt < SHOW_AFTER || (!!(w && w.cars) && !firstCar(c.game) && c.clock - c.phaseAt < 6);
+      },
+      need: function (c) { return !!firstCar(c.game); },   // sem carro na tela em 6 s: o passo sai
+      enter: function (c, cu) { var k = firstCar(c.game); cu.data.car = k ? { x: k.x, y: k.y } : null; },
+      target: function (c) { var k = c.cur && c.cur.data.car; return k ? { world: [k], round: true } : null; } },
+    // nv7: no dia 1 este balao tambem pausa (o dia corria e acabava com o balao aberto)
+    { id: 'run', win: at(1, 'run'), mode: 'nudge', btn: 'ok', pause: true,
       text: function (c) { return c.cur && c.cur.data.full ? STR.runNoRoom : STR.run; },
       wait: function (c) { return c.clock - c.phaseAt < SHOW_AFTER; },
       need: function (c) { return charges(c) > 0 && !!leftPortal(c.game); },
@@ -377,22 +424,23 @@
       done: function (c) { return !!c.flags.sent; },
       on: { clearUsed: function (d) { return !!d.ok; } } },
     // 3a. o que e o raio: as bolinhas do Boost pulsam; nao pausa, fecha com Got it
-    { id: 'boost', win: at(1, 'run'), mode: 'nudge', btn: 'ok',
+    // dia 1: balao com Got it pausa o dia (o novato quase nao via carro com o dia correndo por tras)
+    { id: 'boost', win: at(1, 'run'), mode: 'nudge', btn: 'ok', strip: true,
       text: function () { return STR.boost.replace('{charges}', String(chargesPerDay())); },
       need: function (c) { return !!c.flags.sent; },
       wait: function (c) { return c.clock - c.mainAt < 0.8; },
       target: T('clear'), hide: ['fit'] },
     // 3b. para onde os carros vao: explica sem pausar (o dia 1 agora corre a 1x), fecha com Got it
-    { id: 'dest', win: at(1, 'run'), mode: 'nudge', btn: 'ok', text: STR.dest,
+    { id: 'dest', win: at(1, 'run'), mode: 'nudge', btn: 'ok', strip: true, text: STR.dest,
       wait: function (c) { return c.clock - c.mainAt < 1; },
       target: function (c) { var p = farPortal(c.game); return p ? W([p]) : null; } },
     // 3c. o Play virou velocidade: PAUSA ate tocar no botao (ou Got it); nao repete no dia 2
-    { id: 'speed1', win: at(1, 'run'), mode: 'nudge', pause: true, btn: 'ok', text: STR.speed1, target: T('speed', true), hide: ['fit'],
+    { id: 'speed1', win: at(1, 'run'), mode: 'nudge', btn: 'ok', strip: true, text: STR.speed1, target: T('speed', true), hide: ['fit'],
       wait: function (c) { return c.clock - c.mainAt < 1; },
       enter: function (c) { c.mark('speedTaught'); },   // mostrado de verdade (janela passada tambem marca 'speed1')
       on: { speedChanged: true } },
     // 4. resumo: espera a carta pelo buraco do holofote; o anel extra marca a barra do bonus
-    { id: 'summary', win: at(1, 'summary'), mode: 'act',
+    { id: 'summary', win: at(1, 'summary'), mode: 'act', strip: true,
       text: function (c) {
         var sm = st(c).summary;
         return (sm && 'speedBonus' in sm) || (c.hasEl && c.hasEl('bonus')) ? STR.summaryBonus : STR.summary;
@@ -421,17 +469,18 @@
       // (antes so pulsava depois do toque no ladrilho) e a camera a traz para a tela
       avoid: function (c) { var p = newestPortal(c.game); return p ? [W([p])] : null; },
       extra: function (c) { if (selTool(c) === 'road') return null; var p = newestPortal(c.game); return p ? [W([p])] : null; },
-      done: function (c) { return c.cur && edgeCount(c.game) > c.cur.data.edges0; },
+      // A1: a rua ficou impagavel (relance, outra obra): o passo se resolve, nunca trava o Play
+      done: function (c) { return c.cur && (edgeCount(c.game) > c.cur.data.edges0 || (typeof c.game.canAfford === 'function' && !c.game.canAfford('road'))); },
       on: { roadBuilt: true } },
     // Dia 2 em corrida: a velocidade (o dia pausa ate tocar no botao ou em Continue)
     // hide: o botao de enquadrar fica logo acima do play; com ele na tela a seta parecia apontar para ele
     // um texto so para a velocidade (o mesmo do dia 1)
-    { id: 'speed', win: at(2, 'run'), mode: 'nudge', pause: true, text: STR.speed1, target: T('speed', true), hide: ['fit'],
+    { id: 'speed', win: at(2, 'run'), mode: 'nudge', strip: true, text: STR.speed1, target: T('speed', true), hide: ['fit'],
       wait: function (c) { return c.clock - c.phaseAt < SHOW_AFTER; },
       need: function (c) { return !c.seen('speedTaught'); },   // o dia 1 ja apresentou a velocidade
       on: { speedChanged: true } },
     // e onde ver o progresso do dia (o anel do botao; a barra verde e o bonus). Pausa ate "Got it", como o 'dest'
-    { id: 'progress', win: at(2, 'run'), mode: 'nudge', pause: true, btn: 'ok', text: STR.progress, target: T('speed', true), hide: ['fit'],
+    { id: 'progress', win: at(2, 'run'), mode: 'nudge', btn: 'ok', strip: true, text: STR.progress, target: T('speed', true), hide: ['fit'],
       wait: function (c) { return c.clock - c.mainAt < 1.5; },
       on: { clearUsed: function (d) { return !!d.ok; } } }
   ];
@@ -482,7 +531,7 @@
   }
   // nivel do anel como o render o pinta: vermelho continuo acima de 0,6 (ou travado), senao ambar tracejado
   function ringRed(n) { return !!n && (!!n.locked || (n.stress || 0) > 0.6); }
-  // troca {R}/{L}/{E} pelo nivel do no agora: o balao sai em 0,3 com 'Busy junction' e escala para 'Red ring'
+  // troca {R}/{L}/{E} pelo nivel do no agora: o balao sai em 0,3 com 'Busy crossing' e escala para 'Red ring'
   function ringSay(text, n) {
     if (typeof text !== 'string' || text.indexOf('{') < 0) return text;
     var L = STR.ringLead, red = ringRed(n);
@@ -493,7 +542,8 @@
   var SAFETY = [
     // primeiro anel AMBAR num cruzamento: o que as cores querem dizer, preso ao anel (Got it); o aviso com o
     // que fazer ('ring') espera o anel ficar vermelho
-    { id: 'ringAmber', mode: 'continue', safety: true, pause: true, btn: 'ok',
+    // blind2 1: o aviso ambar (o que a cor quer dizer) virou faixa; o balao com acao e o 'ring' (vermelho)
+    { id: 'ringAmber', mode: 'continue', safety: true, strip: true, btn: 'ok',
       ready: function (c) {
         if (st(c).phase !== 'run' || c.seen('ring')) return false;
         var n = ringNode(c); return !!n && !(n.portal && deg(n) < 2) && !ringRed(n);
@@ -533,7 +583,8 @@
           cu.data.pass = cu.data.text === STR.ringFast;
           // primeiro anel com velocidade acima de 2x: duas acoes no balao, 'Slow down' (2x) e 'Boost'
           // (Easy e Normal: no passeio do Normal, 2026-11-09, so o Easy oferecia o 'Slow down')
-          if ((s.speed || 1) > 2 && !(n && n.portal && deg(n) < 2)) {
+          // A2: a 2x o toque no botao ia a 4x (ciclo 1, 2, 4): qualquer velocidade acima de 1x ganha 'Slow down'
+          if ((s.speed || 1) > 1 && !(n && n.portal && deg(n) < 2)) {
             cu.data.text = STR.ringSlow; cu.data.pass = false; cu.data.alt = true;
           }
         }
@@ -590,7 +641,7 @@
     { id: 'tip:strikes', mode: 'nudge', nogap: true, btn: 'ok', target: T('strikes'),
       text: function () { return STR.strikes.replace('{n}', String((CRZ.CFG && CRZ.CFG.maxStrikes) || 3)); },
       ready: function (c) { var s = st(c); return c.seen('ring') && (s.phase === 'run' || s.phase === 'plan' || s.phase === 'summary'); } },
-    // o primeiro cruzamento (3+ ruas): o que e a palavra junction (dia 2+, o dia 1 ja tem 6 baloes)
+    // o primeiro cruzamento (3+ ruas): o que e a palavra crossing (dia 2+, o dia 1 ja tem 6 baloes)
     { id: 'tip:junction', mode: 'toast', nogap: true, text: STR.junction,
       ready: function (c) { var s = st(c); return (s.phase === 'plan' || s.phase === 'run') && (s.day || 0) >= 2 && !!firstJunction(c.game); },
       enter: function (c, cu) { var n = firstJunction(c.game); cu.data.node = n ? n.id : null; },
@@ -742,7 +793,7 @@
       var cu = c.cur;
       return {
         id: cu.step.id, mode: cu.mode, text: textOf(cu), target: targetOf(cu), pos: cu.step.pos || null,
-        hand: !!(cu.step.hand && cu.t >= HAND_AFTER), escape: cu.mode === 'act' && (cu.step.escapeNow || cu.t >= ESCAPE_AFTER),
+        hand: !!(cu.step.hand && cu.t >= HAND_AFTER), escape: cu.mode === 'act' && !cu.step.noEscape && (cu.step.escapeNow || cu.t >= ESCAPE_AFTER),
         extra: extraOf(cu), icon: cu.step.icon || null, avoid: avoidOf(cu), hide: cu.step.hide || null,
         armed: c.clock < armedUntil, tip: cu.step.kind === 'tip',
         // botao: "Continue" so quando ele retoma o dia pausado (avanco de fluxo); informacao e "Got it"
@@ -786,17 +837,32 @@
       modal(false);
       view.hide();
     }
+    var modalCnt = { day: -1, n: 0 };
     function enter(step) {
-      var cu = { step: step, t: 0, missing: 0, phase0: st(c).phase, data: {}, mode: 'continue' };
+      var cu = { step: step, t: 0, missing: 0, phase0: st(c).phase, data: {}, mode: 'continue', at: c.clock };
       c.cur = cu; c.touchAt = c.clock;   // o relogio de 'parada' conta a partir do balao novo
       try { cu.mode = typeof step.mode === 'function' ? step.mode(c) : step.mode; } catch (e) { cu.mode = 'continue'; }
       try { if (step.enter) step.enter(c, cu); } catch (e) {}
       if (cu.mode !== 'continue' && step.done && step.done(c)) { finish(); return false; }
+      // blind2: dicas informativas viram FAIXA de 1 linha (6 s, some ao primeiro toque, sem Got it, nao pausa)
+      var dNow = st(c).day | 0;
+      if (modalCnt.day !== dNow) { modalCnt.day = dNow; modalCnt.n = 0; }
+      var cap = dNow <= EARLY_DAYS ? MODAL_CAP_EARLY : MODAL_CAP;
+      if (isStrip(step) || (step.kind !== 'main' && modalCnt.n >= cap)) {
+        cu.mode = 'strip';
+        var u = uiOf(c), tx = textOf(cu);
+        try { if (u && typeof u.strip === 'function') u.strip(tx, STRIP_S * 1000); } catch (e) {}
+        return true;
+      }
+      modalCnt.n++;
       holdPause(cu);
       modal(cu.mode === 'continue');
       view.show(info());
       return true;
     }
+    function modalsToday() { return modalCnt.day === (st(c).day | 0) ? modalCnt.n : 0; }
+    // faixa: dicas (TIPS, DAILY) que nao ensinam uma ferramenta/mecanica nova; o resto continua balao
+    function isStrip(step) { return !!step.strip || ((step.kind === 'tip' || step.kind === 'daily') && !step.modal); }
     function mainLeft() {
       for (var i = 0; i < MAIN.length; i++) if (!data.seen[MAIN[i].id]) return true;
       return false;
@@ -856,7 +922,9 @@
         }
         break;                                        // futuro: o roteiro espera
       }
-      if (!mainLeft() && !data.seen.seal) { mark('seal'); try { view.seal(STR.seal); } catch (e) {} }
+      // selo so depois dos baloes do dia 3 (cartao do Stop no plano): no run do dia 3 em diante
+      var sd = st(c);
+      if (!mainLeft() && !data.seen.seal && ((sd.day || 0) > 3 || ((sd.day || 0) === 3 && sd.phase === 'run'))) { mark('seal'); try { view.seal(STR.seal); } catch (e) {} }
       // 'crossing' e explicado antes do cartao do Stop (que fala de 'quiet crossings')
       if (!data.seen['tip:junction']) {
         for (i = 0; i < TIPS.length; i++) if (TIPS[i].id === 'tip:junction') {
@@ -887,6 +955,8 @@
       if (!started) return;
       dt = dt > 0 ? dt : 0;
       c.clock += dt;
+      // nv8 1: a janela do 'Tap again to skip' fechou: o rotulo volta a 'Skip tutorial' na hora
+      if (armedUntil > 0 && c.clock >= armedUntil) { armedUntil = -1; if (c.cur && !hidden) view.frame(info()); }
       if (c.ringId !== null && c.ringId !== undefined) {   // pico do no do anel: a queda real do 'Nice'
         var pn = nodeById(c, c.ringId), ps = pn ? pn.stress || 0 : 0;
         if (!(c.ringPeak >= ps)) c.ringPeak = ps;
@@ -901,6 +971,8 @@
       if (ph0 !== c.lastPh) { c.lastPh = ph0; c.phaseAt = c.clock; }
       var blocked = false;
       try { blocked = !!(o.blocked && o.blocked()); } catch (e) {}
+      // o balao 'Tap ☰…' fecha quando o menu abre (ele ja fez o que pedia)
+      if (blocked && c.cur && c.cur.step.id === 'tip:menu') finish();
       if (blocked) {            // menu/tela de inicio aberta: congela o passo atual
         if (!hidden) { hidden = true; view.hide(); }
         try { if (o.release) o.release(); } catch (e) {}
@@ -914,9 +986,17 @@
         var urg = urgentReady();
         if (urg && urg !== cu.step) {
           // passo principal (roteiro) volta depois do aviso, mesmo sem bloquear (o 'run' do dia 1 agora e nudge)
-          if (cu.mode === 'toast' || (cu.mode === 'nudge' && cu.step.kind !== 'main')) finish(); else requeue();
+          // balao com Got it nunca some sozinho (nv6): volta depois do aviso urgente; so toast sem botao sai
+          var hasBtn = info().btn !== 'none';
+          if (!hasBtn && (cu.mode === 'toast' || (cu.mode === 'nudge' && cu.step.kind !== 'main'))) finish(); else requeue();
           cu = null;
         }
+      }
+      if (cu && cu.mode === 'strip') {
+        cu.t += dt;
+        // a faixa sai sozinha em 6 s, no primeiro toque, ou quando a acao dela acontece
+        if (cu.t >= STRIP_S || c.touchAt > cu.at || (cu.step.done && cu.step.done(c))) finish();
+        return;
       }
       if (cu) {
         cu.t += dt;
@@ -946,7 +1026,7 @@
         if (inf.target && inf.target.world && inf.target.world[0] && c.clock - (c.revealAt || 0) >= 0.5) {
           c.revealAt = c.clock;
           var r0 = c.render || (CRZ.app && CRZ.app.render);
-          if (r0 && typeof r0.reveal === 'function' && !(r0.held && r0.held())) { try { r0.reveal(inf.target.world[0].x, inf.target.world[0].y, true); } catch (e) {} }
+          if (r0 && typeof r0.reveal === 'function' && !(r0.held && r0.held()) && offScreen(r0, inf.target.world[0])) { try { r0.reveal(inf.target.world[0].x, inf.target.world[0].y, true); } catch (e) {} }
         }
         if (inf.target !== undefined && !found) {
           c.cur.missing += dt;
@@ -986,6 +1066,8 @@
         // Boost recusado no passo que pausa: volta a pausar ate a jogadora acertar
         if (!d.ok && c.cur && wantsPause(c.cur) && c.cur.mode === 'act') holdPause(c.cur);
       }
+      // b003: construiu antes do Got it: cartao/dica so de leitura sai (nao fica balao velho na tela)
+      if ((d.type === 'roadBuilt' || d.type === 'toolPlaced') && c.cur && !hidden && (c.cur.step.kind === 'tool' || c.cur.step.kind === 'tip') && info().btn === 'ok') { finish(); return; }
       var cu = c.cur;
       if (!cu || !cu.step.on || hidden) return;
       var v = cu.step.on[d.type];
@@ -1013,12 +1095,15 @@
         if (c.cur === cu0) finish();
         return okB;
       }
+      if (c.cur.mode === 'act' && c.cur.step.noEscape) return;   // passo que so avanca com a acao (a estrada do dia 1)
       if (c.cur.mode !== 'act' || c.cur.step.escapeNow || c.cur.t >= ESCAPE_AFTER) finish();
     }
     // 'Slow down' do balao do anel: 2x, fica ate a jogadora mudar; fecha o balao
     function slow() {
       if (!c.cur || !c.cur.data.alt) return;
-      try { if (c.game.setSpeed) c.game.setSpeed(2); else st(c).speed = 2; } catch (e) {}
+      // A2: vai para a velocidade mais lenta anterior de verdade (4x -> 2x, 2x -> 1x), nunca cicla
+      var sp = (st(c).speed || 1) > 2 ? 2 : 1;
+      try { if (c.game.setSpeed) c.game.setSpeed(sp); else st(c).speed = sp; } catch (e) {}
       c.niceAct = true;
       finish();
     }
@@ -1050,11 +1135,27 @@
 
     return {
       start: function () { started = true; },
+      modalsToday: modalsToday,
       skip: skip, replay: replay, destroy: destroy, update: update,
       isActive: function () { return !!c.cur && !hidden; },
       // o roteiro ainda tem passos (nao pulado, nao acabou): a UI segura os proprios avisos de primeiro uso
       inScript: function () { return !!started && !data.skipped && mainLeft(); },
       wasSkipped: function () { return !!data.skipped; },
+      // o Play fica travado enquanto um passo do roteiro que NAO pede o Play esta aberto no plano
+      // nv6: tambem com QUALQUER balao com Got it aberto (dica de crossing, cartao do Stop, balao do raio no dia 1);
+      // o balao que pede o proprio botao (Play/velocidade) nao trava
+      blocksPlay: function () {
+        if (!c.cur || hidden || c.cur.mode === 'strip') return false;   // faixa nunca trava o Play
+        var tg = targetOf(c.cur), self = !!(tg && (tg.sel === 'play' || tg.sel === 'speed'));
+        if (self) return false;
+        var inf = info();
+        if (inf.btn === 'ok' || inf.btn === 'go') return true;
+        if (inf.btn === 'none' && c.cur.t > 20) return false;   // A1: saida garantida, nenhum passo trava o Play para sempre
+        return st(c).phase === 'plan' && c.cur.step.kind === 'main';
+      },
+      // nv7: no dia 1 a velocidade fica em 1x ate o balao de SPEED ser lido
+      speedLocked: function () { var s = st(c); return !!started && !data.skipped && (s.day || 0) === 1 && s.phase === 'run' && !data.seen.speedTaught; },
+      bump: function () { c.touchAt = c.clock; try { if (view.again) view.again(); } catch (e) {} },
       handleUI: handleUI, handleGame: handleGame, cont: cont, slow: slow, tap: tap, skipTap: skipTap, dimTap: dimTap,
       touched: function () { c.touchAt = c.clock; }, againCount: function () { return c.againN || 0; },
       current: function () { return c.cur ? c.cur.step.id : null; },
@@ -1224,6 +1325,10 @@
     // pass: o escuro so desenha; o toque passa para o mapa e o HUD
     '.crz-tut.pass .crz-tut-dim{pointer-events:none}',
     '.crz-tut-hole{position:fixed;pointer-events:auto;display:none}',
+    '.crz-tut-dim.clear{background:transparent}',
+    '.crz-tut-shade{position:fixed;pointer-events:none;display:none;box-shadow:0 0 0 300vmax rgba(17,17,17,.34)}',
+    '.crz-tut.block .crz-tut-shade.on{display:block}',
+    '.crz-tut.edge .crz-tut-shade{display:none}',
     '.crz-tut.continue .crz-tut-hole{display:block}',
     '.crz-tut-ring{position:fixed;box-sizing:border-box;border:2px solid #d9261c;border-radius:14px;pointer-events:none;display:none}',
     '.crz-tut-ring.on{display:block}',
@@ -1235,7 +1340,9 @@
     '.crz-tut-row{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:4px}',
     '.crz-tut button{font:inherit;color:inherit;background:none;border:0;margin:0;padding:0;-webkit-appearance:none;appearance:none;touch-action:manipulation;cursor:pointer}',
     // #8a8a8a dava 3,4:1 no branco; #666 da 5,7:1. ::after estende o toque a 44 px sem mudar o desenho
-    '.crz-tut .crz-tut-skip{font-size:12px;color:#666;min-height:40px;padding:0 2px;text-align:left;position:relative}',
+    // playtest as cegas: 'Skip tutorial' mais visivel e com 44 px; o Got it sempre no mesmo canto (direita)
+    '.crz-tut .crz-tut-skip{font-size:14px;color:#333;text-decoration:underline;min-height:44px;padding:0 2px;text-align:left;position:relative}',
+    '.crz-tut .crz-tut-row .crz-tut-go{margin-left:auto}',
     '.crz-tut .crz-tut-skip::after,.crz-tut .crz-tut-go::after{content:"";position:absolute;left:50%;top:50%;width:100%;height:100%;min-width:44px;min-height:44px;transform:translate(-50%,-50%)}',
     '.crz-tut .crz-tut-skip.armed{color:#d9261c}',
     '.crz-tut .crz-tut-skip.gone{visibility:hidden}',
@@ -1285,6 +1392,8 @@
     var wrap = doc.createElement('div'); wrap.className = 'crz-tut';
     host.appendChild(wrap);
     var dims = [el('div', 'crz-tut-dim'), el('div', 'crz-tut-dim'), el('div', 'crz-tut-dim'), el('div', 'crz-tut-dim')];
+    // nv8 7: recorte redondo: as 4 faixas seguram o toque (transparentes) e a sombra arredondada escurece
+    var shade = el('div', 'crz-tut-shade');
     var hole = el('div', 'crz-tut-hole');
     var ring = el('div', 'crz-tut-ring');
     var ring2 = el('div', 'crz-tut-ring'), ring3 = el('div', 'crz-tut-ring');
@@ -1421,7 +1530,12 @@
     function find(name) {
       var now = Date.now(), rc = rectCache[name];
       if (rc && now - rc.at < MEASURE_MS) return rc.r;
-      var r = visible(lookup(name));
+      var el0 = lookup(name), r = visible(el0);
+      // rotulos do HUD sob o alvo (Day N of 12, Strikes, Today/Tomorrow) contam como parte dele: a seta do
+      // balao para abaixo deles e nao os cobre
+      if (r && el0 && el0.querySelectorAll) {
+        try { var lb = el0.querySelectorAll('.crz-lbl'), k; for (k = 0; k < lb.length; k++) r = union(r, visible(lb[k])); } catch (e) {}
+      }
       rectCache[name] = { r: r, at: now };
       return r;
     }
@@ -1430,10 +1544,10 @@
     function hudBand(vs) {
       var now = Date.now();
       if (hudCache && now - hudAt < 400) return hudCache;
-      var top = 0, bottom = vs.h, sels = ['.crz-bottom', '[data-tut="fit"]', '.crzm-pausebtn.show', '.crz-clear'], i, r;
+      var top = 0, bottom = vs.h, sels = ['.crz-bottom', '[data-tut="fit"]', '.crzm-pausebtn.show', '.crz-clear', '.crz-legend', '.crz-guidebtn'], i, r;
       r = visibleQ('.crz-top'); if (r) top = r.y + r.h;
-      // faixa de aviso da UI aberta (recusa, dica): o balao desce para nao cobri-la
-      r = visibleQ('.crz-say.show'); if (r && r.y + r.h > top) top = r.y + r.h;
+      // nv7: o aviso preto NAO empurra mais o balao (ele pulava 66 px quando o aviso sumia); com balao aberto a UI
+      // segura o aviso ate o balao fechar
       for (i = 0; i < sels.length; i++) { r = visibleQ(sels[i]); if (r && r.y < bottom && r.y > vs.h * 0.4) bottom = r.y; }
       hudCache = { top: top, bottom: bottom }; hudAt = now;
       return hudCache;
@@ -1486,7 +1600,8 @@
       revPts = [];
       for (i = 0; i < d.world.length; i++) revPts.push(Math.round(d.world[i].x), Math.round(d.world[i].y));
       try {
-        for (i = 0; i < d.world.length; i++) if (render.reveal(d.world[i].x, d.world[i].y, true)) break;
+        // so alvo de fato fora da tela (antes: rente a margem tambem, e a camera andava 40 a 90 px no plano)
+        for (i = 0; i < d.world.length; i++) if (offScreen(render, d.world[i], win) && render.reveal(d.world[i].x, d.world[i].y, true)) break;
       } catch (e) {}
     }
     // classe no body enquanto ha balao: o selo PAUSED do menu sobe para o topo e nao cobre o alvo
@@ -1549,6 +1664,9 @@
         }
         if (!av.length) av = null;
       }
+      // nv8 6: um aviso preto de recusa ('Build one road first...') que aparece com o balao aberto nao fica coberto
+      var sayR = visibleQ('.crz-say.show');
+      if (sayR) { av = av || []; av.push(sayR); }
       if (placeChanged(r, vs, hb, edgeSp, av)) {
         wrap.className = wrap.className.replace(/ edge\b/, '') + (edgeSp ? ' edge' : '');
         edgeArrow.className = 'crz-tut-edge';
@@ -1574,11 +1692,14 @@
           var round = inf.target && inf.target.round;
           ring.style.borderRadius = round ? Math.round(Math.min(r.w, r.h) / 2) + 'px' : '14px';
           ring.className = 'crz-tut-ring on';
+          put(shade, r.x, r.y, r.w, r.h); shade.style.borderRadius = ring.style.borderRadius; shade.className = 'crz-tut-shade on';
+          for (var di = 0; di < 4; di++) dims[di].className = 'crz-tut-dim clear';
         } else {
           put(dims[0], 0, 0, vs.w, vs.h);
           put(dims[1], 0, 0, 0, 0); put(dims[2], 0, 0, 0, 0); put(dims[3], 0, 0, 0, 0);
           put(hole, 0, 0, 0, 0);
           ring.className = 'crz-tut-ring';
+          shade.className = 'crz-tut-shade'; dims[0].className = 'crz-tut-dim';
         }
         var pl = placeBalloon(r, bw, bh, vs.w, vs.h, safe, inf.pos, hb, av);
         box.style.left = Math.round(pl.x) + 'px'; box.style.top = Math.round(pl.y) + 'px';
@@ -1749,6 +1870,7 @@
     try { if (o.game && o.game.onEvent) offGame = o.game.onEvent(function (ev) { m.handleGame(ev); }); } catch (e) {}
     return {
       start: m.start, skip: m.skip, replay: m.replay, isActive: m.isActive, inScript: m.inScript, wasSkipped: m.wasSkipped, update: m.update,
+      blocksPlay: m.blocksPlay, bump: m.bump, speedLocked: m.speedLocked,
       current: m.current,
       destroy: function () { if (doc) { doc.removeEventListener('crz:ui', onUI); try { doc.removeEventListener('pointerdown', onTouchAny, true); } catch (e) {} } try { if (typeof offGame === 'function') offGame(); } catch (e) {} m.destroy(); }
     };

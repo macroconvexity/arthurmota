@@ -1374,7 +1374,15 @@
         var base = (n.tool ? ps * 0.5 : dotR) + 5;
         ctx.beginPath();
         var wantDash = false;
-        if (n.locked && n.tool) {
+        // ponta de rua (portal sem ferramenta e com menos de 3 ruas): o sim limita a 0.95, nunca trava e nao ha
+        // acao util; so ambar tracejado e fino, nunca vermelho continuo nem X (igual ao "Busy road end" da UI)
+        var isEnd = !!n.portal && !n.tool && !(n.edges && n.edges.length >= 3);
+        if (isEnd && !n.locked) {
+          sv = sv > 1 ? 1 : sv;
+          circle(rx2, ry2, (base + 1 + (sv - RING_MIN) / (1 - RING_MIN) * 6) * (reduceMotion ? 1 : 1 + 0.04 * Math.sin(now * 0.005)));
+          if (!reduceMotion) frameAnim = true;
+          wantDash = true; ctx.lineWidth = 1.8; ctx.globalAlpha = 0.85;
+        } else if (n.locked && n.tool) {
           // ja tem sinal: arco em volta do icone, aberto no canto onde fica o X (o icone fica livre)
           var lr = base + 7;
           ctx.moveTo(rx2 + Math.cos(LOCK_A0) * lr, ry2 + Math.sin(LOCK_A0) * lr);

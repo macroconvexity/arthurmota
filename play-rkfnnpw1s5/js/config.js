@@ -132,6 +132,16 @@
     //  - num cruzamento sofrendo: escoa a fila dele (mul x mais rapido por `seconds`, alivia estresse).
     // Cada toque gasta uma carga. O dia nao desacelera sozinho: a velocidade e escolha do jogador.
     clear: { unlockDay: 1, charges: 3, seconds: 6, mul: 2.2, stressRelief: 0.2, minStress: 0 },   // minStress > 0: Boost recusa (calm) no com estresse <= minStress (desligado: Boost preventivo vale)
+    // Dias de aprendizado (2026-11-09, Arthur: hipercasual, nunca so assistindo). Nos dias 1..days, durante o dia,
+    // cada carga de Boost usada volta depois de regenSeconds de tempo de JOGO (sem passar de clear.charges). A partir
+    // do 4o Boost do dia o carro mandado pela ponta nao paga gorjeta (Delivery bonus fica como se so 3 valessem).
+    // days: 0 desliga. Dia > days: exatamente a regra antiga (3 cargas por dia).
+    earlyBoost: { days: 3, regenSeconds: 5 },
+    // Fast-forward (2026-11-10, Arthur: hipercasual, quando nao ha nada a fazer a jogadora PULA). Durante o dia,
+    // game.setFastForward(true) roda `speed` x o tempo de parede (mesmos passos fixos de 1/30 s: a sequencia de estados
+    // e a da velocidade escolhida, so mais rapida). Termina sozinho com estresse >= autoSlowStress em qualquer no, fim
+    // do dia, strike ou acao da jogadora. Delivery bonus por carro usa no maximo a recompensa de bonusSpeedCap x.
+    fastForward: { speed: 8, autoSlowStress: 0.3, bonusSpeedCap: 4 },
 
     // dado do dia. Rola ao entrar no planejamento; a previsao de amanha tambem fica visivel.
     // `kind` agrupa para a UI: bad | plain | good | great | jackpot.

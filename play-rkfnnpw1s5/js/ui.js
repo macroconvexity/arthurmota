@@ -14,7 +14,7 @@
     cars: 'cars',
     win: 'You made it',
     lose: 'Crossing jammed',
-    // vocabulario fixo: "ring" = qualquer anel, "busy junction" = anel ambar (0,3-0,6),
+    // vocabulario fixo: "ring" = qualquer anel, "busy crossing" = anel ambar (0,3-0,6),
     // "red ring" = anel vermelho (acima de 0,6), "locked" = travou
     lockedSay: 'This crossing jammed: 1 strike.',
     loseCause: function (d, sign) { return 'Day ' + d + ': ' + (sign ? 'the crossing with a ' + sign : 'a crossing with no sign') + ' jammed.'; },
@@ -42,9 +42,12 @@
     // rotulos curtos do HUD (Arthur, 2026-11-09: 'nao assuma que o jogador sabe nada'): cada marcador diz o que e
     lblDay: function (d, m) { return 'Day ' + d + ' of ' + m; },
     lblStrikes: 'Strikes', lblDie: 'Die', lblBp: 'Build points',
-    lblTomorrow: function (v) { return 'Tomorrow: ' + v; },
+    lblTomorrow: function (id) { return 'Tomorrow: ' + (STR.dieShort[id] || 'normal'); },
     // sob o dado: o tipo do dia em palavra comum; sob o numero tracejado: 'Tomorrow' (parecia o preco do relance)
-    lblToday: function (kind) { return 'Today: ' + ({ bad: 'bad', good: 'good', great: 'great', jackpot: 'jackpot' }[kind] || 'normal'); },
+    lblToday: function (id, kind) { return 'Today: ' + (STR.dieShort[id] || ({ bad: 'bad', good: 'good', great: 'great', jackpot: 'jackpot' }[kind] || 'normal')); },
+    // o efeito do dado em 2 ou 3 palavras (rotulos do topo)
+    dieShort: { rush: 'more cars', rain: 'slower cars', festival: 'more cars', plain: 'normal', luck1: '+1 point', luck2: '+2 points',
+                luck3: '+3 points', free: 'free build', calm: 'fewer cars', jackpot: '+5 points' },
     // primeiro gasto da partida (uma vez): o que aconteceu com os pontos
     firstSpend: function (n) { return 'You spent ' + n + (n === 1 ? ' build point' : ' build points') + '. You get new build points every day. Up to 3 unused ones carry over.'; },
     lblPts: function (n) { return n + (n === 1 ? ' build point' : ' build points'); },
@@ -54,9 +57,9 @@
     nextShort: 'Not enough points to build more. Tap \u25b6 to start the day.',
     nextNew: 'Give each NEW crossing a sign, then tap \u25b6.',
     roadTile: 'Road',
-    roadFirstTut: 'Build one road first: tap New road, then drag from a circled end.',
+    roadFirstTut: 'Build one road first: tap Road, then drag from a circled end.',
     roadFirst: 'Build one road first.',
-    carryAsk: function (b, cap) { return 'You have ' + b + ' build points. Only ' + cap + ' carry over. Start anyway?'; },
+    carryAsk: function (b, cap) { return 'You have ' + b + ' build points. Only ' + cap + ' carry over. Tap \u25b6 again to start.'; },
     dieFirst: 'Tap the die to see today\'s effect.',
     speedFirst: 'This button is now SPEED. Tap: 1\u00d7 \u2192 2\u00d7 \u2192 4\u00d7. Faster = bonus build points, but drivers lose patience sooner.',
     toolUse: function (id) {
@@ -65,8 +68,81 @@
       if (id === 'cross') return 'Pick ' + n + ', then tap a crossing.';
       return 'Pick ' + n + ', then tap a crossing that has no sign.';
     },
-    nextFirst: 'Pick New road, drag from a circled end, then tap \u25b6.',
+    nextFirst: 'Pick Road, drag from a circled end, then tap \u25b6.',
     pickAgain: 'Tap again to pick it.',
+    halfway: 'Halfway! You can stop here: your game is saved.',
+    cStart: 'Start day', cBack: 'Back to building',
+    cWhyNew: function (n) { return n === 1 ? '1 new crossing has no sign.' : n + ' new crossings have no sign.'; },
+    cWhyFree: 'You still have a free road today.',
+    cWhyCarry: function (b, cap) { return 'You have ' + b + ' build points. ' + (b - cap) + ' will be lost.'; },
+    cSpend: 'Spend them', cAnyway: 'Start anyway',
+    undid: function (lbl, back) { return 'Undid' + (lbl ? ': ' + lbl : '') + (back > 0 ? ' (+' + back + (back === 1 ? ' point)' : ' points)') : '') + '.'; },
+    boostNothing: 'Nothing to boost here yet.', boostAllCalm: 'All calm. Nothing needs a boost.',
+    freeRoadNow: 'Your next road costs nothing.',
+    rerollLbl: function (c) { return 'Reroll: ' + c + (c === 1 ? ' point' : ' points'); },
+    rerollAria: function (c) { return 'Reroll today\'s roll for ' + c + (c === 1 ? ' build point' : ' build points'); },
+    // hipercasual (Arthur): uma frase, uma vez, sem meta nem contador
+    runHint: 'Tap a road end to send an extra car. Your \u26a1 recharge.',
+    extraCar: '+1 extra car',
+    dragFurther: 'Drag further to build.',
+    tryNormal: 'Try Normal',
+    // dicionario de botoes (Roberta 2026-11-09): uma frase por ferramenta
+    toolUseLine: {
+      road: 'Drag from a circled road end or a crossing to build a road.',
+      stop: 'Cars take turns. Best at quiet crossings.',
+      yield: 'The main road never stops. Best where a busy road meets a side road.',
+      light: 'Handles heavy four-way traffic. Pair two lights for a green wave.',
+      upgrade: 'Tap a road to double its flow. Best with a traffic light.',
+      cross: 'Cars stay calm longer, so rings show up later. Replaces the sign.',
+      round: 'For four or more busy roads. Weak at a T.',
+      oneway: 'Tap a road: cars drive away from the half you tap.'
+    },
+    toolWorks: {
+      road: 'Joins a road end or a crossing to a new spot. Undo gives the points back.',
+      stop: 'Goes on a crossing with 3 or more roads. Replaces the sign there.',
+      yield: 'Goes on a crossing with 3 or more roads. Replaces the sign there.',
+      light: 'Goes on a crossing with 3 or more roads. Works best with Two lanes.',
+      upgrade: 'Works on any road. Best on the road into a traffic light.',
+      cross: 'Goes where 2 or more roads meet. Replaces the sign there.',
+      round: 'Goes on a crossing with 4 or more roads. Replaces the sign there.',
+      oneway: 'Tap again to flip, a third time for two-way. Cars with no way out wait.'
+    },
+    legend: function (name, cost, line) { return name + ' \u00b7 ' + (cost <= 0 ? 'free' : cost + (cost === 1 ? ' point' : ' points')) + ' \u00b7 ' + line; },
+    guideTitle: 'Tools & buttons', guideOpen: 'Tools and buttons', guideClose: 'Close',
+    guideTools: 'Tools', guideMap: 'On the map',
+    guideMapRows: [
+      ['car', 'Small blue squares', 'Cars. Each one drives to another road end.'],
+      ['arrows', 'Arrows on a road', 'The way cars go on that road.'],
+      ['end', 'Circled dot', 'A road end: cars come in and leave here.'],
+      ['cross', 'Dot where roads meet', 'A crossing. Signs go here.'],
+      ['boost', 'Green ring', 'A boost is working here right now.']
+    ],
+    toolWorksLightEarly: 'Goes on a crossing with 3 or more roads. Replaces the sign there.', guideMore: 'More tools arrive each day.', guideButtons: 'Buttons', guideMarks: 'Colors and marks', guideCards: 'Reward cards',
+    guideBtnRows: [
+      ['\u25b6', 'Play / speed', 'Starts the day. While it runs, tap for 1\u00d7, 2\u00d7 or 4\u00d7.'],
+      ['\u275a\u275a', 'Pause', 'Stops the day for a moment. Tap again to go on.'],
+      ['\u21b6', 'Undo', 'Takes back your last build and gives the points back.'],
+      ['\u26f6', 'Fit', 'Shows the whole city.'],
+      ['\u26a1', 'Boost', 'Recharges in the first days; 3 a day after that. Sends an extra car from a road end, or clears a busy crossing.'],
+      ['\u2680', 'Die', 'Today\'s effect and tomorrow\'s. Reroll once a day for 1 point.'],
+      ['\u2630', 'Menu', 'How to play, sound, this guide and a new game.']
+    ],
+    guideMarkRows: [
+      ['amber', 'Amber ring', 'A busy crossing: cars are queuing.'],
+      ['red', 'Red ring', 'About to jam. A jam is a strike.'],
+      ['hot', 'Gray dashed ring', 'Yesterday\'s trouble spot.'],
+      ['new', 'NEW', 'Roads just met here. Give it a sign.'],
+      ['days', 'Day dots', 'The red dot is today. 12 days in all.'],
+      ['strikes', 'Strike circles', 'A jam fills one. All full ends the run.'],
+      ['points', 'Build points', 'Spend them on roads and signs. Up to 3 unused carry over.']
+    ],
+    // resumo enxuto (Roberta 2026-11-09)
+    infoQueue: 'The longest line of waiting cars today. A full bar means a crossing almost jammed.',
+    infoBonus: 'Every car delivered fills this bar; 2\u00d7 and 4\u00d7 fill it faster. Full bar: +1 build point tomorrow.',
+    bvalPlus: function (n, last) { return '+' + n + (n === 1 ? ' point' : ' points') + (last ? '' : ' tomorrow'); },
+    todoNew: function (n) { return 'To do before tomorrow: ' + n + (n === 1 ? ' new crossing needs a sign \u203a' : ' new crossings need a sign \u203a'); },
+    todoBusy: 'Busiest crossing today \u203a',
+    todoBusyWhy: 'This crossing got too busy. Tomorrow, tap its \u26a1 early.',
     boosted: 'Boosted!',
     boostedSend: 'Boosted! An extra car is on its way.',
     boostedJFirst: 'Boosted: cars here move faster for a few seconds.',
@@ -129,12 +205,19 @@
     confirmNew: 'Tap again to start a new game',
     dayRunning: 'Day in progress',
     speedLabel: 'Speed',
+    ffChip: 'Skip \u23e9',
+    ffLabel: 'Skip ahead (fast forward)',
+    ffOn: '\u23e9',
+    ffSlowed: 'Slowed down: a crossing is getting busy.',
     tipNext: '+1 tomorrow',
     speedBonusYes: 'Delivery bonus: +',
     speedBonusTail: ' tomorrow',
     speedBonusNone: 'Delivery bonus: ',
     speedBonusToward: ' toward +1 build point',
     speedBonusHow: 'Every car delivered fills it; 2\u00d7 and 4\u00d7 fill it faster.',
+    bonusParts: function (cars, speed, prev) {
+      return ' (' + cars + (cars === 1 ? ' car' : ' cars') + (speed > 0 ? ' + ' + speed + ' speed bonus' : '') + (prev > 0 ? ' + ' + prev + ' saved' : '') + ')';
+    },
     // a barra verde sob os pontos durante o dia: rotulo (antes ninguem sabia o que era)
     tipLbl: 'Delivery bonus',
     boost: 'Boost',
@@ -195,7 +278,7 @@
       // Boost numa ponta cuja rua esta na fila do cruzamento a frente
       portalQueue: 'The queue is at the pulsing crossing ahead. Boost it there.',
       // Boost recusado pelo game: sem fila no no, dia pausado, ainda bloqueado
-      boostCalm: 'No queue here. Boost a busy crossing or a road end.',
+      boostCalm: 'Nothing to boost here yet.',
       boostPhase: 'Boost works while cars are moving.',
       boostLocked: function (d) { return 'Boost unlocks on day ' + d + '.'; },
       other: 'Can\'t build there: this spot doesn\'t take that tool.',
@@ -259,7 +342,7 @@
     closing: function (d) { return 'Last day done: your city kept moving for all ' + d + ' days.'; },
     tomorrowLast: 'Tomorrow is the last day.',
     // dia 1: arrasto sem ferramenta que comecou no meio de uma rua (nada acontecia)
-    roadPickFirst: 'To build, pick New road, then drag from a road end.',
+    roadPickFirst: 'To build, pick Road, then drag from a road end.',
     // fantasma: a ponta solta nao vai virar portal (teto de portais do jogador)
     ghostDeadEnd: 'Dead end: no cars will come here',
     // ajudas do dia 4 em diante (RESULTS_HUMANS 2026-11-08): ensinam a acao, nao a fazem
@@ -290,8 +373,8 @@
     daysLegend: 'Each square is a day: red = a strike day',
     daysAria: function (n, b) { return n + (n === 1 ? ' day played, ' : ' days played, ') + b + (b === 1 ? ' with a strike.' : ' with a strike.'); },
     more: 'more',
-    playAsk: function (n) { return (n === 1 ? '1 new crossing has no sign.' : n + ' new crossings have no sign.') + ' Start anyway?'; },
-    tools: { road: 'New road', stop: 'Stop', yield: 'Yield', light: 'Traffic light', upgrade: 'Two lanes',
+    playAsk: function (n) { return (n === 1 ? '1 new crossing has no sign.' : n + ' new crossings have no sign.') + ' Tap \u25b6 again to start.'; },
+    tools: { road: 'Road', stop: 'Stop', yield: 'Yield', light: 'Traffic light', upgrade: 'Two lanes',
              cross: 'Crosswalk', round: 'Roundabout', oneway: 'One-way' },
     events: { calm: 'Calm', plain: 'Normal', busy: 'Busy', rush: 'Rush', rain: 'Rain', festival: 'Festival' },
     // dado do dia: nome e descricao de reserva (a descricao e gerada do effect quando ele existe)
@@ -403,7 +486,7 @@
   // rotatoria perde os 4 pontos do semaforo, e a dica repetia isso dia apos dia. So recomenda a rotatoria com
   // 4+ bracos, rotatoria claramente melhor (roundBeats) e budget > custo da rotatoria + 2. Sem budget: nunca.
   var SIGN_RANK = { cross: 1, yield: 2, stop: 3, light: 4, round: 5 };
-  // vocabulario do anel igual a cor do render: 0,3 a 0,6 ambar tracejado ('Busy junction'), acima de 0,6
+  // vocabulario do anel igual a cor do render: 0,3 a 0,6 ambar tracejado ('Busy crossing'), acima de 0,6
   // ou travado vermelho continuo ('Red ring'); sem nivel conhecido (teste puro, no calmo): 'Ring' generico
   var RING_BUSY = 0.3, RING_RED = 0.6;
   function ringLevel(n, heat) {
@@ -719,7 +802,8 @@
     if (!ctx) return true;
     if (id === 'patient') return peak >= RING_SEEN;
     // o dado de amanha ja da o semaforo de graca: a carta seria jogada fora (as duas gratuidades nao somam)
-    if (id === 'freeLight') return toolOpen(ctx.cfg, 'light', ctx.day | 0) && !ctx.dieFreeLight;
+    // a carta vale AMANHA: o semaforo precisa existir amanha (no dia 4 a carta do dia 5 dizia 'come later')
+    if (id === 'freeLight') return toolOpen(ctx.cfg, 'light', (ctx.day | 0) + 1) && !ctx.dieFreeLight;
     if (id === 'waveBonus') return (ctx.pairs | 0) > 0;
     return true;
   }
@@ -1165,6 +1249,16 @@
     var unlockedIds = null, tiles = {};
     var hints = {};
     try { hints = JSON.parse(lsGet(HINT_KEY) || '{}') || {}; } catch (e) { hints = {}; }
+    // L1: so objeto (primitivo ou lista fazia seen() sempre falso e a fila de dicas crescer todo quadro)
+    if (!hints || typeof hints !== 'object' || Array.isArray(hints)) hints = {};
+    // M4: dicas 'uma vez por PARTIDA' levam a semente na chave; as de outras partidas saem ao carregar
+    var PER_RUN = { sumInfo: 1, firstSpend: 1, ringGroup: 1, day4rule: 1, boostJ1: 1, runHint: 1, half6: 1 };
+    var runTag = '@' + ((game.world && game.world.seed) != null ? game.world.seed : 0);
+    (function pruneRunHints() {
+      var k, ch = false;
+      for (k in hints) if (hints.hasOwnProperty(k) && k.indexOf('@') > 0 && k.slice(k.indexOf('@')) !== runTag) { delete hints[k]; ch = true; }
+      if (ch) lsSet(HINT_KEY, JSON.stringify(hints));
+    })();
     var hint = null;
 
     // ---- DOM ----
@@ -1227,8 +1321,15 @@
     tray.appendChild(tilesEl); tray.appendChild(undoBtn); tray.appendChild(playBtn);
     // carta ativa do dia: chip acima do orcamento (plan e run); tocar explica o efeito
     var chipEl = tut(el('button', 'crz-chip gone'), 'card-chip'), chipKey = '';
-    // plano, dia 4+: "N new junctions" (cruzamentos desta manha sem sinal); tocar centraliza o primeiro
+    // plano, dia 4+: "N new crossings" (cruzamentos desta manha sem sinal); tocar centraliza o primeiro
     var njChipEl = tut(el('button', 'crz-njchip gone'), 'newj-chip'), njChipKey = '';
+    // legenda da ferramenta na mao (acima da bandeja) e botao '?' do guia de botoes
+    var legendEl = tut(el('div', 'crz-legend gone'), 'legend');
+    legendEl.setAttribute('role', 'status'); legendEl.setAttribute('aria-live', 'polite');
+    bottom.appendChild(legendEl);
+    var guideBtn = tut(el('button', 'crz-guidebtn', '?'), 'guide-btn');
+    guideBtn.setAttribute('aria-label', STR.guideOpen);
+    bottom.appendChild(guideBtn);
     // dia 1: faixa fixa 'agora toque no Play' (nunca sem proximo passo; ver nextStepTick)
     var nextEl = tut(el('div', 'crz-next gone'), 'next-step');
     nextEl.setAttribute('role', 'status'); nextEl.setAttribute('aria-live', 'polite');
@@ -1241,6 +1342,10 @@
     var fitBtn = tut(el('button', 'crz-fit gone', svg(FIT_ICON, '0 0 24 24')), 'fit');
     fitBtn.setAttribute('aria-label', STR.fitAll);
     bottom.appendChild(fitBtn);
+    // blind2 9: 'Skip' (fast-forward) na corrida, dias 3+, quando a cidade esta calma ha 4 s
+    var ffChipEl = tut(el('button', 'crz-ffchip gone', STR.ffChip), 'ff-chip');
+    ffChipEl.setAttribute('aria-label', STR.ffLabel);
+    bottom.appendChild(ffChipEl);
 
     var sumEl = el('div', 'crz-sheet crz-sum');
     var panel = tut(el('div', 'crz-panel'), 'summary');
@@ -1255,15 +1360,34 @@
       var r = el('div', 'crz-srow'), lb = el('span', 'crz-slab');
       lb.textContent = label; r.appendChild(lb); r.appendChild(body); return r;
     }
+    // (i) ao lado do titulo da barra: abre/fecha uma explicacao de 2 linhas (aberta no primeiro resumo da partida)
+    var infoRows = [];
+    function addInfo(row, textFn) {
+      var lb = row.children[0], b = el('button', 'crz-sinfo', 'i'), box = el('div', 'crz-sinfotxt gone');
+      b.setAttribute('aria-label', 'What is this?'); b.setAttribute('aria-expanded', 'false');
+      lb.appendChild(b);
+      var item = { btn: b, box: box, text: textFn };
+      on(b, 'click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); setInfo(item, box.classList.contains('gone')); });
+      infoRows.push(item);
+      return box;
+    }
+    function setInfo(item, open) {
+      item.box.classList.toggle('gone', !open); item.btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open) item.box.textContent = item.text();
+    }
     // pior fila do dia (summary.peak, o anel vermelho mais cheio)
     var waitEl = el('div', 'crz-wait'), waitFill = el('i');
     waitEl.appendChild(waitFill);
     var queueRow = sumRow(STR.sumQueue, waitEl);
+    var queueInfo = addInfo(queueRow, function () { return STR.infoQueue; });
     // bonus de velocidade: barra de 0 a perPoint (data-tut 'bonus': o tutorial aponta para ela)
     var bonusBar = el('div', 'crz-wait crz-bbar'), bonusFill = el('i');
     bonusBar.appendChild(bonusFill);
     var bonusRow = tut(sumRow(STR.sumBonus, bonusBar), 'bonus');
-    var bonusEl = el('div', 'crz-bonus gone');
+    // o valor fica na propria barra, a direita ('+2 tomorrow' ou '21/30'): sem linha verde extra
+    var bonusVal = el('span', 'crz-bval'); bonusRow.appendChild(bonusVal);
+    var bonusEl = el('div', 'crz-bonus crz-bline gone');
+    var bonusInfo = addInfo(bonusRow, function () { return STR.infoBonus + (bonusEl.textContent && /\(/.test(bonusEl.textContent) ? ' ' + bonusEl.textContent.replace(/^[^(]*\(/, 'Today: ').replace(/\)$/, '.') : ''); });
     var sStrikes = tut(el('div', 'crz-sstrikes'), 'summary-strikes'), sStrikeEls = [];
     for (i = 0; i < CFG.maxStrikes; i++) { var ss = el('span', 'crz-strike'); sStrikes.appendChild(ss); sStrikeEls.push(ss); }
     var strikeRow = sumRow(STR.sumStrikes, sStrikes);
@@ -1271,6 +1395,8 @@
     var jamEl = tut(el('div', 'crz-sjam gone'), 'summary-jam');
     // cruzamentos que o crescimento criou e seguem sem sinal: toque centraliza e destaca o primeiro
     var newJEl = tut(el('button', 'crz-snewj gone'), 'summary-newj');
+    // UMA dica de acao por resumo, tocavel, sem vermelho de alarme: tarefa NEW ou o cruzamento mais cheio
+    var todoEl = tut(el('button', 'crz-todo gone'), 'summary-todo'), todoKind = null, todoNode = null;
     // carros perdidos (mao unica sem saida): so aparece se perderam; toque mostra o motivo
     var lostEl = tut(el('button', 'crz-bonus lost gone'), 'summary-lost');
     lostEl.style.cssText = 'background:none;border:0;padding:0;font:inherit;text-align:left;cursor:pointer;width:100%';
@@ -1290,7 +1416,12 @@
     panel.appendChild(headEl); panel.appendChild(bigEl); panel.appendChild(capEl); panel.appendChild(prevEl); panel.appendChild(closeEl); panel.appendChild(queueRow);
     // pontos que passam ao dia seguinte (ate CFG.carryCap): 'Saved for tomorrow: N'
     var carryEl = el('div', 'crz-bonus crz-carry gone');
-    panel.appendChild(bonusRow); panel.appendChild(strikeRow); panel.appendChild(bonusEl); panel.appendChild(carryEl); panel.appendChild(jamEl); panel.appendChild(lostEl); panel.appendChild(newJEl);
+    // dia 6: ponto natural de parada (hipercasual), uma linha cinza, uma vez por partida
+    var halfEl = tut(el('div', 'crz-half gone'), 'summary-half');
+    panel.appendChild(queueInfo);
+    panel.appendChild(bonusRow); panel.appendChild(bonusInfo); panel.appendChild(strikeRow); panel.appendChild(bonusEl); panel.appendChild(carryEl); panel.appendChild(jamEl); panel.appendChild(lostEl); panel.appendChild(newJEl);
+    panel.appendChild(todoEl);
+    panel.appendChild(halfEl);
     panel.appendChild(cardsHead); panel.appendChild(cardsEl); panel.appendChild(skipBtn);
     // rodada 3: sobra conteudo abaixo da dobra (iPhone SE): sombra e seta "more" presas ao pe do painel
     var moreEl = el('div', 'crz-smore'), moreTxt = el('span');
@@ -1319,6 +1450,8 @@
     overStreet.appendChild(el('i', 'line'));
     ['c1', 'c2', 'c3'].forEach(function (cc) { overStreet.appendChild(el('i', 'car ' + cc)); });
     var againBtn = el('button', 'crz-again'); againBtn.textContent = STR.again;
+    // vitoria no Easy, primeira vez: convite secundario para o Normal (troca pelo fluxo de difficulty.set)
+    var tryNormalBtn = tut(el('button', 'crz-trynormal gone'), 'try-normal'); tryNormalBtn.textContent = STR.tryNormal;
     // vitoria no ultimo dia: a linha de fechamento do dia 12 (o game vai do dia 12 direto ao fim, sem resumo)
     var overClose = tut(el('div', 'crz-sclose gone'), 'over-closing');
     overEl.appendChild(markEl); overEl.appendChild(overTitle); overEl.appendChild(overSub); overEl.appendChild(overClose); overEl.appendChild(statsEl);
@@ -1328,7 +1461,7 @@
     overDays.setAttribute('role', 'img');
     overDaysCap.textContent = STR.daysLegend;
     overStreet.classList.add('gone');
-    overEl.appendChild(overBest); overEl.appendChild(overHard); overEl.appendChild(overStreet); overEl.appendChild(overDays); overEl.appendChild(overDaysCap); overEl.appendChild(againBtn);
+    overEl.appendChild(overBest); overEl.appendChild(overHard); overEl.appendChild(overStreet); overEl.appendChild(overDays); overEl.appendChild(overDaysCap); overEl.appendChild(againBtn); overEl.appendChild(tryNormalBtn);
 
     // folha do dado: de baixo, acima da bandeja; no run nao bloqueia o mapa
     var sheetEl = el('div', 'crz-diesheet');
@@ -1369,8 +1502,13 @@
     var sayEl = tut(el('div', 'crz-say'), 'say');
     sayEl.setAttribute('role', 'status'); sayEl.setAttribute('aria-live', 'polite');
     var sayUntil = 0;
+    var sayLater = null, stripOn = false;
     function say(text, ms) {
       if (!text) return;
+      // nv7: com balao do tutorial aberto o aviso preto espera (o balao pulava quando o aviso sumia)
+      // A4: recusa (som de erro agora) e pergunta com botao passam mesmo com balao: o balao nao pula mais
+      var denyNow = nowMs() - sndDenyAt < 40;
+      if (!denyNow && ms !== ASK_MS && tutBalloonOn && tutBalloonOn()) { sayLater = { t: text, ms: ms, at: nowMs() }; return; }
       sayEl.textContent = text;
       sayEl.classList.add('show');
       sayDeny = nowMs() - sndDenyAt < 40;
@@ -1436,7 +1574,7 @@
     var srLast = '', srDay = -1, srStrikes = -1, srRing = 0, srOver = false;
     function announce(text) { if (text && text !== srLast) { srLast = text; srEl.textContent = text; } }
     function syncAnnounce(s) {
-      // nivel do pior anel agora: 1 = ambar (0,3-0,6, 'Busy junction'), 2 = vermelho (> 0,6 ou travado)
+      // nivel do pior anel agora: 1 = ambar (0,3-0,6, 'Busy crossing'), 2 = vermelho (> 0,6 ou travado)
       var hot = 0, nn = game.world && game.world.nodes, q, lv;
       if (s.phase === 'run' && nn) {
         for (q in nn) if (nn.hasOwnProperty(q) && nn[q]) {
@@ -1534,11 +1672,103 @@
       }
       return c;
     }
+    // ---- guia 'Tools & buttons' (botao '?' ao lado da bandeja e item do menu): so o que ja foi liberado ----
+    var guideEl = null, guidePaused = false;
+    var MAP_SVG = {
+      car: '<rect x="7" y="8" width="10" height="8" rx="1" fill="#3d4f66"/>',
+      arrows: '<line x1="2" y1="12" x2="22" y2="12" stroke="#111" stroke-width="2"/><path d="M14 8l4 4-4 4M8 8l4 4-4 4" fill="none" stroke="#888" stroke-width="1.8"/>',
+      end: '<circle cx="12" cy="12" r="9" fill="none" stroke="#ccc" stroke-width="1.2"/><circle cx="12" cy="12" r="4" fill="#fff" stroke="#111" stroke-width="2"/>',
+      cross: '<line x1="2" y1="12" x2="22" y2="12" stroke="#111" stroke-width="2"/><line x1="12" y1="2" x2="12" y2="12" stroke="#111" stroke-width="2"/><circle cx="12" cy="12" r="2.2" fill="#111"/>',
+      boost: '<circle cx="12" cy="12" r="8" fill="none" stroke="#2f8f55" stroke-width="2.4" stroke-dasharray="5 3.5"/>'
+    };
+    var MARK_SVG = {
+      amber: '<circle cx="12" cy="12" r="8" fill="none" stroke="#d98a00" stroke-width="2.4" stroke-dasharray="4 3"/>',
+      red: '<circle cx="12" cy="12" r="8" fill="none" stroke="#d9261c" stroke-width="2.6"/>',
+      hot: '<circle cx="12" cy="12" r="8" fill="none" stroke="#6b7a8f" stroke-width="1.4" stroke-dasharray="3 3"/>',
+      'new': '<circle cx="12" cy="12" r="8" fill="none" stroke="#7a6aa8" stroke-width="2" stroke-dasharray="0.1 3.4" stroke-linecap="round"/>',
+      days: '<circle cx="5" cy="12" r="2.4" fill="#111"/><circle cx="12" cy="12" r="3.2" fill="#d9261c"/><circle cx="19" cy="12" r="2.4" fill="none" stroke="#555" stroke-width="1"/>',
+      strikes: '<circle cx="7" cy="12" r="4" fill="#d9261c"/><circle cx="17" cy="12" r="4" fill="none" stroke="#111" stroke-width="1.4"/>',
+      points: '<circle cx="7" cy="12" r="3.5" fill="#111"/><circle cx="17" cy="12" r="3.5" fill="none" stroke="#111" stroke-width="1.4"/>'
+    };
+    function gRow(iconHtml, name, lines) {
+      var r = el('div', 'crz-grow'), ic = el('div', 'crz-gic'), tx = el('div', 'crz-gtx'), b = el('b');
+      ic.innerHTML = iconHtml; ic.setAttribute('aria-hidden', 'true');
+      b.textContent = name; tx.appendChild(b);
+      lines.forEach(function (l) { if (l) { var d = el('div'); d.textContent = l; tx.appendChild(d); } });
+      r.appendChild(ic); r.appendChild(tx); return r;
+    }
+    function openGuide() {
+      if (guideEl) return;
+      var s = game.state, i, t;
+      guideEl = el('div', 'crz-guide');
+      guideEl.setAttribute('role', 'dialog'); guideEl.setAttribute('aria-modal', 'true'); guideEl.setAttribute('aria-label', STR.guideTitle);
+      var box = el('div', 'crz-gbox'), head = el('div', 'crz-ghead'), h = el('h2'), x = el('button', 'crz-gx', '\u00d7');
+      h.textContent = STR.guideTitle; x.setAttribute('aria-label', STR.guideClose);
+      head.appendChild(h); head.appendChild(x); box.appendChild(head);
+      var body = el('div', 'crz-gbody'); body.setAttribute('data-scroll', '');
+      function sec(title) { var hh = el('h3'); hh.textContent = title; body.appendChild(hh); }
+      sec(STR.guideTools);
+      for (i = 0; s.tools && i < s.tools.length; i++) {
+        t = s.tools[i]; if (!t.unlocked) continue;   // ferramenta ainda nao apresentada nao aparece
+        var c = CFG.tools[t.id] ? CFG.tools[t.id].cost : t.cost;
+        // 'Works best with Two lanes' so quando Two lanes ja existe
+        var wk = STR.toolWorks[t.id];
+        if (t.id === 'light' && !toolOpen(CFG, 'upgrade', s.day | 0)) wk = STR.toolWorksLightEarly;
+        body.appendChild(gRow(toolIcon(t.id), (STR.tools[t.id] || t.id) + ' \u00b7 ' + c + (c === 1 ? ' point' : ' points'),
+          [STR.toolUseLine[t.id], wk]));
+      }
+      var more = el('div', 'crz-gmore'); more.textContent = STR.guideMore; body.appendChild(more);
+      sec(STR.guideButtons);
+      STR.guideBtnRows.forEach(function (r) { body.appendChild(gRow('<span class="crz-gsym">' + r[0] + '</span>', r[1], [r[2]])); });
+      // 'On the map': os simbolos que aparecem no mapa, com o mesmo desenho
+      sec(STR.guideMap);
+      STR.guideMapRows.forEach(function (r) { body.appendChild(gRow(svg(MAP_SVG[r[0]] || '', '0 0 24 24'), r[1], [r[2]])); });
+      sec(STR.guideMarks);
+      STR.guideMarkRows.forEach(function (r) { body.appendChild(gRow(svg(MARK_SVG[r[0]] || '', '0 0 24 24'), r[1], [r[2]])); });
+      sec(STR.guideCards);
+      // so cartas de coisas ja apresentadas (nv7: 'Free traffic light' e 'Double green wave' no dia 2)
+      var lightOn = toolOpen(CFG, 'light', s.day | 0);
+      Object.keys(STR.cards).forEach(function (id) {
+        if ((id === 'freeLight' || id === 'waveBonus') && !lightOn) return;
+        if (id === 'patient' && !ringEver) return;
+        body.appendChild(gRow(cardIcon(id), STR.cards[id], [STR.cardLine[id]]));
+      });
+      box.appendChild(body); guideEl.appendChild(box);
+      ui.appendChild(guideEl);
+      on(x, 'click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); closeGuide(); });
+      on(guideEl, 'click', function (e) { if (e && e.target === guideEl) closeGuide(); });
+      if (doc.body && doc.body.classList) { doc.body.classList.add('crz-modal'); doc.body.classList.add('crz-guide-on'); }
+      guidePaused = s.phase === 'run' && !s.paused && typeof game.setPaused === 'function';
+      if (guidePaused) { try { game.setPaused(true); } catch (e) {} }
+      emitUI('guideOpen', {});
+    }
+    function closeGuide() {
+      if (!guideEl) return;
+      if (guideEl.parentNode) guideEl.parentNode.removeChild(guideEl);
+      guideEl = null;
+      // M2: o menu tambem e dono de crz-modal; so tira a classe se nenhuma camada do menu estiver aberta
+      var menuAny = false; try { menuAny = !!(CRZ.app && CRZ.app.menu && CRZ.app.menu.isOpenAny && CRZ.app.menu.isOpenAny()); } catch (e) {}
+      if (doc.body && doc.body.classList) { doc.body.classList.remove('crz-guide-on'); if (!menuAny) doc.body.classList.remove('crz-modal'); }
+      if (guidePaused) { guidePaused = false; try { game.setPaused(false); } catch (e) {} }
+      emitUI('guideClose', {});
+    }
+    function legendText(id) {
+      var c; try { c = typeof game.cost === 'function' ? game.cost(id) : undefined; } catch (e) {}
+      if (typeof c !== 'number') c = CFG.tools[id] ? CFG.tools[id].cost : 0;
+      return STR.legend(STR.tools[id] || id, c, STR.toolUseLine[id] || '');
+    }
+    function syncLegend() {
+      var on = !!sel && game.state.phase === 'plan' && !!STR.toolUseLine[sel];
+      if (on) legendEl.textContent = legendText(sel);
+      legendEl.classList.toggle('gone', !on);
+      bottom.classList.toggle('crz-legendon', on);
+    }
     function setSel(id) {
       var prev = sel;
       sel = id;
       if (prev && prev !== id) emitUI('toolDeselected', { tool: prev });
       if (id && id !== prev) { emitUI('toolSelected', { tool: id }); pulseCandidates(id); }
+      syncLegend();
       // Escolher ferramenta NUNCA reenquadra (passeio humano 2026-11-09: a camera andava depois de pegar a
       // ferramenta; antes a Rua chamava fitRoom e qualquer ferramenta chamava settle, que salta para o fim da
       // animacao). Agora a animacao em curso so para onde esta (render.stop): nada anda sob o polegar.
@@ -1631,14 +1861,20 @@
       },
       roadMove: function (x, y) { updateGhost(x, y); },
       roadEnd: function (x, y) {
+        // arrasto curto (< 20 px da ponta): toque, nao estrada (nv7: 5 a 9 px faziam uma rua inteira de 2 pontos)
+        var o0 = roadFrom !== null && game.world.nodes[roadFrom] && render.toScreen ? render.toScreen(game.world.nodes[roadFrom].x, game.world.nodes[roadFrom].y) : null;
+        if (o0 && Math.sqrt((x - o0.x) * (x - o0.x) + (y - o0.y) * (y - o0.y)) < MIN_ROAD_PX) {
+          clearGhost(); say(STR.dragFurther, 2200); emitUI('roadMiss', { why: 'short' }); return;
+        }
         updateGhost(x, y);
         var g = ghost, from = roadFrom;
         clearGhost();
-        if (!g) { snd('deny'); say(STR.roadSay.other); return; }   // nunca falha calado
+        if (!g) { snd('deny'); say(STR.roadSay.other); emitUI('roadMiss', { why: 'other' }); return; }   // nunca falha calado
         if (!g.ok) {
           snd('deny'); flash(g.x, g.y, 'bad'); roadNote(g.x, g.y, g.why);
           if (g.why === 'budget') shake(tiles.road && tiles.road.el);
           say(roadSayText(g.why));
+          emitUI('roadMiss', { why: g.why || null });
           return;
         }
         var br = game.buildRoad(from, g.x, g.y);
@@ -1651,6 +1887,7 @@
         else {
           var bw = br && (br.reason === 'budget' || br.reason === 'phase' ? br.reason : (br.why || br.reason));
           roadNote(g.x, g.y, bw); say(roadSayText(bw));
+          emitUI('roadMiss', { why: bw || null });
         }
       },
       roadCancel: function () { clearGhost(); },
@@ -1659,6 +1896,7 @@
       // levava a cidade para fora da tela). Diz de onde comecar e pulsa as pontas mais perto do dedo
       roadMiss: function (x, y) {
         var w = game.world;
+        emitUI('roadMiss', {});   // o balao do tutorial troca o texto e mostra a maozinha
         // sem pontos para uma rua: nao ensina um arrasto impossivel; diz o proximo passo (Play)
         if (game.state.phase === 'plan' && game.canAfford && !game.canAfford('road')) { say(roadSayText('budget')); return; }
         say(STR.roadFromEnd);
@@ -1888,6 +2126,12 @@
       try { return !!(tutor && tutor.isActive && tutor.isActive()); } catch (e) { return false; }
     }
     var lockedSaidDay = -1;
+    // o cruzamento mais apertado agora (estresse >= 0,3), fora o no tocado
+    function tightestNode(skip) {
+      var w = game.world, k, b = null, bv = 0.3;
+      for (k in w.nodes) if (w.nodes.hasOwnProperty(k)) { var o = w.nodes[k]; if (o && o !== skip && !isEnd(o) && (o.stress || 0) >= bv) { bv = o.stress; b = o; } }
+      return b;
+    }
     function runTap(s, n, sx, sy, fromChip) {
       if (!n || modal()) return;
       var cl = s.clear;
@@ -1907,7 +2151,12 @@
       if (jn && !fromChip && (cl.charges | 0) > 0 && !s.paused && (stz < BOOST_MIN || runB)) {
         var why = stz >= BOOST_MIN ? 'running' : 'calm';
         snd('deny'); flash(n.x, n.y, 'bad');
-        say(why === 'running' ? STR.deny.boostRunning : STR.deny.boostCalmJ);
+        if (why === 'running') say(STR.deny.boostRunning);
+        else {
+          // blind2: 'Save your boost' (3 vezes) virou: nada aqui ainda; pulsa o no mais apertado, se houver
+          var tight = tightestNode(n);
+          if (tight) { say(STR.boostNothing); addPulse(tight.x, tight.y); } else say(STR.boostAllCalm);
+        }
         emitUI('clearUsed', { ok: false, kind: null, reason: why, id: n.id, ui: true });
         return false;
       }
@@ -1932,7 +2181,7 @@
       }
       boostUsed = true;
       if (okC) {
-        if (kind === 'send') { snd('build'); flash(n.x, n.y, 'build'); }
+        if (kind === 'send') { snd('build'); flash(n.x, n.y, 'build'); try { if (render && render.note) render.note(n.x, n.y, STR.extraCar); } catch (e) {} }
         else { snd('place'); flash(n.x, n.y, 'ok'); }
         // retorno visivel do boost: anel e aviso curto (o raio gasto some das bolinhas)
         addPulse(n.x, n.y);
@@ -2150,6 +2399,17 @@
       return out;
     }
     var peekT = 0;
+    on(todoEl, 'click', function () {
+      var n = todoNode; if (!n) return;
+      snd('select');
+      try { if (render && render.focus) render.focus(n.x, n.y, Math.max((render.camera && render.camera.zoom) || 1, 1.1), !reducedMotion()); } catch (e) {}
+      addPulse(n.x, n.y); later(function () { addPulse(n.x, n.y); }, 900);
+      sumEl.classList.add('crz-peek');
+      if (peekT) root.clearTimeout(peekT);
+      peekT = later(function () { sumEl.classList.remove('crz-peek'); peekT = 0; }, 2600);
+      if (todoKind === 'busy') say(STR.todoBusyWhy, 2600);
+      emitUI('summaryTodo', { kind: todoKind, id: n.id });
+    });
     on(newJEl, 'click', function () {
       var L = newJList(), n = L[0];
       if (!n) return;
@@ -2164,7 +2424,7 @@
     });
 
     // ---- (4b) plano: cruzamentos desta manha (crescimento, ou rua do jogador que cortou outra) sem sinal ----
-    // Marca NEW no mapa (render: overlay.newJ), chip "N new junctions", dica do Easy, confirmacao leve do Play.
+    // Marca NEW no mapa (render: overlay.newJ), chip "N new crossings", dica do Easy, confirmacao leve do Play.
     // A marca some com ferramenta no no e quando o dia comeca (overlay.newJ so vale no plano).
     var njDay = { day: -1, at: 0, tip: -1, ask: -1, asking: false, idx: 0 };
     (function loadNjDay() {
@@ -2228,7 +2488,7 @@
       }
       if (njDay.asking && !ids.length) { njDay.asking = false; playBtn.classList.remove('crz-ask'); }
       // dia 4+ (assist.newJunctionTip; padrao so Easy): a dica curta UMA vez por partida, no primeiro cruzamento
-      // novo; sem pausar. Nos outros dias ficam o chip "N new junctions" e a confirmacao do Play (rodada 3:
+      // novo; sem pausar. Nos outros dias ficam o chip "N new crossings" e a confirmacao do Play (rodada 3:
       // a faixa diaria aparecia 9 vezes por partida junto com os dois)
       // primeiro cruzamento novo da partida, Easy e Normal: o que e a marca e a regra do dia 4, uma vez cada
       if (ids.length && njDay.tip <= 0 && now - njDay.at >= 1400 && !modal() && !tutorTalking() &&
@@ -2241,6 +2501,62 @@
       }
     }
     // Play no plano: true = pediu confirmacao (nao comeca). So no Easy, uma vez por dia, com pontos sobrando
+    // folha de confirmacao do Play: motivo em 1 frase por linha, 'Start day' e 'Back to building'. Uma vez por motivo
+    // por dia. Motivos: NEW sem sinal (so no Easy: no Normal fica desligado, equilibrio medido), pontos acima do teto
+    // de carry-over, rua gratis do dia ainda nao usada
+    var confirmEl = tut(el('div', 'crz-confirm gone'), 'play-confirm'), confirmAsked = { day: -1, keys: {} }, confirmWhy = [], confirmShownAt = -1e9;
+    confirmEl.setAttribute('role', 'dialog'); confirmEl.setAttribute('aria-modal', 'true');
+    var confirmBox = el('div', 'crz-cbox'), confirmTxt = el('div', 'crz-ctxt'), confirmRow = el('div', 'crz-crow');
+    confirmTxt.id = 'crz-confirm-txt'; confirmEl.setAttribute('aria-labelledby', 'crz-confirm-txt');
+    // Escape fecha a folha (e o guia); toque no fundo escuro tambem
+    on(doc, 'keydown', function (e) {
+      if (!e || e.key !== 'Escape') return;
+      if (confirmOpen()) { closeConfirm(); try { playBtn.focus(); } catch (x) {} }
+      else if (guideEl) closeGuide();
+    });
+    on(confirmEl, 'click', function (e) { if (e && e.target === confirmEl) closeConfirm(); });
+    var confirmStart = tut(el('button', 'crz-cstart'), 'confirm-start'), confirmBack = tut(el('button', 'crz-cback'), 'confirm-back');
+    confirmStart.textContent = STR.cStart; confirmBack.textContent = STR.cBack;
+    confirmRow.appendChild(confirmBack); confirmRow.appendChild(confirmStart);
+    confirmBox.appendChild(confirmTxt); confirmBox.appendChild(confirmRow); confirmEl.appendChild(confirmBox);
+    ui.appendChild(confirmEl);
+    function playReasons(s) {
+      var out = [], cap = CFG.carryCap != null ? CFG.carryCap : 3;
+      if (confirmAsked.day !== s.day) confirmAsked = { day: s.day, keys: {} };
+      var L = assistGet('playConfirm', easyOn()) && !tutorTalking() ? morningList(s) : [];
+      if (L.length && signAffordable(s) && !confirmAsked.keys.newj) out.push({ key: 'newj', text: STR.cWhyNew(L.length), node: L[0] });
+      if (s.free && s.free.road && !confirmAsked.keys.free) out.push({ key: 'free', text: STR.cWhyFree });
+      if (!lastDayOf(s) && (s.budget | 0) > cap && !confirmAsked.keys.carry) out.push({ key: 'carry', text: STR.cWhyCarry(s.budget | 0, cap) });
+      return out;
+    }
+    function confirmPlay(s) {
+      var R0 = playReasons(s);
+      if (!R0.length) return false;
+      confirmWhy = R0;
+      R0.forEach(function (r) { confirmAsked.keys[r.key] = 1; });
+      confirmTxt.textContent = R0.map(function (r) { return r.text; }).join(' ');
+      // so pontos sobrando: 'Spend them' / 'Start anyway'
+      var onlyCarry = R0.length === 1 && R0[0].key === 'carry';
+      confirmBack.textContent = onlyCarry ? STR.cSpend : STR.cBack;
+      confirmStart.textContent = onlyCarry ? STR.cAnyway : STR.cStart;
+      confirmEl.classList.remove('gone'); snd('select'); confirmShownAt = nowMs();
+      try { if (confirmStart.focus) confirmStart.focus(); } catch (e) {}
+      emitUI('playConfirm', { reasons: R0.map(function (r) { return r.key; }) });
+      return true;
+    }
+    function closeConfirm() { confirmEl.classList.add('gone'); }
+    on(confirmStart, 'click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); closeConfirm(); if (game.state.phase === 'plan') startDayNow(game.state); });
+    on(confirmBack, 'click', function (e) {
+      if (e && e.stopPropagation) e.stopPropagation();
+      closeConfirm(); snd('select');
+      // volta e pulsa o que falta: o NEW, o ladrilho Road da rua gratis
+      confirmWhy.forEach(function (r) {
+        if (r.key === 'newj' && r.node) showJunction(r.node, false);
+        if (r.key === 'free' && tiles.road) { pulseEl(tiles.road.el); say(STR.freeRoadNow, 3000); }
+      });
+      emitUI('playConfirmBack', {});
+    });
+    function confirmOpen() { return !confirmEl.classList.contains('gone'); }
     function playAsk(s) {
       if (!assistGet('playConfirm', easyOn()) || tutorTalking()) return false;
       var L = morningList(s);
@@ -2365,7 +2681,7 @@
         // dois nos sob o dedo: prefere o cruzamento (onde o sinal entra) a ponta de rua
         n = askN || render.pickNode(sx, sy, isJunctionish);
         // dedo caiu na rua ao lado do cruzamento (curva, reta ou nada sob o dedo): ate 1,7x o raio de toque
-        // de um no de 3+ ruas, o toque e nele (antes respondia 'Stops, yields and lights need a junction')
+        // de um no de 3+ ruas, o toque e nele (antes respondia 'Stops, yields and lights need a crossing')
         if (!askN && (!n || (!n.portal && (n.edges ? n.edges.length : 0) < (sel === 'cross' ? 2 : 3)))) n = nearJunction(sx, sy) || n;
         if (!n) { if (render.pickEdge(sx, sy)) { snd('deny'); say(STR.deny.notJunction); } return; }
         // troca de sinal: o comprado em dia anterior nao volta; pede um segundo toque (3 s).
@@ -2393,6 +2709,7 @@
         var costNow = toolCost(sel), wasFree = freeNow(sel);
         var tr = game.placeTool(n.id, sel);
         toolResult(tr, n.x, n.y, 'place', sel);
+        if (tr && tr.ok) emitUI('toolPlaced', { tool: sel, id: n.id });
         if (tr && tr.ok && was && sel === 'cross') {
           // faixa sobre um sinal: diz que troca o sinal e o que a faixa faz (palavras simples)
           say(STR.crossOver(costNow), 5000); showSwapUndo(5000);
@@ -2405,7 +2722,7 @@
         }
         if (tr && tr.ok && sel === 'yield') yieldBusyHint(s, n);
         // ponta de rua: a fila espera no cruzamento a frente; pulsa ele (o lugar certo do sinal).
-        // Sem cruzamento a frente, a frase muda (nada de "pulsing junction" sem pulso)
+        // Sem cruzamento a frente, a frase muda (nada de "pulsing crossing" sem pulso)
         if (tr && !tr.ok && tr.reason === 'portal') {
           var qj = queueJunction(game.world, n, function (o) { return heatOf(s, o); });
           if (qj) { addPulse(qj.x, qj.y); later(function () { addPulse(qj.x, qj.y); }, 900); }
@@ -2554,7 +2871,11 @@
     function unlockAudio() { if (audio && audio.unlock) { try { audio.unlock(); } catch (e) {} } }
     var nopass = { passive: false }, pass = { passive: true, capture: true };
     on(doc, 'pointerdown', unlockAudio, true);
-    on(doc, 'pointerdown', function () { lastTouchAt = nowMs(); }, true);
+    on(doc, 'pointerdown', function () {
+      lastTouchAt = nowMs();
+      // faixa de dica do tutorial: some no primeiro toque
+      if (stripOn && sayUntil) { stripOn = false; sayUntil = 0; sayEl.classList.remove('show'); }
+    }, true);
     on(doc, 'pointerup', unlockAudio, true);
     on(doc, 'click', unlockAudio, true);
     on(doc, 'touchend', unlockAudio, true);
@@ -2571,7 +2892,7 @@
     on(doc, 'touchmove', function (e) {
       // textos do tutorial/menu (#crz-overlay-root) e o painel do resumo podem rolar
       var t = e.target;
-      try { if (t && t.closest && t.closest('#crz-overlay-root [data-scroll], .crz-sum [data-scroll], .crz-diepanel[data-scroll]')) return; } catch (x) {}
+      try { if (t && t.closest && t.closest(SCROLL_OK)) return; } catch (x) {}
       if (e.cancelable !== false) pd(e);
     }, nopass);
     on(canvas, 'contextmenu', pd);
@@ -2628,7 +2949,8 @@
 
     // ---- botoes ----
     on(playBtn, 'click', function () {
-      if (modal()) return;
+      playTapAt = nowMs();
+      if (modal() || confirmOpen()) return;   // A3: com a folha aberta o Play (e Enter/espaco nele) nao faz nada
       var s = game.state;
       if (s.phase === 'plan') {
         // dia 1 sem nenhuma rua: o Play nao roda um dia vazio (nv4: o Play no primeiro balao pulou tudo)
@@ -2638,8 +2960,17 @@
           emitUI('playBlocked', { reason: 'noRoad' });
           return;
         }
-        if (playAsk(s)) return;   // Easy: cruzamento novo sem sinal e pontos sobrando, pede um segundo toque
-        if (carryAsk(s)) return;  // pontos acima do teto de carry-over: avisa e pede o segundo toque
+        // balao do roteiro que nao pede o Play (Day 1 of 12, The city grew...): o Play espera; o balao pula
+        var tuP = CRZ.app && CRZ.app.tutorial;
+        if (tuP && tuP.blocksPlay && tuP.blocksPlay()) { snd('deny'); try { tuP.bump(); } catch (e) {} emitUI('playBlocked', { reason: 'tutorial' }); return; }
+        // playtest as cegas: as confirmacoes viraram UMA folha visivel com dois botoes grandes (nunca 'toque de novo')
+        if (confirmPlay(s)) return;
+        startDayNow(s);
+      } else if (s.phase === 'run') {
+        runSpeedTap(s);
+      }
+    });
+    function startDayNow(s) {
         playBtn.classList.remove('crz-ask');
         setSel(null); clearGhost();
         hint = null;
@@ -2647,14 +2978,22 @@
         playPressedAt = nowMs();
         game.startDay(); snd('dayStart');
         emitUI('playPressed', {});
-      } else if (s.phase === 'run') {
-        // duplo toque no Play: o 2o toque (ate 400 ms) nao vira 2x
+    }
+    function runSpeedTap(s) {
+        // fast-forward ligado: o botao (que mostra o simbolo) so desliga o ff, a velocidade fica
+        if (s.ff) { ffOff(); snd('select'); emitUI('ffOff', {}); return; }
+        // toques seguidos no Play: ~1 s depois de comecar o dia o botao nao muda a velocidade (nv7: 4x sem querer)
         if (nowMs() - playPressedAt < PLAY_GUARD) return;
+        // dia 1 com o roteiro: velocidade travada em 1x ate o balao de SPEED (nv7)
+        var tuL = CRZ.app && CRZ.app.tutorial;
+        if (tuL && tuL.speedLocked && tuL.speedLocked()) { snd('deny'); try { tuL.bump(); } catch (e) {} return; }
+        // balao com Got it aberto (que nao e o da velocidade): o botao nao faz nada, o balao pula
+        var tuS = CRZ.app && CRZ.app.tutorial;
+        if (tuS && tuS.blocksPlay && tuS.blocksPlay()) { snd('deny'); try { tuS.bump(); } catch (e) {} return; }
         game.setSpeed(nextSpeed(s.speed, speeds)); snd('select'); speedChosen = game.state.speed;
         playFace.classList.remove('pop'); void playFace.offsetWidth; playFace.classList.add('pop');
         emitUI('speedChanged', { speed: game.state.speed });
-      }
-    });
+    }
     on(swapCancelEl, 'click', function (e) {
       if (e && e.stopPropagation) e.stopPropagation();
       if (!swapAsk) { hideSwapCancel(); return; }
@@ -2668,11 +3007,33 @@
       if (okU) { game.undo(); snd('undo'); } else snd('deny');
       emitUI('undoPressed', { ok: okU });
     });
+    // o que o Undo desfez, por comparacao antes/depois (o game nao guarda o nome da acao)
+    function undoSnap() {
+      var w = game.world, o = { e: 0, tools: {}, lanes: {}, ow: {}, die: game.state.die ? game.state.die.id + ':' + game.state.die.value : '', b: game.state.budget | 0 }, k;
+      for (k in w.edges) if (w.edges.hasOwnProperty(k) && w.edges[k]) { o.e++; o.lanes[k] = w.edges[k].lanes || 1; o.ow[k] = w.edges[k].oneway || 0; }
+      for (k in w.nodes) if (w.nodes.hasOwnProperty(k) && w.nodes[k]) o.tools[k] = w.nodes[k].tool || '';
+      return o;
+    }
+    function undoLabel(a, b) {
+      var k;
+      for (k in a.tools) if (a.tools.hasOwnProperty(k) && a.tools[k] && a.tools[k] !== (b.tools[k] || '')) return STR.tools[a.tools[k]] || a.tools[k];
+      if (a.e > b.e) return STR.tools.road;
+      for (k in a.lanes) if (a.lanes.hasOwnProperty(k) && b.lanes[k] !== undefined && a.lanes[k] > b.lanes[k]) return STR.tools.upgrade;
+      for (k in a.ow) if (a.ow.hasOwnProperty(k) && b.ow[k] !== undefined && a.ow[k] !== b.ow[k]) return STR.tools.oneway;
+      if (a.die !== b.die) return STR.reroll;
+      return '';
+    }
+    var playTapAt = -1e9, UNDO_GUARD = 800;
     on(undoBtn, 'click', function () {
       if (modal()) return;
+      // blind2 (2): o 2o toque no Play caia no Undo ao lado e desfazia sem aviso: 800 ms de guarda
+      if (nowMs() - Math.max(playTapAt, confirmShownAt) < UNDO_GUARD) return;
       var okU = game.state.phase === 'plan' && game.canUndo();
       if (okU) {
+        var u0 = undoSnap();
         game.undo(); snd('undo');
+        var u1 = undoSnap(), lbl = undoLabel(u0, u1), back = (u1.b - u0.b) | 0;
+        sayUntil = 0; say(STR.undid(lbl, back), 3000);
         // o aviso do gasto nao vale mais: sai (e volta no proximo gasto de verdade)
         if (sayUntil && /^You spent /.test(sayEl.textContent)) { sayUntil = 0; sayEl.classList.remove('show'); if (hints.firstSpend) { delete hints.firstSpend; lsSet(HINT_KEY, JSON.stringify(hints)); } }
         spendBudget = game.state.budget | 0;
@@ -2683,10 +3044,15 @@
     on(fitBtn, 'click', onFit);
     on(newBtn, 'click', function () {
       if (newArmed > 0) { restart(); return; }
-      newArmed = 3000; newBtn.classList.add('armed'); snd('select');
+      newArmed = 5000; newBtn.classList.add('armed'); snd('select');
       newBtn.setAttribute('aria-label', STR.confirmNew);
     });
     on(againBtn, 'click', function () { restart(); });
+    on(tryNormalBtn, 'click', function () {
+      var D = CRZ.difficulty;
+      markSeen('tryNormal');
+      if (D && typeof D.set === 'function') D.set('normal');
+    });
 
     // marcadores do HUD explicam ao toque (strikes, dias, pontos, barra de bonus, Boost, carta ativa)
     // role=button + tabindex: leitor de tela e teclado chegam neles; Enter e espaco tambem explicam
@@ -2720,7 +3086,7 @@
     on(chipEl, 'click', function () {
       if (modal()) return;
       var c = (game.state.cards || [])[0];
-      if (c && STR.cardLine[c]) { say(STR.cardLine[c]); snd('select'); }
+      if (c && STR.cardLine[c]) { say(c === 'freeRoad' ? STR.freeRoadNow : STR.cardLine[c]); snd('select'); }
     });
 
     // ---- dado do dia: folha com hoje, amanha e relancar ----
@@ -2762,8 +3128,9 @@
       if (hasNext) { tomName.textContent = STR.tomorrow + ': ' + dieName(s.nextDie.id); tomDesc.textContent = describeDie(s.nextDie).replace(/ today\./g, ' tomorrow.'); }
       rerollBtn.classList.toggle('gone', !ri.avail);
       // botao proprio e curto no painel do dado: 'Reroll (1)' = custa 1 ponto (o aria diz por extenso)
-      rerollBtn.textContent = STR.reroll + ' (' + ri.cost + ')';
-      rerollBtn.setAttribute('aria-label', STR.reroll + ' for ' + ri.cost + (ri.cost === 1 ? ' build point' : ' build points'));
+      // 'Reroll (1)' parecia contagem de relances: o custo escrito
+      rerollBtn.textContent = STR.rerollLbl(ri.cost);
+      rerollBtn.setAttribute('aria-label', STR.rerollAria(ri.cost));
       rerollBtn.classList.toggle('off', !!ri.reason);
       rerollBtn.setAttribute('aria-disabled', ri.reason ? 'true' : 'false');
       rerollNote.textContent = ri.avail ? (rushShort(s, ri) || ri.reason || STR.dieOnce) : '';
@@ -2776,6 +3143,7 @@
     function openSheet() {
       if (sheetOpen || !game.state.die || game.state.day < 2) return;
       sheetOpen = true; sheetKey = '';
+      ffOff();                          // folha aberta: o ff desliga
       sheetEl.classList.add('show'); dieEl.setAttribute('aria-expanded', 'true');
       positionSheet(); refreshSheet(game.state);
       snd('select'); emitUI('dieOpen', {});
@@ -2839,12 +3207,15 @@
     function sumShownTick(now) {
       var on = sumEl.classList.contains('show');
       if (on && !sumShownAt) { sumShownAt = now; sumQuietFrom = 0; sumPrevTap = sumLastTap = 0; }
-      else if (!on && sumShownAt) { sumShownAt = 0; disarmSum(); }
+      else if (!on && sumShownAt) {
+        sumShownAt = 0; disarmSum();
+        if (sayEl.textContent === STR.pickAgain) { sayUntil = 0; sayEl.classList.remove('show'); sayEl.textContent = ''; }
+      }
       if (sumArm && now >= sumArmUntil) disarmSum();
     }
     function restart() {
       if (CRZ.app && CRZ.app.restart) { CRZ.app.restart(); return; }
-      lsDel(SAVE_KEY);
+      beginLeave();
       try { root.location.reload(); } catch (e) {}
     }
 
@@ -2883,10 +3254,22 @@
       }
       return null;
     }
+    // pressao longa num ladrilho (sem escolher): a mesma legenda num aviso curto; o clique que vem depois e ignorado
+    var lpT = 0, lpFired = false, LP_MS = 500;
+    on(tilesEl, 'pointerdown', function (e) {
+      var b = upTo(e && e.target, tilesEl, 'data-tool'); if (!b) return;
+      lpFired = false; if (lpT) root.clearTimeout(lpT);
+      var id = b.getAttribute('data-tool');
+      lpT = later(function () { lpT = 0; lpFired = true; sayUntil = 0; say(legendText(id), 3800); emitUI('toolLegend', { tool: id }); }, LP_MS);
+    });
+    function lpCancel() { if (lpT) { root.clearTimeout(lpT); lpT = 0; } }
+    on(tilesEl, 'pointerup', lpCancel); on(tilesEl, 'pointercancel', lpCancel); on(tilesEl, 'pointerleave', lpCancel);
     on(tilesEl, 'click', function (e) {
       var b = upTo(e && e.target, tilesEl, 'data-tool');
+      if (lpFired) { lpFired = false; return; }
       if (b) onTile(b.getAttribute('data-tool'));
     });
+    on(guideBtn, 'click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); openGuide(); });
     on(cardsEl, 'click', function (e) {
       var b = upTo(e && e.target, cardsEl, 'data-card');
       if (!b || picked) return;
@@ -2939,10 +3322,14 @@
         if (c !== tl.c) { tl.c = c; tl.cost.innerHTML = (t.id === 'road' ? '<span class="crz-tname">' + STR.roadTile + '</span>' : '') + toneCost(c); }
         var poor = !t.afford;
         if (poor !== tl.poor) { tl.poor = poor; tl.el.classList.toggle('poor', poor); }
+        // rua gratis do dia ainda nao usada: o ladrilho Road pulsa (o 'free' ja aparece no custo)
+        var fr = t.id === 'road' && !!(s.free && s.free.road) && s.phase === 'plan';
+        if (fr !== tl.free) { tl.free = fr; tl.el.classList.toggle('crz-freeon', fr); }
         var isSel = sel === t.id;
         if (isSel !== tl.sel) { tl.sel = isSel; tl.el.classList.toggle('sel', isSel); }
         // faixa 'Pick New road...' (dia 1 sem rua): o anel e no ladrilho da rua ate ela ser escolhida
-        var hh = !!(hint && hint.tile && hint.toolId === t.id) || (t.id === 'road' && nextFirstOn && sel !== 'road');
+        var hh = !!(hint && hint.tile && hint.toolId === t.id) || (t.id === 'road' && sel !== 'road' && (nextFirstOn ||
+          ((s.day | 0) === 1 && s.phase === 'plan' && !day1Built() && !tutorScript())));
         if (hh !== tl.hint) { tl.hint = hh; tl.el.classList.toggle('hint', hh); }
       }
     }
@@ -2953,7 +3340,7 @@
     function drawDie(die, value) {
       diePips.innerHTML = dieSvg(value, die.faces, die.kind);
       dieEv.innerHTML = eventSvg(die.id, die.kind);
-      dieLbl.textContent = STR.lblToday(die.kind);
+      dieLbl.textContent = STR.lblToday(die.id, die.kind);
       if (diePips.firstChild && diePips.firstChild.setAttribute) diePips.firstChild.setAttribute('class', 'pips');
       if (dieEv.firstChild && dieEv.firstChild.setAttribute) dieEv.firstChild.setAttribute('class', 'ev');
     }
@@ -2993,11 +3380,12 @@
       }
       // previsao: so no planejamento e quando o game informa o dia seguinte (some no dia 12)
       var N = (s.phase === 'plan' && s.nextDie && !dieHide && !lastDayOf(s)) ? s.nextDie : null, nc = cache.nextF;
-      if (N ? (!nc || nc.faces !== N.faces || nc.value !== N.value || nc.kind !== (N.kind || '')) : nc !== null) {
-        cache.nextF = N ? { faces: N.faces, value: N.value, kind: N.kind || '' } : null;
+      if (N ? (!nc || nc.faces !== N.faces || nc.value !== N.value || nc.kind !== (N.kind || '') || nc.id !== N.id) : nc !== null) {
+        cache.nextF = N ? { faces: N.faces, value: N.value, kind: N.kind || '', id: N.id } : null;
         if (N) {
-          dieNext.innerHTML = miniDieSvg(s.nextDie.value, s.nextDie.kind);
-          nextLbl.textContent = STR.lblTomorrow(s.nextDie.value);
+          // amanha: o icone do efeito (o numero tirado, '13' no d20, parecia o efeito) e o efeito em palavras
+          dieNext.innerHTML = eventSvg(s.nextDie.id, s.nextDie.kind);
+          nextLbl.textContent = STR.lblTomorrow(s.nextDie.id);
           if (dieNext.firstChild && dieNext.firstChild.setAttribute) dieNext.firstChild.setAttribute('class', 'nxt');
           dieNext.classList.remove('off');
         } else dieNext.classList.add('off');
@@ -3007,9 +3395,10 @@
         for (i = 0; i < strikeEls.length; i++) strikeEls[i].classList.toggle('on', i < s.strikes);
         strikesEl.setAttribute('aria-label', 'Strikes: ' + (s.strikes | 0) + ' of ' + CFG.maxStrikes);
       }
-      if (cache.phase !== s.phase || cache.speed !== s.speed) {
+      if (cache.phase !== s.phase || cache.speed !== s.speed || cache.ff !== !!s.ff) {
+        cache.ff = !!s.ff;
         if (s.phase === 'run') {
-          var si = speeds.indexOf(s.speed), sp = (s.speed || 1) + '×';
+          var si = speeds.indexOf(s.speed), sp = s.ff ? STR.ffOn : (s.speed || 1) + '×';
           playFace.innerHTML = ''; playFace.textContent = sp; playBtn.classList.remove('off');
           playBtn.classList.add('running');
           playBtn.classList.remove('lv0'); playBtn.classList.remove('lv1'); playBtn.classList.remove('lv2');
@@ -3122,7 +3511,7 @@
       waitFill.style.width = Math.round(ratio * 100) + '%';
       waitFill.className = ratio >= RING_SEEN ? 'warn' : '';
       // tela baixa (<= 700 px, CSS): fila calma (pico < 0,3) nao ocupa linha
-      queueRow.classList.toggle('crz-lowq', ratio < 0.3);
+      queueRow.classList.toggle('crz-lowq', ratio < 0.3); queueInfo.classList.toggle('crz-lowq', ratio < 0.3);
       for (i = 0; i < sStrikeEls.length; i++) sStrikeEls[i].classList.toggle('on', i < s.strikes);
       var bTxt = '', pp = (s.speedDial && s.speedDial.perPoint) || (CFG.speedDial && CFG.speedDial.tipsPerPoint) || 0;
       // barra do bonus: cheia quando rendeu ponto; senao o resto acumulado de 0 a perPoint (bate com "N of 30")
@@ -3132,11 +3521,26 @@
       bonusRow.classList.toggle('gone', !(pp > 0));
       if (sm.speedBonus > 0) bTxt = STR.speedBonusYes + sm.speedBonus + (sm.speedBonus === 1 ? ' build point' : ' build points') + (lastDayOf(s) ? '' : STR.speedBonusTail);
       // o resto que sobra (< pp) arredondado para baixo: nunca '30 of 30' sem o ponto
-      else if (sm.tipCarry > 0 && pp > 0) bTxt = STR.speedBonusNone + Math.min(pp - 1, Math.floor(sm.tipCarry)) + ' of ' + pp + STR.speedBonusToward;
+      else if (sm.tipCarry > 0 && pp > 0) {
+        bTxt = STR.speedBonusNone + Math.min(pp - 1, Math.floor(sm.tipCarry)) + ' of ' + pp + STR.speedBonusToward;
+        // de onde vem o numero: carros de hoje + extra da velocidade + o que sobrou de antes (nv5: '21 of 30' com 17 carros)
+        var dv = sm.delivered | 0, tp = +sm.tips || 0, ex = Math.max(0, Math.round(tp - dv)), pv = Math.max(0, Math.floor(sm.tipCarry - tp + 1e-6));
+        if (typeof sm.tips === 'number' && dv > 0) bTxt += STR.bonusParts(dv, ex, pv);
+      }
       // barra vazia: diz como encher (ninguem entendia a barra)
       else if (pp > 0 && !lastDayOf(s)) bTxt = STR.speedBonusHow;
       bonusEl.textContent = bTxt;
       bonusEl.classList.toggle('gone', !bTxt);
+      // (A2) o valor na barra, a direita; a linha verde de texto nao aparece mais (fica para o (i))
+      bonusVal.textContent = sm.speedBonus > 0 ? STR.bvalPlus(sm.speedBonus, lastDayOf(s)) : (pp > 0 ? Math.min(pp - 1, Math.floor(+sm.tipCarry || 0)) + '/' + pp : '');
+      // (A1) strikes no resumo so no dia que teve strike (os circulos ja estao no topo)
+      strikeRow.classList.toggle('gone', !sm.failed);
+      var half = (s.day | 0) === 6 && !seen('half6');
+      if (half) markSeen('half6');
+      halfEl.textContent = half ? STR.halfway : ''; halfEl.classList.toggle('gone', !half);
+      // (A3) explicacoes: abertas no primeiro resumo da partida, depois atras do (i)
+      var firstSum = !seen('sumInfo'); if (firstSum) markSeen('sumInfo');
+      for (i = 0; i < infoRows.length; i++) setInfo(infoRows[i], firstSum);
       var carryN = lastDayOf(s) ? 0 : Math.min(s.budget | 0, CFG.carryCap != null ? CFG.carryCap : 3);
       carryEl.textContent = carryN > 0 ? STR.carryOver(carryN) : '';
       carryEl.classList.toggle('gone', !(carryN > 0));
@@ -3161,6 +3565,11 @@
       newJEl.textContent = nj ? STR.newJ(nj) : '';
       newJEl.setAttribute('aria-label', nj ? STR.newJAria(nj) : '');
       newJEl.classList.toggle('gone', !nj);
+      // (A4/A5) um chip de acao so: NEW sem sinal primeiro; senao o cruzamento mais cheio do dia
+      todoKind = null; todoNode = null;
+      if (nj) { todoKind = 'newj'; todoNode = newJList()[0] || null; todoEl.textContent = STR.todoNew(nj); }
+      else if (worst && wh >= JAM_SUMMARY && !lastDayOf(s) && !(worst.portal && degOf(worst) < 2)) { todoKind = 'busy'; todoNode = worst; todoEl.textContent = STR.todoBusy; }
+      todoEl.classList.toggle('gone', !todoKind);
       var lw = game.world && game.world.stats;
       lostN = sm.lost > 0 ? sm.lost | 0 : (lw && lw.lost > 0 ? lw.lost | 0 : 0);
       lostShown = false; lostPaint(); lostEl.classList.toggle('gone', !(lostN > 0));
@@ -3175,7 +3584,8 @@
       if (pk0 >= RING_EVER_AT || hotAny(s)) ringEver = true;
       // 'Free traffic light' so com o semaforo liberado amanha (antes: 'Traffic lights come later' na mesma carta)
       var lightTomorrow = toolOpen(CFG, 'light', (s.day | 0) + 1);
-      function shownCard(id) { return !(id === 'freeLight' && (dieFL || !lightTomorrow)) && !(id === 'patient' && !ringEver); }
+      // nv7: 'Double green wave' so com semaforo (antes aparecia no dia 2)
+      function shownCard(id) { return !(id === 'freeLight' && (dieFL || !lightTomorrow)) && !(id === 'waveBonus' && !lightTomorrow) && !(id === 'patient' && !ringEver); }
       var nShown = dr.filter(shownCard).length;
       cardsHead.classList.toggle('gone', !nShown);
       // sem cartas o botao e o unico caminho adiante: "Continue", nao "Skip reward"
@@ -3185,8 +3595,8 @@
       var cctx = { day: s.day | 0, cfg: CFG, pairs: pairCount(game.world), dieFreeLight: dieFL };
       var pick = suggestCard(dr, pk, worst, cctx);
       // botao principal do resumo = uma carta (a sugerida, senao a primeira que faz sentido); pular fica secundario
-      var mainIdx = pick ? dr.indexOf(pick) : -1;
-      for (i = 0; mainIdx < 0 && i < dr.length; i++) if (shownCard(dr[i]) && cardFits(dr[i], pk, cctx) && dr[i] !== 'patient') mainIdx = i;
+      // carta escura = recomendada = com o selo 'Good pick' (sempre juntos); sem recomendada, nenhuma escura
+      var mainIdx = pick && shownCard(pick) ? dr.indexOf(pick) : -1;
       // ordem FIXA na tela (mesmo tipo de carta, mesma posicao todo dia); o indice do game segue em data-card
       var CARD_ORDER = ['plus2', 'freeRoad', 'freeLight', 'smooth', 'waveBonus', 'patient'], ordered = [];
       for (i = 0; i < dr.length; i++) ordered.push(i);
@@ -3205,7 +3615,9 @@
           var nm = el('b', 'crz-cname'); nm.textContent = STR.cards[id] || id;
           var ln = el('span', 'crz-cline'); ln.textContent = STR.cardLine[id] || '';
           var gd = el('span', 'crz-cgood');
-          gd.textContent = (!cardFits(id, pk, cctx) && STR.cardGoodNo[id]) || STR.cardGood[id] || '';
+          // (A6) 'Good if...' so nos 3 primeiros resumos da partida (aprendizado); depois titulo + efeito
+          gd.textContent = (s.day | 0) <= 3 ? ((!cardFits(id, pk, cctx) && STR.cardGoodNo[id]) || STR.cardGood[id] || '') : '';
+          if (!gd.textContent) gd.classList.add('gone');
           if (id === pick) { var tg = el('i', 'crz-ctag'); tg.textContent = STR.cardSuggest; nm.appendChild(tg); }
           tx.appendChild(nm); tx.appendChild(ln); tx.appendChild(gd);
           b.appendChild(tx);
@@ -3222,6 +3634,9 @@
       var stk = f.strikes != null ? f.strikes : s.strikes;
       statNums[0].textContent = String(days | 0); statNums[1].textContent = String(deliv | 0); statNums[2].textContent = String(stk | 0);
       overTitle.textContent = win ? STR.win : STR.lose;
+      // primeira vitoria no Easy: 'Try Normal' (contorno, abaixo de Play again)
+      var dName = (CRZ.difficulty && CRZ.difficulty.name) || CFG.difficultyName || 'easy';
+      tryNormalBtn.classList.toggle('gone', !(win && dName === 'easy' && !seen('tryNormal') && CRZ.difficulty && typeof CRZ.difficulty.set === 'function'));
       // derrota com causa: qual cruzamento travou e o que tentar (sem no travado: frase antiga)
       var lockN = win ? null : lockedNodeOf(s, game.world);
       overSub.textContent = win ? (stk === 0 ? STR.winFlawless : stk === 1 ? STR.winOne(days | 0) : STR.winMany(stk | 0))
@@ -3263,6 +3678,7 @@
       else if (swapUndoUntil) { hideSwapUndo(); sayUntil = 0; sayEl.classList.remove('show'); }
       if (s.phase !== 'plan') endSwapAsk('phase');
       closeSheet();
+      if (s.phase !== 'plan') closeConfirm();   // A3: a folha do Play fecha na troca de fase
       // dia que travou: segura o cruzamento travado em destaque ~2 s antes do resumo (a cena nao some)
       var lk = (s.phase === 'summary' || s.phase === 'over') && s.summary && s.summary.failed ? lockedNodeOf(s, game.world) : null;
       holdUntil = 0;
@@ -3278,7 +3694,11 @@
       overEl.classList.toggle('show', s.phase === 'over' && !holdUntil);
       if (s.phase === 'plan' && refitOnPlan) { refitOnPlan = false; try { if (render && render.fit) render.fit(true); } catch (e) {} }
       if (s.phase !== 'plan') { setSel(null); clearGhost(); showInfluence(null, 0); }
-      if (s.phase === 'summary') { buildSummary(s); moreClock = 0; later(syncMore, 80); }
+      if (s.phase === 'summary') {
+        // o aviso do primeiro gasto (do plano) nao entra no painel do resumo
+        if (sayUntil && /^You spent /.test(sayEl.textContent)) { sayUntil = 0; sayEl.classList.remove('show'); }
+        buildSummary(s); moreClock = 0; later(syncMore, 80);
+      }
       if (s.phase === 'over') buildOver(s);
       if (s.phase === 'plan') { hint = null; layoutDirty = true; showDayBanner(s); planWarn(s); }
     }
@@ -3297,6 +3717,7 @@
     function saveNow() {
       // troca de dificuldade em andamento: o pagehide do reload nao pode regravar o save da dificuldade antiga
       if (root.CRZ && root.CRZ.difficulty && root.CRZ.difficulty.switching) return;
+      if (leaving || (root.CRZ && root.CRZ.app && root.CRZ.app.leaving)) return;
       try {
         var j = game.save();
         lsSet(SAVE_KEY, typeof j === 'string' ? j : JSON.stringify(j));
@@ -3312,6 +3733,7 @@
         saveNow();
       }
       else if (ev.type === 'grow') onGrow();
+      else if (ev.type === 'ffEnd') onFFEnd(ev);
       else if (ev.type === 'built' && ev.kind === 'road') onPlanEdit();
       else if (ev.type === 'unlock') {
         if (ev.tool === 'clear') pend.clear = true;
@@ -3320,8 +3742,17 @@
     });
 
     // ---- dicas de tutorial ----
-    function seen(key) { return !!hints[key]; }
-    function markSeen(key) { hints[key] = 1; lsSet(HINT_KEY, JSON.stringify(hints)); }
+    function hk(key) { return PER_RUN[key] ? key + runTag : key; }
+    function seen(key) { return !!hints[hk(key)]; }
+    function markSeen(key) { hints[hk(key)] = 1; lsSet(HINT_KEY, JSON.stringify(hints)); }
+    // B1: saindo para um jogo novo (New game): o pagehide do reload nao regrava o save; as dicas da partida zeram
+    var leaving = false;
+    function beginLeave() {
+      leaving = true;
+      var k; for (k in hints) if (hints.hasOwnProperty(k) && k.indexOf('@') > 0) delete hints[k];
+      lsSet(HINT_KEY, JSON.stringify(hints));
+      lsDel(SAVE_KEY);
+    }
     function hintTarget(id) {
       var w = game.world, ids = [], q, best = null, bs = -1, sc;
       for (q in w.nodes) if (w.nodes.hasOwnProperty(q)) ids.push(+q);
@@ -3409,7 +3840,8 @@
         newToolTick(s, now);
       }
       // nunca dois avisos ao mesmo tempo: a faixa espera o aviso do topo sair
-      var show = nextOn && !tutBalloonOn() && !modal() && !sayEl.classList.contains('show');
+      // folha do dado aberta: a faixa espera (a folha a cobria)
+      var show = nextOn && !tutBalloonOn() && !modal() && !sayEl.classList.contains('show') && !sheetOpen;
       if (show) {
         var tx = nextText(s);
         if (nextEl.textContent !== tx) nextEl.textContent = tx;
@@ -3425,6 +3857,60 @@
       return show;
     }
     function nextStepOn() { return nextOn; }
+    // dias 1 e 2, durante o dia: uma linha discreta, uma vez, depois de 15 s sem tocar em nada (sem balao)
+    var runHintEl = tut(el('div', 'crz-runhint gone'), 'run-hint'), runHintUntil = 0;
+    bottom.appendChild(runHintEl);
+    // dias 1 a 3 (aprendizado), durante a corrida: o raio com carga pulsa de leve (sempre ha algo a fazer).
+    // Le state.boost (recarga dos dias de aprendizado, outro agente) ou state.clear
+    function boltCharges(s) { var b = s.boost || s.clear; return b ? (b.charges | 0) : 0; }
+    function boostLiveTick(s) {
+      var live = s.phase === 'run' && !s.paused && (s.day | 0) >= 1 && (s.day | 0) <= 3 && !!(s.clear && s.clear.unlocked !== false) && boltCharges(s) > 0;
+      if (live !== clearEl.classList.contains('crz-boostlive')) clearEl.classList.toggle('crz-boostlive', live);
+    }
+    // ---- fast-forward (blind2 9; game.setFastForward, CFG.fastForward) ----
+    var FF_CALM_MS = 4000, FF_LEFT_S = 6, ffCalmSince = 0;
+    function ffLim() { return (CFG.fastForward && CFG.fastForward.autoSlowStress) || 0.3; }
+    function hottestNode(lim) {
+      var w = game.world, ns = w && w.nodes, best = null, k;
+      if (!ns) return null;
+      for (k in ns) if (ns.hasOwnProperty(k)) { var n = ns[k]; if (n && (n.stress || 0) >= lim && (!best || n.stress > best.stress)) best = n; }
+      return best;
+    }
+    function ffOff() { try { if (game.state.ff && game.setFastForward) game.setFastForward(false); } catch (e) {} }
+    function ffShowChip(on) { if (on === ffChipEl.classList.contains('gone')) ffChipEl.classList.toggle('gone', !on); }
+    function ffTick(s, now) {
+      if (typeof game.setFastForward !== 'function' || s.phase !== 'run' || (s.day | 0) < 3) { ffCalmSince = 0; ffShowChip(false); return; }
+      if (s.ff) { ffShowChip(false); return; }
+      var calm = !hottestNode(ffLim());
+      if (!calm || s.paused) ffCalmSince = 0;
+      else if (!ffCalmSince) ffCalmSince = now;
+      var left = (+s.dayLen || 0) - (+s.dayTime || 0);
+      var show = !!ffCalmSince && now - ffCalmSince >= FF_CALM_MS && left > FF_LEFT_S &&
+                 !modal() && !sheetOpen && !confirmOpen() && !tutBalloonOn() && !holdUntil;
+      ffShowChip(show);
+    }
+    on(ffChipEl, 'click', function (e) {
+      if (e && e.stopPropagation) e.stopPropagation();
+      var r; try { r = game.setFastForward(true); } catch (er) { r = null; }
+      ffShowChip(false); ffCalmSince = 0;
+      if (r && r.ok) { snd('select'); emitUI('ffStart', {}); }
+      else { snd('deny'); if (r && r.reason === 'ring') ffSlowedNote(); }
+    });
+    function ffSlowedNote() {
+      stripSay(STR.ffSlowed, 4000);
+      var n = hottestNode(ffLim()) || hottestNode(0.01);
+      if (n) addPulse(n.x, n.y);
+    }
+    function onFFEnd(ev) {
+      ffCalmSince = 0;
+      if (ev.reason === 'ring' && game.state.phase === 'run') ffSlowedNote();
+    }
+    function runHintTick(s, now) {
+      if (runHintUntil && now >= runHintUntil) { runHintUntil = 0; runHintEl.classList.add('gone'); }
+      if (s.phase !== 'run' || (s.day | 0) !== 1 || seen('runHint') || tutBalloonOn() || s.paused) return;
+      if (!runAt || now - Math.max(runAt, lastTouchAt) < 15000) return;
+      markSeen('runHint'); runHintEl.textContent = STR.runHint; runHintEl.classList.remove('gone'); runHintUntil = now + 6000;
+    }
     function day1Built() {
       var base = nextEdges0 >= 0 ? nextEdges0 : 1;
       return edgeTotal() > base || !!(game.canUndo && game.canUndo());
@@ -3490,16 +3976,19 @@
       spendBudget = b;
     }
     var hintScan = { day: -1, phase: '', had: false };
-    var CHIP_LINGER = 2000;
+    // B3: paineis que rolam no toque (o guia 'Tools & buttons' faltava)
+    var SCROLL_OK = '#crz-overlay-root [data-scroll], .crz-sum [data-scroll], .crz-diepanel[data-scroll], .crz-guide [data-scroll]';
+    var CHIP_LINGER = 2000, MIN_ROAD_PX = 20;
     var PAN_LOCK_DAYS = 3, panLockSaid = false;
     // dias 1 e 2 (dias de tutorial) comecam a 1x; no dia 3 volta o padrao do CFG (4x), a menos que a jogadora
     // ja tenha escolhido a velocidade no botao (o equilibrio dos dias 3+ foi medido com o padrao)
     // dias 1 e 2 (dias de tutorial) SEMPRE comecam a 1x, mesmo se a jogadora trocou no dia 1. Do dia 3 em diante
     // vale a ultima escolha dela; sem escolha, o padrao do CFG (4x; o equilibrio dos dias 3+ foi medido assim)
-    var speedChosen = 0, TUT_SPEED_DAYS = 2, playPressedAt = -1e9, PLAY_GUARD = 400;
+    var speedChosen = 0, TUT_SPEED_DAYS = 2, TUT_SPEED = 2, playPressedAt = -1e9, PLAY_GUARD = 1000;
     function startSpeed(s) {
       var d = s.day | 0, def = (CFG.speedDial && CFG.speedDial.defaultSpeed) || 1;
-      if (d >= 1 && d <= TUT_SPEED_DAYS) return 1;
+      // Arthur 2026-11-09: dias 1 e 2 a 2x (1x deixava o dia longo e passivo; 4x rapido demais)
+      if (d >= 1 && d <= TUT_SPEED_DAYS) return TUT_SPEED;
       if (d === TUT_SPEED_DAYS + 1) return speedChosen || def;
       return s.speed || def;
     }
@@ -3560,12 +4049,27 @@
       }
       // play: laco no plano do dia 1 (enquanto nenhuma ferramenta esta na mao); pulso curto no 1o run
       var want = '';
+      // A4: aviso guardado ha mais de 4 s e descartado (fora de contexto)
+      if (sayLater && !tutBalloonOn() && !sayUntil) { var sl = sayLater; sayLater = null; if (nowMs() - sl.at <= 4000) say(sl.t, sl.ms); }
+      runHintTick(s, now);
+      boostLiveTick(s);
+      ffTick(s, now);
+      // nv8 6: com aviso preto na tela o selo PAUSED (menu.js) desce para baixo dele
+      var sOn = sayEl.classList.contains('show') && !!s.paused;
+      if (doc.body && doc.body.classList && sOn !== doc.body.classList.contains('crz-say-on')) {
+        if (sOn) { try { var sr = sayEl.getBoundingClientRect(); doc.documentElement.style.setProperty('--crz-sayb', Math.round(sr.bottom) + 'px'); } catch (e) {} }
+        doc.body.classList.toggle('crz-say-on', sOn);
+      }
+      // nv8 5: a legenda segue o custo (a rua gratis usada volta a custar): reescreve quando o texto muda
+      if (sel && !legendEl.classList.contains('gone')) { var lt = legendText(sel); if (legendEl.textContent !== lt) legendEl.textContent = lt; }
       firstSpendTick(s); ringEverTick(s); ringGroupTick(s);
       if (s.phase === 'run' && !runAt) runAt = now; else if (s.phase !== 'run') runAt = 0;
       firstUseTick(s, now);
       var nextShow = nextStepTick(s, now);
       nextFirstOn = nextShow && !nextBuilt && nextEl.textContent === STR.nextFirst;
-      if ((hint && hint.stage === 'play' && !sel && !nextFirstOn) || (nextShow && !nextFirstOn)) want = 'hint-loop';
+      // dia 1 sem estrada: o Play NAO pulsa (ele recusaria); quem pulsa e o ladrilho Road
+      var noRoad1 = (s.day | 0) === 1 && s.phase === 'plan' && !day1Built();
+      if (!noRoad1 && ((hint && hint.stage === 'play' && !sel && !nextFirstOn) || (nextShow && !nextFirstOn))) want = 'hint-loop';
       if (want !== playHintCls) {
         if (playHintCls) playBtn.classList.remove(playHintCls);
         if (want) playBtn.classList.add(want);
@@ -3808,6 +4312,8 @@
 
     // boost pedido por um botao (balao do tutorial 'Boost'): mesmo caminho do toque no no, com retorno visivel
     // ('Boosted!' + anel). Antes o botao so fechava o balao e nenhum raio era gasto
+    // faixa de 1 linha (dicas do tutorial, aviso do ff): nao bloqueia, some em ms ou no primeiro toque
+    function stripSay(text, ms) { if (!text) return; sayUntil = 0; say(text, ms || 6000); if (sayUntil) sayUntil = nowMs() + (ms || 6000); stripOn = true; }
     function boostNode(id) {
       var s = game.state, n = game.world && game.world.nodes ? game.world.nodes[id] : null;
       if (!n || s.phase !== 'run') return false;
@@ -3815,7 +4321,11 @@
       if (ok) { sayUntil = 0; say(STR.boosted, 1800); later(function () { addPulse(n.x, n.y); }, 500); }
       return !!ok;
     }
-    return { update: update, destroy: destroy, getSelectedTool: getSelectedTool, isSheetOpen: isSheetOpen, isHolding: isHolding, boostChip: boostChip, boostNode: boostNode };
+    return { update: update, destroy: destroy, getSelectedTool: getSelectedTool, isSheetOpen: isSheetOpen, isHolding: isHolding, boostChip: boostChip, boostNode: boostNode,
+             openGuide: openGuide, closeGuide: closeGuide, isGuideOpen: function () { return !!guideEl; },
+             beginLeave: beginLeave, flushSave: onHide,
+             // faixa de 1 linha do tutorial (dicas): nao bloqueia, some em ms ou no primeiro toque
+             strip: stripSay };
   }
 
   CRZ.UI = {

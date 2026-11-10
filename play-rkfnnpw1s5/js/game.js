@@ -123,10 +123,16 @@
       hot: {},
       // Clear: cargas por dia para escoar um cruzamento durante o run (libera em CFG.clear.unlockDay)
       clear: { unlocked: false, charges: 0, max: CFG.clear.charges, seconds: CFG.clear.seconds },
+      // Boost para a interface (CFG.earlyBoost): charges/max como clear; nextChargeIn = segundos de jogo ate a proxima
+      // carga voltar (0 = nenhuma recarregando); regen = a regra de recarga vale neste dia (dias de aprendizado);
+      // used = Boosts do dia dentro das 3 cargas (o que vale para teto e estatistica); extra = Boosts alem delas
+      boost: { charges: 0, max: CFG.clear.charges, nextChargeIn: 0, regen: false, regenSeconds: 0, used: 0, extra: 0 },
       // velocidade escolhida pelo jogador: mais rapido = menos paciencia, mais gorjeta por carro.
       // tips = gorjeta do dia; tipCarry = resto de dias anteriores (< perPoint); speedBonus = pontos
       // que entram no PROXIMO plano; speedDial.applied = pontos que entraram no plano de hoje.
       tips: 0, tipCarry: 0, speedBonus: 0,
+      // fast-forward ligado agora (CFG.fastForward; so na fase de corrida, nunca vai no save)
+      ff: false,
       // primeira viagem: day3Convoy = o comboio do dia 3 vai rodar/rodou neste dia; seen = ja rodou neste jogo
       teach: { day3Convoy: false, seen: false, target: null, sent: 0 },
       final: null,
@@ -156,6 +162,38 @@
       st.clear.max = CFG.clear.charges;
       st.clear.seconds = CFG.clear.seconds;
       st.clear.charges = st.clear.unlocked ? charges : 0;
+      bUsed = 0; bExtra = 0; regenT = [];
+      syncBoost();
+    }
+    // ----- recarga do Boost nos dias de aprendizado (CFG.earlyBoost) -----
+    // regenT: segundos de jogo que faltam para cada carga gasta voltar (FIFO, todas com a mesma duracao).
+    // So existe com a recarga ligada; fora dela fica vazio e o Boost e o de sempre (3 por dia).
+    var regenT = [];
+    var bUsed = 0, bExtra = 0;   // Boosts do dia: dentro das 3 cargas (teto/estatistica) e alem delas (recarga)
+    function earlyOn() {
+      var E = CFG.earlyBoost;
+      return !!E && E.days > 0 && E.regenSeconds > 0 && st.day <= E.days;
+    }
+    function syncBoost() {
+      var b = st.boost;
+      b.charges = st.clear.charges; b.max = st.clear.max;
+      b.regen = st.clear.unlocked && earlyOn();   // a regra vale neste dia (a recarga so anda durante o dia)
+      b.regenSeconds = b.regen ? CFG.earlyBoost.regenSeconds : 0;
+      b.nextChargeIn = regenT.length ? Math.max(0, Math.round(regenT[0] * 100) / 100) : 0;
+      b.used = bUsed; b.extra = bExtra;
+    }
+    function tickRegen(dt) {
+      if (!regenT.length) return;
+      for (var i = 0; i < regenT.length; i++) regenT[i] -= dt;
+      while (regenT.length && regenT[0] <= 1e-9) {
+        regenT.shift();
+        if (st.clear.charges < st.clear.max) {
+          st.clear.charges++;
+          syncBoost();
+          emit({ type: 'boostReady', charges: st.clear.charges, max: st.clear.max });
+        }
+      }
+      syncBoost();
     }
     var HOT_MIN = 0.35;
     var PORTAL_CAP = 10;        // teto de portais criados por ruas do jogador
@@ -352,7 +390,7 @@
         // resumo para o "Lost cars: N" sobreviver a save/load (o world.stats zera no load)
         lost: s.lost || 0
       };
-      st.clear.charges = 0;
+      st.clear.charges = 0; regenT = []; syncBoost();
       st.totalDelivered += delivered;
       st.totalScore += score;
       st.history.push({ day: st.day, delivered: delivered, failed: !!failed, lost: s.lost || 0, peak: Math.round(Math.min(1, peak) * 100) / 100 });
@@ -1103,6 +1141,7 @@
       st.dayLen = CFG.dayLen[st.day - 1];
       st.phase = 'run';
       st.paused = false;
+      st.ff = false;
       st.tips = 0; syncDial();
       convoy = (teachOn && !teachSeen && st.day === TEACH.day) ? planConvoy() : null;
       st.teach.day3Convoy = !!convoy;
@@ -1119,8 +1158,38 @@
 
     // velocidade do jogador (CFG.speedDial.levels), em qualquer fase; vale como preferencia para os
     // proximos dias. No meio do dia a paciencia muda na hora (o Sim le params.patienceMul a cada passo).
+    // ----- fast-forward (CFG.fastForward) -----
+    // Um quadro de tela em ff = round(ff.speed / st.speed) quadros normais seguidos com o mesmo dt: os passos fixos, a
+    // velocidade (paciencia) e a ordem dos estados sao os de sem ff; so o tempo de parede encolhe. st.speed nao muda.
+    function ffCfg() { return CFG.fastForward || { speed: 8, autoSlowStress: 0.3, bonusSpeedCap: 4 }; }
+    function hotNow() {
+      var lim = ffCfg().autoSlowStress, k = sortedIds(world.nodes);
+      for (var i = 0; i < k.length; i++) if ((world.nodes[k[i]].stress || 0) >= lim) return true;
+      return false;
+    }
+    function endFF(reason) {
+      if (!st.ff) return;
+      st.ff = false;
+      emit({ type: 'ffEnd', reason: reason });
+    }
+    // gorjeta por carro: a recompensa da velocidade escolhida, capada em bonusSpeedCap x durante o ff
+    function rewardNow() {
+      if (!st.ff) return levelOf(st.speed).reward;
+      var cap = ffCfg().bonusSpeedCap, L = CFG.speedDial.levels, best = L[0];
+      for (var i = 0; i < L.length; i++) if (L[i].speed <= Math.min(st.speed, cap) && L[i].speed >= best.speed) best = L[i];
+      return best.reward;
+    }
+    g.setFastForward = function (on) {
+      if (!on) { endFF('player'); return { ok: true, ff: false }; }
+      if (st.phase !== 'run' || st.paused) return fail('phase');
+      if (hotNow()) return fail('ring');             // ja ha anel: nada de pular
+      if (!st.ff) { st.ff = true; emit({ type: 'ffStart' }); }
+      return { ok: true, ff: true };
+    };
+
     g.setSpeed = function (sp) {
       if (!speedOk(sp)) return false;
+      endFF('player');
       if (st.speed !== sp) {
         st.speed = sp;
         if (st.phase === 'run') applyPatience();
@@ -1133,6 +1202,7 @@
     // conta como entrega normal). Cruzamento: Clear, escoa a fila por alguns segundos (world.boost).
     // Portal com 3+ estradas e estresse >= 0.5 e tratado como cruzamento. Nao consome rng.
     g.useClear = function (nodeId) {
+      endFF('player');                                // toque numa ponta ou Boost: a jogadora agiu
       if (st.phase !== 'run' || st.paused) return fail('phase');
       if (!clearUnlocked()) return fail('locked');
       if (!(st.clear.charges > 0)) return fail('charges');
@@ -1141,27 +1211,41 @@
       // ponta de rua (1 estrada): manda carro; qualquer no com 2+ estradas, portal ou nao: escoa a fila
       var kind = (n.portal && degree(n) < 2) ? 'send' : 'clear';
       var minS = CFG.clear.minStress || 0;
+      // 4o Boost do dia em diante (so existe com a recarga dos dias de aprendizado): fora do teto diario,
+      // e o carro mandado nao paga gorjeta
+      var extraUse = !(bUsed < CFG.clear.charges);
       if (kind === 'send') {
         // ponta cuja rua esta na fila do cruzamento a frente: mandar carro piora; a UI aponta `ahead`
         var e0 = n.edges.length ? world.edges[idOf(n.edges[0])] : null, ah = e0 ? world.nodes[e0.a === n.id ? e0.b : e0.a] : null;
         if (ah && (ah.stress || 0) >= 0.5) { var fq = fail('portalQueue'); fq.ahead = ah.id; return fq; }
-        if (typeof world.sendCar === 'function' && world.sendCar(n.id) === false) return fail('space');
+        if (typeof world.sendCar === 'function' && world.sendCar(n.id, extraUse ? { noTip: true } : undefined) === false) return fail('space');
       } else if (minS > 0 && !((n.stress || 0) > minS)) {
         return fail('calm');                      // sem fila: nao gasta a carga
       } else if (typeof world.boost === 'function') {
         world.boost(n.id, CFG.clear.seconds, CFG.clear.mul, CFG.clear.stressRelief);
       }
       st.clear.charges--;
-      emit({ type: 'clear', nodeId: n.id, left: st.clear.charges, kind: kind });
-      return { ok: true, id: n.id, left: st.clear.charges, kind: kind };
+      if (extraUse) bExtra++; else bUsed++;
+      if (earlyOn()) regenT.push(CFG.earlyBoost.regenSeconds);
+      syncBoost();
+      var cev = { type: 'clear', nodeId: n.id, left: st.clear.charges, kind: kind }, res = { ok: true, id: n.id, left: st.clear.charges, kind: kind };
+      if (extraUse) { cev.extra = true; res.extra = true; }   // so aparece no Boost alem das 3 cargas do dia
+      emit(cev);
+      return res;
     };
 
     g.setPaused = function (p) {
+      endFF('player');
       st.paused = !!p;
       return st.paused;
     };
 
     g.update = function (dt) {
+      if (!st.ff) return frame(dt);
+      var n = Math.max(1, Math.round(ffCfg().speed / st.speed));
+      for (var k = 0; k < n && st.ff; k++) frame(dt);   // o ff pode terminar no meio: o resto do quadro nao roda
+    };
+    function frame(dt) {
       if (st.phase !== 'run' || st.paused || !(dt > 0)) return;
       acc += dt * st.speed;
       if (acc > 4) acc = 4;
@@ -1177,7 +1261,7 @@
         for (var i = 0; i < evs.length; i++) {
           emit(evs[i]);
           if (evs[i].type === 'gridlock') { dayFailed = true; lockInfo(evs[i].nodeId); }
-          else if (evs[i].type === 'arrive') st.tips += levelOf(st.speed).reward;
+          else if (evs[i].type === 'arrive' && !evs[i].noTip) st.tips += rewardNow();
         }
         if (stepCount % 10 === 0) {
           var ids = sortedIds(world.nodes);
@@ -1188,10 +1272,11 @@
           }
         }
         syncDial();
-        if (dayFailed) { finishDay(true); }
-        else if (st.dayTime >= st.dayLen - 1e-9) { finishDay(false); }
+        if (dayFailed) { endFF('strike'); finishDay(true); }
+        else if (st.dayTime >= st.dayLen - 1e-9) { endFF('day'); finishDay(false); }
+        else { tickRegen(STEP); if (st.ff && hotNow()) endFF('ring'); }
       }
-    };
+    }
 
     g.pickCard = function (index) {
       if (st.phase !== 'summary' || !st.draft) return fail('phase');

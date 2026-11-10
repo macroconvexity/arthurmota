@@ -828,7 +828,9 @@
                   w.stats.delivered++;
                   w.stats.waitSum += car.waited;
                   var dn = w.nodes[car.dest];
-                  events.push({ type: 'arrive', x: dn.x, y: dn.y, nodeId: dn.id, wait: car.waited });
+                  var aev = { type: 'arrive', x: dn.x, y: dn.y, nodeId: dn.id, wait: car.waited };
+                  if (car._nt) aev.noTip = true;
+                  events.push(aev);
                   continue;
                 }
               }
@@ -1478,7 +1480,9 @@
     // e portal, portal sem estrada de saida, menos de 2 portais, rota inexistente ou sem espaco.
     // rng: false NAO consome rng. true consome exatamente 1 rng(): sorteia o destino entre os
     // outros portais com rota e faixa livre de entrada (indice floor(rng()*n) na ordem de portalList).
-    w.sendCar = function (portalId) {
+    // opts.noTip (2026-11-09, CFG.earlyBoost): o carro e marcado (_nt) e o evento 'arrive' dele leva noTip: true
+    // (o game nao paga gorjeta por ele). Sem opts: identico ao anterior.
+    w.sendCar = function (portalId, opts) {
       var p = w.nodes[portalId];
       if (!p || !p.portal || !NS[p.id] || portalList.length < 2 || !p.edges.length) return false;
       var cand = [], i;
@@ -1494,6 +1498,7 @@
       var car = { id: nextCar++, edgeId: 0, dir: 1, s: 0, lane: 0, speed: CFG.speedSlow,
         dest: pick.dest, waited: 0, x: p.x, y: p.y, ang: 0,
         _i: w.cars.length, _we: 0, _next: -1, _from: p.id, _lineAt: -1, _wave: 0, _wh: 0 };
+      if (opts && opts.noTip) car._nt = 1;
       w.cars.push(car);
       if (!enter(car, pick.code, l, p.id)) return false;
       setPos(car);

@@ -634,3 +634,134 @@ body.crz-menu-on .crz-top { padding-right: calc(var(--sar) + 62px); }
 .crz-next { position: absolute; right: calc(var(--sar) + 66px); bottom: calc(100% + 6px); margin: 0; max-width: calc(100% - 90px); }
 /* nome sob o icone do ladrilho da rua */
 .crz-cost .crz-tname { font-size: 11px; font-weight: 600; color: var(--inkSoft); margin-right: 3px; }
+/* amanha: icone do efeito num quadro tracejado (antes um numero que parecia o efeito) */
+.crz-dnext { border: 1.5px dashed var(--inkSoft); border-radius: 6px; padding: 1px; display: inline-flex; }
+
+/* ---- resumo enxuto (Roberta 2026-11-09): uma dica de acao, (i) nas barras, menos espaco ---- */
+.crz-panel { gap: 8px; padding: 12px 14px; }
+.crz-big { font-size: 52px; }
+.crz-cap { margin-top: -4px; }
+/* as linhas antigas (dica vermelha e NEW) viram um chip so de acao */
+.crz-panel .crz-sjam, .crz-panel .crz-snewj, .crz-panel > .crz-bonus:not(.crz-carry):not(.lost) { display: none; }
+.crz-slab { width: 112px; display: flex; align-items: center; gap: 4px; }
+.crz-sinfo {
+  position: relative; width: 16px; height: 16px; border-radius: 50%; border: 1.2px solid #666; color: #666; background: none;
+  font: italic 700 10px/13px Georgia, serif; text-align: center; padding: 0; flex: none;
+}
+.crz-sinfo::after { content: ""; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
+.crz-sinfotxt { width: 100%; font-size: 12px; line-height: 1.35; color: #555; text-align: left; margin-top: -4px; }
+.crz-sinfotxt.gone { display: none; }
+.crz-bval { flex: none; font-size: 12px; font-weight: 700; color: #1a7f35; min-width: 38px; text-align: right; white-space: nowrap; }
+.crz-todo {
+  width: 100%; min-height: 40px; display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 12px;
+  background: #fbf3e0; border: 1px solid #e5c98a; color: #4a3a12; font-size: 13px; font-weight: 600; text-align: left;
+}
+.crz-todo::before { content: "!"; flex: none; width: 18px; height: 18px; border-radius: 50%; background: #d98a00; color: #fff; font-size: 12px; font-weight: 800; line-height: 18px; text-align: center; }
+.crz-todo.gone { display: none; }
+.crz-ctx .crz-cgood.gone { display: none; }
+.crz-card.crz-card { min-height: 52px; padding: 6px 12px; }
+.crz-skip { min-height: 48px; }
+
+/* ---- dicionario de botoes (Roberta 2026-11-09) ---- */
+.crz-legend {
+  position: absolute; left: calc(var(--sal) + 12px); right: calc(var(--sar) + 66px); bottom: calc(100% + 6px);
+  background: var(--white); color: var(--ink); border: 1.5px solid var(--ink); border-radius: 12px; padding: 7px 12px;
+  font-size: 13px; line-height: 1.3; font-weight: 600; pointer-events: none; box-sizing: border-box;
+}
+.crz-legend.gone { display: none; }
+.crz-bottom.crz-legendon .crz-next { display: none; }
+.crz-guidebtn {
+  position: absolute; left: calc(var(--sal) + 12px); top: -50px; width: 36px; height: 36px; border-radius: 50%;
+  background: var(--white); border: 1.5px solid var(--gray); color: var(--ink); font-size: 17px; font-weight: 800; pointer-events: auto;
+}
+.crz-guidebtn::after { content: ""; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
+.crz-ui[data-phase="run"] .crz-guidebtn, .crz-ui[data-phase="summary"] .crz-guidebtn, .crz-bottom.crz-legendon .crz-guidebtn { visibility: hidden; }
+.crz-guide {
+  position: fixed; inset: 0; z-index: 1000; background: rgba(17, 17, 17, 0.35); display: flex; align-items: flex-end; justify-content: center;
+  padding: calc(var(--sat) + 12px) calc(var(--sar) + 10px) calc(var(--sab) + 10px) calc(var(--sal) + 10px); pointer-events: auto;
+}
+.crz-gbox { width: 100%; max-width: 440px; max-height: 100%; display: flex; flex-direction: column; background: var(--bg); border: 1.5px solid var(--ink); border-radius: 16px; overflow: hidden; }
+.crz-ghead { display: flex; align-items: center; justify-content: space-between; padding: 6px 6px 6px 16px; border-bottom: 1px solid var(--grid); }
+.crz-ghead h2 { margin: 0; font-size: 17px; }
+.crz-gx { width: 44px; height: 44px; border-radius: 22px; font-size: 26px; line-height: 1; background: none; color: var(--ink); }
+.crz-gbody { overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; padding: 4px 16px 16px; }
+.crz-gbody h3 { margin: 14px 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: #666; }
+.crz-grow { display: flex; gap: 12px; align-items: flex-start; padding: 6px 0; }
+.crz-gic { flex: none; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; }
+.crz-gic svg { width: 30px; height: 30px; }
+.crz-gsym { font-size: 20px; font-weight: 700; }
+.crz-gtx { font-size: 13px; line-height: 1.35; }
+.crz-gtx b { font-size: 14px; }
+.crz-gmore { font-size: 12px; color: #666; margin: 2px 0 0 46px; }
+/* tela inicial: so uma linha curta no Normal; o bloco de dificuldade mora no menu */
+.crzm-dshort { font-size: 13px; color: #555; margin-top: -4px; }
+.crzm-dshort.gone, .crzm-mdiff.gone { display: none; }
+.crzm-mdiff { padding: 4px 16px 10px; display: flex; flex-direction: column; gap: 8px; }
+.crzm-mdiff .crzm-dinfo { font-size: 12px; line-height: 1.4; color: #555; }
+.crz-trynormal { min-height: 44px; padding: 0 24px; border-radius: 22px; background: transparent; color: var(--ink); border: 1.5px solid var(--ink); font-size: 15px; font-weight: 700; }
+.crz-trynormal.gone { display: none; }
+/* guia aberto: o botao do menu (fixo, por cima) sai para o X do guia receber o toque */
+body.crz-guide-on .crzm-menubtn, body.crz-guide-on .crzm-pausebtn { visibility: hidden; }
+/* o guia mora no HUD: com ele aberto (crz-modal) so ele recebe toques */
+body.crz-modal #hud .crz-guide, body.crz-modal #hud .crz-guide * { pointer-events: auto !important; }
+@media (max-height: 700px) { .crz-sum .crz-sinfotxt.crz-lowq { display: none; } }
+.crz-panel .crz-bline { display: none !important; }
+/* playtest as cegas: rua gratis pulsando, linha discreta do dia, folha de confirmacao do Play */
+@keyframes crz-freepulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(26, 127, 53, 0.55); } 50% { box-shadow: 0 0 0 6px rgba(26, 127, 53, 0); } }
+.crz-tile.crz-freeon { border-color: #1a7f35; animation: crz-freepulse 1.6s ease-out infinite; }
+@media (prefers-reduced-motion: reduce) { .crz-tile.crz-freeon { animation: none; outline: 2px solid #1a7f35; outline-offset: 2px; } }
+.crz-runhint { position: absolute; left: calc(var(--sal) + 60px); right: calc(var(--sar) + 66px); bottom: calc(100% + 6px); text-align: center; font-size: 12px; color: #555; pointer-events: none; }
+.crz-runhint.gone { display: none; }
+.crz-confirm { position: fixed; inset: 0; z-index: 900; background: rgba(17, 17, 17, 0.3); display: flex; align-items: flex-end; justify-content: center; padding: 0 calc(var(--sar) + 12px) calc(var(--sab) + 12px) calc(var(--sal) + 12px); pointer-events: auto; }
+.crz-confirm.gone { display: none; }
+.crz-cbox { width: 100%; max-width: 420px; background: var(--bg); border: 1.5px solid var(--ink); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.crz-ctxt { font-size: 16px; line-height: 1.4; font-weight: 600; }
+.crz-crow { display: flex; gap: 10px; }
+.crz-crow button { flex: 1; min-height: 52px; border-radius: 26px; font-size: 16px; font-weight: 700; }
+.crz-cstart { background: var(--ink); color: var(--bg); }
+.crz-cback { background: transparent; color: var(--ink); border: 1.5px solid var(--ink); }
+body.crz-modal #hud .crz-confirm, body.crz-modal #hud .crz-confirm * { pointer-events: auto !important; }
+/* dias 1 a 3, corrida: raio com carga pulsa de leve (do dia 4 em diante so com anel) */
+@keyframes crz-boltlive { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.08); opacity: 0.85; } }
+.crz-clear.crz-boostlive { animation: crz-boltlive 1.8s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) { .crz-clear.crz-boostlive { animation: none; } }
+/* nv7: telas baixas (375x667): ate 5 ferramentas numa linha so; baloes mais curtos para cobrir menos o mapa */
+@media (max-height: 700px) and (orientation: portrait) {
+  :root { --tile: 42px; }
+  .crz-tiles { gap: 5px; }
+  .crz-tray { gap: 6px; }
+  .crz-tile svg { width: 26px; height: 26px; }
+  .crz-tut .crz-tut-box { padding: 8px 12px !important; }
+  .crz-tut .crz-tut-txt { font-size: 14px !important; line-height: 1.3 !important; }
+}
+.crz-half { width: 100%; font-size: 12px; line-height: 1.3; color: #666; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.crz-half.gone { display: none; }
+/* M1: pulso visivel em ladrilho, Play e chip de cruzamentos novos */
+.crz-tile.pulse::after, .crz-play.pulse::before {
+  content: ""; position: absolute; inset: -4px; border: 2px solid var(--red); border-radius: inherit;
+  pointer-events: none; animation: crz-ring 0.9s ease-out 2 forwards;
+}
+.crz-play.pulse::before { border-radius: 50%; }
+.crz-tile { position: relative; }
+.crz-njchip.pulse { box-shadow: 0 0 0 3px rgba(122, 106, 168, 0.55); transition: box-shadow 0.3s; }
+@media (prefers-reduced-motion: reduce) {
+  .crz-tile.pulse::after, .crz-play.pulse::before { animation: none; }
+  .crz-tile.pulse, .crz-play.pulse { outline: 2px solid var(--red); outline-offset: 3px; }
+}
+
+/* blind2 9: 'Skip' (fast-forward) na corrida, a esquerda do botao de velocidade */
+.crz-ffchip {
+  position: absolute; right: calc(var(--sar) + 12px + var(--play) + 10px); bottom: calc(var(--sab) + 12px + (var(--play) - 40px) / 2);
+  min-height: 40px; padding: 0 14px; border-radius: 20px; border: 1.5px solid var(--ink); background: var(--white);
+  color: var(--ink); font-size: 14px; font-weight: 800; pointer-events: auto; z-index: 2;
+}
+.crz-ffchip.gone { display: none; }
+.crz-ffchip:active { transform: scale(0.95); }
+
+/* nv8 6: o '?' fica sempre visivel no plano; a legenda da ferramenta sobe acima dele; a faixa do proximo passo
+   nao chega na coluna do '?'; o selo PAUSED desce para baixo do aviso preto quando ha aviso */
+.crz-bottom.crz-legendon .crz-guidebtn { visibility: visible; }
+.crz-ui[data-phase="run"] .crz-guidebtn, .crz-ui[data-phase="summary"] .crz-guidebtn { visibility: hidden; }
+.crz-legend { bottom: calc(100% + 56px); }
+.crz-next { max-width: calc(100% - 128px); }
+body.crz-say-on.crz-say-on .crzm-stamp { top: calc(var(--crz-sayb, 140px) + 10px); transform: translate(-50%, 0); }

@@ -11,7 +11,11 @@
 
   var STR = {
     title: 'Gridlet', subtitle: 'Traffic engineer',
-    play: 'Play', cont: 'Continue', howto: 'How to play',
+    play: 'Play', cont: 'Continue', howto: 'How to play', guide: 'Tools & buttons',
+    bestOne: function (b) { return 'Best: ' + b.bestDelivered + ' cars \u00b7 ' + b.wins + (b.wins === 1 ? ' win' : ' wins'); },
+    difficulty: 'Difficulty', normalShort: 'Normal: a bigger challenge.',
+    switchAsk: function (label) { return 'Start a new game on ' + label + '? This run will end.'; },
+    switchYes: 'Start new game', switchNo: 'Keep playing',
     best: 'Best', bestLine: function (b) { return b.bestDelivered + ' delivered in one game'; },
     bestMore: function (b) { return b.games + (b.games === 1 ? ' game' : ' games') + ' \u00b7 ' + b.wins + (b.wins === 1 ? ' win' : ' wins') + ' \u00b7 up to day ' + b.bestDays; },
     menu: 'Menu', close: 'Close', resume: 'Back to game', pause: 'Pause', unpause: 'Resume', paused: 'Paused',
@@ -23,7 +27,7 @@
     gestH: 'Gestures',
     gest: [
       ['Tap', 'a tool to pick it, then tap a crossing to place it.'],
-      ['Drag from a road end', 'builds a road when New road is selected.'],
+      ['Drag from a road end', 'builds a road when Road is selected.'],
       ['Pinch', 'zooms the map in and out.'],
       ['Two fingers', 'move the map.'],
       ['Hold a crossing', 'shows how far it reaches.'],
@@ -31,7 +35,7 @@
     ],
     toolsH: 'Tools', unlocksDay: function (d) { return 'Unlocks on day ' + d; }, fromDay: function (d) { return 'Day ' + d; },
     tools: {
-      road: ['New road', 'Connects two spots with a new road.'],
+      road: ['Road', 'Connects two spots with a new road.'],
       stop: ['Stop', 'Cheap. Cars take turns. Good where three or four quiet roads meet.'],
       yield: ['Yield', 'Main road never stops. Best where a busy road meets a side road.'],
       light: ['Traffic light', 'Handles the heaviest four-way traffic. Skips empty sides. Pair for green waves.'],
@@ -48,7 +52,7 @@
       ['Ring colors', 'Amber ring: busy crossing. Red ring: about to jam.'],
       ['Rewards', 'at the end of each day, pick 1 of 3. Each one says what it changes, and it lasts one day.'],
       ['Speed', 'during the day, tap the play button to go faster. Faster earns bonus build points, but queues build up quicker.'],
-      ['Boost', 'during the day, tap a road end to send a car now, or a crossing with a ring to clear it. A few per day.'],
+      ['Boost (\u26a1)', '3 per day (they recharge in the first days). During the day, tap a road end to send a car now, or a crossing with a ring to clear it.'],
       ['Undo', 'while planning, undo gives the build points back.']
     ],
     // seletor de dificuldade: uma frase por modo, em palavras simples. Os dois modos se comparam entre si:
@@ -136,6 +140,11 @@
     } catch (e) { return 0; }
   }
   // dia 2 em diante, ou o dia 1 ja jogado (resumo/carta): o save retoma a partida, nao e um comeco
+  // nv8 7: limite de strikes da dificuldade em jogo (4 Easy, 3 Normal), lido na hora
+  function strikesNow() {
+    var C = CRZ.CFG || {}, D = CRZ.difficulty, P = D && C.difficulties ? C.difficulties[D.name] : null;
+    return (P && P.strikes) || C.maxStrikes || 3;
+  }
   function hasContinue() {
     if (saveDay() > 1) { return true; }
     try {
@@ -217,6 +226,10 @@
     '.crzm-best b{color:var(--ink,#111);font-weight:600}',
     /* folha de menu */
     '.crzm-menu{z-index:2;align-items:flex-end;justify-content:center;background:rgba(17,17,17,.28)}',
+    // B2: a folha de troca de dificuldade fica acima da tela inicial (3) e do menu (2)
+    '.crzm-switch{z-index:6;align-items:flex-end;justify-content:center;background:rgba(17,17,17,.28)}',
+    '.crzm-switch .crzm-sheet{display:flex;flex-direction:column;gap:10px;padding-top:16px;align-items:stretch}',
+    '.crzm-switch .crzm-switchtxt{margin:0 0 4px;font-size:16px;font-weight:600;line-height:1.4}',
     '.crzm-sheet{width:100%;max-width:440px;background:var(--bg,#fffdf8);border:1.5px solid var(--ink,#111);border-bottom:0;border-radius:14px 14px 0 0;padding:6px calc(var(--sar,0px) + 16px) calc(var(--sab,0px) + 12px) calc(var(--sal,0px) + 16px);transform:translateY(24px);transition:transform .22s ease;color:var(--ink,#111)}',
     '.crzm-layer.vis .crzm-sheet{transform:none}',
     '.crzm-grab{width:36px;height:4px;border-radius:2px;background:var(--gray,#cfcfcf);margin:6px auto 4px}',
@@ -279,7 +292,7 @@
     var ownPaused = false;
     var menuOpen = false, helpOpen = false, startOpen = false;
     var landOpen = false, landPaused = false, landEl = null;
-    var newArmedAt = 0;
+    var newArmedAt = 0, NEW_ARM_MS = 5000;   // nv8 1: 5 s para o segundo toque
     var recorded = false;
     var cacheKey = '';
     var rootEl = null, madeRoot = false, styleEl = null;
@@ -289,8 +302,45 @@
     function st() { return (game && game.state) || {}; }
     function body() { return doc && doc.body; }
     function bodyClass(name, on) { var b = body(); if (b && b.classList) { b.classList[on ? 'add' : 'remove'](name); } }
-    function modalCount() { return (startOpen ? 1 : 0) + (menuOpen ? 1 : 0) + (helpOpen ? 1 : 0) + (landOpen ? 1 : 0); }
-    function syncModal() { bodyClass('crz-modal', modalCount() > 0); }
+    function modalCount() { return (startOpen ? 1 : 0) + (menuOpen ? 1 : 0) + (helpOpen ? 1 : 0) + (landOpen ? 1 : 0) + (switchOpen ? 1 : 0); }
+    // nv7: trocar de dificuldade com partida em andamento apaga a partida: pede confirmacao numa folha
+    var switchEl = null, switchOpen = false, switchTo = null;
+    // nv8 2: dia 1 com qualquer construcao (ou dia ja iniciado) tambem pede a folha antes de apagar
+    function liveProgress() {
+      var s = st();
+      if (num(s.day) > 1 || s.phase === 'run' || s.phase === 'summary' || num(s.totalDelivered) > 0) { return true; }
+      try { if (game && game.canUndo && game.canUndo()) { return true; } } catch (e) {}
+      return false;
+    }
+    function askSwitch(n) {
+      var D = CRZ.difficulty; if (!D) { return; }
+      if (!hasContinue() && !liveProgress()) { D.set(n); return; }
+      switchTo = n;
+      if (!switchEl) {
+        switchEl = layer('crzm-switch', STR.difficulty);
+        var sh = el('div', 'crzm-sheet');
+        els.switchTxt = el('p', 'crzm-switchtxt', '');
+        sh.appendChild(els.switchTxt);
+        sh.appendChild(btn('crzm-big', STR.switchYes, function () { var t = switchTo; closeSwitch(); if (t && CRZ.difficulty) { CRZ.difficulty.set(t); } }));
+        sh.appendChild(btn('crzm-ghost', STR.switchNo, function () { closeSwitch(); }));
+        switchEl.appendChild(sh); rootEl.appendChild(switchEl);
+      }
+      els.switchTxt.textContent = STR.switchAsk(D.label(n));
+      // uma folha por vez: a folha sai por cima e o menu fecha SEM despausar (switchOpen ja vale)
+      switchOpen = true;
+      if (menuOpen) { closeMenu(); }
+      openLayer(switchEl); syncModal(); syncPause();
+      try { var fb = switchEl.querySelector && switchEl.querySelector('.crzm-big'); if (fb && fb.focus) { fb.focus(); } } catch (e) {}
+    }
+    function closeSwitch() {
+      if (!switchOpen) { return; }
+      switchOpen = false; closeLayer(switchEl); syncModal();
+      // 'Keep playing': o dia que o menu tinha pausado volta a andar
+      if (ownPaused && !menuOpen && !landOpen) { ownPaused = false; if (game && game.setPaused && st().paused) { game.setPaused(false); } }
+      syncPause();
+    }
+    // M2: o guia 'Tools & buttons' (ui.js) tambem segura crz-modal
+    function syncModal() { var gOpen = false; try { gOpen = !!(CRZ.app && CRZ.app.ui && CRZ.app.ui.isGuideOpen && CRZ.app.ui.isGuideOpen()); } catch (e) {} bodyClass('crz-modal', modalCount() > 0 || gOpen); }
 
     if (audio && audio.setEnabled) { try { audio.setEnabled(soundOn); } catch (e) {} }
 
@@ -359,23 +409,68 @@
       menuEl.addEventListener('click', function (e) { if (e.target === menuEl) { closeMenu(); } });
       var sheet = el('div', 'crzm-sheet');
       sheet.appendChild(el('div', 'crzm-grab'));
-      els.rCont = btn('crzm-row', STR.resume, function () { closeMenu(); });
+      els.rCont = btn('crzm-row', STR.resume, function () {
+        var wasRun = st().phase === 'run';
+        closeMenu();
+        if (wasRun && st().paused && game && game.setPaused) { ownPaused = false; game.setPaused(false); syncPause(); }
+      });
       els.rPause = btn('crzm-row', STR.pause, function () {
         if (!game || !game.setPaused) { return; }
         ownPaused = false;
         game.setPaused(!st().paused); syncMenuRows(); syncPause();
       });
       els.rHelp = btn('crzm-row', STR.howto, function () { openHelp(); });
+      // o mesmo guia do botao '?' da bandeja (ui.js): ferramentas liberadas, botoes, cores, cartas
+      els.rGuide = btn('crzm-row', STR.guide, function () {
+        var u = CRZ.app && CRZ.app.ui;
+        closeMenu();
+        if (u && typeof u.openGuide === 'function') { u.openGuide(); }
+      });
       els.rSound = btn('crzm-row', null, function () { toggleSound(); });
       els.rTut = btn('crzm-row', STR.replay, function () {
         if (!tutorial || !tutorial.replay) { return; }
         closeMenu(); tutorial.replay();
       });
       els.rNew = btn('crzm-row', STR.newGame, function () { pressNew(); });
+      // Difficulty: o mesmo seletor e as frases com os numeros reais (lidos do CFG), onde a jogadora procura
+      els.rDiff = btn('crzm-row', STR.difficulty, function () {
+        var open = els.mDiff.classList.contains('gone');
+        if (open) { els.mDiff.classList.remove('gone'); } else { els.mDiff.classList.add('gone'); }
+        els.rDiff.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+      els.rDiff.setAttribute('aria-expanded', 'false');
+      els.mDiff = buildDiffBlock();
       els.stats = el('div', 'crzm-stats');
-      [els.rCont, els.rPause, els.rHelp, els.rSound, els.rTut, els.rNew, els.stats].forEach(function (x) { sheet.appendChild(x); });
+      [els.rCont, els.rPause, els.rHelp, els.rGuide, els.rDiff, els.mDiff, els.rSound, els.rTut, els.rNew, els.stats].forEach(function (x) { sheet.appendChild(x); });
       menuEl.appendChild(sheet);
       rootEl.appendChild(menuEl);
+    }
+
+    // bloco de dificuldade do menu: seletor + uma frase por modo (numeros reais) + o que e strike + aviso de jogo novo
+    function buildDiffBlock() {
+      var box = el('div', 'crzm-mdiff gone'), D = CRZ.difficulty;
+      if (!D) { return box; }
+      var row = el('div', 'crzm-diff');
+      row.setAttribute('role', 'group'); row.setAttribute('aria-label', STR.difficulty);
+      D.list.forEach(function (n) {
+        var b = btn('crzm-dbtn' + (n === D.name ? ' on' : ''), D.label(n), function () { if (n !== D.name) { askSwitch(n); } });
+        b.setAttribute('aria-pressed', n === D.name ? 'true' : 'false');
+        row.appendChild(b);
+      });
+      box.appendChild(row);
+      var info = el('div', 'crzm-dinfo');
+      var profs = (CRZ.CFG && CRZ.CFG.difficulties) || {};
+      D.list.forEach(function (n) {
+        // as duas frases se comparam: Easy em numeros contra o Normal; Normal em palavras contra o Easy
+        var ref = null;
+        if (n !== 'normal' && profs.normal) { ref = profs.normal; }
+        else if (n === 'normal' && profs.easy) { ref = { label: profs.easy.label, spawn: profs.easy.spawn, patience: profs.easy.patience, words: true }; }
+        info.appendChild(el('div', n === D.name ? 'on' : null, diffLine(n, profs[n] || { label: D.label(n) }, ref)));
+      });
+      els.diffNote = el('div', 'crzm-dnote', STR.diffStrike);
+      info.appendChild(els.diffNote);
+      box.appendChild(info);
+      return box;
     }
 
     function buildHelp() {
@@ -397,7 +492,7 @@
       var day = num(st().day) || 1;
       var CFG = CRZ.CFG || {};
       sc.appendChild(el('h3', null, STR.goalH));
-      sc.appendChild(el('p', null, STR.goal.replace('{n}', String((CRZ.CFG && CRZ.CFG.maxStrikes) || 3)).replace('{d}', String((CRZ.CFG && CRZ.CFG.maxDays) || 12))));
+      sc.appendChild(el('p', null, STR.goal.replace('{n}', String(strikesNow())).replace('{d}', String((CRZ.CFG && CRZ.CFG.maxDays) || 12))));
       sc.appendChild(el('h3', null, STR.gestH));
       STR.gest.forEach(function (g) { sc.appendChild(liText(g[0], g[1])); });
       sc.appendChild(el('h3', null, STR.toolsH));
@@ -419,7 +514,7 @@
         sc.appendChild(li);
       });
       sc.appendChild(el('h3', null, STR.moreH));
-      var ms = String((CRZ.CFG && CRZ.CFG.maxStrikes) || 3);
+      var ms = String(strikesNow());
       var rrN = CRZ.CFG && CRZ.CFG.dice && CRZ.CFG.dice.rerollCost, rrTxt = typeof rrN === 'number' ? rrN + (rrN === 1 ? ' build point' : ' build points') : '1 build point';
       STR.more.forEach(function (g) { sc.appendChild(liText(g[0], g[1].replace('{n}', ms).replace('{rr}', rrTxt))); });
     }
@@ -449,25 +544,16 @@
       var D = CRZ.difficulty;
       if (D) {
         D.list.forEach(function (n) {
-          var b = btn('crzm-dbtn' + (n === D.name ? ' on' : ''), D.label(n), function () { if (n !== D.name) { D.set(n); } });
+          var b = btn('crzm-dbtn' + (n === D.name ? ' on' : ''), D.label(n), function () { if (n !== D.name) { askSwitch(n); } });
           b.setAttribute('data-tut', 'diff-' + n); b.setAttribute('aria-pressed', n === D.name ? 'true' : 'false');
           els.diffBtns[n] = b; els.diff.appendChild(b);
         });
         startEl.appendChild(els.diff);
-        // o que muda entre os modos, uma linha cada; o escolhido em destaque
-        els.diffInfo = el('div', 'crzm-dinfo');
-        els.diffInfo.setAttribute('data-tut', 'diff-info');
-        var profs = (CRZ.CFG && CRZ.CFG.difficulties) || {};
-        D.list.forEach(function (n) {
-          // as duas frases se comparam: Easy em numeros contra o Normal; Normal em palavras contra o Easy
-          var ref = null;
-          if (n !== 'normal' && profs.normal) { ref = profs.normal; }
-          else if (n === 'normal' && profs.easy) { ref = { label: profs.easy.label, spawn: profs.easy.spawn, patience: profs.easy.patience, words: true }; }
-          els.diffInfo.appendChild(el('div', n === D.name ? 'on' : null, diffLine(n, profs[n] || { label: D.label(n) }, ref)));
-        });
-        els.diffNote = el('div', 'crzm-dnote', STR.diffStrike);
-        els.diffInfo.appendChild(els.diffNote);
-        startEl.appendChild(els.diffInfo);
+        // tela inicial SEM explicacao de dificuldade (Arthur 2026-11-09: quem nunca jogou nao sabe o que e strike,
+        // crossing nem jam). So no Normal uma linha curta, sem numeros; os numeros ficam no menu > Difficulty
+        els.diffShort = el('div', 'crzm-dshort' + (D.name === 'normal' ? '' : ' gone'), D.name === 'normal' ? STR.normalShort : '');
+        els.diffShort.setAttribute('data-tut', 'diff-info');
+        startEl.appendChild(els.diffShort);
       }
       els.play = btn('crzm-big', STR.play, function () { playPressed(); });
       els.play.setAttribute('data-tut', 'start');
@@ -490,9 +576,16 @@
       landEl.appendChild(els.landGo);
       rootEl.appendChild(landEl);
     }
+    // PERF.md: largura/altura guardadas e relidas so em resize/orientationchange/visualViewport (ler
+    // innerWidth todo quadro, logo depois de o HUD escrever na pagina, forcava layout)
+    var vp = { w: 0, h: 0, read: false };
+    function readViewport() {
+      try { vp.w = +root.innerWidth || 0; vp.h = +root.innerHeight || 0; } catch (e) {}
+      vp.read = true; pauseKey = '';
+    }
     function isShortLand() {
-      var w = 0, h = 0;
-      try { w = +root.innerWidth || 0; h = +root.innerHeight || 0; } catch (e) {}
+      if (!vp.read) { readViewport(); }
+      var w = vp.w, h = vp.h;
       return w > 0 && h > 0 && h <= LAND_MAX_H && w > h;
     }
     var landOk = false;
@@ -531,15 +624,13 @@
         var nt = root.CRZ && root.CRZ.app && root.CRZ.app.takeNotice && root.CRZ.app.takeNotice();
         if (nt) { els.best.appendChild(el('div', null, nt)); }
       } catch (e) {}
-      if (b.games > 0 || b.bestScore > 0) {
-        var l1 = el('div'); l1.appendChild(el('b', null, STR.best + ': ')); l1.appendChild(doc.createTextNode ? doc.createTextNode(STR.bestLine(b)) : el('span', null, STR.bestLine(b)));
-        els.best.appendChild(l1);
-        if (b.games > 0) { els.best.appendChild(el('div', null, STR.bestMore(b))); }
-      }
+      // so depois do primeiro jogo terminado, em UMA linha ('Best: 1635 cars · 1 win')
+      if (b.games > 0) { els.best.appendChild(el('div', null, STR.bestOne(b))); }
     }
 
     /* ---------- ações ---------- */
     function playPressed() {
+      markSession();
       try { if (audio && audio.unlock) { audio.unlock(); } } catch (e) {}
       closeStart();
       for (var i = 0; i < playCbs.length; i++) { try { playCbs[i](); } catch (e) {} }
@@ -576,6 +667,7 @@
       if (ownPaused) {
         ownPaused = false;
         if (landOpen) { landPaused = true; }   // o aviso de paisagem segue aberto: ele devolve o relogio
+        else if (switchOpen) { ownPaused = true; }   // B2: a folha de troca segue aberta: o dia continua parado
         else if (game && game.setPaused && st().paused) { game.setPaused(false); }
       }
       syncPause();
@@ -592,8 +684,11 @@
 
     function pressNew() {
       var now = root.Date.now();
-      if (!newArmedAt || now - newArmedAt > 3000) {
-        newArmedAt = now; syncMenuRows(); return;
+      if (!newArmedAt || now - newArmedAt > NEW_ARM_MS) {
+        newArmedAt = now; syncMenuRows();
+        // nv8 1: o rotulo vermelho volta ao original quando a janela fecha (mesmo sem outro evento)
+        try { root.setTimeout(function () { if (newArmedAt && root.Date.now() - newArmedAt >= NEW_ARM_MS) { newArmedAt = 0; syncMenuRows(); } }, NEW_ARM_MS + 50); } catch (e) {}
+        return;
       }
       newArmedAt = 0; syncMenuRows();
       var app = CRZ.app;
@@ -608,14 +703,17 @@
       if (!menuEl) { return; }
       var s = st();
       var inRun = s.phase === 'run';
-      els.rPause.style.display = inRun ? '' : 'none';
+      // o menu ja pausou o dia: 'Back to game' basta (nv7: 'Back to game' e 'Resume' juntos)
+      // nv8 7: no dia, uma linha so: 'Resume' (fecha o menu e o dia volta a andar); no plano, 'Back to game'
+      els.rPause.style.display = 'none';
+      els.rCont.textContent = inRun ? STR.unpause : STR.resume;
       // quem abriu o menu em run ja pausou o jogo: o rotulo mostra "Retomar"
       els.rPause.textContent = s.paused ? STR.unpause : STR.pause;
       els.rSound.textContent = '';
       els.rSound.appendChild(doc.createTextNode ? doc.createTextNode(STR.sound) : el('span', null, STR.sound));
       els.rSound.appendChild(el('small', null, soundOn ? STR.on : STR.off));
       els.rTut.style.display = tutorial && tutorial.replay ? '' : 'none';
-      var armed = newArmedAt && root.Date.now() - newArmedAt <= 3000;
+      var armed = newArmedAt && root.Date.now() - newArmedAt <= NEW_ARM_MS;
       els.rNew.textContent = armed ? STR.newConfirm : STR.newGame;
       els.rNew.classList[armed ? 'add' : 'remove']('armed');
       els.stats.textContent = STR.stats(num(s.day) || 1, num(s.maxDays) || (CRZ.CFG && CRZ.CFG.maxDays) || 12,
@@ -650,13 +748,22 @@
       }
       return false;
     }
+    // PERF.md: a posicao do botao de pausa so e recalculada quando a tela ou o HUD mudam (chave sem ler layout:
+    // tamanho guardado e as classes dos elementos do HUD); antes lia getBoundingClientRect 4 vezes por segundo
+    var pauseKey = '';
     function placePause() {
-      if (!pauseBtn || !has(pauseBtn, 'show') || !doc.querySelectorAll || !pauseBtn.style) { return; }
+      if (!pauseBtn || !has(pauseBtn, 'show') || !doc.querySelectorAll || !pauseBtn.style) { pauseKey = ''; return; }
+      var q, i;
+      try { q = doc.querySelectorAll('.crz-bottom button, .crz-bottom .crz-tile, .crz-bottom .crz-chip, .crz-clear, .crz-fit, .crz-top'); } catch (x) { return; }
+      if (!vp.read) { readViewport(); }
+      var key = vp.w + 'x' + vp.h + '|' + q.length;
+      for (i = 0; i < q.length; i++) { key += '|' + (q[i].className || ''); }
+      if (key === pauseKey) { return; }
+      pauseKey = key;
       var ps = pauseBtn.style;
       ps.top = ''; ps.bottom = '';
       var d = rectOf(pauseBtn); if (!d) { return; }
-      var list = [], low = [], q, i, r, vh = root.innerHeight || 0, topBar = 0;
-      try { q = doc.querySelectorAll('.crz-bottom button, .crz-bottom .crz-tile, .crz-bottom .crz-chip, .crz-clear, .crz-fit, .crz-top'); } catch (x) { return; }
+      var list = [], low = [], r, vh = vp.h || root.innerHeight || 0, topBar = 0;
       for (i = 0; i < q.length; i++) {
         r = rectOf(q[i]); if (!r) { continue; }
         list.push(r);
@@ -687,7 +794,7 @@
       var s = st();
       var key = [s.phase, !!s.paused, menuOpen, helpOpen, startOpen, landOpen, s.day, s.strikes, s.totalDelivered].join('|');
       if (key === cacheKey) {
-        if (newArmedAt && menuOpen && root.Date.now() - newArmedAt > 3000) { newArmedAt = 0; syncMenuRows(); }
+        if (newArmedAt && menuOpen && root.Date.now() - newArmedAt > NEW_ARM_MS) { newArmedAt = 0; syncMenuRows(); }
         return;
       }
       cacheKey = key;
@@ -712,11 +819,11 @@
 
     function onKey(e) {
       if (!e || e.key !== 'Escape') { return; }
-      if (helpOpen) { closeHelp(); } else if (menuOpen) { closeMenu(); }
+      if (switchOpen) { closeSwitch(); } else if (helpOpen) { closeHelp(); } else if (menuOpen) { closeMenu(); }
     }
     function onResize() {
-      var land = false;
-      try { land = root.innerWidth > root.innerHeight; } catch (e) {}
+      readViewport();
+      var land = vp.w > vp.h;
       if (rootEl && rootEl.classList) { rootEl.classList[land ? 'add' : 'remove']('crzm-landscape'); }
       try { landSync(); } catch (e) {}
     }
@@ -724,6 +831,7 @@
       root.addEventListener('keydown', onKey);
       root.addEventListener('resize', onResize);
       root.addEventListener('orientationchange', onResize);
+      try { if (root.visualViewport && root.visualViewport.addEventListener) { root.visualViewport.addEventListener('resize', onResize); disposers.push(function () { root.visualViewport.removeEventListener('resize', onResize); }); } } catch (e) {}
       disposers.push(function () {
         root.removeEventListener('keydown', onKey);
         root.removeEventListener('resize', onResize);
@@ -736,7 +844,7 @@
       if (menuOpen && ownPaused && game && game.setPaused) { try { game.setPaused(false); } catch (e) {} }
       disposers.forEach(function (d) { try { d(); } catch (e) {} });
       if (landPaused && game && game.setPaused) { try { game.setPaused(false); } catch (e) {} }
-      [menuBtn, pauseBtn, stamp, startEl, menuEl, helpEl, landEl].forEach(function (x) {
+      [menuBtn, pauseBtn, stamp, startEl, menuEl, helpEl, landEl, switchEl].forEach(function (x) {
         try { if (x && x.parentNode) { x.parentNode.removeChild(x); } } catch (e) {}
       });
       try { if (styleEl && styleEl.parentNode) { styleEl.parentNode.removeChild(styleEl); } } catch (e) {}
@@ -748,13 +856,15 @@
     readAfterSwitch();
     if (mounted) {
       onResize(); syncPause();
-      if (opts.autoStart !== false && !sessionSeen()) { showStart(); }
-      markSession();
+      // nv7: sem partida em andamento (nenhum dia jogado), a visita volta a tela inicial mesmo na mesma aba;
+      // a sessao so conta como vista depois do Play
+      if (opts.autoStart !== false && (!sessionSeen() || !hasContinue())) { showStart(); }
     }
 
     return {
       update: update, open: open, close: close, showStart: showStart, destroy: destroy, placePause: placePause,
       isLandOpen: function () { return landOpen; },
+      isOpenAny: function () { return modalCount() > 0; },
       onPlay: function (fn) { if (typeof fn === 'function') { playCbs.push(fn); } }
     };
   }

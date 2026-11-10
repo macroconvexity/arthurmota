@@ -113,6 +113,9 @@
       game: game, render: render, ui: ui, audio: audio, tutorial: tutorial, menu: menu,
       notice: CRZ.app.notice, takeNotice: takeNotice,
       restart: function () {
+        // B1 (revisao 2026-11-09): o pagehide/visibilitychange do reload chamava ui.saveNow e regravava o save
+        CRZ.app.leaving = true;
+        try { if (ui && ui.beginLeave) { ui.beginLeave(); } } catch (e) {}
         try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
         root.location.reload();
       }
