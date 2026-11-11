@@ -109,6 +109,15 @@
     // aneis do crescimento (ligacoes entre nos existentes): a partir de fromDay, base + 1 com chance extraP,
     // + 1 a partir de lateDay. Cada anel abre cruzamentos novos sem sinal.
     growRing: { fromDay: 6, base: 1, extraP: 0.4, lateDay: 99 },
+    // Trafego nas ruas de fora (2026-11-10, queixa da Roberta; medido em web/dev/sim/NOTES_TRAFFIC.md).
+    // usefulGrowth (game.js growRing): o anel so liga dois nos se encurtar o caminho entre ao menos um par de pontas
+    //   (portais) em mais de usefulMin px; sem isso 13 a 16% das ruas internas da borda ficavam quase vazias.
+    //   DESLIGADO: 80 partidas por dificuldade, a fatia de internas vazias so caiu 16 -> 13% (Easy) e 13 -> 12% (Normal),
+    //   alvo era <= 6% (o resto vem de ruas do jogador e de ramos de ponta fraca, nao de anel).
+    // destDistK (sim.js spawnDest, do dia destFromDay em diante): peso do destino = taxa x (1 + destDistK x r / worldRadius),
+    //   r = distancia da ponta ao centro do mundo (0,0). Mesmo 1 rng por sorteio. 0 = exatamente o jogo de antes.
+    //   LIGADO (k = 2): aresta de fora / central 61 -> 66% (Easy), 63 -> 66% (Normal); carros +1%; vitorias no ruido.
+    trafficBalance: { usefulGrowth: false, usefulMin: 1, destDistK: 0, destFromDay: 4 },
     // acima de portalRef(dia) portais da cidade, a taxa de cada um cai na proporcao (total constante)
     portalRef: function (day) { return Math.min(8, 2 + Math.floor((day + 1) / 2)); },
 

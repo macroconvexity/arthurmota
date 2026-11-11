@@ -14,13 +14,13 @@
     play: 'Play', cont: 'Continue', howto: 'How to play', guide: 'Tools & buttons',
     bestOne: function (b) { return 'Best: ' + b.bestDelivered + ' cars \u00b7 ' + b.wins + (b.wins === 1 ? ' win' : ' wins'); },
     difficulty: 'Difficulty', normalShort: 'Normal: a bigger challenge.',
-    switchAsk: function (label) { return 'Start a new game on ' + label + '? This run will end.'; },
+    switchAsk: function (label) { return 'Start a new game on ' + label + '? This game will end.'; },
     switchYes: 'Start new game', switchNo: 'Keep playing',
-    best: 'Best', bestLine: function (b) { return b.bestDelivered + ' delivered in one game'; },
+    best: 'Best', bestLine: function (b) { return b.bestDelivered + ' cars in one game'; },
     bestMore: function (b) { return b.games + (b.games === 1 ? ' game' : ' games') + ' \u00b7 ' + b.wins + (b.wins === 1 ? ' win' : ' wins') + ' \u00b7 up to day ' + b.bestDays; },
     menu: 'Menu', close: 'Close', resume: 'Back to game', pause: 'Pause', unpause: 'Resume', paused: 'Paused',
     sound: 'Sound', on: 'on', off: 'off', replay: 'Replay tutorial', newGame: 'New game', newConfirm: 'Tap again to start a new game',
-    stats: function (d, max, del, s, ms) { return 'Day ' + d + ' of ' + max + ' \u00b7 ' + del + ' delivered \u00b7 ' + s + ' of ' + ms + ' strikes'; },
+    stats: function (d, max, del, s, ms) { return 'Day ' + d + ' of ' + max + ' \u00b7 ' + del + ' cars \u00b7 ' + s + ' of ' + ms + ' strikes'; },
     helpTitle: 'How to play',
     goalH: 'Goal',
     goal: 'Guide the cars through the city without letting any crossing jam. Survive {d} days with fewer than {n} strikes.',
@@ -31,29 +31,29 @@
       ['Pinch', 'zooms the map in and out.'],
       ['Two fingers', 'move the map.'],
       ['Hold a crossing', 'shows how far it reaches.'],
-      ['Two lights', 'tap one, then the other, to pair them (green wave).']
+      ['Two lights', 'tap one, tap Pair lights, then tap the other.']
     ],
     toolsH: 'Tools', unlocksDay: function (d) { return 'Unlocks on day ' + d; }, fromDay: function (d) { return 'Day ' + d; },
     tools: {
       road: ['Road', 'Connects two spots with a new road.'],
       stop: ['Stop', 'Cheap. Cars take turns. Good where three or four quiet roads meet.'],
       yield: ['Yield', 'Main road never stops. Best where a busy road meets a side road.'],
-      light: ['Traffic light', 'Handles the heaviest four-way traffic. Skips empty sides. Pair for green waves.'],
-      upgrade: ['Two lanes', 'Doubles a road\'s flow. Works best with a traffic light.'],
-      cross: ['Crosswalk', 'Cars stay calm longer here, so rings show up later. Goes where 2 or more roads meet and replaces the sign there.'],
-      round: ['Roundabout', 'For four or more roads with steady traffic. Weak at a T.'],
-      oneway: ['One-way', 'Cars drive away from the half of the road you tap. Tap again to flip, a third time for two-way. Cars with no way out wait, then count as lost.']
+      light: ['Traffic light', 'Handles the heaviest four-way traffic. Skips empty sides. Pair two lights (tap one, tap Pair lights, then the other).'],
+      upgrade: ['Two lanes', 'Adds a second lane to a road. Works best with a traffic light.'],
+      cross: ['Crosswalk', 'Drivers wait longer here before the ring turns red. Goes where 2 or more roads meet and replaces the sign there.'],
+      round: ['Roundabout', 'For four or more roads with steady traffic. Weak with only three roads.'],
+      oneway: ['One-way', 'Cars drive away from the half of the road you tap. Tap again to flip, a third time for two-way. A car with no route waits, then counts as lost.']
     },
     pts: function (c) { return c + (c === 1 ? ' build point' : ' build points'); },
     moreH: 'Daily rules',
     more: [
-      ['Daily die', 'from day 2, the roll at the top gives build points, a free build, or more cars. Tap it to see why. You can reroll once a day for {rr}.'],
-      ['Strikes', 'a jammed crossing ends the day and counts 1. At {n}, the run is over.'],
+      ['Daily dice', 'from day 2, the roll at the top gives build points, a free build, or more cars. Tap it to see why. You can reroll once a day for {rr}.'],
+      ['Strikes', 'a jammed crossing ends the day and adds 1 strike. At {n}, the game is over.'],
       ['Ring colors', 'Amber ring: busy crossing. Red ring: about to jam.'],
       ['Rewards', 'at the end of each day, pick 1 of 3. Each one says what it changes, and it lasts one day.'],
-      ['Speed', 'during the day, tap the play button to go faster. Faster earns bonus build points, but queues build up quicker.'],
-      ['Boost (\u26a1)', '3 per day (they recharge in the first days). During the day, tap a road end to send a car now, or a crossing with a ring to clear it.'],
-      ['Undo', 'while planning, undo gives the build points back.']
+      ['Speed', 'during the day, tap the play button to change speed. Faster = more bonus points, but drivers wait less.'],
+      ['Boost (\u26a1\ufe0e)', '3 per day (they recharge in the first days). During the day, tap a road end to send a car now, or a crossing with a ring to clear it.'],
+      ['Undo', 'before the day starts, undo gives the build points back.']
     ],
     // seletor de dificuldade: uma frase por modo, em palavras simples. Os dois modos se comparam entre si:
     // o Easy diz os numeros contra o Normal; o Normal diz em palavras o que a jogadora sente a mais
@@ -65,7 +65,8 @@
     diffFeelImpatient: 'less patient drivers', diffFeelPatient: 'more patient drivers',
     diffLock: function (pc) { return 'crossings take ' + pc + '% longer to jam'; },
     diffWait: function (pc) { return 'drivers wait ' + pc + '% longer'; },
-    diffEnds: function (n) { return 'the run ends at ' + n + ' strikes'; },
+    diffEnds: function (n) { return 'the game ends at ' + n + ' strikes'; },
+    diffJamSlow: 'crossings jam more slowly',
     diffStrike: 'A strike is a crossing that jams.',
     diffNew: 'Switching starts a new game.',
     // paisagem curta (altura <= 500): o jogo e de iPhone em pe
@@ -75,30 +76,22 @@
   // ref (opcional) = o outro perfil, para comparar: {label, spawn, patience, strikes, words}.
   // ref.words = true: diz em palavras (o Normal contra o Easy); senao, os numeros contra ref ("than Normal").
   // Sem ref: os numeros contra o trafego base do jogo (como antes).
+  // copy review g: em palavras (menos numeros), comparando com o outro modo ou com o trafego base; so os
+  // strikes ficam em numero. Lista de 2: 'X and Y'; de 3 ou mais: 'X, Y, and Z'
   function diffLine(name, p, ref) {
     p = p || {};
     var parts = [], sp = +p.spawn || 1, pa = +p.patience || 1;
-    if (ref && ref.words) {
-      var rs = +ref.spawn || 1, rp = +ref.patience || 1;
-      if (sp > rs) { parts.push(STR.diffFeelMore); } else if (sp < rs) { parts.push(STR.diffFeelLess); }
-      if (pa < rp) { parts.push(STR.diffFeelImpatient); } else if (pa > rp) { parts.push(STR.diffFeelPatient); }
-    } else if (ref) {
-      var ks = sp / (+ref.spawn || 1), kp = pa / (+ref.patience || 1), than = STR.diffThan(ref.label || 'Normal');
-      if (Math.round((1 - ks) * 100) > 0) { parts.push(STR.diffFewer(Math.round((1 - ks) * 100)) + than); }
-      else if (Math.round((ks - 1) * 100) > 0) { parts.push(STR.diffMore(Math.round((ks - 1) * 100)) + than); }
-      if (Math.round((kp - 1) * 100) > 0) { parts.push(STR.diffWait(Math.round((kp - 1) * 100))); }
-    } else {
-      if (sp < 1) { parts.push(STR.diffFewer(Math.round((1 - sp) * 100))); }
-      if (sp > 1) { parts.push(STR.diffMore(Math.round((sp - 1) * 100))); }
-      if (pa > 1) { parts.push(STR.diffWait(Math.round((pa - 1) * 100))); }
-    }
+    var rs = ref ? (+ref.spawn || 1) : 1, rp = ref ? (+ref.patience || 1) : 1;
+    if (sp > rs * 1.005) { parts.push(STR.diffFeelMore); } else if (sp < rs * 0.995) { parts.push(STR.diffFeelLess); }
+    if (pa < rp * 0.995) { parts.push(STR.diffFeelImpatient); } else if (pa > rp * 1.005) { parts.push(STR.diffFeelPatient); }
     if (!(ref && ref.words)) {
       var kl = (+p.lock || 1) / ((ref && +ref.lock) || 1);
-      if (Math.round((kl - 1) * 100) > 0) { parts.push(STR.diffLock(Math.round((kl - 1) * 100))); }
+      if (kl > 1.005) { parts.push(STR.diffJamSlow); }
     }
     parts.push(STR.diffEnds(p.strikes || 3));
     var lead = (p.label || name) + ': ' + (STR.diffHint[name] ? STR.diffHint[name] + '. ' : '');
-    var body = parts.length > 1 ? parts.slice(0, -1).join(', ') + ', and ' + parts[parts.length - 1] : parts[0];
+    var body = parts.length > 2 ? parts.slice(0, -1).join(', ') + ', and ' + parts[parts.length - 1]
+      : parts.join(' and ');
     return lead + body.charAt(0).toUpperCase() + body.slice(1) + '.';
   }
 

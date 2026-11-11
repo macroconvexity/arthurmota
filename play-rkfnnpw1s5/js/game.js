@@ -708,6 +708,17 @@
           }
         }
       }
+      // CFG.trafficBalance.usefulGrowth: so fica o anel que encurta o caminho de algum par de pontas (sem isso ele
+      // podia ligar dois nos fora de qualquer rota e a rua ficava vazia). Desligado: mesma lista, mesmo rng.
+      var TB = CFG.trafficBalance;
+      if (TB && TB.usefulGrowth && cands.length) {
+        var pd = portalDists(), keep = [], kw = [], minG = TB.usefulMin > 0 ? TB.usefulMin : 1;
+        for (i = 0; i < cands.length; i++) {
+          var cc = cands[i], L = cc.M ? dist(cc.A.x, cc.A.y, cc.M.x, cc.M.y) + dist(cc.M.x, cc.M.y, cc.B.x, cc.B.y) : dist(cc.A.x, cc.A.y, cc.B.x, cc.B.y);
+          if (ringUseful(pd, cc.A.id, cc.B.id, L, minG)) { keep.push(cc); kw.push(ws[i]); }
+        }
+        cands = keep; ws = kw;
+      }
       if (!cands.length) return 0;
       var c = cands[Rweighted(ws)], e1, e2, mid;
       if (!c.M) {
@@ -723,6 +734,46 @@
       if (e2 === null || e2 === undefined) { world.removeEdge(e1); world.removeNode(mid); return 0; }
       created.push(mid);
       return 2;
+    }
+
+    // distancias (comprimento, nos dois sentidos) de cada ponta a todos os nos: { portals: [ids], d: {pid: {nid: px}} }
+    function portalDists() {
+      var ids = sortedIds(world.nodes), eids = sortedIds(world.edges), adj = {}, i, out = { portals: [], d: {} };
+      for (i = 0; i < eids.length; i++) {
+        var e = world.edges[eids[i]], a = world.nodes[e.a], b = world.nodes[e.b], L = e.len || dist(a.x, a.y, b.x, b.y);
+        (adj[e.a] = adj[e.a] || []).push({ to: e.b, len: L });
+        (adj[e.b] = adj[e.b] || []).push({ to: e.a, len: L });
+      }
+      for (i = 0; i < ids.length; i++) if (world.nodes[ids[i]].portal) out.portals.push(ids[i]);
+      for (i = 0; i < out.portals.length; i++) {
+        var src = out.portals[i], d = {}, done = {};
+        d[src] = 0;
+        for (;;) {
+          var u = null;
+          for (var key in d) if (!done[key] && (u === null || d[key] < d[u])) u = key;
+          if (u === null) break;
+          done[u] = true;
+          var nb = adj[u] || [];
+          for (var q = 0; q < nb.length; q++) { var nd = d[u] + nb[q].len; if (d[nb[q].to] === undefined || nd < d[nb[q].to]) d[nb[q].to] = nd; }
+        }
+        out.d[src] = d;
+      }
+      return out;
+    }
+    // a ligacao A-B de comprimento L encurta o caminho de algum par de pontas em mais de minG px?
+    function ringUseful(pd, A, B, L, minG) {
+      var P = pd.portals;
+      for (var i = 0; i < P.length; i++) {
+        var di = pd.d[P[i]];
+        if (di[A] === undefined || di[B] === undefined) continue;
+        for (var j = 0; j < P.length; j++) {
+          if (j === i) continue;
+          var dj = pd.d[P[j]], cur = di[P[j]];
+          if (cur === undefined || dj[A] === undefined) continue;
+          if (Math.min(di[A] + L + dj[B], di[B] + L + dj[A]) < cur - minG) return true;
+        }
+      }
+      return false;
     }
 
     function teesOf() {

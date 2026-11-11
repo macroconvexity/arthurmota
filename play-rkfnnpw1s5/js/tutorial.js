@@ -12,66 +12,66 @@
     // primeiro plano: os marcadores do topo, um balao por vez, antes da primeira rua
     days: 'Day 1 of {days}.',
     // blind2: 'crossing' so e definida no dia 3; aqui palavras comuns
-    goal: 'Get cars across town. If traffic piles up and a road jams, that is a strike. {n} strikes and the game ends.',
-    strikes: 'Strikes: a crossing jams. {n} strikes ends the run.',
+    goal: 'Get cars across town. A jammed road is a strike. {n} strikes end the game.',
+    strikes: 'Strikes: a crossing jams. {n} strikes end the game.',
     // primeira frase do jogo: o objetivo em palavras simples (nada de jargao antes de explicar)
     road: 'Cars need roads to get from one end to another. Tap Road.',
     roadDrag: 'Cars enter at road ends. Drag outward from this road end to build.',
     roadMissed: 'Drag from the circled end out to an empty spot.',
     cars: 'The small blue squares are cars.',
     // uma acao so (Arthur no iPhone, 2026-11-09: 'Undo is free' + dois aneis confundiam o proximo passo)
-    play: 'Good. Now tap \u25b6 to send the cars.',
-    playOut: 'Out of build points. Tap \u25b6 to start the day.',
-    playNoRoad: 'Build one road first: tap Road, then drag from a circled end.',
+    play: 'Good. Now tap \u25b6\ufe0e to send the cars.',
+    playOut: 'Out of build points. Tap \u25b6\ufe0e to start the day.',
+    playNoRoad: 'Build one road first: tap Road, then drag from a road end.',
     // dia 1 em corrida: o relogio pausa ate a jogadora mandar um carro (o dia 1 a 4x durava ~5 s)
     // apresenta o Boost e o icone dele (as bolinhas com raio ao lado do Play)
     // dia 1 em corrida: o dia corre (sem 'Paused' logo depois do Play); a camera mostra a ponta antes
-    run: 'Day started. Boost: tap this road end to send an extra car (uses \u26a1).',
+    run: 'Tap a road end to send an extra car (uses \u26a1\ufe0e).',
     // logo depois do primeiro carro extra: o que e o raio (Boost), com as bolinhas pulsando
-    boost: 'Each \u26a1 is one boost. Recharges in the first days; {charges} a day after that.',
+    boost: 'Each \u26a1\ufe0e is one boost. Recharges in the first days; {charges} a day after that.',
     runNoRoom: 'No room right now. Try another road end.',
     dest: 'Each car drives to another road end. Arriving counts as delivered.',
-    summary: 'Cars delivered today. Now pick one reward; it only helps tomorrow.',
+    summary: 'Cars arrived. That is your score. Now pick a reward for tomorrow.',
     summaryBonus: 'Cars delivered. A full Delivery bonus bar gives +1 build point. Pick a reward.',
     grew: 'The city grew a new road end. Tap Road, then drag from it.',
     grewDrag: 'Now drag from a road end to link it to the city.',
     // tudo ja ligado: nao ha o que "ligar a cidade"
     grewDragAny: 'Now drag from the circled end to add a new road.',
     // dia 2 em corrida: velocidade (pausa ate tocar) e onde ver o progresso do dia
-    speed: 'Paused. This button sets speed. Faster earns bonus build points; drivers lose patience sooner.',
+    speed: 'This button sets speed. Faster = more bonus points, but drivers wait less.',
     // 'ring' tinha 3 sentidos: o do botao do dia vira 'day clock'
-    progress: 'The circle around this button is the day clock. Full circle = day over.',
+    progress: 'The circle around this button is the day clock. Full circle means day over.',
     // dia 1 em corrida: o Play virou o botao de velocidade (1x, 2x, 4x e volta). Toast, sem pausa
-    speed1: 'This button is now SPEED. Tap: 1\u00d7 \u2192 2\u00d7 \u2192 4\u00d7. Faster = bonus build points, but drivers lose patience sooner.',
+    speed1: 'This button now sets speed (1\u00d7, 2\u00d7, 4\u00d7). Faster = more bonus points, but drivers wait less.',
     // primeiro uso de cada controle restante, no momento em que importa (uma vez cada)
-    junction: 'Where roads meet is a crossing. Cars wait there to cross.',
+    junction: 'A crossing is where roads meet. Cars take turns here.',
     fit: 'Lost part of the city? Tap this to see all of it.',
-    menu: 'Tap \u2630 for How to play, sound, or a new game.',
+    menu: 'Tap \u2630\ufe0e for How to play, sound, or a new game.',
     // dia 2: o dado e apresentado por um balao bloqueante (a jogadora nao sabia que podia relancar)
-    die: 'Tap the die to see today\'s effect.',
-    reroll: 'Bad roll? Tap the die to reroll for {rr}.',
-    bigDie: 'New die today: 1 to {big}, not 1 to {small}. Higher is better.',
-    boostJunction: 'You can also boost a crossing: tap it to clear its queue (uses \u26a1).',
+    die: 'Tap the dice to see today\'s effect.',
+    reroll: 'Bad roll? Tap the dice to reroll for {rr}.',
+    bigDie: 'New dice today: 1 to {big}, not 1 to {small}. Higher is better.',
+    boostJunction: 'You can also boost a crossing: tap it to clear its line (uses \u26a1\ufe0e).',
     // cartoes de ferramenta: {c} vira o custo do CFG ("1 build point"); ate 10 palavras ja com o custo
     tool: {
       stop: 'Stop, {c}: cheap. Cars take turns at quiet crossings.',
-      yield: 'Yield, {c}: main road never stops. Best at a T.',
+      yield: 'Yield, {c}: the main road never stops. Best with three roads.',
       light: 'Traffic light, {c}: best for heavy four-way traffic.',
       upgrade: 'Two lanes, {c}: doubles a road\'s flow. Best with a traffic light.',
       // o motivo do "pouco": a faixa para carros por pedestres (o cartao passa de 10 palavras por isso)
       cross: 'Crosswalk, {c}: cars stay calm longer, so rings show up later.',
-      round: 'Roundabout, {c}: four or more busy roads. Weak at a T.',
+      round: 'Roundabout, {c}: four or more busy roads. Weak with only three.',
       oneway: 'One-way, {c}: cars drive away from the half you tap.'
     },
     // vocabulario do anel igual a cor do render: {R}/{L}/{E} viram o nivel do no na hora (ringSay):
     // ambar tracejado (0,3 a 0,6) 'Busy crossing', vermelho continuo (acima de 0,6, travado) 'Red ring'
     ringLead: {
-      busy: 'Busy crossing: cars are queuing', red: 'Red ring: long queue',
+      busy: 'Busy crossing: cars are waiting in line', red: 'Red ring: long line',
       busyName: 'Busy crossing', redName: 'Red ring',
       busyEnd: 'Busy road end', redEnd: 'Busy road end'
     },
     ringStop: '{R}. Tap it to boost; tomorrow, add a Stop.',
-    ringBoost: '{R}. Tap the crossing to boost it (uses \u26a1).',
+    ringBoost: '{R}. Tap the crossing to boost it (uses \u26a1\ufe0e).',
     ringFast: '{L}: tap speed to slow down, or tap the crossing to boost.',
     ringLock: '{R}. If it fills, the crossing jams: 1 strike.',
     // anel numa ponta de rua: Boost ali manda MAIS um carro, entao a dica e para o planejamento
@@ -79,19 +79,19 @@
     ringEndLane: '{E}. Tomorrow, give that road a second lane.',
     // ultimo dia: nao ha amanha
     ringEndLast: '{E}. A boost cannot help here.',
-    ringNice: 'Nice. The queue is gone.',
+    ringNice: 'Nice. The line is gone.',
     ringAmber: 'Amber ring: this crossing is busy. If it turns red, it is about to jam.',
     ringSlow: '{L}: tap it to boost, or slow the day down.',
     slowDown: 'Slow down',
     boostBtn: 'Boost',
     // lembrete diario (Easy, dias 4 a 9, sem Boost ontem): aponta o chip do Boost da UI, sem pausar
     // faixa (blind2): sem seta; o chip do raio ja pulsa ao lado do anel
-    ringAgain: 'Tap the glowing \u26a1 next to the ring to clear it.',
-    tipStrike: 'This crossing jammed: 1 strike. {n} strikes end the run.',
+    ringAgain: 'Tap the glowing \u26a1\ufe0e next to the ring to clear it.',
+    tipStrike: 'This crossing jammed: 1 strike. {n} strikes end the game.',
     tipHot: "Dashed rings: yesterday's trouble spots. Tap one to see what helps.",
     tipEndJunction: 'This road end is now a crossing. Stop, Yield and lights work here too.',
     // o sim coordena o par pelo caminho mais curto entre os dois (nao precisa ser a mesma rua)
-    tipPair: 'Pair two lights: cars passing one get green at the next.',
+    tipPair: 'Pair two lights: tap one, tap Pair lights, then the other.',
     go: 'Continue',
     ok: 'Got it',
     skip: 'Skip tutorial',
@@ -378,7 +378,6 @@
       enter: function (c) { c.mark('tip:strikes'); },   // o balao do primeiro anel nao repete o strike
       text: function () { return STR.goal.replace('{n}', String((CRZ.CFG && CRZ.CFG.maxStrikes) || 3)); } },
     // blind2: dias 1 e 2 com no maximo 4 baloes modais; o resto do roteiro vira faixa (strip)
-    { id: 'days', win: at(1, 'plan'), mode: 'nudge', btn: 'ok', strip: true, text: STR.days, target: T('dots') },
     // 1. Rua: bloqueante (o buraco deixa tocar); o mesmo balao segue para o arrasto
     // sem 'Got it'/escape: so avanca com a estrada feita (nv6: o Got it levava ao 'Tap play' sem estrada)
     { id: 'road', win: at(1, 'plan'), mode: 'act', hand: true, noEscape: true,
@@ -396,7 +395,7 @@
     // hide clear: as bolinhas do raio ficavam entre a seta e o Play (a seta parecia apontar para elas)
     // sem pontos para nada: o mesmo texto da faixa da UI ('Out of build points'), senao 'Good. Now tap'
     // sem estrada (Undo depois da rua): o balao NUNCA manda apertar o Play que vai recusar; pede a rua e aponta o Road
-    { id: 'play', win: at(1, 'plan'), mode: 'nudge', btn: 'none', hide: ['fit', 'clear'],
+    { id: 'play', win: at(1, 'plan'), mode: 'nudge', btn: 'none', hide: ['fit'],
       target: function (c) { return edgeCount(c.game) > 1 ? { sel: 'play', round: true } : { sel: 'tool-road' }; },
       text: function (c) { return edgeCount(c.game) <= 1 ? STR.playNoRoad : broke(c) ? STR.playOut : STR.play; },
       done: function (c) { return st(c).phase !== 'plan'; }, on: { playPressed: true } },
@@ -415,7 +414,8 @@
       enter: function (c, cu) { var k = firstCar(c.game); cu.data.car = k ? { x: k.x, y: k.y } : null; },
       target: function (c) { var k = c.cur && c.cur.data.car; return k ? { world: [k], round: true } : null; } },
     // nv7: no dia 1 este balao tambem pausa (o dia corria e acabava com o balao aberto)
-    { id: 'run', win: at(1, 'run'), mode: 'nudge', btn: 'ok', pause: true,
+    // blind3 1: o dia 1 tem 5 cartoes (objetivo, Road, arrasto, Play, resultado); o Boost virou faixa sem pausa
+    { id: 'run', win: at(1, 'run'), mode: 'nudge', btn: 'ok', strip: true,
       text: function (c) { return c.cur && c.cur.data.full ? STR.runNoRoom : STR.run; },
       wait: function (c) { return c.clock - c.phaseAt < SHOW_AFTER; },
       need: function (c) { return charges(c) > 0 && !!leftPortal(c.game); },
@@ -425,28 +425,17 @@
       on: { clearUsed: function (d) { return !!d.ok; } } },
     // 3a. o que e o raio: as bolinhas do Boost pulsam; nao pausa, fecha com Got it
     // dia 1: balao com Got it pausa o dia (o novato quase nao via carro com o dia correndo por tras)
-    { id: 'boost', win: at(1, 'run'), mode: 'nudge', btn: 'ok', strip: true,
-      text: function () { return STR.boost.replace('{charges}', String(chargesPerDay())); },
-      need: function (c) { return !!c.flags.sent; },
-      wait: function (c) { return c.clock - c.mainAt < 0.8; },
-      target: T('clear'), hide: ['fit'] },
-    // 3b. para onde os carros vao: explica sem pausar (o dia 1 agora corre a 1x), fecha com Got it
-    { id: 'dest', win: at(1, 'run'), mode: 'nudge', btn: 'ok', strip: true, text: STR.dest,
-      wait: function (c) { return c.clock - c.mainAt < 1; },
-      target: function (c) { var p = farPortal(c.game); return p ? W([p]) : null; } },
+    // blind3 1: 'boost' (recarga) e 'dest' (para onde vao) sairam do dia 1: estao no guia '?' e no How to play
     // 3c. o Play virou velocidade: PAUSA ate tocar no botao (ou Got it); nao repete no dia 2
     { id: 'speed1', win: at(1, 'run'), mode: 'nudge', btn: 'ok', strip: true, text: STR.speed1, target: T('speed', true), hide: ['fit'],
       wait: function (c) { return c.clock - c.mainAt < 1; },
       enter: function (c) { c.mark('speedTaught'); },   // mostrado de verdade (janela passada tambem marca 'speed1')
       on: { speedChanged: true } },
     // 4. resumo: espera a carta pelo buraco do holofote; o anel extra marca a barra do bonus
-    { id: 'summary', win: at(1, 'summary'), mode: 'act', strip: true,
-      text: function (c) {
-        var sm = st(c).summary;
-        return (sm && 'speedBonus' in sm) || (c.hasEl && c.hasEl('bonus')) ? STR.summaryBonus : STR.summary;
-      },
-      target: T('summary'),
-      extra: function (c) { return c.hasEl && c.hasEl('bonus') ? [{ sel: 'bonus' }] : null; },
+    // blind3 1: um unico cartao depois da corrida: o numero de carros e o placar (Got it, depois a carta)
+    { id: 'summary', win: at(1, 'summary'), mode: 'nudge', btn: 'ok',
+      text: function () { return STR.summary; },
+      target: T('summary-big'),
       done: function (c) { return st(c).phase !== 'summary'; }, on: { cardPicked: true } },
     // Dia 2, primeiro: o dado. Bloqueante ('act': so o dado fica tocavel), com "Got it" desde o inicio
     // (antes so fechava tocando no dado e a jogadora achava que isso gastava o relance).
@@ -956,7 +945,7 @@
       dt = dt > 0 ? dt : 0;
       c.clock += dt;
       // nv8 1: a janela do 'Tap again to skip' fechou: o rotulo volta a 'Skip tutorial' na hora
-      if (armedUntil > 0 && c.clock >= armedUntil) { armedUntil = -1; if (c.cur && !hidden) view.frame(info()); }
+      if (armedUntil > 0 && c.clock >= armedUntil) { armedUntil = -1; if (c.cur && !hidden && c.cur.mode !== 'strip') view.frame(info()); }
       if (c.ringId !== null && c.ringId !== undefined) {   // pico do no do anel: a queda real do 'Nice'
         var pn = nodeById(c, c.ringId), ps = pn ? pn.stress || 0 : 0;
         if (!(c.ringPeak >= ps)) c.ringPeak = ps;
@@ -978,7 +967,7 @@
         try { if (o.release) o.release(); } catch (e) {}
         return;
       }
-      if (hidden) { hidden = false; if (c.cur) { modal(c.cur.mode === 'continue'); view.show(info()); } }
+      if (hidden) { hidden = false; if (c.cur && c.cur.mode !== 'strip') { modal(c.cur.mode === 'continue'); view.show(info()); } }
       var cu = c.cur;
       // o aviso do anel passa na frente de qualquer outro balao, sem esperar o Continue: um toast/nudge
       // sai (visto); um balao com botao volta depois
@@ -1019,7 +1008,8 @@
         if (!nx) break;
         enter(nx);
       }
-      if (c.cur) {
+      // blind3 1: faixa nunca vira cartao branco (o frame desenhava a caixa com o texto da faixa: 10 baloes no dia 1)
+      if (c.cur && c.cur.mode !== 'strip') {
         if (c.cur.mode === 'continue') modal(true);   // outro modulo pode ter tirado a classe
         var inf = info(), found = view.frame(inf);
         // alvo no mapa fora da tela (a jogadora moveu o mapa): a camera traz o alvo de volta (a cada 0,5 s)
@@ -1061,7 +1051,7 @@
           var fu = c.cur.data.full || (c.cur.data.full = {});
           if (d.id !== null && d.id !== undefined) fu[d.id] = 1;
           if (!sendPortal(c)) { finish(); return; }
-          view.show(info());
+          if (c.cur.mode !== 'strip') view.show(info());
         }
         // Boost recusado no passo que pausa: volta a pausar ate a jogadora acertar
         if (!d.ok && c.cur && wantsPause(c.cur) && c.cur.mode === 'act') holdPause(c.cur);
@@ -1114,7 +1104,7 @@
     function skipTap() {
       if (c.clock < armedUntil) { skip(); return true; }
       armedUntil = c.clock + ARM_TIME;
-      if (c.cur) view.frame(info());
+      if (c.cur && c.cur.mode !== 'strip') view.frame(info());
       return false;
     }
     function dropCur() {

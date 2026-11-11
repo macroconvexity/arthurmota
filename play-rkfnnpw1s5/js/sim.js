@@ -848,15 +848,18 @@
         // 2026-11-09 (revisao): so entre os portais com rota a partir de p (distTo finito, como sendCar).
         // Nenhum com rota: devolve -2 SEM consumir rng (o carro espera no portal, ver spawn). Com todos
         // alcancaveis o consumo e o sorteio sao identicos aos de antes; com mao unica o sorteio muda.
-        var others = [], tot = 0, pi = nIdx[p.id];
+        // CFG.trafficBalance.destDistK > 0: ponta mais longe do centro atrai mais (NOTES_TRAFFIC.md); 0 = peso antigo
+        var others = [], ws = [], tot = 0, pi = nIdx[p.id];
+        var TB = CFG.trafficBalance, dk = TB && TB.destDistK > 0 && w.day >= (TB.destFromDay || 1) ? TB.destDistK / CFG.worldRadius : 0;
         for (var i = 0; i < portalList.length; i++) {
           var q = portalList[i];
           if (q === p || !(distTo(q.id)[pi] < INF)) continue;
-          others.push(q); tot += q.rate || 1;
+          var wq = (q.rate || 1) * (dk ? 1 + dk * Math.sqrt(q.x * q.x + q.y * q.y) : 1);
+          others.push(q); ws.push(wq); tot += wq;
         }
         if (!others.length) return -2;
         var r = rng() * tot;
-        for (i = 0; i < others.length - 1; i++) { r -= others[i].rate || 1; if (r < 0) break; }
+        for (i = 0; i < others.length - 1; i++) { r -= ws[i]; if (r < 0) break; }
         return others[i].id;
       }
       if (!p.edges.length) return -1;

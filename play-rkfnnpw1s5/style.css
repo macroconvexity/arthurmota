@@ -611,7 +611,7 @@ body.crz-menu-on .crz-top { padding-right: calc(var(--sar) + 62px); }
 .crz-die .crz-lbl-next { top: auto; bottom: -6px; right: 4px; display: none; }
 .crz-dnext:not(.off) ~ .crz-lbl-next { display: block; }
 /* com a faixa do Play na tela, as bolinhas do raio (esmaecidas no plano) saem: a seta aponta direto para o Play */
-.crz-bottom.crz-nexton .crz-clear { visibility: hidden; }
+/* final check 8: o raio fica sempre na tela (cinza no plano) */
 /* dado: duas linhas (as duas legendas lado a lado se cruzavam em 104 px) */
 .crz-die .crz-lbl-die { bottom: -5px; left: 50%; transform: translateX(-50%); }
 .crz-die .crz-lbl-next { bottom: -17px; left: 50%; right: auto; transform: translateX(-50%); }
@@ -765,3 +765,24 @@ body.crz-modal #hud .crz-confirm, body.crz-modal #hud .crz-confirm * { pointer-e
 .crz-legend { bottom: calc(100% + 56px); }
 .crz-next { max-width: calc(100% - 128px); }
 body.crz-say-on.crz-say-on .crzm-stamp { top: calc(var(--crz-sayb, 140px) + 10px); transform: translate(-50%, 0); }
+
+/* final check 1: o raio cinza recebe o toque (diz quando funciona) */
+.crz-clear { pointer-events: auto; }
+
+/* final check 6: 'Road free' cabe no ladrilho (375 e 393): o nome e o custo quebram em duas linhas se preciso */
+.crz-tile .crz-cost { max-width: calc(var(--tile) - 4px); flex-wrap: nowrap; white-space: nowrap; align-items: baseline; overflow: hidden; letter-spacing: -0.2px; }
+.crz-tile .crz-cost .crz-tname { margin-right: 2px; }
+.crz-cost .crz-tname { font-size: 10px; margin-right: 2px; }
+.crz-cost b { font-size: 11px; }
+.crz-cost b.free { font-size: 10px; letter-spacing: -0.3px; }
+
+/* copy review c: o chip de avancar com o icone SVG (sem emoji) */
+.crz-ffchip { display: flex; align-items: center; gap: 6px; }
+.crz-ffchip svg { width: 16px; height: 16px; }
+.crz-face[data-ff] svg { width: 24px; height: 24px; margin-left: 0; }
+.crz-gsym svg { width: 18px; height: 18px; vertical-align: middle; }
+
+/* Skip ahead: centrado acima da base (antes ficava sobre o Undo, que no dia nao recebe toque, e um toque
+   'no Undo' pulava o dia). Nenhum alvo de toque a menos de 16 px (teste em dev/ui/test_ff.js e CDP) */
+.crz-ffchip { right: auto; left: 50%; bottom: calc(100% + 20px); transform: translateX(-50%); }
+.crz-ffchip:active { transform: translateX(-50%) scale(0.95); }
