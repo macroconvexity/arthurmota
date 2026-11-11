@@ -117,7 +117,7 @@
     // destDistK (sim.js spawnDest, do dia destFromDay em diante): peso do destino = taxa x (1 + destDistK x r / worldRadius),
     //   r = distancia da ponta ao centro do mundo (0,0). Mesmo 1 rng por sorteio. 0 = exatamente o jogo de antes.
     //   LIGADO (k = 2): aresta de fora / central 61 -> 66% (Easy), 63 -> 66% (Normal); carros +1%; vitorias no ruido.
-    trafficBalance: { usefulGrowth: false, usefulMin: 1, destDistK: 0, destFromDay: 4 },
+    trafficBalance: { usefulGrowth: false, usefulMin: 1, destDistK: 2, destFromDay: 4 },
     // acima de portalRef(dia) portais da cidade, a taxa de cada um cai na proporcao (total constante)
     portalRef: function (day) { return Math.min(8, 2 + Math.floor((day + 1) / 2)); },
 
@@ -182,15 +182,25 @@
       ] }
     },
 
-    // cartas do fim do dia (escolhe 1 de 3)
+    // cartas do fim do dia (escolhe 1 de 3). offer: false = carta aposentada: sai do sorteio, mas a definicao e o efeito
+    // ficam (save antigo com ela ativa aplica o efeito no dia seguinte, uma vez). 2026-11-10, Arthur ("o que o jogador
+    // nao ve nao existe"): smooth (carros 10% mais rapidos) e waveBonus (onda verde em dobro, so com par) eram invisiveis.
+    // Ofertadas: plus2, freeRoad, freeLight (com o semaforo liberado), patient (depois do primeiro anel da partida).
     cards: [
       { id: 'plus2',    weight: 3 },  // +2 pontos no proximo dia
       { id: 'freeRoad', weight: 2 },  // a proxima estrada nova custa 0
       { id: 'freeLight', weight: 1 }, // o proximo semaforo custa 0
       { id: 'patient',  weight: 2 },  // paciencia +30% no proximo dia
-      { id: 'waveBonus', weight: 1 }, // onda verde vale o dobro no proximo dia
-      { id: 'smooth',   weight: 2 }   // carros 10% mais rapidos no proximo dia
+      { id: 'waveBonus', weight: 1, offer: false }, // onda verde vale o dobro no proximo dia (aposentada)
+      { id: 'smooth',   weight: 2, offer: false }   // carros 10% mais rapidos no proximo dia (aposentada)
     ],
+    // patient so entra no sorteio depois do primeiro anel da partida (pico do dia >= ringEverAt, ou mapa de problemas
+    // com algum no): a mesma regra que ui.js usa para mostrar a carta (RING_EVER_AT 0.3). 0 = sem pre-requisito.
+    cardPatientRingAt: 0.3,
+    // crescimento da cidade. hardshipWeight: peso extra do no/estrada que mais sofreu ontem para receber o ramo novo
+    // (no: 1 + 3 x hw x estresse, ate 4x; estrada: 1 + 2 x hw x estresse). AJUDA DELIBERADA, sem sinal visivel, por
+    // decisao do Arthur (2026-11-10): fica 1 (o valor de sempre); 0 tiraria o vies.
+    growth: { hardshipWeight: 1 },
     // efeito de cada carta (game.js le daqui; a UI le por CRZ.Game cardInfo(id) para nao copiar numero)
     cardEffects: {
       plus2:     { budget: 2 },

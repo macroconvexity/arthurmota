@@ -61,6 +61,9 @@
     card:       [{ f: mtof(N.E5), t: 0, d: 0.1, v: 0.35, w: 'triangle' }, { f: mtof(N.A5), t: 0.08, d: 0.2, v: 0.3 }],
     tick:       [{ f: 1200, t: 0, d: 0.03, v: 0.2 }],
     select:     [{ f: mtof(N.D5), t: 0, d: 0.07, v: 0.3, w: 'triangle' }],
+    // invisivel: cidade cresceu (replay ao fechar a rolagem) e carga do raio que voltou (dias 1 a 3)
+    pop:        [{ f: mtof(N.G5), f2: mtof(N.C6), t: 0, d: 0.08, v: 0.28, w: 'triangle' }],
+    charge:     [{ f: mtof(N.E5), t: 0, d: 0.06, v: 0.18, w: 'triangle' }, { f: mtof(N.A5), t: 0.05, d: 0.08, v: 0.16 }],
     unlock:     [{ f: mtof(N.G4), t: 0, d: 0.12, v: 0.35 }, { f: mtof(N.C5), t: 0.1, d: 0.14, v: 0.35 },
                  { f: mtof(N.E5), t: 0.2, d: 0.35, v: 0.35 }]
   };
@@ -224,6 +227,23 @@
       tone(f, t, dur, ARRIVE_VOL * ARRIVE_TRI_MIX * 0.6, { wave: 'triangle', detune: d });
     }
 
+    // dado parando (rolagem visivel): 3 estalos de ruido filtrado, cada vez mais fracos, ~0,5 s no total
+    var noiseBuf = null;
+    function playDice(t, vm) {
+      if (!noiseBuf) {
+        var n = Math.floor(ctx.sampleRate * 0.05);
+        noiseBuf = ctx.createBuffer(1, n, ctx.sampleRate);
+        var d = noiseBuf.getChannelData(0);
+        for (var i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 2);
+      }
+      [[0, 0.5, 2600], [0.16, 0.36, 2200], [0.34, 0.22, 1900]].forEach(function (k) {
+        var src = ctx.createBufferSource(); src.buffer = noiseBuf;
+        var bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = k[2]; bp.Q.value = 1.4;
+        var g = ctx.createGain(); g.gain.value = k[1] * vm;
+        src.connect(bp); bp.connect(g); g.connect(master);
+        src.start(t + k[0]); src.stop(t + k[0] + 0.06);
+      });
+    }
     function playList(list, volMul) {
       var t = now();
       for (var i = 0; i < list.length; i++) {
@@ -241,6 +261,7 @@
         var gap = NAME_GAP[name];
         if (gap && t - (lastByName[name] === undefined ? -10 : lastByName[name]) < gap) { return; }
         if (name === 'arrive') { lastByName[name] = t; playArrive(opts && opts.x); return; }
+        if (name === 'dice') { lastByName[name] = t; playDice(t, vm); return; }
         if (name === 'gridlock') {
           lastByName[name] = t;
           tone(GRIDLOCK_F0, t, GRIDLOCK_DUR, GRIDLOCK_VOL * vm, { slideTo: GRIDLOCK_F1 });

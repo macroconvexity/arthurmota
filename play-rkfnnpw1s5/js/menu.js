@@ -47,7 +47,7 @@
     pts: function (c) { return c + (c === 1 ? ' build point' : ' build points'); },
     moreH: 'Daily rules',
     more: [
-      ['Daily dice', 'from day 2, the roll at the top gives build points, a free build, or more cars. Tap it to see why. You can reroll once a day for {rr}.'],
+      ['Daily dice', 'every morning from day 2 the dice roll. Good rolls give build points or a free build. Bad rolls bring more or slower cars. You see the roll when the day starts, and you can reroll once a day for {rr}.'],
       ['Strikes', 'a jammed crossing ends the day and adds 1 strike. At {n}, the game is over.'],
       ['Ring colors', 'Amber ring: busy crossing. Red ring: about to jam.'],
       ['Rewards', 'at the end of each day, pick 1 of 3. Each one says what it changes, and it lasts one day.'],

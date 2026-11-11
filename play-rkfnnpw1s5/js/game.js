@@ -302,7 +302,7 @@
     function drawDraft() {
       var nextDay = st.day + 1;
       // REGRA DO DRAFT: so entra carta cuja ferramenta/condicao ja existe e foi ensinada.
-      //  plus2, patient, smooth: sempre uteis (sem pre-requisito).
+      //  plus2: sempre. patient: depois do primeiro anel. smooth e waveBonus: aposentadas (CFG.cards offer: false).
       //  freeRoad: Road desbloqueada (dia 1). freeLight: Light desbloqueada ate o dia seguinte.
       //  waveBonus: so com um PAR de semaforos ja feito no mapa (onda verde so existe com par; o
       //  pareamento e ensinado no dia 8, entao a carta nao aparece antes de o jogador parear).
@@ -313,14 +313,29 @@
         }
         return false;
       }
-      var pool = CFG.cards.filter(function (cd) {
+      // 2026-11-10: cartas com offer: false (smooth, waveBonus) saem do sorteio; patient so depois do primeiro anel
+      // (CFG.cardPatientRingAt, a mesma regra da ui.js). O consumo de rng e o da regra antiga (pool antigo): a cidade
+      // que cresce no dia seguinte e a mesma de antes para a mesma semente; so muda o que e oferecido.
+      function oldOk(cd) {
         if (cd.id === 'freeLight' && CFG.tools.light.unlockDay > nextDay) return false;
         // o dado de amanha (st.nextDie, previsao verdadeira) ja deixa o semaforo gratis: a carta seria redundante
         if (cd.id === 'freeLight' && st.nextDie && st.nextDie.effect && st.nextDie.effect.free === 'light') return false;
         if (cd.id === 'waveBonus' && (CFG.tools.light.unlockDay > nextDay || !hasPair())) return false;
         if (cd.id === 'freeRoad' && CFG.tools.road.unlockDay > nextDay) return false;
         return true;
+      }
+      var ringAt = CFG.cardPatientRingAt > 0 ? CFG.cardPatientRingAt : 0, ringEver = !ringAt;
+      if (!ringEver) {
+        for (var h = 0; h < st.history.length; h++) if ((st.history[h].peak || 0) >= ringAt) { ringEver = true; break; }
+        if (!ringEver) for (var hk in st.hot) if (st.hot[hk] > 0) { ringEver = true; break; }
+      }
+      var oldN = CFG.cards.filter(oldOk).length;
+      var pool = CFG.cards.filter(function (cd) {
+        if (cd.offer === false || !oldOk(cd)) return false;
+        if (cd.id === 'patient' && !ringEver) return false;
+        return true;
       }), out = [];
+      var draws = Math.min(3, pool.length), burn = Math.min(3, oldN) - draws;
       while (out.length < 3 && pool.length) {
         var ws = [];
         for (var i = 0; i < pool.length; i++) ws.push(pool[i].weight);
@@ -328,6 +343,7 @@
         out.push(pool[k].id);
         pool.splice(k, 1);
       }
+      for (; burn > 0; burn--) R();
       return out;
     }
 
@@ -532,6 +548,7 @@
     // escolhe a origem: no existente (nao portal) ou ponto no meio de uma estrada
     function pickSource(ctx, edgeBias) {
       var nodeC = [], edgeC = [], i, ids = sortedIds(world.nodes);
+      var HW = CFG.growth && CFG.growth.hardshipWeight != null ? CFG.growth.hardshipWeight : 1;
       for (i = 0; i < ids.length; i++) {
         var n = world.nodes[ids[i]];
         if (degree(n) >= 4) continue;
@@ -540,14 +557,14 @@
           if (degree(n) === 1 && CFG.growPortal.fromPortal > 0) nodeC.push({ node: n, w: CFG.growPortal.fromPortal * rr });
           continue;
         }
-        var w = (1 + 3 * (hot[n.id] || 0)) / (1 + degree(n) * 0.5) * (1 + rr);
+        var w = (1 + 3 * HW * (hot[n.id] || 0)) / (1 + degree(n) * 0.5) * (1 + rr);   // HW: CFG.growth.hardshipWeight
         nodeC.push({ node: n, w: w });
       }
       ids = sortedIds(world.edges);
       for (i = 0; i < ids.length; i++) {
         var e = world.edges[ids[i]];
         if (e.len < 2 * CFG.minNodeSpacing + 8) continue;
-        edgeC.push({ edge: e, w: (e.len / 100) * (1 + 2 * Math.max(hot[e.a] || 0, hot[e.b] || 0)) });
+        edgeC.push({ edge: e, w: (e.len / 100) * (1 + 2 * HW * Math.max(hot[e.a] || 0, hot[e.b] || 0)) });
       }
       var useEdge = edgeC.length > 0 && (nodeC.length === 0 || R() < edgeBias);
       if (useEdge) {
@@ -1499,8 +1516,9 @@
     if (s.phase !== 'summary' && s.draft !== null && s.draft !== undefined) return false;
     if (s.phase === 'summary') {
       var dr = s.draft;
-      if (!Array.isArray(dr) || dr.length !== 3 || dr[0] === dr[1] || dr[1] === dr[2] || dr[0] === dr[2]) return false;
-      for (i = 0; i < 3; i++) if (!cardOk(dr[i])) return false;
+      // 2 ou 3 cartas distintas (desde 2026-11-10 o sorteio pode ter so 2: plus2 e freeRoad antes do primeiro anel)
+      if (!Array.isArray(dr) || dr.length < 2 || dr.length > 3 || dr[0] === dr[1] || (dr.length === 3 && (dr[1] === dr[2] || dr[0] === dr[2]))) return false;
+      for (i = 0; i < dr.length; i++) if (!cardOk(dr[i])) return false;
     }
     if (s.phase !== 'plan') {
       var sm = s.summary;

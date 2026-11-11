@@ -155,6 +155,10 @@
     // D/L: primeiro cruzamento novo e a regra do dia 4
     newJFirst: 'NEW: roads just met here. Give this crossing a sign before you start.',
     newJRule: 'From day 4, a crossing without a sign gets much slower.',
+    day4Rule: 'From today, a crossing with no sign gets slow. Give each NEW crossing a sign.',
+    boostsFixed: 'From today: 3 boosts a day.',
+    resumedDay: 'Resumed from the start of the day.',
+    cWhyFreeLight: 'You still have a free traffic light today.',
     newJChipSay: 'Each NEW crossing needs a sign.',
     // F: faixa de pedestre sobre um sinal
     crossOver: function (c) { return 'Crosswalk, ' + c + (c === 1 ? ' build point' : ' build points') + ': replaces the sign. Rings turn red later.'; },
@@ -235,7 +239,7 @@
     // cartas do resumo: nome curto, UMA linha do que muda, e "Good if" (os numeros espelham game.js: 1.3, 1.1, +2)
     cardsTitle: 'Pick one reward for tomorrow',
     cardSuggest: 'Good pick',
-    cards: { plus2: '+2 build points', freeRoad: 'Free road', freeLight: 'Free traffic light', patient: 'Patient drivers', waveBonus: 'Double green wave', smooth: 'Faster cars' },
+    cards: { plus2: '+2 build points', freeRoad: 'Free road', freeLight: 'Free traffic light', patient: 'Patient drivers', waveBonus: 'Double green waves', smooth: 'Faster cars' },
     cardLine: {
       plus2: 'Start tomorrow with 2 extra build points.',
       freeRoad: 'Your first new road tomorrow costs nothing.',
@@ -412,7 +416,16 @@
       other: "Can't build here: try another direction."
     },
     // folha do dado: o que o dado faz e a regra do relance, em uma linha cada
-    dieWhat: 'Rolled every morning. Good rolls give build points or a free build; bad rolls bring more or slower cars.',
+    dieWhat: 'Every morning the dice roll. Good rolls give build points or a free build. Bad rolls bring more or slower cars. You see the roll when the day starts.',
+    // rolagem visivel (Arthur: 'o que nao se ve nao existe')
+    rollTitle: "Today's roll", rollTut: 'Every day starts with a roll. Tap the dice.', rollTap: 'Tap to roll', rollAria: 'Roll the dice',
+    rollContinue: 'Continue', rollTapSkip: 'Tap to skip',
+    grewEnds: function (n) { return 'The city grew: ' + n + (n === 1 ? ' new road end' : ' new road ends'); },
+    grewRoads: function (n) { return 'The city grew: ' + n + (n === 1 ? ' new road' : ' new roads'); },
+    rollNormal: 'Normal day: no change', rollFreeLight: 'a free traffic light',
+    rollFx: { rush: 'more cars', festival: 'more cars', rain: 'slower cars', luck1: '+1 build point', luck2: '+2 build points',
+              luck3: '+3 build points', free: 'a free road', calm: 'fewer cars, +1 build point', jackpot: '+5 build points, patient drivers' },
+    rollLive: function (v, fx) { return "Today's roll: " + v + '. ' + fx + '.'; },
     dieOnce: 'You can reroll once a day, before you start the day.',
     // Rush sem pontos para o relance: informa, sem tom de erro (dia 2 com 1 ponto, passeio da Roberta)
     dieRushShort: function (cost, have) { return 'Rush: more cars today. Rerolling costs ' + cost + (cost === 1 ? ' build point' : ' build points') + '. You have ' + have + '.'; },
@@ -835,6 +848,8 @@
     return kind === 'bad' ? 'red' : ((kind === 'good' || kind === 'great' || kind === 'jackpot') ? 'green' : 'ink');
   }
 
+  // cartas que sairam do jogo: seguem em STR so para o chip de um save antigo com a carta ativa
+  var RETIRED = { smooth: 1, waveBonus: 1 };
   var SAVE_KEY = 'cruzamento.save';
   var HINT_KEY = 'cruzamento.hints';
   var NODE_TOOLS = { stop: 1, yield: 1, light: 1, round: 1, cross: 1 };
@@ -1183,6 +1198,8 @@
   function create(opts) {
     var CFG = CRZ.CFG, C = CFG.colors;
     var rootEl = opts.root, game = opts.game, render = opts.render, audio = opts.audio;
+    // tela da rolagem do dado (padrao ligado; testes antigos que nao tratam dela passam rollScreen: false)
+    var ROLL_ON = opts.rollScreen !== false;
     // blind3 6: depois de construir ou pôr um sinal no plano a camera NAO anda sozinha (tutorial, dica, reveal)
     // ate a jogadora mexer no mapa, tocar no enquadrar ou o dia mudar
     var camFreeze = false, camBypass = 0;
@@ -1273,7 +1290,7 @@
     // L1: so objeto (primitivo ou lista fazia seen() sempre falso e a fila de dicas crescer todo quadro)
     if (!hints || typeof hints !== 'object' || Array.isArray(hints)) hints = {};
     // M4: dicas 'uma vez por PARTIDA' levam a semente na chave; as de outras partidas saem ao carregar
-    var PER_RUN = { sumInfo: 1, firstSpend: 1, ringGroup: 1, day4rule: 1, boostJ1: 1, runHint: 1, half6: 1 };
+    var PER_RUN = { sumInfo: 1, firstSpend: 1, ringGroup: 1, day4rule: 1, boostJ1: 1, runHint: 1, half6: 1, boosts4: 1, resumed: 1 };
     var runTag = '@' + ((game.world && game.world.seed) != null ? game.world.seed : 0);
     (function pruneRunHints() {
       var k, ch = false;
@@ -1758,7 +1775,8 @@
       // so cartas de coisas ja apresentadas (nv7: 'Free traffic light' e 'Double green wave' no dia 2)
       var lightOn = toolOpen(CFG, 'light', s.day | 0);
       Object.keys(STR.cards).forEach(function (id) {
-        if ((id === 'freeLight' || id === 'waveBonus') && !lightOn) return;
+        if (RETIRED[id]) return;
+        if (id === 'freeLight' && !lightOn) return;
         if (id === 'patient' && !ringEver) return;
         body.appendChild(gRow(cardIcon(id), STR.cards[id], [STR.cardLine[id]]));
       });
@@ -2443,6 +2461,25 @@
       if (w && w.nodes) for (q in w.nodes) if (w.nodes.hasOwnProperty(q) && isJunction(w.nodes[q])) out[q] = 1;
       return out;
     }
+    // invisivel 2: a cidade cresce na troca de dia, embaixo da tela do dado. Quando a tela fecha (ou na entrada do
+    // plano sem tela), as ruas novas crescem de novo, cada ponta nova pulsa 2 s, uma faixa diz quanto e um 'pop'.
+    // A camera nao anda (regra do plano)
+    var growPend = null;
+    function growTick(s) {
+      if (!growPend || s.phase !== 'plan' || roll.open || bootFrames >= 0 || holdUntil) return;
+      if (modal() && !tutBalloonOn()) return;
+      var ids = growPend.ids; growPend = null;
+      var w = game.world, set = {}, i, k, ends = [], roads = 0;
+      for (i = 0; i < ids.length; i++) set[ids[i]] = 1;
+      for (k in w.edges) if (w.edges.hasOwnProperty(k)) { var e = w.edges[k]; if (set[e.a] || set[e.b]) roads++; }
+      for (i = 0; i < ids.length; i++) { var n = w.nodes[ids[i]]; if (n && isEnd(n)) ends.push(n); }
+      if (!roads && !ends.length) return;
+      try { if (render && render.replayGrow) render.replayGrow(ids); } catch (er) {}
+      ends.forEach(function (n) { addPulse(n.x, n.y); later(function () { addPulse(n.x, n.y); }, 700); later(function () { addPulse(n.x, n.y); }, 1400); });
+      snd('pop');
+      // dia 2 com o roteiro: o balao 'The city grew a new road end' ja diz (nunca o mesmo texto em dois lugares)
+      if (!(tutorScript() && (s.day | 0) === 2)) say(ends.length ? STR.grewEnds(ends.length) : STR.grewRoads(roads), 3500);
+    }
     function onGrow() {
       var now = junctionIds(), q, d = (game.state.day | 0) + 1;
       for (q in now) if (now.hasOwnProperty(q) && !newJ.snap[q] && !newJ.ids[q]) newJ.ids[q] = d;
@@ -2556,7 +2593,6 @@
         njDay.tip = s.day | 0; saveNewJ();
         var njValid = function () { return game.state.phase === 'plan' && morningList(game.state).length > 0; };
         say(STR.newJFirst, 4000, njValid); pulseEl(njChipEl);
-        if (!seen('day4rule')) { markSeen('day4rule'); later(function () { if (njValid()) { sayUntil = 0; say(STR.newJRule, 4000, njValid); } }, 4100); }
         showJunction(L[0], false);
         emitUI('newJunctionTip', { id: L[0].id, count: ids.length });
       }
@@ -2587,9 +2623,16 @@
       var L = assistGet('playConfirm', easyOn()) && !tutorTalking() ? morningList(s) : [];
       if (L.length && signAffordable(s) && !confirmAsked.keys.newj) out.push({ key: 'newj', text: STR.cWhyNew(L.length), node: L[0] });
       if (s.free && s.free.road && !confirmAsked.keys.free) out.push({ key: 'free', text: STR.cWhyFree });
+      // invisivel 6: o semaforo gratis tambem some a noite
+      if (s.free && s.free.light && !confirmAsked.keys.freelight && (s.tools || []).some(function (x) { return x.id === 'light' && x.unlocked; }) && lightSpot()) out.push({ key: 'freelight', text: STR.cWhyFreeLight });
       // blind3 7: sem nenhuma ferramenta pagavel o aviso nao serve para nada: nao aparece
       if (!lastDayOf(s) && (s.budget | 0) > cap && !confirmAsked.keys.carry && (s.budget | 0) >= minToolCost(s)) out.push({ key: 'carry', text: STR.cWhyCarry(s.budget | 0, cap) });
       return out;
+    }
+    function lightSpot() {
+      var w = game.world, k; if (!w || !w.nodes) return false;
+      for (k in w.nodes) if (w.nodes.hasOwnProperty(k)) { var n = w.nodes[k]; if (isJunction(n) && n.tool !== 'light') return true; }
+      return false;
     }
     function confirmPlay(s) {
       var R0 = playReasons(s);
@@ -2615,6 +2658,7 @@
       confirmWhy.forEach(function (r) {
         if (r.key === 'newj' && r.node) showJunction(r.node, false);
         if (r.key === 'free' && tiles.road) { pulseEl(tiles.road.el); say(STR.freeRoadNow, 3000); }
+        if (r.key === 'freelight' && tiles.light) pulseEl(tiles.light.el);
       });
       emitUI('playConfirmBack', {});
     });
@@ -3218,6 +3262,8 @@
     }
     on(dieEl, 'click', function () {
       if (modal()) return;
+      // no plano o dado do topo reabre a tela da rolagem (sem animacao); no dia, a folha de antes
+      if (ROLL_ON && game.state.phase === 'plan' && game.state.die && (game.state.day | 0) >= 2) { if (sheetOpen) closeSheet(); rollOpen(false); return; }
       if (sheetOpen) closeSheet(); else openSheet();
     });
     on(sheetClose, 'click', function () { closeSheet(); });
@@ -3234,6 +3280,169 @@
       if (okR) snd('place'); else { snd('deny'); shake(rerollBtn); }
       sheetKey = ''; refreshSheet(game.state);
       emitUI('dieReroll', { ok: okR });
+    });
+    // ---- rolagem visivel do dado (Arthur, 2026-11-10): no comeco do plano de cada dia com dado ----
+    // folha central por cima do mapa escurecido: o dado grande entra quicando (~1,2 s) e para no numero;
+    // depois o efeito grande e colorido, amanha pequeno, Reroll secundario e Continue. Um toque pula a
+    // animacao, o 2o continua. Dia normal fecha sozinho em 2 s. Uma vez por dia por partida (hints '@seed').
+    var ROLL_ANIM_MS = 1200;
+    var rollEl = el('div', 'crz-roll gone'); rollEl.setAttribute('role', 'dialog'); rollEl.setAttribute('aria-modal', 'true');
+    rollEl.setAttribute('aria-label', STR.rollTitle);
+    var rollBox = tut(el('div', 'crz-rollbox'), 'roll');
+    var rollDie = el('div', 'crz-rolldie'), rollTapEl = el('div', 'crz-rolltap gone'), rollFx = el('div', 'crz-rollfx'), rollTutEl = el('div', 'crz-rolltut gone');
+    var rollTom = el('div', 'crz-rolltom'), rollNote = el('div', 'crz-rollnote');
+    var rollRow = el('div', 'crz-rollrow');
+    var rollReroll = tut(el('button', 'crz-rollreroll'), 'roll-reroll'), rollGo = tut(el('button', 'crz-rollgo'), 'roll-continue');
+    rollGo.textContent = STR.rollContinue;
+    var rollLive = el('div', 'crz-sr'); rollLive.setAttribute('aria-live', 'polite');
+    rollRow.appendChild(rollReroll); rollRow.appendChild(rollGo);
+    rollDie.setAttribute('role', 'button'); rollDie.setAttribute('tabindex', '0'); rollDie.setAttribute('aria-label', STR.rollAria);
+    rollTapEl.textContent = STR.rollTap;
+    rollBox.appendChild(rollDie); rollBox.appendChild(rollTapEl); rollBox.appendChild(rollFx); rollBox.appendChild(rollTutEl); rollBox.appendChild(rollTom);
+    rollBox.appendChild(rollRow); rollBox.appendChild(rollNote); rollBox.appendChild(rollLive);
+    rollEl.appendChild(rollBox); ui.appendChild(rollEl);
+    // Arthur 2026-11-10: quem rola e a jogadora. 'ready' = dado parado, 'Tap to roll'; o resultado ja veio do jogo
+    var ROLL_WIGGLE_MS = 8000;
+    var roll = { open: false, stage: '', t0: 0, resAt: 0, autoAt: 0, spinAt: 0, normal: false, mine: false, readyAt: 0 };
+    function rollKey(d) { return 'roll' + d + runTag; }
+    function rollSeen(d) { return !!hints[rollKey(d)]; }
+    function rollMark(d) { hints[rollKey(d)] = 1; lsSet(HINT_KEY, JSON.stringify(hints)); }
+    function rollFxText(die) {
+      if (!die || die.id === 'plain' || !(STR.rollFx[die.id])) return STR.rollNormal;
+      // invisivel 1 (D1): a face 'Free build' do d20 da semaforo gratis quando ele ja existe (game.dieGrant):
+      // a frase le o que o jogo deixou gratis de verdade
+      var fr = game.state && game.state.free;
+      if (die.id === 'free' && fr) return STR.today + ': ' + (fr.light ? STR.rollFreeLight : STR.rollFx.free);
+      return STR.today + ': ' + STR.rollFx[die.id];
+    }
+    function bigDieSvg(value, faces, kind) {
+      if (faces <= 6) return dieSvg(value, faces, kind);
+      // d20: forma de 20 lados arredondada (hexagono com as faces), o numero no meio
+      var tone = kindTone(kind);
+      return svg('<path d="M18 2L32 10V26L18 34L4 26V10Z" fill="none" stroke-width="2.4" stroke-linejoin="round" class="s-' + tone + '"/>' +
+        '<path d="M18 2L10 13H26Z M4 10L10 13L7 24 M32 10L26 13L29 24 M10 13L18 27L26 13 M7 24L18 27L29 24 M18 27V34" fill="none" stroke-width="0.9" stroke-linejoin="round" class="s-' + tone + '" opacity="0.35"/>' +
+        '<text x="18" y="23" text-anchor="middle" font-size="12" font-weight="800" class="f-ink">' + value + '</text>', '0 0 36 36');
+    }
+    function rollPaint(s, value) {
+      var D = s.die; if (!D) return;
+      rollDie.innerHTML = bigDieSvg(value, D.faces, D.kind);
+    }
+    function rollResultPaint(s) {
+      var D = s.die; if (!D) return;
+      var tone = kindTone(D.kind), fx = rollFxText(D);
+      rollPaint(s, D.value);
+      rollFx.textContent = fx; rollFx.className = 'crz-rollfx tone-' + tone;
+      var hasNext = !!s.nextDie && !lastDayOf(s);
+      rollTom.textContent = hasNext ? STR.lblTomorrow(s.nextDie.id, s.nextDie.value) : '';
+      var ri = rerollInfo(s);
+      rollReroll.classList.toggle('gone', !ri.avail);
+      rollReroll.textContent = STR.rerollLbl(ri.cost);
+      rollReroll.setAttribute('aria-label', STR.rerollAria(ri.cost));
+      rollReroll.classList.toggle('off', !!ri.reason);
+      rollReroll.setAttribute('aria-disabled', ri.reason ? 'true' : 'false');
+      rollNote.textContent = ri.avail && ri.reason ? (rushShort(s, ri) || ri.reason) : '';
+      var fxs = fx.replace(/^Today: /, '').replace(/^Normal day: no change$/, 'Normal day');
+      rollLive.textContent = STR.rollLive(D.value, fxs.charAt(0).toUpperCase() + fxs.slice(1));
+      rollTutEl.classList.add('gone');   // a linha do tutorial ('Tap the dice') sai depois de rolar
+      roll.normal = D.id === 'plain' || tone === 'ink';
+    }
+    function rollAnyModal() {
+      var menuAny = false; try { menuAny = !!(CRZ.app && CRZ.app.menu && CRZ.app.menu.isOpenAny && CRZ.app.menu.isOpenAny()); } catch (e) {}
+      return menuAny || !!guideEl || confirmOpen() || sheetOpen;
+    }
+    function rollOpen(animate) {
+      var s = game.state; if (!s.die || roll.open) return;
+      roll.open = true; ffOff();
+      roll.mine = !(doc.body && doc.body.classList && doc.body.classList.contains('crz-modal'));
+      if (doc.body && doc.body.classList) doc.body.classList.add('crz-modal');
+      rollEl.classList.remove('gone'); rollEl.classList.toggle('crz-rm', reducedMotion());
+      var tutLine = !seen('rollAny') && tutorScript();
+      rollTutEl.textContent = STR.rollTut; rollTutEl.classList.toggle('gone', !tutLine);
+      markSeen('fu:die');
+      emitUI('dieOpen', { roll: true });
+      if (animate) rollReady(); else rollResult(false);
+    }
+    function rollReady() {
+      var s = game.state;
+      roll.stage = 'ready'; roll.readyAt = nowMs(); roll.autoAt = 0;
+      rollEl.classList.remove('crz-rolling'); rollEl.classList.remove('crz-rolled'); rollEl.classList.add('crz-rollready');
+      rollDie.classList.remove('crz-rollwiggle'); rollDie.classList.remove('crz-rollin');
+      rollDie.innerHTML = bigDieSvg((s.die && s.die.faces > 6) ? '?' : 5, (s.die && s.die.faces) || 6, 'plain');
+      rollTapEl.classList.remove('gone');
+      rollFx.textContent = ''; rollTom.textContent = ''; rollNote.textContent = '';
+      rollRow.classList.add('crz-hide'); rollGo.setAttribute('tabindex', '-1');
+      rollLive.textContent = STR.rollTap;
+      try { if (rollDie.focus) rollDie.focus(); } catch (e) {}
+    }
+    function rollAnim() {
+      var s = game.state, now = nowMs();
+      // rolou: este dia nao volta para 'Tap to roll' ao recarregar
+      markSeen('rollAny'); rollMark(s.day | 0);
+      rollEl.classList.remove('crz-rollready'); rollTapEl.classList.add('gone'); rollDie.classList.remove('crz-rollwiggle');
+      roll.stage = 'anim'; roll.t0 = now; roll.spinAt = 0; roll.autoAt = 0;
+      rollEl.classList.add('crz-rolling'); rollEl.classList.remove('crz-rolled');
+      rollFx.textContent = ''; rollTom.textContent = ''; rollNote.textContent = '';
+      rollRow.classList.add('crz-hide'); rollGo.setAttribute('tabindex', '-1');
+      rollDie.classList.remove('crz-rollin'); void rollDie.offsetWidth; rollDie.classList.add('crz-rollin');
+      rollPaint(s, 1 + Math.floor(Math.random() * ((s.die && s.die.faces) || 6)));
+      if (reducedMotion()) rollResult(true);
+    }
+    function rollResult(sound) {
+      var s = game.state;
+      roll.stage = 'result'; roll.resAt = nowMs();
+      rollEl.classList.remove('crz-rolling'); rollEl.classList.add('crz-rolled');
+      rollDie.classList.remove('crz-rollin');
+      rollResultPaint(s);
+      rollRow.classList.remove('crz-hide'); rollGo.removeAttribute('tabindex');
+      try { if (rollGo.focus) rollGo.focus(); } catch (e) {}
+      if (sound) snd('dice');
+      roll.autoAt = 0;   // a jogadora rolou: o resultado espera o Continue (ou um toque), tambem no dia normal
+    }
+    function rollClose() {
+      if (!roll.open) return;
+      roll.open = false; roll.stage = '';
+      rollEl.classList.add('gone'); rollEl.classList.remove('crz-rolling'); rollEl.classList.remove('crz-rolled');
+      if (roll.mine && doc.body && doc.body.classList && !rollAnyModal()) doc.body.classList.remove('crz-modal');
+      emitUI('rollClosed', {});
+    }
+    function rollScreenTick(s, now) {
+      if (roll.open) {
+        if (s.phase !== 'plan') { rollClose(); return; }
+        if (roll.stage === 'anim') {
+          if (now - roll.t0 >= ROLL_ANIM_MS) rollResult(true);
+          else if (now - roll.spinAt >= 90) { roll.spinAt = now; rollPaint(s, 1 + Math.floor(Math.random() * ((s.die && s.die.faces) || 6))); }
+        } else if (roll.stage === 'ready' && now - roll.readyAt >= ROLL_WIGGLE_MS && !rollDie.classList.contains('crz-rollwiggle')) {
+          rollDie.classList.add('crz-rollwiggle');   // convite: balanca de leve, nunca rola sozinho
+        }
+        return;
+      }
+      if (!ROLL_ON || s.phase !== 'plan' || !s.die || (s.day | 0) < 2 || rollSeen(s.day | 0)) return;
+      if (bootFrames >= 0 || holdUntil || rollAnyModal() || modal()) return;
+      rollOpen(true);
+    }
+    // toque em qualquer lugar: na animacao pula para o resultado; no resultado continua (fora o Reroll)
+    on(rollEl, 'click', function (e) {
+      if (!roll.open) return;
+      if (e && e.target && (e.target === rollReroll)) return;
+      if (roll.stage === 'ready') { rollAnim(); return; }
+      if (roll.stage === 'anim') { rollResult(true); return; }
+      rollClose();
+    });
+    on(rollGo, 'click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); rollClose(); });
+    on(rollReroll, 'click', function (e) {
+      if (e && e.stopPropagation) e.stopPropagation();
+      if (roll.stage !== 'result') return;
+      var s = game.state, ri = rerollInfo(s);
+      if (rollReroll.classList.contains('off') || !ri.avail) { snd('deny'); shake(rollReroll); emitUI('dieReroll', { ok: false }); return; }
+      var r = game.rerollDie(), okR = !!(r && r.ok);
+      emitUI('dieReroll', { ok: okR });
+      if (!okR) { snd('deny'); shake(rollReroll); return; }
+      rollAnim();
+    });
+    on(doc, 'keydown', function (e) {
+      if (!e || !roll.open) return;
+      if (roll.stage === 'ready' && (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape')) { pd(e); rollAnim(); return; }
+      if (e.key === 'Escape') { if (roll.stage === 'anim') rollResult(true); else rollClose(); }
     });
     on(panel, 'scroll', syncMore);
     on(skipBtn, 'click', function () {
@@ -3650,7 +3859,8 @@
       // 'Free traffic light' so com o semaforo liberado amanha (antes: 'Traffic lights come later' na mesma carta)
       var lightTomorrow = toolOpen(CFG, 'light', (s.day | 0) + 1);
       // nv7: 'Double green wave' so com semaforo (antes aparecia no dia 2)
-      function shownCard(id) { return !(id === 'freeLight' && (dieFL || !lightTomorrow)) && !(id === 'waveBonus' && !lightTomorrow) && !(id === 'patient' && !ringEver); }
+      // Arthur 2026-11-10: 'Faster cars' e 'Double green wave' sairam do jogo (RETIRED); se um sorteio antigo trouxer, nao aparecem
+      function shownCard(id) { return !RETIRED[id] && !(id === 'freeLight' && (dieFL || !lightTomorrow)) && !(id === 'patient' && !ringEver); }
       var nShown = dr.filter(shownCard).length;
       cardsHead.classList.toggle('gone', !nShown);
       // sem cartas o botao e o unico caminho adiante: "Continue", nao "Skip reward"
@@ -3663,7 +3873,7 @@
       // carta escura = recomendada = com o selo 'Good pick' (sempre juntos); sem recomendada, nenhuma escura
       var mainIdx = pick && shownCard(pick) ? dr.indexOf(pick) : -1;
       // ordem FIXA na tela (mesmo tipo de carta, mesma posicao todo dia); o indice do game segue em data-card
-      var CARD_ORDER = ['plus2', 'freeRoad', 'freeLight', 'smooth', 'waveBonus', 'patient'], ordered = [];
+      var CARD_ORDER = ['plus2', 'freeRoad', 'freeLight', 'patient'], ordered = [];
       for (i = 0; i < dr.length; i++) ordered.push(i);
       ordered.sort(function (a, b) {
         var ra = CARD_ORDER.indexOf(dr[a]), rb = CARD_ORDER.indexOf(dr[b]);
@@ -3787,6 +3997,8 @@
       try {
         var j = game.save();
         lsSet(SAVE_KEY, typeof j === 'string' ? j : JSON.stringify(j));
+        // invisivel 7: save gravado no meio do dia volta na manha; lembra para avisar no proximo load
+        if (game.state.phase === 'run') lsSet(RUN_KEY, runTag + '|' + (game.state.day | 0)); else lsDel(RUN_KEY);
       } catch (e) {}
     }
     var offGame = game.onEvent(function (ev) {
@@ -3798,7 +4010,14 @@
         if (ev.phase === 'summary') { newJ.snap = junctionIds(); saveNewJ(); }
         saveNow();
       }
-      else if (ev.type === 'grow') onGrow();
+      else if (ev.type === 'grow') { onGrow(); growPend = { ids: (ev.nodeIds || []).slice() }; }
+      // invisivel 5: carga do raio que voltou (dias 1 a 3): pop na bolinha e um som curto
+      else if (ev.type === 'boostReady') { snd('charge'); boltPopAt = nowMs(); }
+      // invisivel 8: carro que desistiu (sem rota): '-1' cinza na ponta, so nos dias de dicas (ate o dia 6)
+      else if (ev.type === 'lost' && (game.state.day | 0) <= 6) {
+        var ln = game.world && game.world.nodes ? game.world.nodes[ev.nodeId] : null;
+        try { if (ln && render && render.note) render.note(ln.x, ln.y, '-1', 'gray'); } catch (e) {}
+      }
       else if (ev.type === 'ffEnd') onFFEnd(ev);
       else if (ev.type === 'built' && ev.kind === 'road') onPlanEdit();
       else if (ev.type === 'unlock') {
@@ -4029,11 +4248,49 @@
     var ringEver = false, RING_EVER_AT = 0.3;
     function hotAny(s) { var h = s.hot, k; if (h) for (k in h) if (h.hasOwnProperty(k) && +h[k] >= RING_EVER_AT) return true; return false; }
     // anel agrupado (o contador '2' do render): uma vez por partida, o que ele quer dizer
+    // invisivel 4: diz e devolve true so se o texto entrou na tela (say guarda o texto se um balao esta aberto)
+    function sayShown(text, ms, valid) { say(text, ms, valid); return sayEl.classList.contains('show') && sayEl.textContent === text; }
+    // regra do dia 4, sempre, uma vez por partida, no primeiro plano do dia 4 em diante (pulsa os cruzamentos sem sinal)
+    var boltPopAt = 0, boltPopped = 0;
+    var RUN_KEY = 'cruzamento.midday';
+    function invisTick(s, now) {
+      // pop na bolinha da carga que voltou (a ultima acesa)
+      if (boltPopAt && boltPopAt !== boltPopped) {
+        boltPopped = boltPopAt;
+        var on = clearEl.querySelectorAll ? clearEl.querySelectorAll('.crz-cp.on') : [];
+        var dot = on && on.length ? on[on.length - 1] : null;
+        if (dot) { dot.classList.remove('crz-cppop'); void dot.offsetWidth; dot.classList.add('crz-cppop'); }
+      }
+      // dia 4: a recarga acabou (uma faixa, uma vez por partida, na primeira corrida do dia 4)
+      if (s.phase === 'run' && (s.day | 0) === 4 && !seen('boosts4') && !tutBalloonOn() && !sayUntil && !modal()) {
+        if (sayShown(STR.boostsFixed, 3500)) markSeen('boosts4');
+      }
+      // invisivel 7: o iOS fechou o app no meio do dia; o jogo voltou a manha do mesmo dia
+      if (resumePend && s.phase === 'plan' && bootFrames < 0 && !roll.open && !modal() && !tutBalloonOn() && !sayUntil) {
+        resumePend = false;
+        sayShown(STR.resumedDay, 3500);
+      }
+    }
+    var resumePend = false;
+    (function readMidday() {
+      var v = null; try { v = root.localStorage ? root.localStorage.getItem(RUN_KEY) : null; } catch (e) {}
+      if (v && v === runTag + '|' + (game.state.day | 0) && game.state.phase === 'plan') resumePend = true;
+      lsDel(RUN_KEY);
+    })();
+    function day4RuleTick(s) {
+      if (seen('day4rule') || s.phase !== 'plan' || (s.day | 0) !== 4 || roll.open || growPend || bootFrames >= 0) return;
+      if (modal() || tutBalloonOn() || sayUntil || confirmOpen()) return;
+      if (!sayShown(STR.day4Rule, 5000)) return;
+      markSeen('day4rule');
+      var w = game.world, k; for (k in w.nodes) if (w.nodes.hasOwnProperty(k)) { var n = w.nodes[k]; if (isJunction(n) && !n.tool) addPulse(n.x, n.y); }
+    }
     function ringGroupTick(s) {
       if (seen('ringGroup') || (s.phase !== 'plan' && s.phase !== 'summary') || !render || typeof render.hotRings !== 'function' || sayUntil) return;
       var L = render.hotRings() || [], i;
       for (i = 0; i < L.length; i++) if (L[i].count >= 2) {
-        markSeen('ringGroup'); say(STR.ringGroup(L[i].count), 3600); addPulse(L[i].x, L[i].y); return;
+        if (tutBalloonOn() || modal()) return;
+        if (sayShown(STR.ringGroup(L[i].count), 3600)) markSeen('ringGroup');   // visto so depois de exibir
+        addPulse(L[i].x, L[i].y); return;
       }
     }
     function ringEverTick(s) {
@@ -4071,7 +4328,7 @@
     }
     function day3Notice(s) {
       if ((s.day | 0) !== TUT_SPEED_DAYS + 1 || seen('day3fast') || s.speed !== 4) return;
-      markSeen('day3fast'); sayUntil = 0; say(STR.day3Fast, 4000); pulseEl(playBtn);
+      sayUntil = 0; if (sayShown(STR.day3Fast, 4000)) markSeen('day3fast'); pulseEl(playBtn);
     }
     function tutorialSpeed(s) {
       if (!game.setSpeed) return;
@@ -4132,6 +4389,10 @@
       runHintTick(s, now);
       boostLiveTick(s);
       ffTick(s, now);
+      rollScreenTick(s, now);
+      growTick(s);
+      day4RuleTick(s);
+      invisTick(s, now);
       // nv8 6: com aviso preto na tela o selo PAUSED (menu.js) desce para baixo dele
       var sOn = sayEl.classList.contains('show') && !!s.paused;
       if (doc.body && doc.body.classList && sOn !== doc.body.classList.contains('crz-say-on')) {
@@ -4401,6 +4662,7 @@
     }
     return { update: update, destroy: destroy, getSelectedTool: getSelectedTool, isSheetOpen: isSheetOpen, isHolding: isHolding, boostChip: boostChip, boostNode: boostNode,
              openGuide: openGuide, closeGuide: closeGuide, isGuideOpen: function () { return !!guideEl; },
+             isRollOpen: function () { return roll.open; },
              beginLeave: beginLeave, flushSave: onHide,
              // faixa de 1 linha do tutorial (dicas): nao bloqueia, some em ms ou no primeiro toque
              strip: stripSay };

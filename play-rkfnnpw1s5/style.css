@@ -786,3 +786,59 @@ body.crz-say-on.crz-say-on .crzm-stamp { top: calc(var(--crz-sayb, 140px) + 10px
    'no Undo' pulava o dia). Nenhum alvo de toque a menos de 16 px (teste em dev/ui/test_ff.js e CDP) */
 .crz-ffchip { right: auto; left: 50%; bottom: calc(100% + 20px); transform: translateX(-50%); }
 .crz-ffchip:active { transform: translateX(-50%) scale(0.95); }
+
+/* ---- rolagem visivel do dado (Arthur 2026-11-10) ---- */
+.crz-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.crz-roll {
+  position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center;
+  background: rgba(17, 17, 17, 0.45); pointer-events: auto; padding: 16px; box-sizing: border-box;
+  animation: crz-rollfade 0.2s ease-out 1;
+}
+.crz-roll.gone { display: none; }
+.crz-rollbox {
+  width: min(320px, 100%); background: var(--bg); color: var(--ink); border-radius: 22px; padding: 22px 20px 16px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+  text-align: center; box-sizing: border-box;
+}
+.crz-rolldie { width: 96px; height: 96px; }
+.crz-rolldie svg { width: 96px; height: 96px; display: block; }
+.crz-rolldie.crz-rollin { animation: crz-rollbounce 1.2s cubic-bezier(.3,.7,.4,1) 1 both; }
+@keyframes crz-rollbounce {
+  0%   { transform: translateY(-150px) rotate(-260deg) scale(.8); }
+  35%  { transform: translateY(0) rotate(-60deg) scale(1); }
+  50%  { transform: translateY(-38px) rotate(-20deg); }
+  65%  { transform: translateY(0) rotate(0deg); }
+  77%  { transform: translateY(-12px) rotate(6deg); }
+  88%  { transform: translateY(0) rotate(0deg); }
+  100% { transform: translateY(0) rotate(0deg); }
+}
+@keyframes crz-rollfade { from { opacity: 0; } to { opacity: 1; } }
+.crz-rollfx { font-size: 24px; font-weight: 800; line-height: 1.2; min-height: 29px; }
+.crz-rollfx.tone-green { color: #1a7f35; }
+.crz-rollfx.tone-red { color: #c0201a; }
+.crz-rollfx.tone-ink { color: #555; }
+.crz-rolled .crz-rollfx { animation: crz-rollfade 0.25s ease-out 1; }
+.crz-rolltut { font-size: 15px; font-weight: 600; color: var(--ink); }
+.crz-rolltom { font-size: 13px; color: #555; min-height: 16px; }
+.crz-rollrow { display: flex; gap: 10px; width: 100%; justify-content: center; margin-top: 4px; }
+.crz-rollrow.crz-hide { visibility: hidden; }
+.crz-rollreroll { min-height: 44px; padding: 0 16px; border-radius: 22px; border: 1.5px solid var(--ink); background: transparent; color: var(--ink); font-size: 15px; font-weight: 700; }
+.crz-rollreroll.off { border-color: #aaa; color: #767676; }
+.crz-rollgo { min-height: 44px; min-width: 120px; padding: 0 20px; border-radius: 22px; background: var(--ink); color: var(--bg); font-size: 16px; font-weight: 800; }
+.crz-rollnote { font-size: 13px; color: #555; min-height: 0; }
+.crz-roll.crz-rm .crz-rolldie.crz-rollin { animation: none; }
+@media (prefers-reduced-motion: reduce) { .crz-rolldie.crz-rollin { animation: none; } .crz-roll { animation: crz-rollfade 0.2s linear 1; } }
+
+/* a tela da rolagem segura crz-modal e recebe o toque */
+body.crz-modal #hud .crz-roll, body.crz-modal #hud .crz-roll * { pointer-events: auto !important; }
+/* 'Tap to roll': o dado parado pulsa de leve; 8 s sem toque ele balanca (convite), nunca rola sozinho */
+.crz-rolltap { font-size: 20px; font-weight: 800; color: var(--ink); }
+.crz-rollready .crz-rolldie { cursor: pointer; animation: crz-rollpulse 1.6s ease-in-out infinite; }
+.crz-rollready .crz-rolldie.crz-rollwiggle { animation: crz-rollwiggle 1.2s ease-in-out infinite; }
+@keyframes crz-rollpulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+@keyframes crz-rollwiggle { 0%, 60%, 100% { transform: rotate(0deg); } 70% { transform: rotate(-10deg); } 80% { transform: rotate(9deg); } 90% { transform: rotate(-5deg); } }
+@media (prefers-reduced-motion: reduce) { .crz-rollready .crz-rolldie, .crz-rollready .crz-rolldie.crz-rollwiggle { animation: none; } }
+/* invisivel 5: a bolinha do raio que voltou da um pulo */
+.crz-cp.crz-cppop { animation: crz-cppop 0.3s ease-out 1; }
+@keyframes crz-cppop { 0% { transform: scale(0.6); } 60% { transform: scale(1.3); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .crz-cp.crz-cppop { animation: none; } }

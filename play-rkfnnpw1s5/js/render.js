@@ -651,10 +651,14 @@
       return best ? { edge: best, t: bt } : null;
     };
 
+    // r.replayGrow(nodeIds): as ruas desses nos crescem de novo (GROW_MS) no proximo quadro
+    var replayIds = null;
+    r.replayGrow = function (ids) { if (ids && ids.length) { replayIds = ids.slice(); forceDraw = true; } };
     // r.note(x, y, text): texto curto vermelho perto do ponto de mundo, some sozinho
-    r.note = function (x, y, text) {
+    r.note = function (x, y, text, tone) {
       if (!text || !isFinite(x) || !isFinite(y)) { note.on = false; return; }
       note.on = true; note.x = x; note.y = y; note.text = String(text); note.t0 = -1;
+      note.tone = tone === 'gray' ? 'gray' : '';   // invisivel 8: '-1' cinza do carro perdido
     };
 
     // carro entregue em (x, y) (mundo): anel verde curto na ponta. O mais antigo cede a vez quando os 24 estao em uso
@@ -840,6 +844,17 @@
         var ba = nodeBorn[e.a], bb = nodeBorn[e.b];
         edgeFrom[k] = (ba !== undefined && bb !== undefined && bb < ba) ? 1 : 0;
       }
+      // invisivel 2: replay do crescimento pedido pela UI (as ruas nasceram embaixo da tela do dado)
+      if (replayIds) {
+        var rp = {}, ri, rk, re;
+        for (ri = 0; ri < replayIds.length; ri++) { rp[replayIds[ri]] = 1; if (nodeBorn[replayIds[ri]] !== undefined) nodeBorn[replayIds[ri]] = now; }
+        for (rk in w.edges) if (w.edges.hasOwnProperty(rk)) {
+          re = w.edges[rk];
+          if (!rp[re.a] && !rp[re.b]) continue;
+          edgeBorn[rk] = now; edgeFrom[rk] = rp[re.a] && !rp[re.b] ? 1 : 0;
+        }
+        replayIds = null;
+      }
       // onda verde: brilho quando o contador de acertos sobe
       var wh = (w.stats && w.stats.waveHits) || 0;
       if (wh > lastWaveHits) waveGlow = 1;
@@ -928,6 +943,17 @@
       return Math.min(c, hw * 4);
     }
     function portalJunction(n) { return !!(n && n.portal && n.edges && n.edges.length >= 3); }
+    // relogio da trava (so leitura): o sim trava o no depois de CFG.lockSeconds de jogo com o estresse cru >= 1
+    // (n.stress == 1 exatamente nesse caso). Conta pelo dayTime do jogo; -1 quando o anel nao esta cheio
+    var lockAt = {}, lockDay = -1;
+    function lockProgress(n) {
+      var st = game && game.state, t = st ? +st.dayTime || 0 : 0, id = n.id;
+      if (!st || st.phase !== 'run' || n.locked || !((n.stress || 0) >= 1)) { if (lockAt[id] !== undefined) delete lockAt[id]; return -1; }
+      if (st.day !== lockDay) { lockAt = {}; lockDay = st.day; }
+      if (lockAt[id] === undefined || t < lockAt[id]) lockAt[id] = t;
+      var L = +CFG.lockSeconds || 8;
+      return Math.max(0, Math.min(1, (t - lockAt[id]) / L));
+    }
     function circle(x, y, rad) { if (!(rad > 0)) rad = 0; ctx.moveTo(x + rad, y); ctx.arc(x, y, rad, 0, TAU); }
 
     function drawPicto(tool, x, y, s, phase) {
@@ -1400,6 +1426,20 @@
           var soft = reduceMotion ? 0 : Math.sin(now * 0.005);
           var hard = reduceMotion ? 0 : Math.sin(now * 0.006);
           if (!reduceMotion) frameAnim = true;
+          var lp = lockProgress(n);
+          if (lp >= 0) {
+            // invisivel 3 (P1): anel cheio = RELOGIO da trava. O arco vermelho encolhe do topo, no sentido horario,
+            // ate o cruzamento travar (lockSeconds de jogo). Reduce-motion: encolhe em degraus de um quarto
+            var left = reduceMotion ? Math.ceil((1 - lp) * 4) / 4 : 1 - lp, lr2 = base + 9;
+            if (left > 0.002) {
+              ctx.moveTo(rx2, ry2 - lr2);
+              ctx.arc(rx2, ry2, lr2, -Math.PI / 2, -Math.PI / 2 + TAU * left);
+            }
+            ctx.lineWidth = 4.2; ctx.globalAlpha = 1;
+            if (wantDash !== sDash) { sDash = wantDash; ctx.setLineDash(DASH_NONE); ctx.lineCap = 'round'; }
+            ctx.strokeStyle = C.red; ctx.stroke();
+            continue;
+          }
           circle(rx2, ry2, (base + 1 + u * 8) * (sv > 0.8 ? 1 + 0.06 * hard : 1 + 0.05 * soft));
           wantDash = sv <= 0.6;
           // cor + forma: tracejado ambar (alerta), continuo vermelho (perigo); o travado segue vermelho
@@ -1653,7 +1693,7 @@
         else {
           var nq = labReq[1];
           nq.on = true; nq.text = note.text; nq.px = note.x * z + ox; nq.py = note.y * z + oy;
-          nq.alpha = nt < 0.7 ? 1 : 1 - (nt - 0.7) / 0.3; nq.color = C.red; nq.line = false;
+          nq.alpha = nt < 0.7 ? 1 : 1 - (nt - 0.7) / 0.3; nq.color = note.tone === 'gray' ? '#767676' : C.red; nq.line = false;
         }
       }
 
