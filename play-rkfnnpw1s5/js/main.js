@@ -8,9 +8,20 @@
   var DIFF_SWITCH_KEY = 'gridlet.saveDiffSwitch';      // sessionStorage: ja recarregou para a dificuldade do save
   var OLD_SAVE_NOTICE = 'Your saved game was from an older version. Starting fresh.';
 
+  var BAD_KEY = 'cruzamento.save.bad';                 // copia do ultimo save recusado (nunca apagado em silencio)
   function param(name) {
     try { return new URLSearchParams(root.location.search).get(name); } catch (e) { return null; }
   }
+  // maquina de desenvolvimento: localhost, 127.0.0.1, [::1], *.localhost, *.test ou arquivo local
+  function devHost() {
+    try {
+      var h = String(root.location.hostname || '').toLowerCase();
+      if (root.location.protocol === 'file:') { return true; }
+      return h === 'localhost' || h === '127.0.0.1' || h === '[::1]' || h === '::1' || /\.localhost$/.test(h) || /\.test$/.test(h);
+    } catch (e) { return false; }
+  }
+  // (um objeto literal com a chave '__proto__' nao a guarda como propriedade: a lista e comparada uma a uma)
+  function safeKey(k) { return k !== '__proto__' && k !== 'constructor' && k !== 'prototype'; }
 
   function boot() {
     var canvas = document.getElementById('stage');
@@ -24,10 +35,12 @@
       var ov = param('cfg');
       if (ov) {
         var o = JSON.parse(ov);
-        Object.keys(o).forEach(function (k) {
+        // poluicao de prototipo: '__proto__', 'constructor' e 'prototype' sao recusadas em qualquer nivel
+        if (o && typeof o === 'object' && !Array.isArray(o)) Object.keys(o).forEach(function (k) {
+          if (!safeKey(k) || !Object.prototype.hasOwnProperty.call(o, k)) { return; }
           var v = o[k];
           if (v && typeof v === 'object' && !Array.isArray(v) && CRZ.CFG[k] && typeof CRZ.CFG[k] === 'object') {
-            Object.keys(v).forEach(function (j) { CRZ.CFG[k][j] = v[j]; });
+            Object.keys(v).forEach(function (j) { if (safeKey(j)) { CRZ.CFG[k][j] = v[j]; } });
           } else { CRZ.CFG[k] = v; }
         });
       }
@@ -37,7 +50,10 @@
     var game = null;
     var saved = null, notice = null;
     try { saved = localStorage.getItem(SAVE_KEY); } catch (e) {}
-    if (saved && param('seed') === null) {
+    // ?seed= so troca a partida salva numa maquina de desenvolvimento; em producao o link nao apaga o save
+    var seedParam = param('seed');
+    if (seedParam !== null && saved && !devHost()) { seedParam = null; }
+    if (saved && seedParam === null) {
       var parsed = null;
       try { parsed = JSON.parse(saved); game = CRZ.Game.load(parsed); } catch (e) { game = null; }
       var flag = null;
@@ -55,13 +71,17 @@
           } catch (e) {}
           if (switched) { root.location.reload(); return; }
         }
-        // save recusado: sai do storage antes do menu (hasContinue nao mostra Continue) e o jogo comeca do zero
+        // save recusado: uma copia fica em BAD_KEY (nada se perde em silencio), sai da chave do jogo antes do menu
+        // (hasContinue nao mostra Continue) e o jogo comeca do zero com o aviso
+        var kept = false;
+        try { localStorage.setItem(BAD_KEY, saved); kept = localStorage.getItem(BAD_KEY) === saved; } catch (e) {}
+        if (root.console && root.console.warn) { root.console.warn('Gridlet: save recusado' + (kept ? ', copia em ' + BAD_KEY : ', sem espaco para a copia')); }
         try { localStorage.removeItem(SAVE_KEY); } catch (e) {}
         notice = OLD_SAVE_NOTICE;
       }
     }
     if (!game) {
-      var seed = parseInt(param('seed'), 10);
+      var seed = parseInt(seedParam, 10);
       if (!(seed > 0)) { seed = (Date.now() % 2147483647) + 1; }
       var played = false;
       try { played = localStorage.getItem(PLAYED_KEY) === '1'; } catch (e) {}

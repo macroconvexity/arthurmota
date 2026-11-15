@@ -103,13 +103,13 @@
     // ao centro / worldRadius. Ponta que perde o sorteio (ou passa do teto) vira portal fraco (weakRate)
     // em vez de beco morto. fromPortal: peso (x raio) de crescer a partir de um portal da borda; o portal
     // anda para a ponta nova. Antes (2026-11-08): base 0.2, min 0.15, max 0.85, teto 8, sem fraco:
-    // 35% das ruas sem carro nenhum no dia (playtest da Roberta e web/dev/novice2).
+    // 35% das ruas sem carro nenhum no dia (playtest da testadora e web/dev/novice2).
     growPortal: { base: 0.55, perR: 1.0, min: 0.5, max: 0.95, weakRate: 0.3, fromPortal: 1.5,
       cap: function (day) { return Math.min(12, 2 + day); } },   // teto de portais cheios da cidade
     // aneis do crescimento (ligacoes entre nos existentes): a partir de fromDay, base + 1 com chance extraP,
     // + 1 a partir de lateDay. Cada anel abre cruzamentos novos sem sinal.
     growRing: { fromDay: 6, base: 1, extraP: 0.4, lateDay: 99 },
-    // Trafego nas ruas de fora (2026-11-10, queixa da Roberta; medido em web/dev/sim/NOTES_TRAFFIC.md).
+    // Trafego nas ruas de fora (2026-11-10, queixa da testadora; medido em web/dev/sim/NOTES_TRAFFIC.md).
     // usefulGrowth (game.js growRing): o anel so liga dois nos se encurtar o caminho entre ao menos um par de pontas
     //   (portais) em mais de usefulMin px; sem isso 13 a 16% das ruas internas da borda ficavam quase vazias.
     //   DESLIGADO: 80 partidas por dificuldade, a fatia de internas vazias so caiu 16 -> 13% (Easy) e 13 -> 12% (Normal),
@@ -141,12 +141,12 @@
     //  - num cruzamento sofrendo: escoa a fila dele (mul x mais rapido por `seconds`, alivia estresse).
     // Cada toque gasta uma carga. O dia nao desacelera sozinho: a velocidade e escolha do jogador.
     clear: { unlockDay: 1, charges: 3, seconds: 6, mul: 2.2, stressRelief: 0.2, minStress: 0 },   // minStress > 0: Boost recusa (calm) no com estresse <= minStress (desligado: Boost preventivo vale)
-    // Dias de aprendizado (2026-11-09, Arthur: hipercasual, nunca so assistindo). Nos dias 1..days, durante o dia,
+    // Dias de aprendizado (2026-11-09, dono: hipercasual, nunca so assistindo). Nos dias 1..days, durante o dia,
     // cada carga de Boost usada volta depois de regenSeconds de tempo de JOGO (sem passar de clear.charges). A partir
     // do 4o Boost do dia o carro mandado pela ponta nao paga gorjeta (Delivery bonus fica como se so 3 valessem).
     // days: 0 desliga. Dia > days: exatamente a regra antiga (3 cargas por dia).
     earlyBoost: { days: 3, regenSeconds: 5 },
-    // Fast-forward (2026-11-10, Arthur: hipercasual, quando nao ha nada a fazer a jogadora PULA). Durante o dia,
+    // Fast-forward (2026-11-10, dono: hipercasual, quando nao ha nada a fazer a jogadora PULA). Durante o dia,
     // game.setFastForward(true) roda `speed` x o tempo de parede (mesmos passos fixos de 1/30 s: a sequencia de estados
     // e a da velocidade escolhida, so mais rapida). Termina sozinho com estresse >= autoSlowStress em qualquer no, fim
     // do dia, strike ou acao da jogadora. Delivery bonus por carro usa no maximo a recompensa de bonusSpeedCap x.
@@ -183,7 +183,7 @@
     },
 
     // cartas do fim do dia (escolhe 1 de 3). offer: false = carta aposentada: sai do sorteio, mas a definicao e o efeito
-    // ficam (save antigo com ela ativa aplica o efeito no dia seguinte, uma vez). 2026-11-10, Arthur ("o que o jogador
+    // ficam (save antigo com ela ativa aplica o efeito no dia seguinte, uma vez). 2026-11-10, dono ("o que o jogador
     // nao ve nao existe"): smooth (carros 10% mais rapidos) e waveBonus (onda verde em dobro, so com par) eram invisiveis.
     // Ofertadas: plus2, freeRoad, freeLight (com o semaforo liberado), patient (depois do primeiro anel da partida).
     cards: [
@@ -199,7 +199,7 @@
     cardPatientRingAt: 0.3,
     // crescimento da cidade. hardshipWeight: peso extra do no/estrada que mais sofreu ontem para receber o ramo novo
     // (no: 1 + 3 x hw x estresse, ate 4x; estrada: 1 + 2 x hw x estresse). AJUDA DELIBERADA, sem sinal visivel, por
-    // decisao do Arthur (2026-11-10): fica 1 (o valor de sempre); 0 tiraria o vies.
+    // decisao do dono (2026-11-10): fica 1 (o valor de sempre); 0 tiraria o vies.
     growth: { hardshipWeight: 1 },
     // efeito de cada carta (game.js le daqui; a UI le por CRZ.Game cardInfo(id) para nao copiar numero)
     cardEffects: {

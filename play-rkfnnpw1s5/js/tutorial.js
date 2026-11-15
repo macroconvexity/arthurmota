@@ -19,7 +19,7 @@
     roadDrag: 'Cars enter at road ends. Drag outward from this road end to build.',
     roadMissed: 'Drag from the circled end out to an empty spot.',
     cars: 'The small blue squares are cars.',
-    // uma acao so (Arthur no iPhone, 2026-11-09: 'Undo is free' + dois aneis confundiam o proximo passo)
+    // uma acao so (dono no iPhone, 2026-11-09: 'Undo is free' + dois aneis confundiam o proximo passo)
     play: 'Good. Now tap \u25b6\ufe0e to send the cars.',
     playOut: 'Out of build points. Tap \u25b6\ufe0e to start the day.',
     playNoRoad: 'Build one road first: tap Road, then drag from a road end.',
@@ -133,7 +133,7 @@
   var MISSING_GRACE = 1.5; // s esperando o alvo aparecer antes de pular o passo
   var HOLE_K = 1.7;        // buraco e repasse do toque: 1,7x o raio de toque do mapa (alcance do arrasto da UI)
   var HAND_AFTER = 15;     // s sem construir ate a maozinha aparecer
-  // regra 'nunca sem instrucao' (Arthur, 2026-11-09): 10 s sem tocar em nada com um balao na tela: o balao
+  // regra 'nunca sem instrucao' (dono, 2026-11-09): 10 s sem tocar em nada com um balao na tela: o balao
   // repete (pulo curto) e o anel do controle pulsa de novo; repete a cada 10 s parada
   var IDLE_AGAIN = 10;
   // blind2 1: teto de baloes modais por dia (dias 1-2: 4, dia 3+: 2); acima dele o passo sai como faixa
@@ -1027,6 +1027,10 @@
 
     function handleUI(d) {
       if (!d) return;
+      // nv10 4 (2026-11-15): a tela do resultado ja disse 'Bad roll?' com o Reroll ao lado: a dica nao repete depois
+      if (d.type === 'rerollHint') { mark('tip:reroll'); return; }
+      // a tela 'Tap to roll' do primeiro d20 ja disse 'New dice today: 1 to 20'
+      if (d.type === 'bigDieSaid') { mark('tip:bigDie'); return; }
       if (d.type === 'dieOpen') {
         // folha do dado abriu: a apresentacao do dado acabou (a folha explica o resto) e nada fica por cima.
         // So conta a partir do dia 2 (antes disso o dado nem aparece).
@@ -1156,6 +1160,30 @@
     };
   }
 
+  // B3 c (2026-11-15): um dono so para body.crz-modal. Cada camada (guia, tela do dado, menu, tutorial) liga e
+  // desliga o PROPRIO nome; a classe fica enquanto houver algum dono. O mesmo bloco em ui.js, tutorial.js e menu.js:
+  // quem carregar primeiro cria CRZ.modal, os outros o usam
+  function modalReg() {
+    if (CRZ.modal && CRZ.modal.set) return CRZ.modal;
+    function owners(body) { if (!body) return null; if (!body.__crzModal) { try { Object.defineProperty(body, '__crzModal', { value: {}, writable: true }); } catch (e) { body.__crzModal = {}; } } return body.__crzModal; }
+    function any(o, skip) { for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k) && o[k] && k !== skip) return true; return false; }
+    CRZ.modal = {
+      set: function (body, name, on) {
+        var o = owners(body); if (!o) return;
+        var had = any(o);
+        if (on) o[name] = 1; else delete o[name];
+        var now = any(o), cl = body.classList;
+        if (!cl) return;
+        if (now) cl.add('crz-modal'); else if (had) cl.remove('crz-modal');
+      },
+      has: function (body, name) { var o = owners(body); return !!(o && o[name]); },
+      others: function (body, name) { var o = owners(body); return !!(o && any(o, name)); },
+      list: function (body) { var o = owners(body), out = [], k; if (o) for (k in o) if (o[k]) out.push(k); return out.sort(); }
+    };
+    return CRZ.modal;
+  }
+
+  modalReg();
   function nullView() {
     return { show: function () {}, frame: function () { return true; }, hide: function () {}, seal: function () {}, destroy: function () {} };
   }
@@ -1426,12 +1454,26 @@
       return true;
     }
     var bound = [];
-    function on(t, type, fn) { t.addEventListener(type, fn); bound.push([t, type, fn]); }
+    function on(t, type, fn, cap) { t.addEventListener(type, fn, !!cap); bound.push([t, type, fn, !!cap]); }
     function stop(e) { if (e && e.stopPropagation) e.stopPropagation(); }
 
     on(altB, 'click', function (e) { stop(e); h.slow(); });
     on(goB, 'click', function (e) { stop(e); h.cont(); });
-    on(skipB, 'click', function (e) { stop(e); h.skipTap(); });
+    // nv10 7 (2026-11-15): o 2o toque do 'Tap again to skip' falhava as vezes a 375x667. O 1o toque troca o rotulo
+    // (o botao cresce) e o balao podia ser reposicionado (texto, faixa de aviso, camera); o dedo voltava ao mesmo
+    // lugar e caia fora do botao. Agora: (1) com o pulo armado o balao nao se move; (2) um toque dentro do retangulo
+    // que o botao tinha no 1o toque (com folga) confirma, mesmo que ele tenha andado
+    var armRect = null, swallowUntil = 0;
+    function rectOf(n) { try { var q = n.getBoundingClientRect(); return { l: q.left, t: q.top, r: q.right, b: q.bottom }; } catch (x) { return null; } }
+    function inRect(R, x, y, pad) { return !!R && x >= R.l - pad && x <= R.r + pad && y >= R.t - pad && y <= R.b + pad; }
+    function tnow() { try { return root.performance && root.performance.now ? root.performance.now() : Date.now(); } catch (x) { return Date.now(); } }
+    on(skipB, 'click', function (e) {
+      stop(e);
+      if (tnow() < swallowUntil) return;          // o pointerdown ja confirmou
+      var r0 = rectOf(skipB);
+      h.skipTap();
+      armRect = curInf && curInf.armed ? r0 : null;
+    });
     on(box, 'click', function (e) { if (e.target !== skipB && e.target !== goB && e.target !== altB) h.tap(); });
     on(box, 'pointerdown', stop);
     // toque fora do buraco num passo de agir (o arrasto comecou fora da ponta): mostra a maozinha ja
@@ -1467,6 +1509,17 @@
     // dedo na tela (arrastando o mapa): nao mexer na camera por baixo dele
     on(doc, 'pointerdown', function () { pressed = true; });
     on(doc, 'pointerup', function () { pressed = false; });
+    // nv10 7: o 2o toque do pulo armado (ver o click do skipB)
+    on(doc, 'pointerdown', function (e) {
+      if (!armRect || !curInf || !curInf.armed || !e) return;
+      var x = e.clientX, y = e.clientY;
+      if (!(typeof x === 'number' && typeof y === 'number')) return;
+      if (!inRect(armRect, x, y, 12) || inRect(rectOf(skipB), x, y, 0)) return;   // no proprio botao: o click resolve
+      armRect = null; swallowUntil = tnow() + 600;
+      if (e.preventDefault) e.preventDefault(); stop(e);
+      h.skipTap();
+    }, true);
+    on(doc, 'click', function (e) { if (tnow() < swallowUntil && e) { if (e.preventDefault) e.preventDefault(); stop(e); } }, true);
     on(doc, 'pointercancel', function () { pressed = false; });
     // Safari perde o pointerup (app em segundo plano, aba trocada, alerta do sistema): sem isto
     // pressed ficava true e o balao nunca mais trazia o alvo para a tela
@@ -1624,6 +1677,8 @@
       // texto e botoes: compara os campos (antes juntava uma chave em string por quadro)
       var textSame = !!tk && tk.text === inf.text && tk.mode === inf.mode && tk.escape === inf.escape &&
         tk.armed === inf.armed && tk.tip === inf.tip && tk.icon === inf.icon && tk.btn === inf.btn && tk.alt === inf.alt;
+      var onlyArm = !!tk && !textSame && tk.text === inf.text && tk.mode === inf.mode && tk.escape === inf.escape &&
+        tk.tip === inf.tip && tk.icon === inf.icon && tk.btn === inf.btn && tk.alt === inf.alt && !dirty && wantW === bw;
       if (!textSame || dirty || wantW !== bw) {
         textKey = { text: inf.text, mode: inf.mode, escape: inf.escape, armed: inf.armed, tip: inf.tip, icon: inf.icon, btn: inf.btn, alt: inf.alt };
         txt.textContent = inf.text || '';
@@ -1641,7 +1696,8 @@
         goB.className = 'crz-tut-go' + (inf.btn !== 'none' && (inf.mode !== 'act' || inf.escape) ? ' on' : '');
         bw = wantW; box.style.width = bw + 'px';
         bh = box.offsetHeight || 96;   // le o layout so quando texto ou largura mudam
-        last.place = null;
+        // nv10 7: armar o pulo so troca o rotulo; o balao fica onde esta (o dedo volta ao mesmo lugar)
+        if (!(onlyArm && last.place)) last.place = null;
       }
       dirty = false;
       setHidden(inf.hide);
@@ -1657,7 +1713,8 @@
       // nv8 6: um aviso preto de recusa ('Build one road first...') que aparece com o balao aberto nao fica coberto
       var sayR = visibleQ('.crz-say.show');
       if (sayR) { av = av || []; av.push(sayR); }
-      if (placeChanged(r, vs, hb, edgeSp, av)) {
+      if (!inf.armed) armRect = null;
+      if (!(inf.armed && last.place) && placeChanged(r, vs, hb, edgeSp, av)) {
         wrap.className = wrap.className.replace(/ edge\b/, '') + (edgeSp ? ' edge' : '');
         edgeArrow.className = 'crz-tut-edge';
         if (edgeSp) {
@@ -1768,7 +1825,7 @@
     function destroy() {
       var i;
       setHidden(null); openCls(false);
-      for (i = 0; i < bound.length; i++) { try { bound[i][0].removeEventListener(bound[i][1], bound[i][2]); } catch (e) {} }
+      for (i = 0; i < bound.length; i++) { try { bound[i][0].removeEventListener(bound[i][1], bound[i][2], bound[i][3]); } catch (e) {} }
       bound = [];
       if (sealTimer) clearTimeout(sealTimer);
       if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
@@ -1776,6 +1833,7 @@
     }
     // repete o passo: o balao da um pulo curto e os aneis recomecam o pulso (reflow entre tirar e por a classe)
     function again() {
+      if (curInf && curInf.armed) return;   // nv10 7: o pulo curto nao tira o botao armado de baixo do dedo
       var L = [box, ring, ring2, ring3], i;
       for (i = 0; i < L.length; i++) {
         if (!L[i] || !L[i].classList) continue;
@@ -1805,9 +1863,9 @@
     if (doc && doc.addEventListener) { try { doc.addEventListener('pointerdown', onTouchAny, true); } catch (e) {} }
     function bodyCls() { return doc && doc.body && doc.body.classList ? doc.body.classList : null; }
     function modal(onv) {
-      var cl = bodyCls(); if (!cl) return;
-      if (onv) { if (!cl.contains('crz-modal')) { cl.add('crz-modal'); } ourModal = true; }
-      else if (ourModal) { ourModal = false; cl.remove('crz-modal'); }
+      if (!bodyCls()) return;
+      if (onv) { modalReg().set(doc.body, 'tut', true); ourModal = true; }
+      else if (ourModal) { ourModal = false; modalReg().set(doc.body, 'tut', false); }
     }
     var reason = '';
     function uiNow() { return o.ui || (CRZ.app && CRZ.app.ui) || null; }
@@ -1846,11 +1904,13 @@
       if (menuOpen()) { reason = 'menu'; return true; }
       var cl = bodyCls();
       reason = 'other';
-      return !!(cl && cl.contains('crz-modal') && !ourModal);
+      // B3 c: outra camada dona da classe (guia, tela do dado, menu) congela o balao, mesmo com o tutorial dono tambem
+      // (antes: com ourModal, o guia aberto por cima ficava coberto pelo balao)
+      if (modalReg().others(doc.body, 'tut')) return true;
+      return !!(cl && cl.contains('crz-modal') && !ourModal && !modalReg().list(doc.body).length);
     }
-    // ao congelar: sob o menu, esquece a posse da classe sem tira-la (o menu a usa e a tira ao fechar);
-    // sob a folha do dado, tira a nossa (ninguem mais a tiraria)
-    function release() { if (reason === 'sheet' || reason === 'hold') modal(false); else ourModal = false; }
+    // ao congelar: a posse do tutorial sai (o registro mantem a classe enquanto outra camada a segura)
+    function release() { modal(false); }
     m = createMachine({ game: o.game, ui: o.ui, render: o.render, store: o.store || lsStore(),
                         view: view || nullView(), modal: modal, blocked: blocked, release: release,
                         hasEl: view ? function (n) { return view.has(n); } : null });

@@ -47,10 +47,11 @@
     pts: function (c) { return c + (c === 1 ? ' build point' : ' build points'); },
     moreH: 'Daily rules',
     more: [
-      ['Daily dice', 'every morning from day 2 the dice roll. Good rolls give build points or a free build. Bad rolls bring more or slower cars. You see the roll when the day starts, and you can reroll once a day for {rr}.'],
+      // nv10 5 (2026-11-15): quem rola e a jogadora (nunca sozinho) e o dado muda no dia 6 (game.js diceTable)
+      ['Daily dice', 'from day 2, tap the dice each morning to roll it. Good rolls give build points or a free build. Bad rolls bring more or slower cars. From day 6 the dice go from 1 to 20. You can reroll once a day for {rr}; the new roll replaces today\'s.'],
       ['Strikes', 'a jammed crossing ends the day and adds 1 strike. At {n}, the game is over.'],
       ['Ring colors', 'Amber ring: busy crossing. Red ring: about to jam.'],
-      ['Rewards', 'at the end of each day, pick 1 of 3. Each one says what it changes, and it lasts one day.'],
+      ['Rewards', 'at the end of each day, pick 1 of the cards shown (2 or 3). Each one says what it changes, and it lasts one day.'],
       ['Speed', 'during the day, tap the play button to change speed. Faster = more bonus points, but drivers wait less.'],
       ['Boost (\u26a1\ufe0e)', '3 per day (they recharge in the first days). During the day, tap a road end to send a car now, or a crossing with a ring to clear it.'],
       ['Undo', 'before the day starts, undo gives the build points back.']
@@ -182,23 +183,25 @@
     /* pausa no canto ESQUERDO acima da bandeja: a direita ficam as cargas do Boost (o botao cobria a do meio) */
     '.crzm-pausebtn{position:fixed;left:calc(var(--sal,0px) + 12px);bottom:calc(var(--sab,0px) + 12px + var(--play,56px) + 14px);width:40px;height:40px;border-radius:50%;border:1.5px solid var(--gray,#cfcfcf);background:var(--bg,#fffdf8);display:none;align-items:center;justify-content:center;color:var(--ink,#111);z-index:1;pointer-events:auto}',
     /* alvo de toque de 48 px (o visual segue 40 px): o circulo de 40 px perdia toque a 20 px do centro
-       (passeio da Roberta). O mesmo botao vira Resume quando pausado, entao vale para os dois */
+       (passeio da testadora). O mesmo botao vira Resume quando pausado, entao vale para os dois */
     '.crzm-pausebtn::before{content:"";position:absolute;left:50%;top:50%;width:48px;height:48px;transform:translate(-50%,-50%);border-radius:6px;background:transparent}',
     '.crzm-pausebtn.show{display:flex}',
     '.crzm-pausebtn.on{border-color:var(--red,#d9261c);color:var(--red,#d9261c)}',
     // legenda: o botao pequeno nao se confunde com o Play/velocidade grande (jogador-so-tela 2026-11-09)
-    '.crzm-pausebtn::after{content:"pause";position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:2px;font-size:11px;font-weight:600;line-height:1;color:var(--inkSoft,#555);white-space:nowrap;pointer-events:none}',
+    '.crzm-pausebtn::after{content:"pause";position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:2px;font-size:11px;font-weight:600;line-height:1;color:var(--inkText,#555);white-space:nowrap;pointer-events:none}',
     '.crzm-pausebtn.on::after{content:"resume";color:var(--red,#d9261c)}',
     '.crzm-stamp{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%);font-size:13px;letter-spacing:.28em;text-transform:uppercase;color:var(--ink,#111);border:1.5px solid var(--ink,#111);border-radius:14px;padding:8px 18px;background:var(--bg,#fffdf8);display:none;z-index:1;pointer-events:none}',
     '.crzm-stamp.show{display:block}',
     // com balao do tutorial aberto o selo sobe para baixo do HUD (no meio cobria o alvo da dica)
     'body.crz-tut-open .crzm-stamp{top:calc(var(--sat,0px) + 96px);transform:translate(-50%,0);font-size:11px;padding:4px 12px}',
     '.crzm-layer{position:fixed;inset:0;display:none;pointer-events:auto;opacity:0;transition:opacity .22s ease}',
-    '.crzm-layer.open{display:flex}.crzm-layer.vis{opacity:1}',
+    '.crzm-layer.open{display:flex}.crzm-layer.vis{opacity:1}.crzm-layer.closing{pointer-events:none}',
+    // fuzz 2: a folha nunca passa da tela e rola por dentro (antes so na paisagem curta)
+    '.crzm-sheet{max-height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y}',
     /* tela inicial */
     '.crzm-start{z-index:3;background:var(--bg,#fffdf8);flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:calc(var(--sat,0px) + 24px) calc(var(--sar,0px) + 24px) calc(var(--sab,0px) + 24px) calc(var(--sal,0px) + 24px);text-align:center;color:var(--ink,#111)}',
     '.crzm-h1{margin:0;font-size:40px;font-weight:200;letter-spacing:.06em;line-height:1.05}',
-    '.crzm-sub{font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--inkSoft,#8a8a8a);margin-top:-10px}',
+    '.crzm-sub{font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--inkText,#6b6b6b);margin-top:-10px}',
     '.crzm-street{position:relative;width:100%;max-width:360px;height:28px;overflow:hidden;margin:10px 0}',
     '.crzm-street i.line{position:absolute;left:0;right:0;top:50%;height:1px;background:var(--ink,#111)}',
     '.crzm-street i.node{position:absolute;left:50%;top:50%;width:10px;height:10px;margin:-5px 0 0 -5px;border:1.5px solid var(--ink,#111);border-radius:50%;background:var(--bg,#fffdf8)}',
@@ -212,10 +215,10 @@
     '.crzm-diff{display:flex;gap:0;border:1.5px solid var(--ink,#111);border-radius:22px;overflow:hidden;margin:4px 0 2px}',
     '.crzm-dbtn{min-height:44px;min-width:110px;font-size:15px;font-weight:600;color:var(--ink,#111);background:none;padding:0 18px}',
     '.crzm-dbtn.on{background:var(--ink,#111);color:var(--bg,#fffdf8)}',
-    '.crzm-dinfo{max-width:320px;font-size:13px;line-height:1.4;color:var(--inkSoft,#8a8a8a);margin-top:-6px;display:flex;flex-direction:column;gap:3px}',
+    '.crzm-dinfo{max-width:320px;font-size:13px;line-height:1.4;color:var(--inkText,#6b6b6b);margin-top:-6px;display:flex;flex-direction:column;gap:3px}',
     '.crzm-dinfo .on{color:var(--ink,#111);font-weight:600}',
     '.crzm-dnote{font-size:12px}',
-    '.crzm-best{font-size:12px;line-height:1.6;color:var(--inkSoft,#8a8a8a);min-height:20px}',
+    '.crzm-best{font-size:12px;line-height:1.6;color:var(--inkText,#6b6b6b);min-height:20px}',
     '.crzm-best b{color:var(--ink,#111);font-weight:600}',
     /* folha de menu */
     '.crzm-menu{z-index:2;align-items:flex-end;justify-content:center;background:rgba(17,17,17,.28)}',
@@ -227,22 +230,22 @@
     '.crzm-layer.vis .crzm-sheet{transform:none}',
     '.crzm-grab{width:36px;height:4px;border-radius:2px;background:var(--gray,#cfcfcf);margin:6px auto 4px}',
     '.crzm-row{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:52px;font-size:17px;text-align:left;border-bottom:1px solid var(--grid,#efeae0);color:var(--ink,#111)}',
-    '.crzm-row small{font-size:13px;color:var(--inkSoft,#8a8a8a)}',
+    '.crzm-row small{font-size:13px;color:var(--inkText,#6b6b6b)}',
     '.crzm-row.armed,.crzm-row.armed small{color:var(--red,#d9261c)}',
-    '.crzm-stats{font-size:12px;color:var(--inkSoft,#8a8a8a);padding:12px 0 4px;text-align:center;font-variant-numeric:tabular-nums}',
+    '.crzm-stats{font-size:12px;color:var(--inkText,#6b6b6b);padding:12px 0 4px;text-align:center;font-variant-numeric:tabular-nums}',
     /* ajuda */
     '.crzm-help{z-index:4;flex-direction:column;background:var(--bg,#fffdf8);color:var(--ink,#111);padding-top:var(--sat,0px)}',
     '.crzm-hhead{display:flex;align-items:center;justify-content:space-between;padding:4px calc(var(--sar,0px) + 8px) 4px calc(var(--sal,0px) + 20px);min-height:52px;border-bottom:1px solid var(--grid,#efeae0);flex:none}',
     '.crzm-hhead h2{margin:0;font-size:20px;font-weight:300;letter-spacing:.04em}',
     '.crzm-x{min-width:64px;min-height:44px;font-size:15px;color:var(--ink,#111)}',
     '.crzm-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;padding:8px calc(var(--sar,0px) + 20px) calc(var(--sab,0px) + 28px) calc(var(--sal,0px) + 20px)}',
-    '.crzm-scroll h3{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--inkSoft,#8a8a8a);font-weight:600;margin:22px 0 8px}',
+    '.crzm-scroll h3{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--inkText,#6b6b6b);font-weight:600;margin:22px 0 8px}',
     '.crzm-scroll p{margin:0;font-size:16px;line-height:1.45}',
     '.crzm-li{display:flex;gap:12px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--grid,#efeae0);font-size:15px;line-height:1.4}',
     '.crzm-li b{font-weight:600}',
     '.crzm-li .ic{flex:none;width:40px;height:40px;border:1.5px solid var(--gray,#cfcfcf);border-radius:12px;display:flex;align-items:center;justify-content:center;background:var(--white,#fff)}',
     '.crzm-li.lock{opacity:.45}',
-    '.crzm-li .meta{font-size:12px;color:var(--inkSoft,#8a8a8a);margin-top:1px}',
+    '.crzm-li .meta{font-size:12px;color:var(--inkText,#6b6b6b);margin-top:1px}',
     '.crzm-li .tag{color:var(--red,#d9261c)}',
     /* aviso de paisagem curta: cobre tudo (acima da ajuda e do tutorial, .crz-tut z 60), gentil, um botao que dispensa */
     '.crzm-land{z-index:70;background:var(--bg,#fffdf8);flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:calc(var(--sat,0px) + 16px) calc(var(--sar,0px) + 24px) calc(var(--sab,0px) + 16px) calc(var(--sal,0px) + 24px);text-align:center;color:var(--ink,#111)}',
@@ -273,6 +276,30 @@
   }
   function has(c, name) { return !!(c && c.classList && c.classList.contains(name)); }
 
+  // B3 c (2026-11-15): um dono so para body.crz-modal. Cada camada (guia, tela do dado, menu, tutorial) liga e
+  // desliga o PROPRIO nome; a classe fica enquanto houver algum dono. O mesmo bloco em ui.js, tutorial.js e menu.js:
+  // quem carregar primeiro cria CRZ.modal, os outros o usam
+  function modalReg() {
+    if (CRZ.modal && CRZ.modal.set) return CRZ.modal;
+    function owners(body) { if (!body) return null; if (!body.__crzModal) { try { Object.defineProperty(body, '__crzModal', { value: {}, writable: true }); } catch (e) { body.__crzModal = {}; } } return body.__crzModal; }
+    function any(o, skip) { for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k) && o[k] && k !== skip) return true; return false; }
+    CRZ.modal = {
+      set: function (body, name, on) {
+        var o = owners(body); if (!o) return;
+        var had = any(o);
+        if (on) o[name] = 1; else delete o[name];
+        var now = any(o), cl = body.classList;
+        if (!cl) return;
+        if (now) cl.add('crz-modal'); else if (had) cl.remove('crz-modal');
+      },
+      has: function (body, name) { var o = owners(body); return !!(o && o[name]); },
+      others: function (body, name) { var o = owners(body); return !!(o && any(o, name)); },
+      list: function (body) { var o = owners(body), out = [], k; if (o) for (k in o) if (o[k]) out.push(k); return out.sort(); }
+    };
+    return CRZ.modal;
+  }
+
+  modalReg();
   function create(opts) {
     opts = opts || {};
     var doc = root.document;
@@ -311,7 +338,7 @@
       switchTo = n;
       if (!switchEl) {
         switchEl = layer('crzm-switch', STR.difficulty);
-        var sh = el('div', 'crzm-sheet');
+        var sh = el('div', 'crzm-sheet'); sh.setAttribute('data-scroll', '');
         els.switchTxt = el('p', 'crzm-switchtxt', '');
         sh.appendChild(els.switchTxt);
         sh.appendChild(btn('crzm-big', STR.switchYes, function () { var t = switchTo; closeSwitch(); if (t && CRZ.difficulty) { CRZ.difficulty.set(t); } }));
@@ -333,7 +360,8 @@
       syncPause();
     }
     // M2: o guia 'Tools & buttons' (ui.js) tambem segura crz-modal
-    function syncModal() { var gOpen = false; try { gOpen = !!(CRZ.app && CRZ.app.ui && CRZ.app.ui.isGuideOpen && CRZ.app.ui.isGuideOpen()); } catch (e) {} bodyClass('crz-modal', modalCount() > 0 || gOpen); }
+    // B3 c: o menu liga e desliga so a propria posse (o guia, o dado e o tutorial tem as deles)
+    function syncModal() { if (doc && doc.body) modalReg().set(doc.body, 'menu', modalCount() > 0); }
 
     if (audio && audio.setEnabled) { try { audio.setEnabled(soundOn); } catch (e) {} }
 
@@ -383,12 +411,15 @@
 
     function layer(cls, label) {
       var d = el('div', 'crzm-layer ' + cls);
+      // fuzz 2 (2026-11-15): toda camada do menu rola com o dedo (o filtro de touchmove da UI so deixa [data-scroll])
+      d.setAttribute('data-scroll', '');
       d.setAttribute('role', 'dialog'); d.setAttribute('aria-modal', 'true'); d.setAttribute('aria-label', label);
       return d;
     }
-    function openLayer(d) { d.classList.add('open'); if (root.requestAnimationFrame) { root.requestAnimationFrame(function () { d.classList.add('vis'); }); } else { d.classList.add('vis'); } }
+    function openLayer(d) { d.classList.remove('closing'); d.classList.add('open'); if (root.requestAnimationFrame) { root.requestAnimationFrame(function () { d.classList.add('vis'); }); } else { d.classList.add('vis'); } }
+    // fuzz 4: a camada que esta saindo (240 ms de fade) nao segura mais toques
     function closeLayer(d) {
-      d.classList.remove('vis');
+      d.classList.remove('vis'); d.classList.add('closing');
       var reduce = false;
       try { reduce = !!(root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) {}
       if (reduce || !root.setTimeout) { d.classList.remove('open'); } else {
@@ -400,7 +431,7 @@
     function buildMenu() {
       menuEl = layer('crzm-menu', STR.menu);
       menuEl.addEventListener('click', function (e) { if (e.target === menuEl) { closeMenu(); } });
-      var sheet = el('div', 'crzm-sheet');
+      var sheet = el('div', 'crzm-sheet'); sheet.setAttribute('data-scroll', '');
       sheet.appendChild(el('div', 'crzm-grab'));
       els.rCont = btn('crzm-row', STR.resume, function () {
         var wasRun = st().phase === 'run';
@@ -542,7 +573,7 @@
           els.diffBtns[n] = b; els.diff.appendChild(b);
         });
         startEl.appendChild(els.diff);
-        // tela inicial SEM explicacao de dificuldade (Arthur 2026-11-09: quem nunca jogou nao sabe o que e strike,
+        // tela inicial SEM explicacao de dificuldade (dono 2026-11-09: quem nunca jogou nao sabe o que e strike,
         // crossing nem jam). So no Normal uma linha curta, sem numeros; os numeros ficam no menu > Difficulty
         els.diffShort = el('div', 'crzm-dshort' + (D.name === 'normal' ? '' : ' gone'), D.name === 'normal' ? STR.normalShort : '');
         els.diffShort.setAttribute('data-tut', 'diff-info');
@@ -646,6 +677,8 @@
       var s = st();
       if (s.phase === 'run' && !s.paused && game && game.setPaused) { game.setPaused(true); ownPaused = true; }
       menuOpen = true; newArmedAt = 0;
+      // fuzz 2: o bloco Difficulty abre fechado (aberto de antes empurrava New game para fora da tela)
+      if (els.mDiff && els.mDiff.classList) { els.mDiff.classList.add('gone'); if (els.rDiff) { els.rDiff.setAttribute('aria-expanded', 'false'); } }
       syncMenuRows();
       openLayer(menuEl); syncModal();
     }
@@ -842,7 +875,7 @@
       });
       try { if (styleEl && styleEl.parentNode) { styleEl.parentNode.removeChild(styleEl); } } catch (e) {}
       try { if (madeRoot && rootEl && rootEl.parentNode) { rootEl.parentNode.removeChild(rootEl); } } catch (e) {}
-      bodyClass('crz-menu-on', false); bodyClass('crz-modal', false);
+      bodyClass('crz-menu-on', false); if (doc && doc.body) modalReg().set(doc.body, 'menu', false);
     }
 
     var mounted = mount();
