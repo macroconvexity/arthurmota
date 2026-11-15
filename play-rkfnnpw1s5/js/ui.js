@@ -4110,7 +4110,7 @@
     function nextStepTick(s, now) {
       if (s.phase !== 'plan') { nextOn = false; nextEdges0 = -1; nextDay = s.day; }
       else {
-        if (nextEdges0 < 0 || nextDay !== s.day) { nextEdges0 = edgeTotal(); nextDay = s.day; nextOn = false; planOpenAt = now; toolHintDay = -1; }
+        if (nextEdges0 < 0 || nextDay !== s.day) { nextEdges0 = (s.day | 0) === 1 ? Math.min(edgeTotal(), DAY1_EDGES) : edgeTotal(); nextDay = s.day; nextOn = false; planOpenAt = now; toolHintDay = -1; }
         var built = edgeTotal() > nextEdges0 || !!(game.canUndo && game.canUndo());
         nextBuilt = built;
         var broke = (s.budget | 0) < minToolCost(s) && !freeLeft(s);
@@ -4207,9 +4207,14 @@
       if (!runAt || now - Math.max(runAt, lastTouchAt) < 15000) return;
       markSeen('runHint'); runHintEl.textContent = STR.runHint; runHintEl.classList.remove('gone'); runHintUntil = now + 6000;
     }
+    var DAY1_EDGES = 1;
     function day1Built() {
-      var base = nextEdges0 >= 0 ? nextEdges0 : 1;
-      return edgeTotal() > base || !!(game.canUndo && game.canUndo());
+      // o save nao guarda a pilha do Undo nem a base do plano: depois de um reload so o mundo diz a verdade.
+      // A cidade do dia 1 nasce com DAY1_EDGES rua (game.js, inicializacao)
+      if (edgeTotal() > DAY1_EDGES || !!(game.canUndo && game.canUndo())) return true;
+      // rede de seguranca: sem pontos (nem gratuidade) para uma rua, o Play nunca recusa (nao ha outra saida)
+      var s = game.state;
+      return (s.budget | 0) < minToolCost(s) && !freeLeft(s);
     }
     // pontos que se perdem no Play (acima do teto de carry-over): aviso e confirmacao com o 2o toque (Easy e Normal)
     var carryAsking = { day: -1, on: false };
