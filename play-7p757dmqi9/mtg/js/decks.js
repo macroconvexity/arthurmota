@@ -1,4 +1,5 @@
-import { isImplemented } from './cards.js?v=20261108130904';
+import { isImplemented } from './cards.js?v=20261115162754';
+import { LISTS_90S, META_90S } from './decks90s.js?v=20261115162754';
 
 // BEGIN GENERATED DECKS (node test/build_decks.mjs --write)
 export const DECK_LISTS = {
@@ -404,6 +405,10 @@ export const LEGACY_DECK_NAMES = {
 };
 // END GENERATED DECKS
 
+// 1990s Meta decks (js/decks90s.js, hand-written) join the premade decks; everything else is the Current Meta.
+Object.assign(DECK_LISTS, LISTS_90S); Object.assign(DECK_META, META_90S);
+export const deckGroup = (name) => (DECK_META[name]?.meta === '90s' ? '90s' : 'current');
+
 // Build a list of card defs from {cardName: count}. Basic lands get a random art among the printed variants.
 export function buildDeckFrom(counts, byName, rng = Math.random) {
   const out = [];
@@ -459,7 +464,7 @@ export const isLegal = (counts, fmt = 'unrestricted', edition = 'all', byName) =
 export const deckFormats = (name) => (DECK_LISTS[name] ? FORMATS.filter((f) => isLegal(DECK_LISTS[name], f)) : []);
 // edition ids in which a premade deck is legal ('all' is always included)
 export const deckEditions = (name, byName) => (DECK_LISTS[name] ? EDITIONS.map((e) => e.id).filter((e) => isLegal(DECK_LISTS[name], 'unrestricted', e, byName)) : []);
-// random premade deck legal in `fmt` AND `opts.edition`, drawn by AI level (opts: {edition, rng, byName, exclude}):
+// random premade deck legal in `fmt` AND `opts.edition`, drawn by AI level (opts: {edition, rng, byName, exclude, meta}):
 //   easy   -> the lower-rated third of the legal decks, never combo / Power-9 decks (pool unrestricted / restricted, archetype combo)
 //   normal -> the middle two thirds (ratings between the 1/6 and 5/6 quantiles)
 //   hard   -> every legal deck
@@ -486,9 +491,14 @@ export function pickOpponentDeck(fmt = 'unrestricted', level = 'normal', opts = 
     (n) => isLegal(DECK_LISTS[n], fmt) && n !== opts.exclude && ready(n),
     (n) => isLegal(DECK_LISTS[n], fmt),
   ];
-  for (const t of tiers) { const pool = slice(names.filter(t)); if (pool.length) return pool[Math.floor(rng() * pool.length)]; }
-  for (const t of tiers) { const pool = names.filter(t); if (pool.length) return pool[Math.floor(rng() * pool.length)]; }
-  return null;
+  const run = (list, ts) => {
+    for (const t of ts) { const pool = slice(list.filter(t)); if (pool.length) return pool[Math.floor(rng() * pool.length)]; }
+    for (const t of ts) { const pool = list.filter(t); if (pool.length) return pool[Math.floor(rng() * pool.length)]; }
+    return null;
+  };
+  // opts.meta ('90s' | 'current'): keep the opponent inside that deck group while a deck there is legal in the format and edition
+  if (opts.meta === '90s' || opts.meta === 'current') { const r = run(names.filter((n) => deckGroup(n) === opts.meta), tiers.slice(0, 2)); if (r) return r; }
+  return run(names, tiers);
 }
 
 let CATALOGUE_BY_NAME = null;   // set by indexCards; used by isLegal / deckEditions when no byName is passed

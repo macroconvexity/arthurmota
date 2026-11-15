@@ -1,9 +1,9 @@
-import { isImplemented } from './cards.js?v=20261108130904';
-import { DECK_LISTS, DECK_META, copyLimit as rawLimit, RESTRICTED, isLegal } from './decks.js?v=20261108130904';
-import * as DKN from './decks.js?v=20261108130904';
-import { tileHtml, colorsOf } from './decktile.js?v=20261108130904';
-import * as ST from './settings.js?v=20261108130904';
-import { askConfirm, askText, modal } from './dialog.js?v=20261108130904';
+import { isImplemented } from './cards.js?v=20261115162754';
+import { DECK_LISTS, DECK_META, copyLimit as rawLimit, RESTRICTED, isLegal, deckGroup } from './decks.js?v=20261115162754';
+import * as DKN from './decks.js?v=20261115162754';
+import { tileHtml, colorsOf } from './decktile.js?v=20261115162754';
+import * as ST from './settings.js?v=20261115162754';
+import { askConfirm, askText, modal } from './dialog.js?v=20261115162754';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
@@ -73,7 +73,7 @@ const total = (d = deck()) => entries(d).reduce((a, [, n]) => a + n, 0);
 // the player's decks for the pre-game picker: [{name, size, legal}], plus counts of one deck
 export const myDecks = (f = fmt(), ed = edId()) => ({ current: store.current, list: Object.keys(store.decks).map((n) => {
   const c = Object.fromEntries(entries(store.decks[n])), sz = total(store.decks[n]), pr = deckProblem(c, f, ed); const meta = DECK_META[n] || {};
-  return { name: n, size: sz, legal: sz >= MIN_DECK, ok: sz >= MIN_DECK && !pr, reason: sz < MIN_DECK ? `Needs ${MIN_DECK} cards (has ${sz})` : pr, premade: !!store.decks[n]._premade || !!DECK_LISTS[n], counts: c, colors: meta.colors || colorsOf(c, byName), archetype: meta.archetype || (DECK_LISTS[n] ? '' : 'custom deck'), rating: meta.rating, keyCards: meta.keyCards, blurb: meta.blurb };
+  return { name: n, size: sz, legal: sz >= MIN_DECK, ok: sz >= MIN_DECK && !pr, reason: sz < MIN_DECK ? `Needs ${MIN_DECK} cards (has ${sz})` : pr, premade: !!store.decks[n]._premade || !!DECK_LISTS[n], counts: c, colors: meta.colors || colorsOf(c, byName), archetype: meta.archetype || (DECK_LISTS[n] ? '' : 'custom deck'), rating: meta.rating, keyCards: meta.keyCards, blurb: meta.blurb, meta: DECK_LISTS[n] ? deckGroup(n) : 'custom' };
 }) });
 export const myDeckCounts = (n) => Object.fromEntries(entries(store.decks[n] || {}));
 export const setMyDeck = (n) => { if (store.decks[n]) { store.current = n; save(); } };
