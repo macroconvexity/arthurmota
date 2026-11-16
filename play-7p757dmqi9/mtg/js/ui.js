@@ -1,23 +1,24 @@
-import { Game, parseCost, makeRng } from './engine.js?v=20261116032916';
-import { decideStop } from './autopass.js?v=20261116032916';
-import { aiAct } from './ai.js?v=20261116032916';
-import { EFFECTS, abilitiesOf } from './cards.js?v=20261116032916';
-import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261116032916';
-import { initMenu, showApp, hideApp, costHtml, myDecks, myDeckCounts, setMyDeck } from './menu.js?v=20261116032916';
-import { askConfirm, askNumber, askPick, modal, askName, askDivide } from './dialog.js?v=20261116032916';
-import * as FX from './fx.js?v=20261116032916';
-import * as ST from './settings.js?v=20261116032916';
-import sfx from './sfx.js?v=20261116032916';
-import * as SC from './screens.js?v=20261116032916';
-import * as AI from './ai.js?v=20261116032916';
-import * as DK from './decks.js?v=20261116032916';
-import * as AN from './anim.js?v=20261116032916';
-import * as SX from './anim/status.js?v=20261116032916';
-import * as ZN from './anim/zones.js?v=20261116032916';
-import { tileHtml } from './decktile.js?v=20261116032916';
+import { Game, parseCost, makeRng } from './engine.js?v=20261116035056';
+import { decideStop } from './autopass.js?v=20261116035056';
+import { aiAct } from './ai.js?v=20261116035056';
+import { EFFECTS, abilitiesOf } from './cards.js?v=20261116035056';
+import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261116035056';
+import { initMenu, showApp, hideApp, costHtml, myDecks, myDeckCounts, setMyDeck } from './menu.js?v=20261116035056';
+import { askConfirm, askNumber, askPick, modal, askName, askDivide } from './dialog.js?v=20261116035056';
+import * as FX from './fx.js?v=20261116035056';
+import * as ST from './settings.js?v=20261116035056';
+import sfx from './sfx.js?v=20261116035056';
+import * as SC from './screens.js?v=20261116035056';
+import * as AI from './ai.js?v=20261116035056';
+import * as DK from './decks.js?v=20261116035056';
+import * as AN from './anim.js?v=20261116035056';
+import * as SX from './anim/status.js?v=20261116035056';
+import * as ZN from './anim/zones.js?v=20261116035056';
+import { tileHtml } from './decktile.js?v=20261116035056';
 const EDLABEL = (id) => (DK.EDITIONS || []).find((e) => e.id === id)?.label || { all: 'All Editions', LEA: 'Alpha', LEB: 'Beta', '2ED': 'Unlimited', ARN: 'Arabian Nights', ATQ: 'Antiquities', LEG: 'Legends' }[id] || id;
-import * as TG from './anim/targeting.js?v=20261116032916';
-import * as AMB from './anim/ambient.js?v=20261116032916';
+import * as TG from './anim/targeting.js?v=20261116035056';
+import * as AMB from './anim/ambient.js?v=20261116035056';
+import * as FEEL from './anim/feel.js?v=20261116035056';
 AMB.init({ me: 0 });
 
 // animation speed setting (Fast/Normal/Slow, minimal under prefers-reduced-motion): scales every WAAPI duration/delay
@@ -418,6 +419,7 @@ const lastRects = new Map();           // card id -> last layout rect (survives 
 const pendingClash = new Map();        // attacker id -> {dx,dy,at} for ghosts of attackers that die in the clash
 const ghostMode = new Map();           // card id -> 'sac' | 'shatter' | 'burn'
 const ghostDelay = new Map();          // card id -> ms until its ghost should leave
+const lastPow = new Map();             // perm id -> power at the last render (for a creature that died before its lunge is drawn)
 const cardCol = (id) => COL[findCard(id)?.def.colors?.[0]] || '#e8e2d0';
 const permEl = (id) => document.querySelector(`#stage .card[data-kind=perm][data-id="${id}"]`);
 SX.init({ get g() { return g; } });
@@ -446,9 +448,11 @@ function effects() {
     if (!sr || !trr) return; const [sx, sy] = pt(sr), [tx, ty] = pt(trr); const d = [(tx - sx) * k, (ty - sy) * k];
     const el = permEl(id); let off = [0, 0], T = [0, 0];
     if (el) { T = tOf(el); const [hx, hy] = pt(el.getBoundingClientRect()); off = [sx - hx + T[0], sy - hy + T[1]]; lunging.add(id); }
-    pendingClash.set(id, { dx: d[0], dy: d[1], at });
-    end = Math.max(end, at + 520);
-    if (el) el.animate([{ translate: `${off[0]}px ${off[1]}px` }, { translate: `${off[0] + d[0]}px ${off[1] + d[1]}px`, offset: 0.4, easing: 'ease-in' }, { translate: `${off[0] + d[0] * 0.9}px ${off[1] + d[1] * 0.9}px`, offset: 0.48 }, { translate: `${T[0]}px ${T[1]}px` }], { delay: at, duration: 480, fill: 'backwards', easing: 'cubic-bezier(.3,.1,.3,1)' });
+    const pm = g.perm(id), pw = pm ? Math.max(0, g.power(pm)) : (lastPow.get(id) ?? 2);
+    pendingClash.set(id, { dx: d[0], dy: d[1], at, pw });
+    end = Math.max(end, at + FEEL.LUNGE_MS + 40);
+    if (el) el.animate(FEEL.lungeKeys(off, d, T, pw), { delay: at, duration: FEEL.LUNGE_MS, fill: 'backwards' });
+    if (pw >= 4 && tgt.kind !== 'player') later(at + FEEL.IMPACT, () => FEEL.thud(1.5 + Math.min(pw, 8) * 0.6));   // face hits already shake (faceSlam)
   };
   const hit = (e, at) => {
     const r = rectOfRef(e.target); if (!r) return;
@@ -532,6 +536,11 @@ function effects() {
     } else if (e.type === 'enter') {
       const el = permEl(e.id); const r = el?.getBoundingClientRect(); const land = el && el.closest('.lands');
       if (r) { const [x, y] = pt(r), c = cardCol(e.id); later(t + 320, () => { FX.ring(x, y, { color: c, size: r.width * 0.9, grow: land ? 1.8 : 3, dur: land ? 450 : 650, width: land ? 2 : 4 }); if (!land) FX.glow(x, y, { color: c, size: r.width * 2.2, dur: 700 }); }); }
+      if (r) {   // the card hits the table: comes down oversized, kicks up dust, heavy cards shake the board
+        const mv = g.perm(e.id)?.card.def.manaValue || 0, wgt = Math.min(1, mv / 7), eid = e.id;
+        later(t + 140, () => FEEL.slam(permEl(eid), !!land));
+        later(t + 320, () => { FEEL.dust(permEl(eid)?.getBoundingClientRect() || r, land ? 0.12 : 0.3 + wgt * 0.7); if (!land && mv >= 4) FEEL.thud(2 + 5 * wgt); if (!land) ST.haptic(mv >= 4 ? 28 : 12); });
+      }
       t += 50;
     } else if (e.type === 'buff') {
       const r = permEl(e.id)?.getBoundingClientRect() || lastRects.get(e.id); if (r) { const [x, y] = pt(r); const el = permEl(e.id); later(t + 120, () => { FX.glow(x, y, { color: '#6dff8a', size: r.width * 2 }); FX.burst(x, y + r.height * 0.3, { color: '#7dff9a', n: 10, dist: 45, size: 5 }); }); if (el) el.animate([{ filter: 'brightness(1)' }, { filter: 'brightness(1.8) hue-rotate(40deg) saturate(1.6)', offset: 0.3 }, { filter: 'none' }], { delay: t + 120, duration: 700 }); }
@@ -614,7 +623,7 @@ function decorate() {
     hint(inc ? `${mode.sel ? 'Pick the attacker to block' : 'Pick a blocker, then the attacker'} · ${inc} damage unblocked (you are at ${life})${inc >= life ? ' · LETHAL' : ''}` : (mode.sel ? 'Pick the attacker to block' : 'Pick a blocker, then the attacker'));
     $('hint').classList.toggle('danger', inc >= life); return;
   }
-  hint(''); if ($('links')) $('links').innerHTML = '';
+  hint(''); drawDeclared();
   if (!mine || w.kind !== 'priority') { if (mine && w.kind === 'discard') hint('Discard down to 7 cards'); return; }
   for (const c of g.players[ME].hand) if (g.canPlayLand(ME, c) || g.canCast(ME, c)) mark(`#hand .card[data-id="${c.id}"]`, 'playable');
   for (const a of g.activatable(ME)) if (a.perm.controller === ME) mark(`#field-me .card[data-id="${a.perm.id}"]`, 'ready');
@@ -649,6 +658,18 @@ function drawLinks() {
   for (const [a, bs] of Object.entries(mode.map)) for (const b of bs) {
     const ea = permEl(a), eb = permEl(b); if (!ea || !eb) continue; const [x1, y1] = pt(eb.getBoundingClientRect()), [x2, y2] = pt(ea.getBoundingClientRect());
     h += `<line x1="${x1 - sr.left}" y1="${y1 - sr.top}" x2="${x2 - sr.left}" y2="${y2 - sr.top}"/><circle cx="${x2 - sr.left}" cy="${y2 - sr.top}" r="7"/>`;
+  }
+  svg.innerHTML = h;
+}
+// blocks already declared (mine or the opponent's): a line from each blocker to its attacker until combat ends
+function drawDeclared() {
+  const blocks = g?.combat?.blocks || {}; let svg = $('links'); const any = Object.values(blocks).some((b) => b && b.length);
+  if (!any) { if (svg) svg.innerHTML = ''; return; }
+  if (!svg) { svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.id = 'links'; $('stage').appendChild(svg); }
+  const sr = $('stage').getBoundingClientRect(); let h = '';
+  for (const [a, bs] of Object.entries(blocks)) for (const b of bs || []) {
+    const ea = permEl(a), eb = permEl(b); if (!ea || !eb) continue; const [x1, y1] = pt(eb.getBoundingClientRect()), [x2, y2] = pt(ea.getBoundingClientRect());
+    h += `<line class="decl" x1="${x1 - sr.left}" y1="${y1 - sr.top}" x2="${x2 - sr.left}" y2="${y2 - sr.top}"/><circle class="decl" cx="${x2 - sr.left}" cy="${y2 - sr.top}" r="6"/><circle class="decl" cx="${x1 - sr.left}" cy="${y1 - sr.top}" r="4"/>`;
   }
   svg.innerHTML = h;
 }
@@ -937,6 +958,7 @@ function render() {
   renderRaw();
   if (!$('board').hidden && g) {
     document.querySelectorAll('#stage .card[data-id]:not([data-kind=pilecard])').forEach((el) => lastRects.set(+el.dataset.id, el.getBoundingClientRect()));
+    try { for (const pl of g.players) for (const pm of pl.bf) if (g.isCreature(pm)) lastPow.set(pm.id, Math.max(0, g.power(pm))); } catch {}
     if (noAnimOnce) { noAnimOnce = false; g.events.length = 0; SX.afterRender(true); } else { animateFrom(prev); lifePop(); SX.afterRender(); }
   }
   saveGame(); renderLog();
@@ -996,16 +1018,17 @@ function ghost(id, p) {
   let kf, dur;
   if (exiled) { kf = [{ opacity: 1, transform: 'none', filter: 'none' }, { opacity: 0.95, filter: 'brightness(2.4) saturate(0)', offset: 0.35 }, { opacity: 0, transform: 'translateY(-34px) scale(1.1)', filter: 'brightness(4) saturate(0) blur(5px)' }]; dur = 900; setTimeout(() => FX.motes(sx, sy, { n: 22, spread: p.r.width * 0.4 }), (dly + 150) * ST.animScale()); setTimeout(() => FX.glow(sx, sy, { color: '#cfe8ff', size: p.r.width * 2.2, dur: 800 }), dly * ST.animScale()); }
   else if (dest && gmode === 'sac' && !window.__fxOff) { el.remove(); const dly2 = (dly) * ST.animScale(); setTimeout(() => SX.implode(p.r, p.html, dest), dly2); dur = 650; kf = null; }
-  else if (dest && gmode === 'shatter' && !window.__fxOff) { el.remove(); setTimeout(() => SX.shatter(p.r, p.html, SX.batchSize()), dly * ST.animScale()); dur = 800; kf = null; }
+  else if (dest && gmode === 'shatter' && !window.__fxOff) { el.remove(); setTimeout(() => SX.shatter(p.r, p.html, SX.batchSize()), dly * ST.animScale()); dur = 800; kf = null; if (SX.batchSize() < 3) setTimeout(() => FEEL.soul(p.r, dest), (dly + 260) * ST.animScale()); }
   else if (dest && ghostDelay.has(id) && p.zone !== 'stack' && !c?.def.types.includes('Instant') && !c?.def.types.includes('Sorcery')) {   // permanent died: burn and dissolve in place
-    el.classList.add('dissolve'); dur = 900; kf = null;
-    el.animate([{ '--m': '-32%' }, { '--m': '100%' }], { duration: dur, delay: dly, easing: 'ease-in', fill: 'both' }).onfinish = () => el.remove();
-    el.animate([{ filter: 'none' }, { filter: burn, offset: 0.25 }, { filter: 'brightness(.5) sepia(1) saturate(4) hue-rotate(-30deg) blur(1px)' }], { duration: dur, delay: dly, fill: 'both' });
+    const slow = SX.batchSize() < 3 && !window.__fxOff; el.classList.add('dissolve'); dur = slow ? 1350 : 900; kf = null;   // a single death takes its time; a board wipe stays brisk
+    el.animate([{ '--m': '-32%' }, { '--m': '-32%', offset: slow ? 0.3 : 0 }, { '--m': '100%' }], { duration: dur, delay: dly, easing: 'ease-in', fill: 'both' }).onfinish = () => el.remove();
+    el.animate([{ filter: 'none', scale: 1 }, { filter: 'brightness(.5) saturate(.45)', scale: 0.97, offset: slow ? 0.2 : 0.01 }, { filter: burn, offset: slow ? 0.42 : 0.25 }, { filter: 'brightness(.5) sepia(1) saturate(4) hue-rotate(-30deg) blur(1px)', scale: 0.97 }], { duration: dur, delay: dly, fill: 'both' });
+    if (slow) setTimeout(() => { FEEL.soul(p.r, dest); setTimeout(() => ZN.pilePulse(document.querySelector(`#stage .pile[data-pl="${c.owner ?? 0}"][data-z="gy"]`), '#cfe4ff'), 560 * ST.animScale()); }, (dly + dur * 0.5) * ST.animScale());
     for (let i = 0; i < 4; i++) setTimeout(() => FX.burst(sx + (Math.random() - 0.5) * p.r.width * 0.6, sy + p.r.height * (0.4 - i * 0.25), { color: '#ff9a3d', n: 7, dist: 45, size: 4, dur: 700 }), (dly + 120 + i * 170) * ST.animScale());
   }
   else if (dest) { const [dx, dy] = centerOf(dest); kf = [{ transform: 'none', opacity: 1, filter: 'brightness(1)' }, { transform: `translate(${(dx - sx) * 0.15}px,${(dy - sy) * 0.15}px) scale(1.05)`, opacity: 1, filter: ghostDelay.has(id) && p.zone !== 'stack' ? burn : 'brightness(2.2) saturate(0)', offset: 0.25 }, { transform: `translate(${dx - sx}px,${dy - sy}px) scale(.4)`, opacity: 0.2, filter: 'brightness(.6)' }]; dur = 650; }
   else { kf = [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: 'scale(1.25)', filter: 'brightness(3)' }]; dur = 450; }
-  if (cl) el.animate([{ translate: '0 0' }, { translate: `${cl.dx}px ${cl.dy}px`, offset: 0.4, easing: 'ease-in' }, { translate: `${cl.dx * 0.9}px ${cl.dy * 0.9}px`, offset: 0.48 }, { translate: '0 0' }], { delay: cl.at, duration: 480, fill: 'backwards' });
+  if (cl) el.animate(FEEL.lungeKeys([0, 0], [cl.dx, cl.dy], [0, 0], cl.pw), { delay: cl.at, duration: FEEL.LUNGE_MS, fill: 'backwards' });
   if (kf) { const a = el.animate(kf, { duration: dur, delay: dly, easing: 'ease-in', fill: 'backwards' }); a.onfinish = () => el.remove(); }
   fxHold(dly + dur);
 }

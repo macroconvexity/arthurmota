@@ -64,3 +64,7 @@ html.artbf .row .card>.pt,html.artbf .misc .card>.pt{right:4.5%;bottom:4%}
 #app[data-view=collection],#app[data-view=decks]{background:linear-gradient(#0002,#0006),url(../assets/ui/collection_bg.jpg) center/cover no-repeat #120a08}
 /* the edition row scrolls sideways; fade its right edge so the cut-off chip reads as "more this way" */
 .edrow{-webkit-mask-image:linear-gradient(90deg,#000 86%,#0000);mask-image:linear-gradient(90deg,#000 86%,#0000);padding-right:26px}
+
+/* 7. Declared blocks (ui.js drawDeclared): a steady amber line from each blocker to its attacker until combat ends. */
+#links line.decl{stroke:#ffb347;stroke-width:3;stroke-dasharray:none;animation:none;filter:drop-shadow(0 0 5px #f08a24);opacity:.92}
+#links circle.decl{fill:#ffb347;filter:drop-shadow(0 0 6px #f08a24)}
