@@ -3,22 +3,41 @@ const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<
 function layer(cls, html) { const d = document.createElement('div'); d.className = 'scr ' + cls; d.innerHTML = html; document.body.appendChild(d); return d; }
 const COL = { W: '#f6efc8', U: '#6fb4ea', B: '#7d7480', R: '#ee7a5c', G: '#6cbd78' };
 
-// decks: the PLAYER's decks that are legal for the chosen format + edition: [{name, tile (HTML from decktile.js)}].
-// badge: e.g. 'Restricted · Alpha' (read-only, chosen on Home). Returns {mine, level} or null when cancelled.
-export function showPicker(decks, level = 'normal', current = null, badge = '', hidden = 0) {
+// decks: the PLAYER's decks that are legal for the chosen format + edition: [{name, tile (HTML from decktile.js), meta}].
+// meta is '90s' (1990s Meta, js/decks90s.js), 'current' (the other premade decks) or 'custom' (shown with the Current Meta).
+// badge: e.g. 'Restricted · Alpha' (read-only, chosen on Home). metaSel: 'all' | 'current' | '90s'.
+// Returns {mine, level, meta} or null when cancelled.
+const METAS = [['all', 'All'], ['current', 'Current Meta'], ['90s', '1990s Meta']];
+const inMeta = (d, m) => m === 'all' || (m === '90s' ? d.meta === '90s' : d.meta !== '90s');
+const OPPNOTE = { all: 'Opponent: random deck, legal in the same format and edition', current: 'Opponent: random Current Meta deck, legal in the same format and edition', '90s': 'Opponent: random 1990s Meta deck, legal in the same format and edition' };
+export function showPicker(decks, level = 'normal', current = null, badge = '', hidden = 0, metaSel = 'all') {
   return new Promise((resolve) => {
-    let sel = decks.some((d) => d.name === current && d.ok !== false) ? current : decks.find((d) => d.ok !== false)?.name ?? null;
-    const el = layer('picker', `<div class="scrbox pickbox2"><h2>Choose your deck</h2><div class="pickctl"><span class="fmtbadges">${esc(badge)}</span><div class="lvl">${['easy', 'normal', 'hard'].map((l) => `<button data-l="${l}" class="${l === level ? 'on' : ''}">${l[0].toUpperCase() + l.slice(1)}</button>`).join('')}</div></div>
-      <div class="oppnote">Opponent: random deck, legal in the same format and edition</div>
-      <div class="tiles dtiles">${decks.map((d) => `<button class="tbtn ${d.name === sel ? 'sel' : ''} ${d.ok === false ? 'bad' : ''}" data-n="${esc(d.name)}" ${d.ok === false ? 'disabled' : ''}>${d.tile}</button>`).join('') || '<p class="muted">No deck is legal for this format and edition. Change them on Home or edit a deck.</p>'}</div>
+    let meta = METAS.some(([k]) => k === metaSel) ? metaSel : 'all';
+    const usable = (d) => d.ok !== false;
+    const cur = decks.find((d) => d.name === current && usable(d));
+    if (cur && !inMeta(cur, meta)) meta = 'all';   // never hide the deck the player arrived with
+    let sel = cur ? cur.name : decks.find((d) => usable(d) && inMeta(d, meta))?.name ?? null;
+    const el = layer('picker', `<div class="scrbox pickbox2"><h2>Choose your deck</h2><div class="pickctl"><span class="fmtbadges">${esc(badge)}</span><div class="metaf">${METAS.map(([k, t]) => `<button data-m="${k}" class="${k === meta ? 'on' : ''}">${t}</button>`).join('')}</div><div class="lvl">${['easy', 'normal', 'hard'].map((l) => `<button data-l="${l}" class="${l === level ? 'on' : ''}">${l[0].toUpperCase() + l.slice(1)}</button>`).join('')}</div></div>
+      <div class="oppnote" id="oppnote"></div>
+      <div class="tiles dtiles">${decks.map((d, i) => `<button class="tbtn ${d.ok === false ? 'bad' : ''}" data-i="${i}" data-n="${esc(d.name)}" ${d.ok === false ? 'disabled' : ''}>${d.tile}</button>`).join('')}<p class="muted metaempty" hidden></p></div>
       ${hidden ? `<div class="oppnote">${hidden} deck${hidden > 1 ? 's' : ''} hidden (not legal here)</div>` : ''}
-      <div class="scrbtns"><button class="no">Back</button><button class="yes" ${sel ? '' : 'disabled'}>Play</button></div></div>`);
-    const go = el.querySelector('.yes'), tiles = el.querySelector('.tiles'); const done = (v) => { el.remove(); resolve(v); };
+      <div class="scrbtns"><button class="no">Back</button><button class="yes">Play</button></div></div>`);
+    const go = el.querySelector('.yes'), tiles = el.querySelector('.tiles'), empty = el.querySelector('.metaempty'); const done = (v) => { el.remove(); resolve(v); };
+    const btns = [...tiles.querySelectorAll('.tbtn')];
+    const mark = () => { btns.forEach((b) => { const on = b.dataset.n === sel; b.classList.toggle('sel', on); b.querySelector('.dtile')?.classList.toggle('sel', on); }); go.disabled = !sel; };
+    function apply(scroll) {
+      let n = 0; btns.forEach((b) => { const show = inMeta(decks[+b.dataset.i], meta); b.classList.toggle('off', !show); if (show) n++; });
+      if (!decks.some((d) => d.name === sel && inMeta(d, meta))) sel = decks.find((d) => usable(d) && inMeta(d, meta))?.name ?? null;
+      empty.hidden = n > 0; empty.textContent = !decks.length ? 'No deck is legal for this format and edition. Change them on Home or edit a deck.' : `No ${meta === '90s' ? '1990s Meta' : 'Current Meta'} deck is legal for this format and edition. Pick All, or change the edition on Home.`;
+      el.querySelector('#oppnote').textContent = OPPNOTE[meta]; el.querySelectorAll('[data-m]').forEach((x) => x.classList.toggle('on', x.dataset.m === meta));
+      mark(); if (scroll) { tiles.scrollTop = 0; tiles.scrollLeft = 0; }
+    }
+    el.querySelector('.metaf').onclick = (e) => { const m = e.target.closest('[data-m]'); if (!m || m.dataset.m === meta) return; meta = m.dataset.m; apply(true); };
     el.querySelector('.lvl').onclick = (e) => { const l = e.target.closest('[data-l]'); if (!l) return; level = l.dataset.l; el.querySelectorAll('[data-l]').forEach((x) => x.classList.toggle('on', x === l)); };
-    tiles.onclick = (e) => { const b = e.target.closest('.tbtn'); if (!b || b.disabled) return; sel = b.dataset.n; tiles.querySelectorAll('.tbtn').forEach((x) => x.classList.toggle('sel', x === b)); tiles.querySelectorAll('.dtile').forEach((x) => x.classList.toggle('sel', x.parentElement.classList.contains('sel'))); go.disabled = false; if (e.detail === 2) go.click(); };
-    go.onclick = () => done({ mine: sel, level });
+    tiles.onclick = (e) => { const b = e.target.closest('.tbtn'); if (!b || b.disabled) return; sel = b.dataset.n; mark(); if (e.detail === 2) go.click(); };
+    go.onclick = () => { if (sel) done({ mine: sel, level, meta }); };
     el.querySelector('.no').onclick = () => done(null);
-    tiles.querySelectorAll('.tbtn.sel .dtile').forEach((x) => x.classList.add('sel')); tiles.querySelector('.tbtn.sel')?.scrollIntoView?.({ block: 'center', inline: 'center' });
+    apply(false); tiles.querySelector('.tbtn.sel')?.scrollIntoView?.({ block: 'center', inline: 'center' });
   });
 }
 

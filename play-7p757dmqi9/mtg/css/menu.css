@@ -360,6 +360,9 @@ html.portrait .hpanel .hl .dtile{width:min(46vw,190px)}
 .dtsub{font:3.3cqw Georgia,serif;color:#cdbf9a;text-transform:capitalize}.dtstars{font-size:4cqw;color:#f3c978;letter-spacing:1px;line-height:1}.dtnote{font-size:3cqw;color:#ff9c8a}
 .dtile.sel{filter:drop-shadow(0 0 14px #ffb25a) drop-shadow(0 0 3px #ffcf94);transform:translateY(-3px)}
 /* picker */
+.pickbox2{max-width:94vw}.tbtn.off{display:none}.metaempty{grid-column:1/-1;padding:18px 8px}
+.metaf{display:inline-flex}.metaf button{padding:8px 14px;background:#241810;color:#e6d6b0;border:1px solid #5a4422;font:600 14px Georgia;min-height:40px;white-space:nowrap}.metaf button:first-child{border-radius:12px 0 0 12px}.metaf button:last-child{border-radius:0 12px 12px 0}.metaf button.on{background:linear-gradient(#ff9b3d,#d9631a);color:#fff}
+html.compact .metaf button{padding:6px 10px;font-size:12px;min-height:34px}
 .pickbox2{max-width:94vw}.fmtbadges{padding:5px 14px;border-radius:99px;border:1px solid #d9a54a;background:#150e0c;color:#f3c978;font:700 13px Georgia;letter-spacing:1px}
 .dtiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:16px;max-width:880px;max-height:calc(var(--app-h,100vh)*.62);overflow:auto;padding:10px 6px;margin:0 auto;-webkit-overflow-scrolling:touch}
 .tbtn{background:none;border:0;padding:0;cursor:pointer;min-width:0}
