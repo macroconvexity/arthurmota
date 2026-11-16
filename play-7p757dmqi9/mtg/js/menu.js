@@ -1,9 +1,9 @@
-import { isImplemented } from './cards.js?v=20261116035056';
-import { DECK_LISTS, DECK_META, copyLimit as rawLimit, RESTRICTED, isLegal, deckGroup } from './decks.js?v=20261116035056';
-import * as DKN from './decks.js?v=20261116035056';
-import { tileHtml, colorsOf } from './decktile.js?v=20261116035056';
-import * as ST from './settings.js?v=20261116035056';
-import { askConfirm, askText, modal } from './dialog.js?v=20261116035056';
+import { isImplemented } from './cards.js?v=20261116113748';
+import { DECK_LISTS, DECK_META, copyLimit as rawLimit, RESTRICTED, isLegal, deckGroup } from './decks.js?v=20261116113748';
+import * as DKN from './decks.js?v=20261116113748';
+import { tileHtml, colorsOf } from './decktile.js?v=20261116113748';
+import * as ST from './settings.js?v=20261116113748';
+import { askConfirm, askText, modal } from './dialog.js?v=20261116113748';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
@@ -158,7 +158,7 @@ const showcaseHtml = (id = edId()) => { const sc = SHOWCASE[id] || SHOWCASE.all;
 function renderHome() {
   const cov = ctx.coverage, r = ctx.canResume?.();
   const chips = EDITIONS.map((e) => `<button class="edchip ${e.id === edId() ? 'on' : ''}" data-act="ed" data-v="${e.id}">${esc(e.label)}</button>`).join('');
-  $('#v-home').innerHTML = `<div class="home"><h1>MTG Classic<em>+</em></h1><p class="tag">Vintage Magic, Arena style · Alpha · Beta · Unlimited · Arabian Nights · Antiquities · Legends</p>
+  $('#v-home').innerHTML = `<div class="home"><h1>MTG Vintage</h1><p class="tag">Old school cards, Arena style · Alpha · Beta · Unlimited · Arabian Nights · Antiquities · Legends</p>
   <div class="hpanel"><div class="hl" id="showcase">${showcaseHtml()}</div>
   <div class="hr">${r ? `<button class="resume" data-act="resume"><b>Resume game</b><span>vs ${esc(r.foe || 'Opponent')} · Turn ${r.turn} · You ${r.life[0]} - ${r.life[1]} Opp</span></button>` : ''}
     <label>Edition</label><div class="edrow" id="edrow">${chips}</div>
