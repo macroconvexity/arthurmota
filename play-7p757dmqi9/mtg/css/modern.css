@@ -86,3 +86,29 @@ html body .play:disabled,html body .scrbtns button:disabled{filter:none;opacity:
 .dtiles::-webkit-scrollbar{width:8px;height:8px}.dtiles::-webkit-scrollbar-thumb{background:#ffffff2e;border-radius:8px}.dtiles::-webkit-scrollbar-track{background:none}
 html.compact .metaf button.on,html.compact .lvl button.on,html.compact .fmtseg button.on{background:#ffffff26;color:#fff}
 .dtsub{font-size:4.7cqw}.dtstars{font-size:5cqw}
+
+/* ---- buttons, refined: solid colour, slim, squarer corners, no gloss and no coloured halo ---- */
+html body #action button,html body .play,html body .scrbtns button,html body #over .obtns button,html body .homebox .play{
+  background:#ee7a22!important;border-radius:9px!important;box-shadow:0 1px 0 #ffffff33 inset,0 6px 16px #00000066!important;
+  font:600 13px/1 var(--m-sans)!important;letter-spacing:.16em;text-shadow:none;padding:13px 22px!important;min-height:0;transition:background .15s,transform .1s}
+html body #action button:hover,html body .play:not(:disabled):hover,html body .scrbtns button:hover,html body #over .obtns button:hover{filter:none;background:#ff8a33!important}
+html body #action button:active,html body .play:active,html body .scrbtns button:active{transform:translateY(1px)}
+html body .play{font-size:14px!important;padding:15px 22px!important;border-radius:10px!important;letter-spacing:.22em}
+html body .scrbtns button,html body #over .obtns button{font-size:13px!important;padding:13px 30px!important;min-width:120px}
+html body #action button#act-alt,html body #action button#act-undo,html body .scrbtns .no,html body #over .obtns .alt,html body .homebox .ghost,html body .hpanel .ghost{
+  background:#ffffff0a!important;border:1px solid #ffffff2b!important;border-radius:9px!important;color:#d7dce6!important;font:600 12px/1 var(--m-sans)!important;letter-spacing:.16em;padding:12px 22px!important;box-shadow:none!important}
+html body .scrbtns .no:hover,html body .hpanel .ghost:hover,html body #over .obtns .alt:hover,html body #action button#act-alt:hover,html body #action button#act-undo:hover{background:#ffffff17!important}
+html body .scrbtns .no{padding:13px 30px!important;font-size:13px!important}
+/* in play the action button is small and quiet: it must not shout over the cards */
+html body #action button{font-size:max(11px,1.9cqh)!important;padding:max(9px,1.5cqh) 12px!important;letter-spacing:.14em;box-shadow:0 1px 0 #ffffff33 inset,0 4px 12px #00000080!important}
+html.phone body #action{width:max(30cqh,118px)}
+html.phone body #action button{font-size:max(10px,2.2cqh)!important;padding:max(9px,2.2cqh) 8px!important;letter-spacing:.12em;min-height:0}
+html body #action button#act-alt,html body #action button#act-undo{background:#0b0d12cc!important;font-size:max(10px,1.7cqh)!important;padding:max(7px,1.2cqh) 10px!important}
+html body #act-btn.wait{background:#0b0d12b8!important;color:#aab2c2!important;border:1px solid #ffffff24!important;box-shadow:none!important}
+@media (max-height:520px){html body .scrbtns button,html body #over .obtns button,html body .scrbtns .no{font-size:12px!important;padding:11px 24px!important;min-width:100px}html body .play{font-size:13px!important;padding:12px 16px!important}}
+
+/* ---- game title: wide, heavy sans capitals with a soft metal fade; no serif anywhere in the interface ---- */
+.home h1,html.compact .home h1{font:800 46px/1 var(--m-sans);letter-spacing:.34em;text-transform:uppercase;margin:0 0 2px;padding-left:.34em;text-shadow:none;
+  background:linear-gradient(180deg,#ffffff 20%,#b9c2d4 100%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent}
+html.compact .home h1{font-size:clamp(18px,calc(var(--app-h)*.075),30px);letter-spacing:.3em}
+@media (max-width:640px){.home h1{font-size:30px;letter-spacing:.24em}}
