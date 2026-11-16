@@ -1,4 +1,4 @@
-import { COLORS, EFFECTS, ABILITIES, TRIGGERS, STATIC, COUNTER_ABILITIES, abilitiesOf as defAbilities, keywordsOf, auraSpecOf } from './cards.js?v=20261116031450';
+import { COLORS, EFFECTS, ABILITIES, TRIGGERS, STATIC, COUNTER_ABILITIES, abilitiesOf as defAbilities, keywordsOf, auraSpecOf } from './cards.js?v=20261116032916';
 
 export const STEPS = ['untap', 'upkeep', 'draw', 'main1', 'attackers', 'blockers', 'damage', 'main2', 'end'];
 const NOLOST = new Set();
@@ -490,6 +490,7 @@ export class Game {
     const count = opts.count ?? 1;
     const done = (cards) => {
       for (const c of cards) {
+        if (!c || !p[zone].includes(c)) continue;   // an earlier queued search (e.g. a second Land Tax) already took it
         p[zone] = p[zone].filter((x) => x !== c);
         const to = opts.to || 'hand';
         if (to === 'bf') this.putOntoBattlefield(c, pid, { from: null }); else p[to].push(c);
