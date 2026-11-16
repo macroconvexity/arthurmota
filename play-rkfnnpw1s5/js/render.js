@@ -26,6 +26,23 @@
   // marca NEW (cruzamento novo sem sinal): pontos redondos (traco 0,1 com ponta redonda), azul-acinzentado
   var DASH_NEWJ = [0.1, 4.2], NEWJ_COLOR = '#7a6aa8', NEWJ_FONT = '800 8px -apple-system, system-ui, sans-serif', NEWJ_TEXT = 'NEW';
   var NEWJ_DX = Math.SQRT1_2;   // ponto pulsante no anel, embaixo a direita (o X do travado fica em cima a direita)
+  // Rotulo NEW de uma marca: lado 0 em cima (padrao), 1 embaixo, 2 esquerda, 3 direita do anel (raio R, baseline 'bottom').
+  // Preenche o retangulo r = [x0, y0, x1, y1] e o ponto de texto t = [x, y, alinhamento]. Sem alocar.
+  function njRect(cx, cy, R, tw, th, side, r, t) {
+    var tx = cx, ty, al = 'center';
+    if (side === 1) ty = cy + R + 2 + th;
+    else if (side === 2) { tx = cx - R - 2; ty = cy + th / 2; al = 'right'; }
+    else if (side === 3) { tx = cx + R + 2; ty = cy + th / 2; al = 'left'; }
+    else ty = cy - R - 2;
+    r[0] = al === 'center' ? tx - tw / 2 : al === 'right' ? tx - tw : tx; r[2] = r[0] + tw; r[3] = ty; r[1] = ty - th;
+    t[0] = tx; t[1] = ty; t[2] = al;
+  }
+  // retangulo r (com 1 px de folga) contra o anel de centro (cx, cy) e raio R (+1 de traco)
+  function njHitRing(r, cx, cy, R) {
+    var nx = cx < r[0] - 1 ? r[0] - 1 : cx > r[2] + 1 ? r[2] + 1 : cx, ny = cy < r[1] - 1 ? r[1] - 1 : cy > r[3] + 1 ? r[3] + 1 : cy;
+    return (nx - cx) * (nx - cx) + (ny - cy) * (ny - cy) < (R + 1) * (R + 1);
+  }
+  var njIds = [], njRects = [], njTexts = [], njTmpR = [0, 0, 0, 0], njTmpT = [0, 0, '', 0], njSide = {};
   var JUNCTION_TOOLS = { stop: 1, yield: 1, light: 1, round: 1, cross: 1 };
   // no travado com sinal: o anel vira arco aberto no canto de cima a direita, onde fica o X
   var LOCK_BADGE = -Math.PI / 4, LOCK_GAP = 0.62;
@@ -53,6 +70,17 @@
   var CAR_FADE_MS = 120, RING_FADE_MS = 150, RING_MIX_MS = 200;
   // pisos em px de TELA: carro (comprimento, largura), pictograma, folga do enquadramento
   var CAR_MIN_LEN = 6, CAR_MIN_W = 3.5, PICTO_MIN = 14, FIT_PX = 24;
+  // mapa dos dias 9 a 12 (2026-11-15, aprovado pela dona):
+  // (1) retrato: a cidade inteira fica a PORT_SIDE_PX px da borda lateral da tela (era margem 28 + folga 24 = 52)
+  // (2) faixa de 2 faixas no maximo LANE_BAND_FRAC do comprimento da rua na tela (piso: duas colunas de carro por
+  //     sentido, sem sobrepor); folgas minimas entre carro e tracejado, entre colunas e ate o contorno, em px
+  // (3) carro parado num sinal (Pare, Preferencia, Semaforo) desenhado antes do icone, na propria rua
+  //     (largura do carro nessa faixa ate LANE_CAR_MIN px; comprimento igual)
+  // LANE_FIT: liga a mudanca (2). DESLIGADA por padrao (2026-11-15: a dona ainda vai ver o antes/depois); desligada, a
+  // faixa de 2 faixas e os carros nela sao desenhados exatamente como antes. r._laneFit(true) liga (testes e capturas)
+  var LANE_FIT = false;
+  var PORT_SIDE_PX = 36, LANE_BAND_FRAC = 0.4, LANE_MIN_GAP_IN = 0.3, LANE_MIN_GAP_COL = 0.4, LANE_MIN_GAP_OUT = 0.3, LANE_CAR_MIN = 1.8;
+  var SIGN_Q = { stop: 1, yield: 1, light: 1 }, SIGN_GAP = 1, SIGN_RAMP = 3;
   // nitidez: o canvas usa a grade do aparelho ate 3x (antes min(2.5, rd): em tela 3x era reamostrado 1,2x e borrava)
   var DPR_MAX = 3;
   var CAR_SLOTS = 512, CAR_GHOSTS = 48, CAR_FADES = 64;
@@ -486,10 +514,16 @@
       anim.tx = t.x; anim.ty = t.y; anim.tz = z;
     }
 
+    // focus(x, y): o ponto vai para o CENTRO DA AREA UTIL (usable(), entre o HUD do topo e a pilha de baixo), nao
+    // para o centro da tela. Playtest cego 3 (D14, 133): com o centro da tela (y = H/2 = 422 em 390x844) e a area
+    // util entre 84 e 521, o cruzamento do chip "N new crossings" caia a ~100 px da pilha de baixo e, no zoom do
+    // chip, as ruas em volta passavam por baixo dela
     r.focus = function (x, y, zoom, animated) {
       var c = cam();
       camUser = true;
-      moveCam(x, y, typeof zoom === 'number' ? zoom : c.zoom, !!animated);
+      if (!W || !H) r.resize();
+      var z = clamp(typeof zoom === 'number' && zoom > 0 ? zoom : c.zoom, zMin, ZMAX), u = usable();
+      moveCam(x - (u.l + u.w * 0.5 - W * 0.5) / z, y - (u.t + u.h * 0.5 - H * 0.5) / z, z, !!animated);
     };
 
     // area util da tela (sem HUD), em px CSS; tela pequena: margens nao comem mais que 45% de cada eixo
@@ -594,7 +628,15 @@
         // Cidade lotada abaixo do ZMIN: o piso desta instancia desce ate caber (nunca abaixo de ZFLOOR)
         var ALL_PX = FIT_PX, sw2 = Math.max(1, maxx - minx), sh2 = Math.max(1, maxy - miny);
         var zPx = Math.min((aw - 2 * ALL_PX) / sw2, (ah - 2 * ALL_PX) / sh2);
-        z = Math.min(aw / bw, ah / bh, zPx > 0 ? zPx : ZFLOOR, FIT_ZMAX);
+        if (H > W) {
+          // retrato (2026-11-15, aprovado): na largura a folga e PORT_SIDE_PX px da borda da TELA (margem do HUD maior
+          // ainda manda), sem a folga de mundo: +11% de escala nos dias 9 a 12. O anel da ponta de rua (<= ~17 px de
+          // raio) cabe inteiro nos 36 px. Altura igual a antes. Dias com o teto FIT_ZMAX nao mudam
+          var psl = Math.max(PORT_SIDE_PX, ml), psr = Math.max(PORT_SIDE_PX, mr), pwz = (W - psl - psr) / sw2;
+          zPx = Math.min(pwz, (ah - 2 * ALL_PX) / sh2);
+          z = Math.min(ah / bh, zPx > 0 ? zPx : ZFLOOR, FIT_ZMAX);
+          ml = psl; aw = W - psl - psr;
+        } else z = Math.min(aw / bw, ah / bh, zPx > 0 ? zPx : ZFLOOR, FIT_ZMAX);
         if (z < zMin) { zMin = Math.max(ZFLOOR, z); r.zoomLimits.min = zMin; }
         z = clamp(z, zMin, FIT_ZMAX);
         camUser = false;
@@ -985,6 +1027,11 @@
 
     // raio negativo ou NaN lanca IndexSizeError no canvas: piso 0 (sem alocar)
     var laneGeo = [], lanePool = [];
+    // ruas de 2 faixas com faixa desenhada neste quadro (carimbo por id de rua): os carros so estreitam onde ha faixa;
+    // rua curta demais para a faixa (so a linha simples) guarda os carros de sempre
+    var laneStamp = new Int32Array(256), laneFrame = 0;
+    // trecho de linha simples de cada rua de 2 faixas no ultimo quadro (px de tela; r._laneSolid, testes)
+    var stubId = new Float64Array(400), stubPx = new Float64Array(400), stubN = 0;
     var lockGeo = { on: false, deg: 0 };   // fio do angulo travado do ultimo quadro (testes)
     // raio de recorte da faixa de 2 faixas na ponta de um no (px de tela, ao longo do eixo da rua).
     // Portal = o anel; beco = o ponto. Em curva/cruzamento a faixa para onde a borda dela encontraria
@@ -1010,6 +1057,48 @@
       }
       return Math.min(c, hw * 4);
     }
+    // Faixa de 2 faixas na rua curta (2026-11-15, aprovado): a faixa padrao (hwStd, ~25 px nos dias 9 a 12) e larga
+    // para ruas de 20 a 50 px na tela e lia como um bloco deitado na rua. laneFit(L) estreita a faixa ate
+    // LANE_BAND_FRAC * L, com piso hwMin: duas colunas de carro por sentido, cada folga no seu minimo (carro ao
+    // tracejado, coluna a coluna, carro ao contorno) e o carro com LANE_CAR_MIN px de largura. Folgas e largura do carro
+    // encolhem juntas, na mesma proporcao (o comprimento do carro nao muda). Rua longa: hwStd, off1, laneSp e carro de
+    // sempre. Saida em LN.hw, LN.off1, LN.sp, LN.cw (largura do carro), sem alocar
+    var LN = { hw: 0, off1: 0, sp: 0, cw: 0, cMin: 0, hwStd: 0, off1Std: 0, spStd: 0, car: 0, g0: 0, gl: 0, go: 0, m0: 0, ml: 0, mo: 0, hwMin: 0, dpr: 1 };
+    function laneSetup(off1, laneSp, hw2, carPx, w3, roadW, dp) {
+      LN.hwStd = hw2; LN.off1Std = off1; LN.spStd = laneSp; LN.car = carPx; LN.dpr = dp;
+      LN.g0 = off1 - carPx * 0.5; LN.gl = laneSp - carPx; LN.go = hw2 - (off1 + laneSp + carPx * 0.5);
+      LN.m0 = Math.min(LN.g0, w3 * 0.5 + LANE_MIN_GAP_IN); LN.ml = Math.min(LN.gl, LANE_MIN_GAP_COL);
+      LN.mo = Math.min(LN.go, roadW * 0.5 + LANE_MIN_GAP_OUT);
+      LN.cMin = Math.min(carPx, LANE_CAR_MIN);
+      LN.hwMin = 2 * LN.cMin + LN.m0 + LN.ml + LN.mo;
+    }
+    var laneFitOn = LANE_FIT;
+    function laneFit(Lpx) {
+      var want = Lpx * LANE_BAND_FRAC * 0.5;
+      if (!laneFitOn || !(want < LN.hwStd) || !(LN.hwStd > LN.hwMin)) { LN.hw = LN.hwStd; LN.off1 = LN.off1Std; LN.sp = LN.spStd; LN.cw = LN.car; return; }
+      var hw = want > LN.hwMin ? want : LN.hwMin;
+      if (LN.dpr >= 2) hw = Math.min(LN.hwStd, Math.ceil(hw * LN.dpr - 1e-6) / LN.dpr);   // contorno na grade do aparelho
+      var t = (hw - LN.hwMin) / (LN.hwStd - LN.hwMin);
+      var g0 = LN.m0 + (LN.g0 - LN.m0) * t, gl = LN.ml + (LN.gl - LN.ml) * t, cw = LN.cMin + (LN.car - LN.cMin) * t;
+      LN.off1 = g0 + cw * 0.5; LN.sp = cw + gl; LN.cw = cw; LN.hw = hw;
+    }
+    // Carro parado no sinal (2026-11-15, aprovado): o icone e desenhado por cima dos carros e o primeiro da fila (no
+    // centro do no, s = len) sumia. Na rua que CHEGA a um no com Pare, Preferencia ou Semaforo, o trecho final
+    // (rampa SG.R, mundo) e comprimido para o carro em s = len parar a SG.d antes do centro: borda do icone ao longo
+    // da rua + SIGN_GAP + meio carro. So desenho: sim, toque e ordem de desenho iguais. Compressao monotona (a ordem
+    // e as frestas da fila ficam; o comprimento do carro na rampa encolhe na mesma proporcao). Fora da rampa nada muda
+    var SG = { d: 0, R: 1, len: 1 };
+    function signExt(tool, s, ux, uy) {   // meio tamanho do icone na direcao (ux, uy), px de tela
+      var h = s * 0.5;
+      if (tool === 'light') return Math.abs(ux) * s * 0.25 + Math.abs(uy) * s * 0.545;
+      if (tool === 'yield') {
+        var v1 = -1.02 * h * ux - 0.62 * h * uy, v2 = 1.02 * h * ux - 0.62 * h * uy, v3 = 1.08 * h * uy;
+        return Math.max(v1, v2, v3) + Math.max(1.6, s * 0.15) * 0.5;
+      }
+      return h;
+    }
+    var sgUse = true;   // r._signShift(false): so para capturas de comparacao (desliga o recuo no sinal)
+    function signShift(s) { var t = (s - (SG.len - SG.R)) / SG.R; return t <= 0 ? 0 : SG.d * (t >= 1 ? 1 : t); }
     function portalJunction(n) { return !!(n && n.portal && n.edges && n.edges.length >= 3); }
     // relogio da trava (so leitura): o sim trava o no depois de CFG.lockSeconds de jogo com o estresse cru >= 1
     // (n.stress == 1 exatamente nesse caso). Conta pelo dayTime do jogo; -1 quando o anel nao esta cheio
@@ -1072,11 +1161,13 @@
       var phase = st ? st.phase : null;
       var ov = r.overlay || {};
       // regra unica da camera: ao abrir o plano (troca de dia) e ao comecar a corrida a cidade inteira volta ao
-      // quadro, em CAM_MS. Fora disso a camera nunca anda sozinha
+      // quadro. Fora disso a camera nunca anda sozinha. Corrida: animada em CAM_MS. Plano: SALTA ja no primeiro
+      // quadro (playtest cego 3, D17, 164/165): a bandeja do plano muda a margem de baixo (323 -> 377 px em
+      // 390x844) e a animacao de 450 ms andava ~27 px com o mapa ja aceitando toque; o toque caia ao lado do no
       var camD = st ? st.day : null;
       if (phase !== camPhase || camD !== camDay) {
         if (camPhase !== undefined && w && w.nodes && ((camPhase === 'plan' && phase === 'run') ||
-            (phase === 'plan' && (camPhase !== 'plan' || camD !== camDay)))) fitView(true, 40, 'all');
+            (phase === 'plan' && (camPhase !== 'plan' || camD !== camDay)))) fitView(phase !== 'plan', 40, 'all');
         camPhase = phase; camDay = camD;
       }
 
@@ -1131,6 +1222,7 @@
         else { carTight = true; carLenPx = CAR_MIN_LEN; carPx = clamp(carCap / 1.1, CAR_MIN_W, CAR_MIN_LEN / 1.1); }
       }
       var carHL = carLenPx * 0.5;                              // meio comprimento
+      var GAPW = (CFG.carLen || 8) + (CFG.carGap || 4);       // espaco da fila no sim (mundo)
       var roadW = clamp(2.2 * Math.pow(z, 0.25), 1.6, 3);     // linha de estrada (peso de mapa de metro)
       // nitidez (so em tela de alta densidade, dpr >= 2): largura em px inteiros do aparelho e ruas ortogonais
       // na grade, com a borda da linha em pixel cheio. O ajuste e de no maximo 1/4 px CSS; em dpr 1 nada muda
@@ -1144,6 +1236,7 @@
       var laneSp = Math.max(CFG.laneOffset * z, carPx + 1.2); // distancia entre colunas de carros
       var hw2 = off1 + laneSp + carPx * 0.5 + 2.5;            // meia largura de 2 faixas
       if (snapOn) hw2 = Math.round(hw2 * dpr) / dpr;
+      laneSetup(off1, laneSp, hw2, carPx, w3, roadW, snapOn ? dpr : 1);
       var dotR = clamp(2.2 * Math.pow(z, 0.4), 1.4, 3.2);
       var cullPad = hw2 + ps + 30;
       var sx0 = -cullPad, sy0 = -cullPad, sx1 = W + cullPad, sy1 = H + cullPad;
@@ -1171,13 +1264,13 @@
       // centro e, com varias ruas duplas num cruzamento, se cruzavam em retangulos sobrepostos.
       ctx.lineCap = 'round'; ctx.lineJoin = 'round';
       var pass, any;
-      laneGeo.length = 0;
+      laneGeo.length = 0; stubN = 0; laneFrame++;
       for (pass = 0; pass < 4; pass++) {
         ctx.beginPath(); any = false;
         for (k in edges) {
           e = edges[k]; if (!e) continue;
           var two = (e.lanes || 1) >= 2;
-          if ((pass === 1) === two) continue;
+          if (!two && pass !== 1) continue;   // passo 1: linha simples de toda rua (na de 2 faixas, so fora da faixa)
           a = nodes[e.a]; b = nodes[e.b]; if (!a || !b) continue;
           var ax = a.x * z + ox, ay = a.y * z + oy, bx = b.x * z + ox, by = b.y * z + oy;
           if ((ax < sx0 && bx < sx0) || (ax > sx1 && bx > sx1) || (ay < sy0 && by < sy0) || (ay > sy1 && by > sy1)) continue;
@@ -1192,20 +1285,38 @@
             if (Math.abs(ax - bx) < 0.02) ax = bx = (Math.round(ax * dpr - so) + so) / dpr;
             else if (Math.abs(ay - by) < 0.02) ay = by = (Math.round(ay * dpr - so) + so) / dpr;
           }
-          if (pass === 1) { ctx.moveTo(ax, ay); ctx.lineTo(bx, by); any = true; continue; }
+          if (pass === 1 && !two) { ctx.moveTo(ax, ay); ctx.lineTo(bx, by); any = true; continue; }
           var dx = bx - ax, dy = by - ay, L = Math.sqrt(dx * dx + dy * dy);
           if (L < 0.01) continue;
           if (pass === 3) { ctx.moveTo(ax, ay); ctx.lineTo(bx, by); any = true; continue; }
           // faixa recortada: a ponta que ainda cresce (g < 1) nao tem no, nao recorta
-          var ux = dx / L, uy = dy / L, ca = laneClip(na, e.id, ux, uy, hw2, dotR, ps, nodes, edges), cb = g < 1 ? 0 : laneClip(nb, e.id, -ux, -uy, hw2, dotR, ps, nodes, edges);
-          if (ca + cb >= L - 1) continue;   // rua curta demais para a faixa entre os dois nos: so o tracejado
+          // largura da faixa pelo comprimento inteiro da rua na tela (no a no), nao pelo trecho que ainda cresce
+          var lfx = (b.x - a.x) * z, lfy = (b.y - a.y) * z;
+          laneFit(Math.sqrt(lfx * lfx + lfy * lfy));
+          var hwE = LN.hw;
+          var ux = dx / L, uy = dy / L, ca = laneClip(na, e.id, ux, uy, hwE, dotR, ps, nodes, edges), cb = g < 1 ? 0 : laneClip(nb, e.id, -ux, -uy, hwE, dotR, ps, nodes, edges);
+          if (pass === 1) {
+            // Playtest cego 3 (D12, 122/168): o trecho de rua de 2 faixas FORA da faixa (do no ate o recorte, ou a rua
+            // inteira quando a faixa nao cabe) ficava so com o tracejado fino e a faixa bege parecia solta da rua.
+            // Esse trecho leva a linha simples de rua, igual as outras ruas no cruzamento
+            var stub = 0;
+            if (ca + cb >= L - 1) { ctx.moveTo(ax, ay); ctx.lineTo(bx, by); stub = L; }
+            else {
+              if (ca > 0.5) { ctx.moveTo(ax, ay); ctx.lineTo(ax + ux * ca, ay + uy * ca); stub += ca; }
+              if (cb > 0.5) { ctx.moveTo(bx, by); ctx.lineTo(bx - ux * cb, by - uy * cb); stub += cb; }
+            }
+            if (stubN < 400) { stubId[stubN] = e.id; stubPx[stubN] = stub; stubN++; }
+            any = true; continue;
+          }
+          if (ca + cb >= L - 1) continue;   // rua curta demais para a faixa entre os dois nos: linha simples (passo 1)
+          if (pass === 0) { var lsi = e.id | 0; if (lsi >= 0 && lsi < 1048576) { if (lsi >= laneStamp.length) { var lsn = new Int32Array(lsi * 2 + 2); lsn.set(laneStamp); laneStamp = lsn; } laneStamp[lsi] = laneFrame; } }
           var cax = ax + ux * ca, cay = ay + uy * ca, cbx = bx - ux * cb, cby = by - uy * cb;
-          var px = -uy * hw2, py = ux * hw2;
+          var px = -uy * hwE, py = ux * hwE;
           if (pass === 0) {
             if (laneGeo.length < 400) {
               // objetos do pool (sem alocar por quadro); push dentro da capacidade nao aloca
               var lgo = lanePool[laneGeo.length] || (lanePool[laneGeo.length] = { id: 0, x0: 0, y0: 0, x1: 0, y1: 0, hw: 0 });
-              lgo.id = e.id; lgo.x0 = cax; lgo.y0 = cay; lgo.x1 = cbx; lgo.y1 = cby; lgo.hw = hw2;
+              lgo.id = e.id; lgo.x0 = cax; lgo.y0 = cay; lgo.x1 = cbx; lgo.y1 = cby; lgo.hw = hwE;
               laneGeo.push(lgo);
             }
             ctx.moveTo(cax + px, cay + py); ctx.lineTo(cbx + px, cby + py);
@@ -1463,14 +1574,43 @@
           }
           var lanes = e ? (e.lanes || 1) : 1, lane = car.lane ? 1 : 0, ow = e ? e.oneway : 0, off;
           if (lane >= lanes) lane = lanes - 1;
-          if (ow) off = lanes >= 2 ? laneSp * (lane ? 0.5 : -0.5) : 0;
-          else off = lanes >= 2 ? off1 + laneSp * lane : off1;
+          var lsp = laneSp, lo1 = off1, hcE = hc, ea = e ? nodes[e.a] : null, eb = e ? nodes[e.b] : null;
+          if (laneFitOn && lanes >= 2 && ea && eb && (e.id | 0) < laneStamp.length && laneStamp[e.id | 0] === laneFrame) {
+            // mesma largura da faixa desenhada nesta rua (laneFit): colunas mais juntas na rua curta
+            var lfx2 = (eb.x - ea.x) * z, lfy2 = (eb.y - ea.y) * z;
+            laneFit(Math.sqrt(lfx2 * lfx2 + lfy2 * lfy2)); lsp = LN.sp; lo1 = LN.off1; hcE = LN.cw * 0.5;
+          }
+          if (ow) off = lanes >= 2 ? lsp * (lane ? 0.5 : -0.5) : 0;
+          else off = lanes >= 2 ? lo1 + lsp * lane : lo1;
           if (sl >= 0) csOff[sl] = off;
+          // carro chegando a um sinal: recua pela rampa (signShift) ao longo da rua; so no desenho
+          var sgOn = false, sgK = 1;
+          if (sgUse && ea && eb && typeof car.s === 'number') {
+            var sgN = car.dir === -1 ? ea : eb;
+            if (sgN.tool && SIGN_Q[sgN.tool] === 1) {
+              var sgx = eb.x - ea.x, sgy = eb.y - ea.y, sgl = Math.sqrt(sgx * sgx + sgy * sgy);
+              if (sgl > 0.01) {
+                var sgd = car.dir === -1 ? -1 : 1, hx2 = sgx / sgl * sgd, hy2 = sgy / sgl * sgd, elen = e.len || sgl;
+                SG.len = elen;
+                SG.d = Math.min((signExt(sgN.tool, ps, -hx2, -hy2) + SIGN_GAP + hl) / z, elen * 0.6);
+                SG.R = Math.min(elen, SG.d * SIGN_RAMP);
+                if (SG.d > 0 && SG.R > SG.d) {
+                  var sgs = car.s < 0 ? 0 : (car.s > elen ? elen : car.s), shv = signShift(sgs);
+                  sgOn = true;
+                  if (shv > 0) { cx -= hx2 * shv; cy -= hy2 * shv; }
+                  // rampa: a fila fica mais junta (fator 1 - d/R). Fila apertada: o corte ao vizinho abaixo ja usa a
+                  // posicao desenhada. Fora dela o carro encolhe so o que falta para nao encostar no vizinho
+                  if (!carTight && sgs > elen - SG.R - GAPW) sgK = Math.min(1, (GAPW * z * (1 - SG.d / SG.R) - 0.6) / (2 * hl));
+                  if (sgK < 0.3) sgK = 0.3;
+                }
+              }
+            }
+          }
           var scx = cx * z + ox, scy = cy * z + oy;
           if (scx < sx0 || scx > sx1 || scy < sy0 || scy > sy1) continue;
           var fx = Math.cos(ang), fy = Math.sin(ang), rx = -fy, ry = fx;
           scx += rx * off; scy += ry * off;
-          var hf = hl, hb = hl;
+          var hf = hl * sgK, hb = hl * sgK;
           if (carTight && cbNext[i] !== -2) {
             // meio caminho ate o carro da frente e o de tras na mesma rua, sentido e faixa (menos a fresta)
             var ga = 1e9, gb = 1e9, cln = car.lane ? 1 : 0;
@@ -1480,6 +1620,10 @@
                 oc = cars[cj];
                 if (oc.dir === car.dir && (oc.lane ? 1 : 0) === cln) {
                   ds = oc.s - car.s;
+                  if (sgOn) {   // rampa do sinal: distancia entre as posicoes desenhadas (mesma rua e sentido)
+                    var so1 = oc.s < 0 ? 0 : (oc.s > SG.len ? SG.len : oc.s), so0 = car.s < 0 ? 0 : (car.s > SG.len ? SG.len : car.s);
+                    ds = (so1 - signShift(so1)) - (so0 - signShift(so0));
+                  }
                   if (ds > 0) { if (ds < ga) ga = ds; } else if (-ds < gb) gb = -ds;
                 }
               }
@@ -1489,7 +1633,7 @@
             if (ga < hf) hf = ga < 0.5 ? 0.5 : ga;
             if (gb < hb) hb = gb < 0.5 ? 0.5 : gb;
           }
-          rx *= hc; ry *= hc;
+          rx *= hcE; ry *= hcE;
           var x1 = scx + fx * hf, y1 = scy + fy * hf, x2 = scx - fx * hb, y2 = scy - fy * hb;
           if (fa < 1 && cfN < CAR_FADES) {
             // nascendo: fora do path comum, com a propria opacidade
@@ -1602,6 +1746,48 @@
           njSeen[n.id] = carFrame;
         }
       }
+      // lado do rotulo de cada marca: em cima do proprio anel; se o retangulo bater no rotulo ou no anel de outra marca
+      // (ou sair da area livre), vai para o proximo lado livre (embaixo, esquerda, direita), nessa ordem fixa, com as
+      // marcas em ordem de id: deterministico, sem tremer entre quadros. Sem lado livre, fica em cima. Nada some.
+      var njN = 0, njTW = 0, njTH = 8, njP2, njSd, njOk, njJ, njC;
+      if (nj && nj.length && (phase === 'plan' || phase === null || phase === undefined)) {
+        for (i = 0; i < nj.length; i++) { // ids desta lista (ainda sem filtro de tela): a marca vizinha conta mesmo se acabou de entrar
+          n = nodes[nj[i]];
+          if (n && !n.tool && n.edges && n.edges.length >= 3 && njIds.indexOf(String(n.id)) < 0 && njN < 64) njIds[njN++] = String(n.id);
+        }
+      }
+      for (k in njSt) { if (nodes[k] && njIds.indexOf(String(k)) < 0 && njN < 64) njIds[njN++] = String(k); }
+      njIds.length = njN;
+      if (njN > 0) {
+        njIds.sort(function (a1, b1) { return (+a1) - (+b1) || (a1 < b1 ? -1 : a1 > b1 ? 1 : 0); });
+        ctx.font = NEWJ_FONT; njTW = ctx.measureText(NEWJ_TEXT).width;
+        var nuz = usable(), nux0 = nuz.l, nux1 = W - nuz.r, nuy0 = nuz.t, nuy1 = H - nuz.b;
+        for (i = 0; i < njN; i++) {
+          if (!njRects[i]) njRects[i] = [0, 0, 0, 0];
+          njRect(nodes[njIds[i]].x * z + ox, nodes[njIds[i]].y * z + oy, njR, njTW, njTH, 0, njRects[i], njTmpT);   // padrao de todos
+        }
+        for (i = 0; i < njN; i++) {
+          n = nodes[njIds[i]]; var pcx = n.x * z + ox, pcy = n.y * z + oy, chosen = 0;
+          for (njP2 = 0; njP2 < 2; njP2++) {
+            for (njSd = 0, njOk = false; njSd < 4 && !njOk; njSd++) {
+              njRect(pcx, pcy, njR, njTW, njTH, njSd, njTmpR, njTmpT);
+              if (njP2 === 0 && (njTmpR[0] < nux0 || njTmpR[2] > nux1 || njTmpR[1] < nuy0 || njTmpR[3] > nuy1)) continue;
+              njOk = true;
+              for (njJ = 0; njJ < njN && njOk; njJ++) {
+                if (njJ === i) continue;
+                njC = njRects[njJ];
+                if (!(njTmpR[2] < njC[0] || njTmpR[0] > njC[2] || njTmpR[3] < njC[1] || njTmpR[1] > njC[3])) njOk = false;
+                else { var on = nodes[njIds[njJ]]; if (njHitRing(njTmpR, on.x * z + ox, on.y * z + oy, njR)) njOk = false; }
+              }
+              if (njOk) chosen = njSd;
+            }
+            if (njOk) break;
+          }
+          if (!njOk) chosen = 0;
+          njSide[njIds[i]] = chosen;
+          njRect(pcx, pcy, njR, njTW, njTH, chosen, njRects[i], njTmpT);
+        }
+      }
       // envelope por marca: entra e sai em RING_FADE_MS (a que ganhou sinal ou saiu da lista some sozinha)
       for (k in njSt) {
         njA = njSt[k];
@@ -1624,7 +1810,8 @@
           ctx.globalAlpha = 0.9 * njA; ctx.stroke(); ctx.setLineDash(DASH_NONE);
           ctx.beginPath(); circle(nsx + NEWJ_DX * njR, nsy + NEWJ_DX * njR, 2.6 + 0.9 * njP);
           ctx.fillStyle = NEWJ_COLOR; ctx.globalAlpha = (reduceMotion ? 1 : 0.75 + 0.25 * njP) * njA; ctx.fill();
-          ctx.globalAlpha = njA; ctx.fillText(NEWJ_TEXT, nsx, nsy - njR - 2);
+          ctx.globalAlpha = njA; njRect(nsx, nsy, njR, njTW, njTH, njSide[k] || 0, njTmpR, njTmpT);
+          ctx.textAlign = njTmpT[2]; ctx.fillText(NEWJ_TEXT, njTmpT[0], njTmpT[1]); ctx.textAlign = 'center';
         }
         ctx.globalAlpha = 1;
       } else if (njAny) {
@@ -1646,8 +1833,10 @@
         ctx.font = NEWJ_FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillStyle = NEWJ_COLOR;
         for (i = 0; i < njBox.length; i++) {
           n = nodes[njBox[i]];
-          ctx.fillText(NEWJ_TEXT, n.x * z + ox, n.y * z + oy - njR - 2);
+          njRect(n.x * z + ox, n.y * z + oy, njR, njTW, njTH, njSide[n.id] || 0, njTmpR, njTmpT);
+          ctx.textAlign = njTmpT[2]; ctx.fillText(NEWJ_TEXT, njTmpT[0], njTmpT[1]);
         }
+        ctx.textAlign = 'center';
         if (!reduceMotion) frameAnim = true;
       }
 
@@ -2410,6 +2599,9 @@
     r.newJMarks = function () { return njBox.slice(); };
     r._hotRecalc = function () { return hotRecalc; }; // so para testes: quantas vezes o agrupamento rodou
     r._roadHints = roadHintsT;
+    r._laneSolid = function (id) { for (var i = 0; i < stubN; i++) if (stubId[i] === +id) return stubPx[i]; return 0; }; // so para testes
+    r._laneFit = function (on) { if (typeof on === 'boolean') { laneFitOn = on; forceDraw = true; } return laneFitOn; }; // so para testes/capturas (mudanca 2)
+    r._signShift = function (on) { if (typeof on === 'boolean') { sgUse = on; forceDraw = true; } return sgUse; }; // so para testes/capturas
     r._laneGeo = function () { return laneGeo; }; // so para testes: faixas de 2 faixas do ultimo quadro (px de tela)
 
     function nodeScale(k, now) {

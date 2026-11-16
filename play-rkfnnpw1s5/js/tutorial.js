@@ -436,6 +436,9 @@
     { id: 'summary', win: at(1, 'summary'), mode: 'nudge', btn: 'ok',
       text: function () { return STR.summary; },
       target: T('summary-big'),
+      // playtest cego 3 (011): o balao abaixo do numero cobria 'cars' e as linhas que explicam o placar. O painel
+      // inteiro e o que ele nao cobre: vai para cima do painel (seta para o numero); sem lugar, fica onde estava
+      avoid: function () { return [{ sel: 'summary' }]; },
       done: function (c) { return st(c).phase !== 'summary'; }, on: { cardPicked: true } },
     // Dia 2, primeiro: o dado. Bloqueante ('act': so o dado fica tocavel), com "Got it" desde o inicio
     // (antes so fechava tocando no dado e a jogadora achava que isso gastava o relance).

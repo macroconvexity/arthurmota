@@ -878,8 +878,15 @@ body.crz-modal #hud .crz-roll, body.crz-modal #hud .crz-roll * { pointer-events:
 /* ---- 2026-11-15, bloco 3 b: folhas que nao cabem rolam por dentro (o dedo alcanca o ultimo botao) ---- */
 .crz-rollbox { max-height: calc(100% - 16px); overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; overscroll-behavior: contain; }
 .crz-cbox { max-height: calc(100vh - var(--sat, 0px) - var(--sab, 0px) - 24px); overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; overscroll-behavior: contain; }
-/* fim de partida: centrado quando cabe; quando nao cabe, rola sem cortar o topo ('safe'; navegador sem 'safe' fica no center) */
-.crz-over { justify-content: center; justify-content: safe center; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; overscroll-behavior: contain; }
+/* COMPAT_SAFARI D6: no Safari em aba 100vh e a altura com a barra recolhida; dvh e a visivel. Sem dvh, vale a linha de cima */
+.crz-cbox { max-height: calc(100dvh - var(--sat, 0px) - var(--sab, 0px) - 24px); }
+/* fim de partida: centrado quando cabe; quando nao cabe, rola do topo sem cortar (COMPAT_SAFARI D5: 'safe center' so
+   existe do iOS 17.6; antes valia 'center' e o topo ficava fora do alcance numa tela baixa). flex-start + margens auto
+   nas pontas: as pontas sao dois itens vazios (::before/::after), porque o ultimo filho real pode estar escondido */
+.crz-over { justify-content: flex-start; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; overscroll-behavior: contain; }
+.crz-over::before, .crz-over::after { content: ""; flex: none; width: 0; height: 0; }
+.crz-over::before { margin-top: auto; }
+.crz-over::after { margin-bottom: auto; }
 
 /* ==== polimento 2026-11-15, passo 1: colisoes e sobreposicoes (nada sai da tela; so lugar e folga) ==== */
 /* topo: faixa creme opaca com fio; o mapa termina antes dela (ui.js mede .crz-top para a margem da camera) */
@@ -960,6 +967,8 @@ html body #hud .crz-diesheet:not(.show), html body #hud .crz-diesheet:not(.show)
 html body #hud .crz-confirm.gone, html body #hud .crz-confirm.gone *,
 html body #hud .crz-roll.gone, html body #hud .crz-roll.gone *,
 html body #hud .crz-guide.crz-leaving, html body #hud .crz-guide.crz-leaving * { pointer-events: none !important; }
+/* F001 (fuzz): saida da folha do dado encerrada por timer em ui.js (rollClose) quando os quadros param */
+html body #hud .crz-roll.gone.crz-shut, .crz-roll.gone.crz-shut { display: none; transition: none; }
 /* guia: o no sai do DOM na hora; ui.js deixa uma copia muda (.crz-leaving) que desce e some */
 .crz-guide.crz-leaving { animation: crz-in-fade var(--t-out) var(--ease) 1 reverse forwards; }
 .crz-guide.crz-leaving .crz-gbox { animation: crz-out-down var(--t-out) var(--ease) 1 forwards; }

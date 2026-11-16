@@ -841,6 +841,8 @@
     var f = die && ((die.effect && die.effect.free) || die.free);
     return f === 'light' && toolOpen(cfg, 'light', day | 0);
   }
+  // o que a face 'free' da no dia `day` (mesma regra do game.dieGrant): 'light' ou null (rua, o icone de sempre)
+  function freeGrant(die, day) { return die && die.id === 'free' && dieFreeLight(die, day, CRZ.CFG) ? 'light' : null; }
   // texto curto para cada recusa do game (placeTool, upgradeRoad, setOneway)
   function denyText(r, tool, s, cfg, cost) {
     var D = STR.deny, why = r && r.reason, t = cfg && cfg.tools && cfg.tools[tool];
@@ -1156,12 +1158,18 @@
     }
     return pts.join(' ');
   }
-  function eventSvg(id, kind) {
+  // grant (so para 'free'): 'light' quando a face da o semaforo gratis (game.dieGrant); o icone mostra o semaforo
+  // com o selo 0 em vez da rua (playtest cego 3, shot 099: cabecalho com rua num dia de semaforo gratis)
+  function eventSvg(id, kind, grant) {
     var tone = kindTone(kind || ({ rush: 'bad', rain: 'bad', festival: 'bad', luck1: 'good', luck2: 'good', luck3: 'great',
                                    free: 'great', calm: 'great', jackpot: 'jackpot' })[id]);
     var F = 'f-' + tone, S = 's-' + tone, LN = ' stroke-linecap="round" fill="none"';
     var n = { busy: 3 }[id], s = '', i, m;
-    if (id === 'plain') {
+    if (id === 'free' && grant === 'light') {
+      s = '<rect x="5" y="1.5" width="10" height="21" rx="5" class="f-ink"/><circle cx="10" cy="6.8" r="2.1" class="f-dim"/>' +
+        '<circle cx="10" cy="12" r="2.1" class="f-dim"/><circle cx="10" cy="17.2" r="2.2" class="f-green"/>' +
+        '<circle cx="18" cy="18" r="5" class="' + F + '"/><text x="18" y="21" text-anchor="middle" font-size="8" font-weight="700" class="f-white">0</text>';
+    } else if (id === 'plain') {
       s = '<line x1="4" y1="12" x2="20" y2="12" stroke-width="2.4"' + LN + ' class="s-ink"/>';
     } else if (id === 'rush') {
       // tres setas para dentro: da esquerda, da direita e de cima
@@ -1629,15 +1637,37 @@
     swapUndoEl.setAttribute('aria-label', STR.swapUndoAria);
     ui.appendChild(swapUndoEl);
     var swapUndoUntil = 0;
-    function showSwapUndo(ms) { swapUndoUntil = nowMs() + ms; swapUndoEl.classList.remove('gone'); }
+    function showSwapUndo(ms) { swapUndoUntil = nowMs() + ms; swapUndoEl.classList.remove('gone'); sayPillAvoid(swapUndoEl); }
     function hideSwapUndo() { swapUndoUntil = 0; swapUndoEl.classList.add('gone'); }
+    // playtest cego 3 (090, 107, 139, 154): a pilula Undo/Cancel, centrada sob a faixa, cobria nos do mapa. Mesma
+    // linha, mesmo desenho: so desliza para a esquerda ou a direita quando o centro cobre um no e um lado nao cobre
+    function sayPillAvoid(pe) {
+      try {
+        pe.style.left = '';
+        if (!render || typeof render.toScreen !== 'function' || !game.world || !game.world.nodes || !pe.getBoundingClientRect) return;
+        var r = pe.getBoundingClientRect(), W = render.width || root.innerWidth || 390;
+        if (!(r.width > 0)) return;
+        var R = 14, w = r.width, k, nd, p, cands = [W / 2, W - 16 - w / 2, 16 + w / 2], i, best = null, bestN = Infinity;
+        for (i = 0; i < cands.length; i++) {
+          var l = cands[i] - w / 2, rr = cands[i] + w / 2, n = 0;
+          for (k in game.world.nodes) if (game.world.nodes.hasOwnProperty(k)) {
+            nd = game.world.nodes[k]; if (!nd) continue;
+            p = render.toScreen(nd.x, nd.y);
+            if (p.x + R > l && p.x - R < rr && p.y + R > r.top && p.y - R < r.bottom) n++;
+          }
+          if (n < bestN) { bestN = n; best = i; }
+          if (!n) break;
+        }
+        if (best) pe.style.left = Math.round(cands[best]) + 'px';
+      } catch (e) { warnOnce('sayPillAvoid', e); }
+    }
     // Cancel do pedido de troca: mesmo lugar do Undo (abaixo da faixa), mais discreto (borda fina, texto suave)
     var swapCancelEl = tut(el('button', 'crz-sayundo crz-swapcancel gone', ''), 'swap-cancel');
     swapCancelEl.textContent = STR.swapCancelBtn;
     swapCancelEl.setAttribute('aria-label', STR.swapCancelAria);
     try { var scs = swapCancelEl.style; scs.borderWidth = '1.5px'; scs.borderColor = 'var(--inkSoft)'; scs.color = 'var(--inkText, #6b6b6b)'; scs.fontWeight = '600'; scs.minWidth = '76px'; } catch (e) {}
     ui.appendChild(swapCancelEl);
-    function showSwapCancel() { hideSwapUndo(); swapCancelEl.classList.remove('gone'); }
+    function showSwapCancel() { hideSwapUndo(); swapCancelEl.classList.remove('gone'); sayPillAvoid(swapCancelEl); }
     function hideSwapCancel() { swapCancelEl.classList.add('gone'); }
     // chip do Boost (dia 4+): botao de 56 px ao lado do no mais critico; toque = o mesmo Boost do mapa
     var bchipEl = tut(el('button', 'crz-bchip gone', svg(BOLT_ICON, '0 0 24 24') + '<span>' + STR.chipBoost + '</span>'), 'boost-chip');
@@ -1880,10 +1910,17 @@
       if (typeof c !== 'number') c = CFG.tools[id] ? CFG.tools[id].cost : 0;
       return STR.legend(STR.tools[id] || id, c, STR.toolUseLine[id] || '');
     }
+    var legendWasHeld = false;
     function legendAfford(id) { try { return !game.canAfford || game.canAfford(id) !== false; } catch (e) { return true; } }
+    // playtest cego 3 (031): o cartao do tutorial da ferramenta ('tool:stop') e a legenda da mesma ferramenta
+    // empilhados com o mesmo texto. A legenda espera o cartao fechar (nao some: volta logo depois do 'Got it')
+    function legendHeld() {
+      if (!sel || !tutBalloonOn()) return false;
+      return tutorStep() === 'tool:' + sel;
+    }
     function syncLegend() {
       // blind3 2: ferramenta que nao cabe no orcamento: sem legenda (o aviso de pontos ja diz)
-      var on = !!sel && game.state.phase === 'plan' && !!STR.toolUseLine[sel] && legendAfford(sel);
+      var on = !!sel && game.state.phase === 'plan' && !!STR.toolUseLine[sel] && legendAfford(sel) && !legendHeld();
       if (on) legendEl.textContent = legendText(sel);
       legendEl.classList.toggle('gone', !on);
       bottom.classList.toggle('crz-legendon', on);
@@ -2278,7 +2315,16 @@
       }
       return best;
     }
-    function runTap(s, n, sx, sy, fromChip) {
+    var END_NEAR = 2.5;
+    function endNearOnScreen(n, e) {
+      if (!render || typeof render.toScreen !== 'function') return true;   // sem camera (testes de node): como antes
+      var a = render.toScreen(n.x, n.y), b = render.toScreen(e.x, e.y);
+      if (!a || !b) return true;
+      var rr = (render.pickRadius ? render.pickRadius() : CFG.nodePickRadius) * END_NEAR;
+      return dist(a.x, a.y, b.x, b.y) <= rr;
+    }
+    // ghost = toque no lugar do chip que acabou de sair (chipGhostNode): vale so para o no do chip, sem desvio
+    function runTap(s, n, sx, sy, fromChip, ghost) {
       if (!n || modal()) return;
       var cl = s.clear;
       if (!cl || typeof game.useClear !== 'function') return;
@@ -2294,9 +2340,11 @@
       // final check 1: ponta que deixou de ser ponta (a rua do dia 1 saiu dela: portal com 2 ruas) ou curva de rua:
       // o toque vale para a ponta de rua mais perto (antes: 'All calm', que so vale para cruzamento)
       var dg = n.edges ? n.edges.length : 0;
-      if (!isEnd(n) && dg <= 2 && !fromChip && (n.stress || 0) < BOOST_MIN) {
+      if (!isEnd(n) && dg <= 2 && !fromChip && !ghost && (n.stress || 0) < BOOST_MIN) {
         var ne = nearestEnd(n);
-        if (ne && ne !== n) return runTap(s, ne, sx, sy, fromChip);
+        // playtest cego 3 (144/145): a ponta "mais perto" podia estar do outro lado do mapa, longe do dedo, e o
+        // carro extra saia la. So vale a ponta a ate END_NEAR raios de toque do no tocado (na tela)
+        if (ne && ne !== n && endNearOnScreen(n, ne)) return runTap(s, ne, sx, sy, fromChip);
         snd('deny'); say(STR.deny.boostWhere); return false;
       }
       var jn = !(n.portal && (!n.edges || n.edges.length < 2));
@@ -2403,9 +2451,15 @@
       bchip.id2 = null; bchip.x2 = bchip.y2 = -1;
       bchip2El.classList.add('gone');
     }
+    // o chip saiu da tela: guarda onde estava e de que no era. Um toque que chega ali logo depois (o dedo ja vinha)
+    // vale para ESSE no, nunca para o que estava escondido sob o chip (playtest cego 3, 144/145: o toque caiu numa
+    // curva sob o chip e o carro extra saiu de uma ponta do outro lado)
+    var CHIP_GHOST_MS = 1500;
+    var chipGhost = { id: null, l: 0, t: 0, r: 0, b: 0, at: -1e9 };
     function hideChip() {
       hideChip2();
       if (bchip.id === null) return;
+      if (bchip.x >= 0) chipGhost = { id: bchip.id, l: bchip.x - CHIP_PX / 2 - 8, t: bchip.y - CHIP_PX / 2 - 8, r: bchip.x + CHIP_PX / 2 + 8, b: bchip.y + CHIP_PX / 2 + 8, at: nowMs() };
       bchip.id = null; bchip.side = null; bchip.x = bchip.y = -1;
       bchipEl.classList.add('gone');
     }
@@ -2571,11 +2625,17 @@
       out.sort(function (a, b) { return (newJ.ids[a.id] - newJ.ids[b.id]) || (a.id - b.id); });
       return out;
     }
+    // render agent (2026-11-15): zoom de destaque do chip de cruzamentos novos e do 'Busiest crossing'. 1.1 fixo saltava
+    // ~3,8x a partir de 0,29 nos dias finais e as ruas passavam por baixo do HUD; agora o zoom de conforto do render
+    function focusZoom() {
+      var z = (render.camera && render.camera.zoom) || 1, zl = render.zoomLimits;
+      return Math.max(z, zl && zl.comfort > 0 ? zl.comfort : 1.1);
+    }
     var peekT = 0;
     on(todoEl, 'click', function () {
       var n = todoNode; if (!n) return;
       snd('select');
-      try { if (render && render.focus) render.focus(n.x, n.y, Math.max((render.camera && render.camera.zoom) || 1, 1.1), !reducedMotion()); } catch (e) { warnOnce('render.focus', e); }
+      try { if (render && render.focus) render.focus(n.x, n.y, focusZoom(), !reducedMotion()); } catch (e) { warnOnce('render.focus', e); }
       addPulse(n.x, n.y); later(function () { addPulse(n.x, n.y); }, 900);
       sumEl.classList.add('crz-peek');
       if (peekT) root.clearTimeout(peekT);
@@ -2587,7 +2647,7 @@
       var L = newJList(), n = L[0];
       if (!n) return;
       snd('select');
-      try { if (render && render.focus) render.focus(n.x, n.y, Math.max((render.camera && render.camera.zoom) || 1, 1.1), !reducedMotion()); } catch (e) { warnOnce('render.focus', e); }
+      try { if (render && render.focus) render.focus(n.x, n.y, focusZoom(), !reducedMotion()); } catch (e) { warnOnce('render.focus', e); }
       addPulse(n.x, n.y); later(function () { addPulse(n.x, n.y); }, 900);
       // o resumo cobre o mapa: abaixa por ~2 s para a jogadora ver o cruzamento, depois volta
       sumEl.classList.add('crz-peek');
@@ -2638,7 +2698,7 @@
       // so o toque da jogadora (chip) move a camera; dica e confirmacao so pulsam (no plano a camera nunca anda
       // sozinha: o mapa mexendo entre dois toques trocava o sinal de lugar, novato 2026-11-09)
       try {
-        if (focus && render && render.focus) render.focus(n.x, n.y, Math.max((render.camera && render.camera.zoom) || 1, 1.1), !reducedMotion());
+        if (focus && render && render.focus) render.focus(n.x, n.y, focusZoom(), !reducedMotion());
       } catch (e) { warnOnce('render.focus', e); }
       addPulse(n.x, n.y); later(function () { addPulse(n.x, n.y); }, 900);
     }
@@ -2851,15 +2911,31 @@
       try { if (typeof game.cost === 'function') return game.cost(t); } catch (e) { warnOnce('game.cost', e); }
       return CFG.tools && CFG.tools[t] ? CFG.tools[t].cost : 0;
     }
+    // toque no lugar do chip do Boost que acabou de sair: o no do chip (null fora disso)
+    function chipGhostNode(sx, sy) {
+      var g = chipGhost;
+      if (g.id === null || nowMs() - g.at > CHIP_GHOST_MS || bchip.id !== null) return null;
+      if (!(sx >= g.l && sx <= g.r && sy >= g.t && sy <= g.b)) return null;
+      var n = game.world && game.world.nodes ? game.world.nodes[g.id] : null;
+      g.id = null;
+      return n || null;
+    }
+    var tapInCamAnim = false;   // pointerdown caiu na animacao de camera do inicio da corrida
     function onTap(sx, sy) {
       var s = game.state;
+      // camera deslizando para o enquadre do inicio da corrida (CAM_MS = 450 ms no render) quando o dedo desceu:
+      // o toque seria resolvido contra um mapa em movimento e podia pegar o no errado. Ignora sem acao, aviso,
+      // som nem carga. Botoes do HUD (inclusive o chip do Boost) sao DOM e nao passam por aqui.
+      if (tapInCamAnim) { tapInCamAnim = false; return; }
       var hitN = render.pickNode(sx, sy);
       // o pedido de troca vale para o proximo toque no mesmo no (ou ao lado) com a mesma ferramenta
       var askN = s.phase === 'plan' ? askNear(sx, sy) : null;
       if (askN) hitN = askN;
       if (swapAsk && !(hitN && hitN.id === swapAsk.id && sel === swapAsk.tool)) endSwapAsk('tap');
+      var gn = s.phase === 'run' ? chipGhostNode(sx, sy) : null;
+      if (gn) hitN = gn;
       if (hitN) emitUI('nodeTap', { id: hitN.id });
-      if (s.phase === 'run') { runTap(s, hitN, sx, sy); return; }
+      if (s.phase === 'run') { runTap(s, hitN, sx, sy, false, !!gn); return; }
       if (s.phase !== 'plan') return;
       var n, pk, p;
       if (sel && NODE_TOOLS[sel]) {
@@ -3033,13 +3109,20 @@
       var p = render.toScreen(n.x, n.y), W = render.width || root.innerWidth || 390, H = render.height || root.innerHeight || 844;
       // o chip nao cobre outro cruzamento (o segundo semaforo e justamente o proximo toque): pontos dos nos
       // vizinhos entram como retangulos de 36 px; sem lado livre, o chip cai no lado que cobre menos (fallback)
-      var av = (pchip.rects || []).slice(), q, m, mp;
+      var av = (pchip.rects || []).slice(), avL = (pchip.rects || []).slice(), q, m, mp, rq;
       for (q in game.world.nodes) if (game.world.nodes.hasOwnProperty(q)) {
         m = game.world.nodes[q]; if (!m || m.id === n.id || !(m.edges && m.edges.length >= 2)) continue;
         mp = render.toScreen(m.x, m.y);
-        if (Math.abs(mp.x - p.x) < PCHIP_W + 60 && Math.abs(mp.y - p.y) < PCHIP_H + 60) av.push({ l: mp.x - 18, t: mp.y - 18, r: mp.x + 18, b: mp.y + 18 });
+        if (Math.abs(mp.x - p.x) < PCHIP_W + 60 && Math.abs(mp.y - p.y) < PCHIP_H + 60) {
+          rq = { l: mp.x - 18, t: mp.y - 18, r: mp.x + 18, b: mp.y + 18 };
+          av.push(rq);
+          if (m.tool === 'light') avL.push(rq);
+        }
       }
       var c = pillPlace(p, W, H, av, PCHIP_W, PCHIP_H, pchip.side);
+      // cidade densa (nenhum lado livre de todos os nos): pelo menos nao cobre outro semaforo, que e o proximo
+      // toque do pareamento (playtest cego 3, 104 a 106 e 118: a pilula tapava o segundo semaforo)
+      if (c.side === null && avL.length > (pchip.rects || []).length) c = pillPlace(p, W, H, avL, PCHIP_W, PCHIP_H, pchip.side);
       if (c.side === null) c = pillPlace(p, W, H, pchip.rects || [], PCHIP_W, PCHIP_H, pchip.side);
       pchip.side = c.side;
       if (force || Math.abs(c.x - pchip.x) >= 1 || Math.abs(c.y - pchip.y) >= 1) {
@@ -3092,7 +3175,10 @@
       if (gesture.count() === 0 || e.isPrimary) readRect();
       // camera congelada durante o gesto: animacao em curso para no quadro visivel ANTES do alvo
       // do toque ser lido (fitRoom ao pegar a Rua, reveal do tutorial); nada a move ate soltar
-      camHold(true);
+      // Corrida com a camera ainda animando (render.animating): o toque deste gesto sera ignorado (onTap) e a
+      // camera NAO e congelada, para a animacao terminar no enquadre (hold pararia no meio do caminho).
+      if (gesture.count() === 0) tapInCamAnim = game.state.phase === 'run' && !!(render && render.animating && render.animating());
+      if (!tapInCamAnim) camHold(true);
       if (game.state.phase === 'plan') mapTouched = true;
       var p = localXY(e); gesture.down(e.pointerId, p.x, p.y, nowMs(), !!e.isPrimary);
     });
@@ -3342,8 +3428,8 @@
       if (key === sheetKey) return;
       sheetKey = key;
       todayName.textContent = STR.today + ': ' + dieName(s.die.id);
-      todayIco.innerHTML = eventSvg(s.die.id, s.die.kind);
-      tomIco.innerHTML = hasNext ? eventSvg(s.nextDie.id, s.nextDie.kind) : '';
+      todayIco.innerHTML = eventSvg(s.die.id, s.die.kind, freeGrant(s.die, s.day));
+      tomIco.innerHTML = hasNext ? eventSvg(s.nextDie.id, s.nextDie.kind, freeGrant(s.nextDie, (s.day | 0) + 1)) : '';
       todayDesc.textContent = describeDie(s.die);
       tomBox.classList.toggle('off', !hasNext);
       if (hasNext) { tomName.textContent = STR.tomorrow + ': ' + dieName(s.nextDie.id); tomDesc.textContent = describeDie(s.nextDie).replace(/ today\./g, ' tomorrow.'); }
@@ -3418,6 +3504,7 @@
     // dono 2026-11-10: quem rola e a jogadora. 'ready' = dado parado, 'Tap to roll'; o resultado ja veio do jogo
     var ROLL_WIGGLE_MS = 8000;
     var roll = { open: false, stage: '', t0: 0, resAt: 0, autoAt: 0, spinAt: 0, normal: false, mine: false, readyAt: 0 };
+    var rollShutT = 0, ROLL_SHUT_MS = 260;
     function rollKey(d) { return 'roll' + d + runTag; }
     function rollSeen(d) { return !!hints[rollKey(d)]; }
     function rollMark(d) { hints[rollKey(d)] = 1; lsSet(HINT_KEY, JSON.stringify(hints)); }
@@ -3470,6 +3557,8 @@
       var s = game.state; if (!s.die || roll.open) return;
       roll.open = true; ffOff();
       roll.mine = true; modalReg().set(doc.body, 'roll', true);
+      if (rollShutT) { try { root.clearTimeout(rollShutT); } catch (e) {} rollShutT = 0; }
+      rollEl.classList.remove('crz-shut');
       rollEl.classList.remove('gone'); rollEl.classList.toggle('crz-rm', reducedMotion());
       var tutLine = !seen('rollAny') && tutorScript();
       rollTutEl.textContent = STR.rollTut; rollTutEl.classList.toggle('gone', !tutLine);
@@ -3521,6 +3610,11 @@
       if (!roll.open) return;
       roll.open = false; roll.stage = '';
       rollEl.classList.add('gone'); rollEl.classList.remove('crz-rolling'); rollEl.classList.remove('crz-rolled');
+      // F001 do fuzz: a saida e uma transicao de 160 ms que so anda com quadros. Sem quadros (Chrome headless
+      // parado, aba congelada e devolvida) a folha ficava na tela com 'gone', opacidade ~1 e sem toque. Um timer
+      // (nao depende de quadro) encerra a saida aos 260 ms: com quadros normais a transicao ja acabou e nada muda
+      if (rollShutT) { try { root.clearTimeout(rollShutT); } catch (e) {} }
+      rollShutT = later(function () { rollShutT = 0; if (!roll.open) rollEl.classList.add('crz-shut'); }, ROLL_SHUT_MS);
       if (roll.mine) { roll.mine = false; modalReg().set(doc.body, 'roll', false); }
       emitUI('rollClosed', {});
     }
@@ -3755,7 +3849,7 @@
         return;
       }
       diePips.innerHTML = dieSvg(value, die.faces, die.kind);
-      dieEv.innerHTML = eventSvg(die.id, die.kind);
+      dieEv.innerHTML = eventSvg(die.id, die.kind, freeGrant(die, game.state && game.state.day));
       dieLbl.textContent = STR.lblToday(die.id, die.kind, die.value);
       if (diePips.firstChild && diePips.firstChild.setAttribute) diePips.firstChild.setAttribute('class', 'pips');
       if (dieEv.firstChild && dieEv.firstChild.setAttribute) dieEv.firstChild.setAttribute('class', 'ev');
@@ -3800,7 +3894,7 @@
         cache.nextF = N ? { faces: N.faces, value: N.value, kind: N.kind || '', id: N.id } : null;
         if (N) {
           // amanha: o icone do efeito (o numero tirado, '13' no d20, parecia o efeito) e o efeito em palavras
-          dieNext.innerHTML = eventSvg(s.nextDie.id, s.nextDie.kind);
+          dieNext.innerHTML = eventSvg(s.nextDie.id, s.nextDie.kind, freeGrant(s.nextDie, (s.day | 0) + 1));
           nextLbl.textContent = STR.lblTomorrow(s.nextDie.id);
           if (dieNext.firstChild && dieNext.firstChild.setAttribute) dieNext.firstChild.setAttribute('class', 'nxt');
           dieNext.classList.remove('off');
@@ -4362,8 +4456,9 @@
     }
     var DAY1_EDGES = 1;
     function day1Built() {
-      // o save nao guarda a pilha do Undo nem a base do plano: depois de um reload so o mundo diz a verdade.
-      // A cidade do dia 1 nasce com DAY1_EDGES rua (game.js, inicializacao)
+      // a pilha do Undo vai no save principal durante o plano (game.save d.undo, devolvida por Game.load), entao
+      // canUndo vale tambem depois de um reload; a base do plano (nextEdges0, so da UI) nao vai no save, por isso a
+      // contagem de ruas do mundo e comparada com DAY1_EDGES (a cidade do dia 1 nasce com DAY1_EDGES rua, game.js)
       if (edgeTotal() > DAY1_EDGES || !!(game.canUndo && game.canUndo())) return true;
       // rede de seguranca: sem pontos (nem gratuidade) para uma rua, o Play nunca recusa (nao ha outra saida)
       var s = game.state;
@@ -4567,7 +4662,9 @@
         doc.body.classList.toggle('crz-sayshow', sAny);
       }
       // nv8 5: a legenda segue o custo (a rua gratis usada volta a custar): reescreve quando o texto muda
-      if (sel && !legendEl.classList.contains('gone')) { if (!legendAfford(sel)) syncLegend(); else { var lt = legendText(sel); if (legendEl.textContent !== lt) legendEl.textContent = lt; } }
+      if (sel && !legendEl.classList.contains('gone')) { if (!legendAfford(sel) || legendHeld()) syncLegend(); else { var lt = legendText(sel); if (legendEl.textContent !== lt) legendEl.textContent = lt; } }
+      else if (sel && s.phase === 'plan' && legendWasHeld && !legendHeld()) syncLegend();
+      legendWasHeld = legendHeld();
       firstSpendTick(s); ringEverTick(s); ringGroupTick(s);
       if (s.phase === 'run' && !runAt) runAt = now; else if (s.phase !== 'run') runAt = 0;
       firstUseTick(s, now);
@@ -4843,7 +4940,7 @@
     // recomendador unico por no (o tutorial usa para o balao do anel): advise(node, day, cfg, world, heat)
     // -> {key, tool, text, dir}. Mesmo estado do no, mesma recomendacao
     advise: advise,
-    _test: { ringText: ringText, ringLevel: ringLevel, advise: advise, adviseVary: adviseVary, roundBeats: roundBeats, mainRoad: mainRoad, busiestRoad: busiestRoad, pillPlace: pillPlace, dieFreeLight: dieFreeLight, cardFits: cardFits, createGesture: createGesture, nextOneway: nextOneway, pipLayout: pipLayout, nextSpeed: nextSpeed, speedList: speedList,
+    _test: { ringText: ringText, ringLevel: ringLevel, advise: advise, adviseVary: adviseVary, roundBeats: roundBeats, mainRoad: mainRoad, busiestRoad: busiestRoad, pillPlace: pillPlace, dieFreeLight: dieFreeLight, freeGrant: freeGrant, cardFits: cardFits, createGesture: createGesture, nextOneway: nextOneway, pipLayout: pipLayout, nextSpeed: nextSpeed, speedList: speedList,
              chipPick: chipPick, chipRank: chipRank, chipPlace: chipPlace, CHIP: { on: CHIP_ON, off: CHIP_OFF, px: CHIP_PX, px2: CHIP2_PX, every: CHIP_EVERY, day: ASSIST_DAY },
              jamAdvice: jamAdvice, jamPick: jamPick, jamOptions: jamOptions, busiestLane: busiestLane, denyText: denyText, suggestCard: suggestCard, worstNode: worstNode,
              isEnd: isEnd, isDeadEnd: isDeadEnd, queueJunction: queueJunction, loseText: loseText, lockedNodeOf: lockedNodeOf,
