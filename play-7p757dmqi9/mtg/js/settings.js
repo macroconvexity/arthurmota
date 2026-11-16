@@ -1,6 +1,6 @@
 // Persisted user settings (localStorage) with change listeners.
 const KEY = 'mtgclassic.settings.v1';
-const DEFAULTS = { sound: true, volume: 0.7, speed: 'normal', stopOppSpell: true, respectPhases: true, stopMyBegin: false, stopOppEnd: false, format: 'unrestricted', edition: 'all', autoSkip: true, difficulty: 'normal', deckMeta: 'all', playmat: 5, haptics: true, pips: false, lefty: false, ambient: true, onboarded: false };
+const DEFAULTS = { sound: true, volume: 0.7, speed: 'normal', stopOppSpell: true, respectPhases: true, stopMyBegin: false, stopOppEnd: false, format: 'unrestricted', edition: 'all', autoSkip: true, difficulty: 'normal', deckMeta: 'all', playmat: 5, haptics: true, pips: false, artView: true, lefty: false, ambient: true, onboarded: false };
 let cur = { ...DEFAULTS };
 const subs = new Set();
 const rd = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
@@ -15,6 +15,6 @@ export const animScale = () => (reducedMotion() ? 0.12 : { off: 0.05, fast: 0.5,
 export const haptic = (ms = 12) => { if (cur.haptics && navigator.vibrate) try { navigator.vibrate(ms); } catch {} };
 export function applyClasses() {
   const c = document.documentElement.classList;
-  c.toggle('nopips', !cur.pips); c.toggle('lefty', !!cur.lefty); c.toggle('reduced', reducedMotion());
+  c.toggle('nopips', !cur.pips); c.toggle('artbf', cur.artView !== false); c.toggle('lefty', !!cur.lefty); c.toggle('reduced', reducedMotion());
   window.__fxOff = reducedMotion() || cur.speed === 'off';
 }

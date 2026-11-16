@@ -31,3 +31,29 @@ html.phone #phases div.on{color:#ffcf94}
 /* 4. Running log: a soft plate behind the text and a brighter newest line. */
 #log{text-shadow:0 1px 2px #000,0 0 6px #000c}
 #log div:last-child{color:#f1e7c8}
+
+/* 5. Art view (setting "Art view on the battlefield", on by default): permanents show the card's art window enlarged,
+      with a colour frame and a name plate, the way Arena shows the battlefield. Hand, stack and previews keep the full card.
+      The image is zoomed 1.5x around the art and clipped back to the card box; nothing else about the card element changes. */
+.card .nm,.card .ty{display:none}
+html.artbf .row .card>img,html.artbf .misc .card>img{clip-path:inset(8.5% 16.67% 24.83% 16.67% round 5%);transform-origin:50% 41.83%;transform:translateY(8.17%) scale(1.5);box-shadow:none}
+html.artbf .row .card,html.artbf .misc .card{border-radius:calc(var(--cw)*.075);background:#0a0708}
+html.artbf .row .card::after,html.artbf .misc .card::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;
+  box-shadow:inset 0 0 0 calc(var(--cw)*.028) var(--fr,#9a8f80),inset 0 0 0 calc(var(--cw)*.045) #0009,inset 0 calc(var(--cw)*.5) calc(var(--cw)*.3) calc(var(--cw)*-.34) #000a,0 3px 9px #000a}
+html.artbf .card.fr-W{--fr:#e9dfb8}html.artbf .card.fr-U{--fr:#4b9be0}html.artbf .card.fr-B{--fr:#7b6a8c}html.artbf .card.fr-R{--fr:#de5a3e}
+html.artbf .card.fr-G{--fr:#49ad62}html.artbf .card.fr-M{--fr:#e3bb4d}html.artbf .card.fr-A{--fr:#a39887}html.artbf .card.fr-L{--fr:#b89f78}
+html.artbf .row .card>.nm,html.artbf .misc .card>.nm{display:block;position:absolute;left:5%;right:5%;top:4%;z-index:1;pointer-events:none;
+  font:700 calc(var(--cw)*.105)/1.15 Georgia,serif;color:#fff6dc;text-shadow:0 1px 2px #000,0 0 4px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left;letter-spacing:.2px}
+html.artbf .lands .card>.nm,html.artbf .misc .card>.nm{font-size:calc(var(--cw)*.115)}
+html.artbf .card.aura>img{clip-path:none;transform:none}
+/* dark plate over the lower third: hides the cropped rules text and carries the type, keyword chips and power/toughness */
+html.artbf .row .card::before,html.artbf .misc .card::before{content:"";position:absolute;left:0;right:0;bottom:0;height:33%;border-radius:0 0 calc(var(--cw)*.075) calc(var(--cw)*.075);pointer-events:none;z-index:1;
+  background:linear-gradient(#0b080900,#0b0809f2 26%,#0b0809);
+  background:linear-gradient(#0b080900,color-mix(in srgb,var(--fr,#9a8f80) 20%,#0d0a0b) 26%,color-mix(in srgb,var(--fr,#9a8f80) 9%,#0b0809))}
+html.artbf .row .card>:not(img):not(.aura),html.artbf .misc .card>:not(img):not(.aura){z-index:2}
+html.artbf .row .card::after,html.artbf .misc .card::after{z-index:3}
+html.artbf .row .card>.ty,html.artbf .misc .card>.ty{display:block;position:absolute;left:7%;right:7%;top:73.5%;pointer-events:none;
+  font:italic 400 calc(var(--cw)*.092)/1.1 Georgia,serif;color:#d9cfb4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left;text-shadow:0 1px 2px #000}
+html.artbf .card.aura::before{display:none}
+html.artbf .row .card>.pt,html.artbf .row .card>.dmg,html.artbf .misc .card>.pt{z-index:4}
+html.artbf .row .card>.pt,html.artbf .misc .card>.pt{right:4.5%;bottom:4%}

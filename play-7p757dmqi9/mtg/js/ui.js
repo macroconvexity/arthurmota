@@ -1,23 +1,23 @@
-import { Game, parseCost, makeRng } from './engine.js?v=20261116022551';
-import { decideStop } from './autopass.js?v=20261116022551';
-import { aiAct } from './ai.js?v=20261116022551';
-import { EFFECTS, abilitiesOf } from './cards.js?v=20261116022551';
-import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261116022551';
-import { initMenu, showApp, hideApp, costHtml, myDecks, myDeckCounts, setMyDeck } from './menu.js?v=20261116022551';
-import { askConfirm, askNumber, askPick, modal, askName, askDivide } from './dialog.js?v=20261116022551';
-import * as FX from './fx.js?v=20261116022551';
-import * as ST from './settings.js?v=20261116022551';
-import sfx from './sfx.js?v=20261116022551';
-import * as SC from './screens.js?v=20261116022551';
-import * as AI from './ai.js?v=20261116022551';
-import * as DK from './decks.js?v=20261116022551';
-import * as AN from './anim.js?v=20261116022551';
-import * as SX from './anim/status.js?v=20261116022551';
-import * as ZN from './anim/zones.js?v=20261116022551';
-import { tileHtml } from './decktile.js?v=20261116022551';
+import { Game, parseCost, makeRng } from './engine.js?v=20261116025351';
+import { decideStop } from './autopass.js?v=20261116025351';
+import { aiAct } from './ai.js?v=20261116025351';
+import { EFFECTS, abilitiesOf } from './cards.js?v=20261116025351';
+import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261116025351';
+import { initMenu, showApp, hideApp, costHtml, myDecks, myDeckCounts, setMyDeck } from './menu.js?v=20261116025351';
+import { askConfirm, askNumber, askPick, modal, askName, askDivide } from './dialog.js?v=20261116025351';
+import * as FX from './fx.js?v=20261116025351';
+import * as ST from './settings.js?v=20261116025351';
+import sfx from './sfx.js?v=20261116025351';
+import * as SC from './screens.js?v=20261116025351';
+import * as AI from './ai.js?v=20261116025351';
+import * as DK from './decks.js?v=20261116025351';
+import * as AN from './anim.js?v=20261116025351';
+import * as SX from './anim/status.js?v=20261116025351';
+import * as ZN from './anim/zones.js?v=20261116025351';
+import { tileHtml } from './decktile.js?v=20261116025351';
 const EDLABEL = (id) => (DK.EDITIONS || []).find((e) => e.id === id)?.label || { all: 'All Editions', LEA: 'Alpha', LEB: 'Beta', '2ED': 'Unlimited', ARN: 'Arabian Nights', ATQ: 'Antiquities', LEG: 'Legends' }[id] || id;
-import * as TG from './anim/targeting.js?v=20261116022551';
-import * as AMB from './anim/ambient.js?v=20261116022551';
+import * as TG from './anim/targeting.js?v=20261116025351';
+import * as AMB from './anim/ambient.js?v=20261116025351';
 AMB.init({ me: 0 });
 
 // animation speed setting (Fast/Normal/Slow, minimal under prefers-reduced-motion): scales every WAAPI duration/delay
@@ -136,7 +136,7 @@ async function openSettings() {
       <div class="setlbl">Animation speed</div>${seg('speed', [['off', 'Off'], ['fast', 'Fast'], ['normal', 'Normal'], ['slow', 'Slow']])}${ST.reducedMotion() ? '<small class="muted">Reduced motion is on in your system: animations stay minimal.</small>' : ''}
       <div class="setlbl">Auto-pass stops</div>${chk('respectPhases', 'In every step where I can cast or activate something')}${chk('stopOppSpell', 'When the opponent casts a spell I can answer')}${chk('stopMyBegin', 'In my upkeep and draw step')}${chk('stopOppEnd', 'At the opponent\'s end step')}${chk('autoSkip', 'Auto-skip phases when I have no actions')}
       <div class="setlbl">AI difficulty (next game)</div>${seg('difficulty', [['easy', 'Easy'], ['normal', 'Normal'], ['hard', 'Hard']])}<div class="setlbl">Edition (next game)</div><select data-k="edition" class="edsel">${((DK.EDITIONS) || [{ id: 'all', label: 'All Editions' }, { id: 'LEA', label: 'Alpha' }, { id: 'LEB', label: 'Beta' }, { id: '2ED', label: 'Unlimited' }, { id: 'ARN', label: 'Arabian Nights' }, { id: 'ATQ', label: 'Antiquities' }, { id: 'LEG', label: 'Legends' }]).map((e) => `<option value="${e.id}" ${v('edition') === e.id ? 'selected' : ''}>${e.label}</option>`).join('')}</select><div class="setlbl">Format (next game)</div>${seg('format', [['restricted', 'Restricted'], ['unrestricted', 'Unrestricted']])}<small class="muted">Restricted: Power 9, Sol Ring, Demonic Tutor, Balance... limited to 1 copy</small>
-      <div class="setlbl">Display</div>${chk('pips', 'Show mana costs on cards (phone)')}${isPhone() ? chk('lefty', 'Left-handed layout') + chk('ambient', 'Ambient playmat particles') : ''}${navigator.vibrate ? chk('haptics', 'Haptic feedback') : ''}
+      <div class="setlbl">Display</div>${chk('artView', 'Art view on the battlefield (Arena style)')}${chk('pips', 'Show mana costs on cards (phone)')}${isPhone() ? chk('lefty', 'Left-handed layout') + chk('ambient', 'Ambient playmat particles') : ''}${navigator.vibrate ? chk('haptics', 'Haptic feedback') : ''}
       ${mats.length ? `<div class="setlbl">Playmat</div><div class="mats">${mats.map((n) => `<button class="mat ${n === +v('playmat') ? 'sel' : ''}" data-n="${n}"><img src="${matUrl(n)}" draggable="false"><span>Playmat ${n}</span></button>`).join('')}</div>` : ''}
       <div class="dlgbtns"><button class="help">How to play</button>${g ? '<button class="leave">Leave game</button>' : ''}<button class="yes">Close</button></div>`;
     box.addEventListener('change', (e) => { const k = e.target.dataset.k; if (!k) return; ST.set(k, e.target.type === 'checkbox' ? e.target.checked : e.target.type === 'range' ? +e.target.value : e.target.value); applySettings(); });
@@ -321,13 +321,17 @@ function setLifeText(i, v, quiet) {
   if (!quiet && o !== null && o !== v) num.animate([{ transform: 'scale(1.7)', color: v < o ? '#ff6a55' : '#7dff9a' }, { transform: 'scale(1)', color: '#fff' }], { duration: 600, easing: 'ease-out' });
 }
 function permHtml(p, extra = '') {
-  const cls = ['card', p.tapped && 'tapped', p.sick && g.isCreature(p) && 'sick', g.combat.attackers.includes(p.id) && 'attacking', ...extra.split(' ')].filter(Boolean).join(' ');
+  const df = p.card.def, cl = df.colors || [];
+  const frame = 'fr-' + ((df.types || []).includes('Land') ? 'L' : cl.length > 1 ? 'M' : cl.length ? cl[0] : 'A');   // art-view frame colour (css/arena.css)
+  const cls = ['card', frame, p.tapped && 'tapped', p.sick && g.isCreature(p) && 'sick', g.combat.attackers.includes(p.id) && 'attacking', ...extra.split(' ')].filter(Boolean).join(' ');
+  const basic = (df.supertypes || []).includes('Basic');
+  const nm = `${basic ? '' : `<span class="nm">${esc(df.name)}</span>`}<span class="ty">${esc(basic ? df.name : (df.subtypes || []).length ? df.subtypes.join(' ') : (df.types || []).join(' '))}</span>`;
   let pt = '';
   const ptd = ptHtml(p); pt = ptd;
   const dm = '';
   const cn = Object.entries(p.counters || {}).filter(([, n]) => n).map(([k, n]) => `${n}× ${k}`).join(' · ');
   const auras = g.players.flatMap((pl) => pl.bf).filter((a) => a.attachedTo === p.id).map((a, i) => `<div class="card aura" data-id="${a.id}" data-kind="perm" style="--i:${i}">${IMG(a.card)}</div>`).join('');
-  return `<div class="${cls}" data-id="${p.id}" data-kind="perm">${auras}${IMG(p.card)}${g.isLand(p) ? '' : `<span class="ovl pips">${costHtml(p.card.def.manaCost)}</span>`}${pt}${dm}</div>`;
+  return `<div class="${cls}" data-id="${p.id}" data-kind="perm">${auras}${IMG(p.card)}${nm}${g.isLand(p) ? '' : `<span class="ovl pips">${costHtml(p.card.def.manaCost)}</span>`}${pt}${dm}</div>`;
 }
 function pile(list, label, pl, z = 'gy') {
   const top = list[list.length - 1];
