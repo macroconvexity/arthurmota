@@ -1951,7 +1951,11 @@
       var W = render.width || 0, H = render.height || 0;
       if (!n || !W || !H || !render.toScreen) return true;
       var m = render.margins || {}, PAD = 24, p = render.toScreen(n.x, n.y);
-      return p.x >= (m.left || 0) + PAD && p.x <= W - (m.right || 0) - PAD && p.y >= (m.top || 0) + PAD && p.y <= H - (m.bottom || 0) - PAD;
+      // laterais no retrato: fitView (render.js, PORT_SIDE_PX = 36) poe o no da borda a 36 px da borda da TELA, dentro
+      // da faixa antiga margem 28 + 24 = 52; aqui vale a tela menos 24 px (< 36), senao a camera anda sob o dedo ao
+      // comecar a rua num no da borda. Paisagem e topo/base (faixas do HUD) como antes
+      var sl = H > W ? PAD : (m.left || 0) + PAD, sr = H > W ? PAD : (m.right || 0) + PAD;
+      return p.x >= sl && p.x <= W - sr && p.y >= (m.top || 0) + PAD && p.y <= H - (m.bottom || 0) - PAD;
     }
     // o no mais perto do polegar (centro do ladrilho; sem ladrilho, meio da base) esta na tela e fora do HUD?
     function originVisible(tileEl) {
