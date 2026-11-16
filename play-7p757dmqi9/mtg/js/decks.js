@@ -1,5 +1,5 @@
-import { isImplemented } from './cards.js?v=20261115163807';
-import { LISTS_90S, META_90S } from './decks90s.js?v=20261115163807';
+import { isImplemented } from './cards.js?v=20261116022551';
+import { LISTS_90S, META_90S } from './decks90s.js?v=20261116022551';
 
 // BEGIN GENERATED DECKS (node test/build_decks.mjs --write)
 export const DECK_LISTS = {

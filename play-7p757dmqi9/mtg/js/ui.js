@@ -1,23 +1,23 @@
-import { Game, parseCost, makeRng } from './engine.js?v=20261115163807';
-import { decideStop } from './autopass.js?v=20261115163807';
-import { aiAct } from './ai.js?v=20261115163807';
-import { EFFECTS, abilitiesOf } from './cards.js?v=20261115163807';
-import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261115163807';
-import { initMenu, showApp, hideApp, costHtml, myDecks, myDeckCounts, setMyDeck } from './menu.js?v=20261115163807';
-import { askConfirm, askNumber, askPick, modal, askName, askDivide } from './dialog.js?v=20261115163807';
-import * as FX from './fx.js?v=20261115163807';
-import * as ST from './settings.js?v=20261115163807';
-import sfx from './sfx.js?v=20261115163807';
-import * as SC from './screens.js?v=20261115163807';
-import * as AI from './ai.js?v=20261115163807';
-import * as DK from './decks.js?v=20261115163807';
-import * as AN from './anim.js?v=20261115163807';
-import * as SX from './anim/status.js?v=20261115163807';
-import * as ZN from './anim/zones.js?v=20261115163807';
-import { tileHtml } from './decktile.js?v=20261115163807';
+import { Game, parseCost, makeRng } from './engine.js?v=20261116022551';
+import { decideStop } from './autopass.js?v=20261116022551';
+import { aiAct } from './ai.js?v=20261116022551';
+import { EFFECTS, abilitiesOf } from './cards.js?v=20261116022551';
+import { buildDeck, buildDeckFrom, indexCards, DECK_LISTS, coverage } from './decks.js?v=20261116022551';
+import { initMenu, showApp, hideApp, costHtml, myDecks, myDeckCounts, setMyDeck } from './menu.js?v=20261116022551';
+import { askConfirm, askNumber, askPick, modal, askName, askDivide } from './dialog.js?v=20261116022551';
+import * as FX from './fx.js?v=20261116022551';
+import * as ST from './settings.js?v=20261116022551';
+import sfx from './sfx.js?v=20261116022551';
+import * as SC from './screens.js?v=20261116022551';
+import * as AI from './ai.js?v=20261116022551';
+import * as DK from './decks.js?v=20261116022551';
+import * as AN from './anim.js?v=20261116022551';
+import * as SX from './anim/status.js?v=20261116022551';
+import * as ZN from './anim/zones.js?v=20261116022551';
+import { tileHtml } from './decktile.js?v=20261116022551';
 const EDLABEL = (id) => (DK.EDITIONS || []).find((e) => e.id === id)?.label || { all: 'All Editions', LEA: 'Alpha', LEB: 'Beta', '2ED': 'Unlimited', ARN: 'Arabian Nights', ATQ: 'Antiquities', LEG: 'Legends' }[id] || id;
-import * as TG from './anim/targeting.js?v=20261115163807';
-import * as AMB from './anim/ambient.js?v=20261115163807';
+import * as TG from './anim/targeting.js?v=20261116022551';
+import * as AMB from './anim/ambient.js?v=20261116022551';
 AMB.init({ me: 0 });
 
 // animation speed setting (Fast/Normal/Slow, minimal under prefers-reduced-motion): scales every WAAPI duration/delay
@@ -237,8 +237,12 @@ function resumeGame() {
   } catch (e) { console.warn('resume failed', e); clearSave(); g = null; window.g = null; showApp(); }
 }
 // ---------- game log drawer ----------
+// The engine logs "<name> <verb>s ..."; for the player named You that reads "You wins". Conjugate at display time.
+const YOU_IRREG = { is: 'are', has: 'have', does: 'do', goes: 'go', passes: 'pass', taps: 'tap', untaps: 'untap', discards: 'discard', misses: 'miss', searches: 'search', loses: 'lose', chooses: 'choose', reaches: 'reach', watches: 'watch' };
+const youVerb = (v) => YOU_IRREG[v] || (/(ss|sh|ch|x|z|o)es$/.test(v) ? v.slice(0, -2) : /ies$/.test(v) ? v.slice(0, -3) + 'y' : v.slice(0, -1));
+const youSay = (t) => String(t ?? '').replace(/(^|[.:] )You ([a-z]+s)\b([^.]*)/g, (m, a, v, rest) => `${a}You ${youVerb(v)}${rest.replace(/ and (plays|draws|loses|gains|discards|puts|takes|casts|sacrifices|taps|untaps|shuffles|keeps|returns|destroys|reveals)\b/g, (x, w) => ` and ${youVerb(w)}`)}`);
 let logOpen = false;
-function logLines() { const L = g?.logEvents; if (Array.isArray(L) && L.length) return L.map((x) => (typeof x === 'string' ? x : x.text || x.msg || x.message || '')); return g?.log || []; }
+function logLines() { const L = g?.logEvents; if (Array.isArray(L) && L.length) return L.map((x) => youSay(typeof x === 'string' ? x : x.text || x.msg || x.message || '')); return g?.log || []; }
 let nameRe = null;
 function linkify(t) {
   if (!nameRe) { const ns = Object.keys(byName || {}).sort((a, b) => b.length - a.length).map((n) => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')); nameRe = ns.length ? new RegExp('(' + ns.join('|') + ')', 'g') : /$^/; }
@@ -249,8 +253,8 @@ function renderLog() {
   const ev = g?.logEvents; let html = '';
   if (Array.isArray(ev) && ev.length && typeof ev[0] === 'object') {
     let turn = null;
-    for (const x of ev.slice(-300)) { if (x.turn !== turn) { turn = x.turn; html += `<div class="lturn">Turn ${turn}${x.player != null && x.kind === 'turn' ? ` · ${x.player === ME ? 'You' : 'Opponent'}` : ''}</div>`; } if (x.kind === 'turn') continue; html += `<div class="lk-${x.kind} lp${x.player ?? ''}">${linkify(x.text || '')}</div>`; }
-  } else html = logLines().slice(-120).map((l) => `<div>${linkify(l)}</div>`).join('');
+    for (const x of ev.slice(-300)) { if (x.turn !== turn) { turn = x.turn; html += `<div class="lturn">Turn ${turn}${x.player != null && x.kind === 'turn' ? ` · ${x.player === ME ? 'You' : 'Opponent'}` : ''}</div>`; } if (x.kind === 'turn') continue; html += `<div class="lk-${x.kind} lp${x.player ?? ''}">${linkify(youSay(x.text || ''))}</div>`; }
+  } else html = logLines().slice(-120).map((l) => `<div>${linkify(youSay(l))}</div>`).join('');
   if (ll.dataset.h !== html) { ll.dataset.h = html; ll.innerHTML = html; ll.scrollTop = ll.scrollHeight; }
 }
 function closeLog() { logOpen = false; $('logdrawer')?.classList.remove('on'); }
@@ -386,7 +390,7 @@ function renderRaw() {
   const curPh = PHASES.findIndex((p) => p[2].includes(g.step)); $('stage').classList.toggle('lowme', g.players[ME].life <= 5 && !g.winner); $('stage').classList.toggle('lowopp', g.players[1].life <= 5 && !g.winner);
   setHtml('phases', PHASES.map((p, i) => `<div data-ph="${p[0]}" class="${i === curPh ? 'on' : i < curPh ? 'done' : ''} ${holdPh === p[0] ? 'hold' : ''}">${p[1]}</div>`).join(''));
   $('turnno').textContent = g.turn; phaseMark();
-  $('log').innerHTML = g.log.slice(-7).map((l) => `<div>${l}</div>`).join('');
+  $('log').innerHTML = g.log.slice(-7).map((l) => `<div>${youSay(l)}</div>`).join('');
   renderStack();
   decorate();
   buttons();

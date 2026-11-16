@@ -38,17 +38,17 @@ const TRIGGERS_BASE = {
   'Hypnotic Specter': { onDamagePlayer: (g, perm, target) => g.discardRandom(target.id) },
 };
 
-import * as white from './cards/white.js?v=20261115163807';
-import * as blue from './cards/blue.js?v=20261115163807';
-import * as black from './cards/black.js?v=20261115163807';
-import * as red from './cards/red.js?v=20261115163807';
-import * as green from './cards/green.js?v=20261115163807';
-import * as artifacts from './cards/artifacts.js?v=20261115163807';
-import * as lands from './cards/lands.js?v=20261115163807';
-import * as enchantments from './cards/enchantments.js?v=20261115163807';
-import * as goldA from './cards/gold_a.js?v=20261115163807';
-import * as goldB from './cards/gold_b.js?v=20261115163807';
-import * as artifactsB from './cards/artifacts_b.js?v=20261115163807';
+import * as white from './cards/white.js?v=20261116022551';
+import * as blue from './cards/blue.js?v=20261116022551';
+import * as black from './cards/black.js?v=20261116022551';
+import * as red from './cards/red.js?v=20261116022551';
+import * as green from './cards/green.js?v=20261116022551';
+import * as artifacts from './cards/artifacts.js?v=20261116022551';
+import * as lands from './cards/lands.js?v=20261116022551';
+import * as enchantments from './cards/enchantments.js?v=20261116022551';
+import * as goldA from './cards/gold_a.js?v=20261116022551';
+import * as goldB from './cards/gold_b.js?v=20261116022551';
+import * as artifactsB from './cards/artifacts_b.js?v=20261116022551';
 
 // enchantments first: a colour module that defines the same card wins
 const MODULES = [enchantments, white, blue, black, red, green, artifacts, lands, goldA, goldB, artifactsB];
