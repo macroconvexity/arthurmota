@@ -497,7 +497,11 @@
     function usable() {
       var m = r.margins || {};
       var ml = m.left || 0, mr = m.right || 0, mt = m.top || 0, mb = m.bottom || 0;
-      var sh = Math.min(1, (H * 0.45) / Math.max(1, mt + mb)), sw = Math.min(1, (W * 0.45) / Math.max(1, ml + mr));
+      // retrato: o HUD real (topo + bandeja + faixa do Skip ahead) chega a ~60% da altura no iPhone SE (667 px); o teto
+      // antigo de 45% encolhia as margens proporcionalmente e as ruas passavam por baixo do chip. Em retrato o teto
+      // sobe para 66% (sobra >= 34% da altura para o mapa); paisagem e largura seguem 45%
+      var capH = H > W ? 0.66 : 0.45;
+      var sh = Math.min(1, (H * capH) / Math.max(1, mt + mb)), sw = Math.min(1, (W * 0.45) / Math.max(1, ml + mr));
       ua.l = ml * sw; ua.r = mr * sw; ua.t = mt * sh; ua.b = mb * sh;
       ua.w = Math.max(40, W - ua.l - ua.r); ua.h = Math.max(40, H - ua.t - ua.b);
       // HUD mudou (ui.js reescreveu as margens): o botao de enquadrar pode ter andado, rele na proxima consulta

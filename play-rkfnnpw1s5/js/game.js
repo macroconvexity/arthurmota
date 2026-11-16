@@ -10,6 +10,9 @@
   var CLEAR = 26;               // folga minima entre estradas nao ligadas
   var PLACEABLE = { stop: 1, yield: 1, light: 1, round: 1, cross: 1 };
   var DEG45 = Math.PI / 4;
+  // Undo no save: teto de entradas e de caracteres (uma foto do mapa do dia 12 tem ~2 mil caracteres; 400 mil
+  // deixam folga para ~200 delas sem ameacar a cota do localStorage). Passou do teto no save: saem as mais antigas.
+  var UNDO_MAX = 200, UNDO_CHARS = 400000;
 
   // ---------- utilidades ----------
   function own(o, k) { return typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k); }
@@ -1364,6 +1367,17 @@
       return function () { var i = listeners.indexOf(fn); if (i >= 0) listeners.splice(i, 1); };
     };
 
+    // pilha do Undo para o save: so no plano (no run ela ja foi zerada); das mais novas para as mais antigas ate o teto
+    function undoForSave() {
+      if (st.phase !== 'plan' || !undoStack.length) return undefined;
+      var list = [], chars = 40, i, n;
+      for (i = undoStack.length - 1; i >= 0 && list.length < UNDO_MAX; i--) {
+        n = JSON.stringify(undoStack[i]).length + 1;
+        if (chars + n > UNDO_CHARS) break;
+        chars += n; list.unshift(undoStack[i]);
+      }
+      return list.length ? { day: st.day, list: list } : undefined;
+    }
     g.save = function () {
       return clone({
         v: 1, diff: CFG.difficultyName, seed: seed, rngCalls: rngCalls, world: world.snapshot(),
@@ -1377,7 +1391,7 @@
           teach: st.phase === 'run' ? { day3Convoy: false, seen: teachSeen, target: null, sent: 0 } : st.teach, tipCarry: st.tipCarry, speedBonus: st.speedBonus,
           speedApplied: st.speedDial.applied, lastLock: lastLock
         },
-        cards: activeCards, placed: placed, hot: hot, hotMap: st.hot
+        cards: activeCards, placed: placed, hot: hot, hotMap: st.hot, undo: undoForSave()
       });
     };
 
@@ -1400,6 +1414,11 @@
       st.dayTime = s.dayTime || 0; st.dayLen = CFG.dayLen[st.day - 1];
       activeCards = saved.cards || []; st.cards = activeCards.slice();
       placed = saved.placed || {}; hot = saved.hot || {};
+      // Undo do plano de hoje (Game.load ja conferiu ou tirou d.undo): mesmas fotos, mesma ordem, mesmos reembolsos
+      undoStack = (saved.undo && st.phase === 'plan') ? saved.undo.list.map(function (e) {
+        return { layout: e.layout, budget: e.budget, placed: e.placed, free: { road: e.free.road, light: e.free.light },
+                 die: normDie(e.die, st.day), rerolled: e.rerolled };
+      }) : [];
       st.hot = saved.hotMap || {};
       syncModes(st.phase === 'plan' ? CFG.clear.charges : 0);
       // save antigo sem a marca: se o dia ja passou da liberacao, o aviso ja foi visto
@@ -1484,7 +1503,7 @@
   }
   function validSave(d) {
     if (!d || d.v !== 1 || !isObj(d.world) || !isObj(d.st)) return false;
-    var s = d.st, w = d.world, i;
+    var s = d.st, i;
     if (!nat(d.seed) || !nat(d.rngCalls) || d.rngCalls > 5000000) return false;
     if (!nat(s.day) || s.day < 1 || s.day > CFG.maxDays) return false;
     if (s.phase !== 'plan' && s.phase !== 'summary' && s.phase !== 'over') return false;
@@ -1540,20 +1559,32 @@
     if (!Array.isArray(cards) || cards.length > 1) return false;
     for (i = 0; i < cards.length; i++) if (!cardOk(cards[i])) return false;
     // gratuidade: so de carta ou do dado de hoje (free 'light' vira 'road' antes do semaforo)
-    var dfree = null;
-    if (s.phase === 'plan') {
-      var doc = outcomeById(diceTable(s.day), s.die.id);
-      if (doc && doc.free === 'light') dfree = s.day >= CFG.tools.light.unlockDay ? 'light' : 'road';
-      else if (doc && doc.free === 'road') dfree = 'road';
-    }
-    if ((s.free.road && cards.indexOf('freeRoad') < 0 && dfree !== 'road') ||
-        (s.free.light && cards.indexOf('freeLight') < 0 && dfree !== 'light')) return false;
+    if (!freeOk(s.free, s.phase === 'plan' ? s.die : null, s.day, cards)) return false;
     var maps = [d.placed, d.hot, d.hotMap], m, k;
     for (m = 0; m < 3; m++) {
       if (maps[m] === undefined) continue;
       if (!isObj(maps[m])) return false;
       for (k in maps[m]) if (!fin(maps[m][k]) || maps[m][k] < 0 || (m > 0 && maps[m][k] > 1)) return false;
     }
+    return worldOk(d.world);
+  }
+  function freeOk(free, die, day, cards) {
+    var dfree = null;
+    if (die) {
+      var doc = outcomeById(diceTable(day), die.id);
+      if (doc && doc.free === 'light') dfree = day >= CFG.tools.light.unlockDay ? 'light' : 'road';
+      else if (doc && doc.free === 'road') dfree = 'road';
+    }
+    return !((free.road && cards.indexOf('freeRoad') < 0 && dfree !== 'road') ||
+             (free.light && cards.indexOf('freeLight') < 0 && dfree !== 'light'));
+  }
+  function budgetCap(s) {
+    return CFG.budget[s.day - 1] + CFG.carryCap + 2 + maxDieBudget(diceTable(s.day)) + (s.speedApplied || 0);
+  }
+  // mundo de save ou de uma entrada do Undo: as mesmas regras que o Sim garante em mundo valido
+  function worldOk(w) {
+    var i;
+    if (!isObj(w)) return false;
     // mundo (Sim real: arrays; o stub dos testes guarda mapas por id)
     var wn = Array.isArray(w.nodes) ? w.nodes : (isObj(w.nodes) ? Object.keys(w.nodes).map(function (q) { return w.nodes[q]; }) : null);
     var we = Array.isArray(w.edges) ? w.edges : (isObj(w.edges) ? Object.keys(w.edges).map(function (q) { return w.edges[q]; }) : null);
@@ -1613,6 +1644,26 @@
     }
     return true;
   }
+  // Undo no save (d.undo = { day, list }): opcional e a parte. Save antigo sem o campo: pilha vazia. Campo
+  // corrompido, grande demais ou de outro dia/fase: sai em silencio e o resto do save segue valendo (chamado
+  // depois de validSave, entao d.st ja foi conferido). Cada entrada e a foto que capture() tirou.
+  function undoOk(d) {
+    var u = d.undo, s = d.st, i;
+    if (!isObj(u) || s.phase !== 'plan' || u.day !== s.day || !Array.isArray(u.list)) return false;
+    if (u.list.length < 1 || u.list.length > UNDO_MAX || JSON.stringify(u).length > UNDO_CHARS) return false;
+    var cards = Array.isArray(d.cards) ? d.cards : [], cap = budgetCap(s), k;
+    for (i = 0; i < u.list.length; i++) {
+      var e = u.list[i];
+      if (!isObj(e) || !nat(e.budget) || e.budget > cap || !isObj(e.free) || !isObj(e.placed)) return false;
+      if (typeof e.free.road !== 'boolean' || typeof e.free.light !== 'boolean' || typeof e.rerolled !== 'boolean') return false;
+      if (!dieOk(e.die, s.day) || !freeOk(e.free, e.die, s.day, cards)) return false;
+      for (k in e.placed) if (!/^\d+$/.test(k) || !fin(e.placed[k]) || e.placed[k] < 0) return false;
+      var L = e.layout;
+      if (!isObj(L) || (L.nextNode !== undefined && !nat(L.nextNode)) || (L.nextEdge !== undefined && !nat(L.nextEdge))) return false;
+      if (!worldOk(L)) return false;
+    }
+    return true;
+  }
 
   CRZ.Game = {
     _teach: TEACH,   // ajuste fino (testes/simulacao); valores finais propostos em NOTES_GAME.md
@@ -1625,6 +1676,7 @@
         if (d && d.diff !== undefined && CFG.difficultyName && d.diff !== CFG.difficultyName) return null;
         normSave(d);
         if (!validSave(d)) return null;
+        if (d.undo !== undefined) { var uOk = false; try { uOk = undoOk(d); } catch (e2) { uOk = false; } if (!uOk) delete d.undo; }
         return build(d.seed, d);
       } catch (e) { return null; }
     }
