@@ -58,3 +58,9 @@ html.artbf .row .card>.ty,html.artbf .misc .card>.ty{display:block;position:abso
 html.artbf .card.aura::before{display:none}
 html.artbf .row .card>.pt,html.artbf .row .card>.dmg,html.artbf .misc .card>.pt{z-index:4}
 html.artbf .row .card>.pt,html.artbf .misc .card>.pt{right:4.5%;bottom:4%}
+
+/* 6. Menus (2026-11-16). Decks and Collection sit on the dark leather table instead of the Black Lotus painting,
+      so the cards are the only bright thing on screen. Home keeps the Lotus. */
+#app[data-view=collection],#app[data-view=decks]{background:linear-gradient(#0002,#0006),url(../assets/ui/collection_bg.jpg) center/cover no-repeat #120a08}
+/* the edition row scrolls sideways; fade its right edge so the cut-off chip reads as "more this way" */
+.edrow{-webkit-mask-image:linear-gradient(90deg,#000 86%,#0000);mask-image:linear-gradient(90deg,#000 86%,#0000);padding-right:26px}
