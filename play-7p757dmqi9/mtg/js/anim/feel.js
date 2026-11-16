@@ -4,7 +4,7 @@
 //   soul               : a dying creature's light travels to its graveyard
 // (Declared-block lines live in ui.js, drawDeclared.) DOM/WAAPI only, no assets. Everything is skipped when
 // window.__fxOff is set; Element.animate durations are scaled by the wrapper in ui.js.
-import * as FX from '../fx.js?v=20261116113748';
+import * as FX from '../fx.js?v=20261116114447';
 const off = () => !!window.__fxOff;
 const rnd = (a, b) => a + Math.random() * (b - a);
 const layer = () => document.getElementById('fx') || Object.assign(document.body.appendChild(document.createElement('div')), { id: 'fx' });
