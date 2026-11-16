@@ -1,9 +1,9 @@
-import { isImplemented } from './cards.js?v=20261116031214';
-import { DECK_LISTS, DECK_META, copyLimit as rawLimit, RESTRICTED, isLegal, deckGroup } from './decks.js?v=20261116031214';
-import * as DKN from './decks.js?v=20261116031214';
-import { tileHtml, colorsOf } from './decktile.js?v=20261116031214';
-import * as ST from './settings.js?v=20261116031214';
-import { askConfirm, askText, modal } from './dialog.js?v=20261116031214';
+import { isImplemented } from './cards.js?v=20261116031450';
+import { DECK_LISTS, DECK_META, copyLimit as rawLimit, RESTRICTED, isLegal, deckGroup } from './decks.js?v=20261116031450';
+import * as DKN from './decks.js?v=20261116031450';
+import { tileHtml, colorsOf } from './decktile.js?v=20261116031450';
+import * as ST from './settings.js?v=20261116031450';
+import { askConfirm, askText, modal } from './dialog.js?v=20261116031450';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[m]));
@@ -225,7 +225,7 @@ function filterBar(building) {
   const colorChips = COLORS.map((c) => `<button class="cf ${c} ${F.colors.has(c) ? 'on' : ''}" data-g="color" data-v="${c}" title="${c === 'M' ? 'Multicolor' : c === 'C' ? 'Colorless' : { W: 'White', U: 'Blue', B: 'Black', R: 'Red', G: 'Green' }[c]}" aria-label="${c}"></button>`).join('');
   const opts = (o, cur) => Object.entries(o).map(([k, v]) => `<option value="${k}" ${k === cur ? 'selected' : ''}>${v}</option>`).join('');
   return `<div class="ftop">
-    <div class="search"><input id="q" placeholder="Search name or text…" value="${esc(F.q)}"><svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="M15 15l6 6"/></svg></div>
+    <div class="search"><input id="q" placeholder="Search cards…" value="${esc(F.q)}"><svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="M15 15l6 6"/></svg></div>
     <label class="sortl">Sort <select id="fsort">${opts(SORTS, F.sort)}</select></label>
     <button class="fbtn" data-fb="1">Filters<b id="fcnt"></b></button>
     <span class="rescount" id="rescount"></span>
