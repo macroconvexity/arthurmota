@@ -1661,14 +1661,13 @@
       try {
         if (!doc.getElementById || doc.getElementById('crz-ui-walk3') || !doc.head) return;
         var sty = doc.createElement('style'); sty.id = 'crz-ui-walk3';
-        sty.textContent = '.crz-pchip{position:absolute;left:0;top:0;width:' + PCHIP_W + 'px;height:' + PCHIP_H + 'px;border-radius:22px;z-index:3;' +
-          'background:var(--white,#fff);color:var(--ink,#111);border:2px solid var(--ink,#111);font-size:14px;font-weight:800;padding:0 10px;' +
-          'box-shadow:0 2px 8px rgba(0,0,0,.18);pointer-events:auto;white-space:nowrap}' +
-          '.crz-pchip.armed{background:var(--ink,#111);color:var(--white,#fff)}' +
-          '.crz-pchip:active{transform:scale(.96)}@media (prefers-reduced-motion: reduce){.crz-pchip:active{transform:none}}' +
-          '.crz-lastchip{margin-left:6px;padding:2px 7px;border-radius:9px;background:var(--red,#d33);color:#fff;font-size:11px;' +
-          'font-weight:800;line-height:1.3;white-space:nowrap}' +
-          '.crz-sclose{width:100%;font-size:14px;line-height:1.35;font-weight:700;color:var(--ink,#111);text-align:center}';
+        sty.textContent = '.crz-pchip{position:absolute;left:0;top:0;width:' + PCHIP_W + 'px;height:' + PCHIP_H + 'px;border-radius:var(--r-pill);z-index:3;' +
+          'background:var(--white);color:var(--ink);border:var(--bw-2) solid var(--ink);font-size:var(--fs-sm);font-weight:var(--fw-bold);padding:0 10px;' +
+          'box-shadow:var(--shadow-1);pointer-events:auto;white-space:nowrap}' +
+          '.crz-pchip.armed{background:var(--ink);color:var(--white)}' +
+                    '.crz-lastchip{margin-left:6px;padding:2px 7px;border-radius:var(--r-pill);background:var(--red);color:var(--white);font-size:var(--fs-xs);' +
+          'font-weight:var(--fw-bold);line-height:1.3;white-space:nowrap}' +
+          '.crz-sclose{width:100%;font-size: var(--fs-md);line-height:1.35;font-weight: var(--fw-bold);color:var(--ink);text-align:center}';
         doc.head.appendChild(sty);
       } catch (e) {}
     })();
@@ -1854,7 +1853,21 @@
     }
     function closeGuide() {
       if (!guideEl) return;
-      if (guideEl.parentNode) guideEl.parentNode.removeChild(guideEl);
+      // polimento 3: o no sai do DOM na hora (fechado = fora da arvore, sem toque); uma copia muda, aria-hidden e
+      // sem toque, desce 12 px e some em 160 ms. Sem cloneNode (teste) ou com movimento reduzido: corte seco
+      var gpar = guideEl.parentNode;
+      if (gpar) {
+        try {
+          if (typeof guideEl.cloneNode === 'function' && canCount()) {
+            var ghost = guideEl.cloneNode(true);
+            ghost.className = 'crz-guide crz-leaving';
+            ghost.setAttribute('aria-hidden', 'true'); ghost.removeAttribute('role'); ghost.removeAttribute('aria-modal'); ghost.removeAttribute('aria-label');
+            gpar.insertBefore(ghost, guideEl);
+            later(function () { if (ghost.parentNode) ghost.parentNode.removeChild(ghost); }, 200);
+          }
+        } catch (e) {}
+        gpar.removeChild(guideEl);
+      }
       guideEl = null;
       // M2/B3 c: o guia tira so a propria posse; a classe fica se o menu, o dado ou o tutorial ainda a seguram
       if (doc.body && doc.body.classList) doc.body.classList.remove('crz-guide-on');
@@ -2758,12 +2771,12 @@
       try {
         if (!doc.getElementById || doc.getElementById('crz-ui-newj') || !doc.head) return;
         var sty = doc.createElement('style'); sty.id = 'crz-ui-newj';
-        sty.textContent = '.crz-njchip{align-self:center;display:flex;align-items:center;gap:6px;min-height:36px;padding:2px 12px 2px 10px;' +
-          'border-radius:18px;border:1.5px dotted #7a6aa8;background:var(--white,#fff);color:#5a4c88;font-size:13px;font-weight:800;pointer-events:auto;position:relative}' +
-          '.crz-njchip::before{content:"";width:8px;height:8px;border-radius:50%;background:#7a6aa8;flex:none}' +
+        sty.textContent = '.crz-njchip{align-self:center;display:flex;align-items:center;gap:6px;min-height:var(--h-chip);padding:2px 12px 2px 10px;' +
+          'border-radius:var(--r-pill);border:var(--bw) dotted var(--new);background:var(--white);color:var(--new-text);font-size:var(--fs-sm);font-weight:var(--fw-bold);pointer-events:auto;position:relative}' +
+          '.crz-njchip::before{content:"";width:8px;height:8px;border-radius: 50%;background:var(--new);flex:none}' +
           '.crz-njchip::after{content:"";position:absolute;left:50%;top:50%;width:100%;height:100%;min-height:44px;transform:translate(-50%,-50%)}' +
-          '.crz-play.crz-ask{box-shadow:0 0 0 3px #7a6aa8}' +
-          '@media (prefers-reduced-motion: no-preference){.crz-play.crz-ask{animation:crz-njask 1s ease-in-out 3}}' +
+          '.crz-play.crz-ask{box-shadow:0 0 0 3px var(--new)}' +
+          '@media (prefers-reduced-motion: no-preference){.crz-play.crz-ask{animation:crz-njask var(--t-ring) ease-in-out 3}}' +
           '@keyframes crz-njask{50%{box-shadow:0 0 0 7px rgba(95,122,150,.35)}}';
         doc.head.appendChild(sty);
       } catch (e) {}
@@ -3265,6 +3278,34 @@
     // ---- dado do dia: folha com hoje, amanha e relancar ----
     function reducedMotion() {
       try { return !!(root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches); } catch (e) { return false; }
+    }
+    // polimento 3: numeros que mudam contam ate o valor em 300 ms (pontos, carros do dia, bonus, fim de jogo).
+    // Sem como animar (teste em Node, ?manual do robo, aba escondida, movimento reduzido) o valor final entra na hora.
+    // O valor final fica sempre em data-val; um pedido novo cancela a contagem em curso do mesmo elemento.
+    var COUNT_MS = 300, countManual = false;
+    try { countManual = /[?&]manual(=|&|$)/.test(String(root.location && root.location.search || '')); } catch (e) {}
+    function canCount() {
+      return !countManual && typeof root.requestAnimationFrame === 'function' && !!root.performance && typeof root.performance.now === 'function' &&
+        !!doc.documentElement && !doc.hidden && !reducedMotion();
+    }
+    function countTo(elx, from, to, fmt) {
+      if (!elx) return;
+      to = +to || 0; from = +from || 0;
+      fmt = fmt || function (v) { return String(v); };
+      elx.__crzCount = (elx.__crzCount | 0) + 1;
+      var my = elx.__crzCount;
+      try { if (elx.setAttribute) elx.setAttribute('data-val', String(to)); } catch (e) {}
+      if (from === to || !canCount()) { elx.textContent = fmt(to); return; }
+      var t0 = root.performance.now();
+      elx.textContent = fmt(from);
+      (function step() {
+        root.requestAnimationFrame(function (t) {
+          if (elx.__crzCount !== my) return;                 // outro valor chegou: esta contagem morre
+          var k = Math.min(1, Math.max(0, ((+t || root.performance.now()) - t0) / COUNT_MS)), e = 1 - Math.pow(1 - k, 3);
+          elx.textContent = fmt(k >= 1 ? to : Math.round(from + (to - from) * e));
+          if (k < 1) step();
+        });
+      })();
     }
     function positionSheet() {
       try {
@@ -3857,6 +3898,10 @@
         // o numero (maior e mais forte que o rotulo do dado) e o rotulo fixo 'Build points' em cima
         h += '<b class="crz-ptn">' + bb + '</b><span class="crz-lbl crz-lbl-bp" aria-hidden="true">' + STR.lblBp + '</span>';
         budgetEl.innerHTML = h;
+        // polimento 3: o numero dos pontos conta do valor anterior ao novo (no mesmo dia; na troca de dia entra direto)
+        if (typeof cache.budget === 'number' && cache.budget !== bb && cache.day === s.day && budgetEl.querySelector) {
+          try { countTo(budgetEl.querySelector('.crz-ptn'), cache.budget, bb); } catch (e) {}
+        }
       }
       var cu = s.phase === 'plan' && game.canUndo();
       if (cu !== cache.undo) { undoBtn.classList.toggle('off', !cu); }
@@ -3870,7 +3915,7 @@
       picked = false;
       var hl = sm.headline || '';
       headEl.textContent = hl; headEl.classList.toggle('gone', !hl);
-      bigEl.textContent = String(sm.delivered | 0);
+      countTo(bigEl, 0, sm.delivered | 0);
       // ontem: state.history ja inclui hoje; compara com a entrada anterior
       var hs = s.history || [], prevD = null;
       if (hs.length) {
@@ -3911,7 +3956,8 @@
       bonusEl.textContent = bTxt;
       bonusEl.classList.toggle('gone', !bTxt);
       // (A2) o valor na barra, a direita; a linha verde de texto nao aparece mais (fica para o (i))
-      bonusVal.textContent = sm.speedBonus > 0 ? STR.bvalPlus(sm.speedBonus, lastDayOf(s)) : (pp > 0 ? Math.min(pp - 1, Math.floor(+sm.tipCarry || 0)) + '/' + pp : '');
+      if (sm.speedBonus > 0) { var lastB = lastDayOf(s); countTo(bonusVal, 0, sm.speedBonus | 0, function (v) { return STR.bvalPlus(v, lastB); }); }
+      else { bonusVal.__crzCount = (bonusVal.__crzCount | 0) + 1; bonusVal.textContent = pp > 0 ? Math.min(pp - 1, Math.floor(+sm.tipCarry || 0)) + '/' + pp : ''; }
       // (A1) strikes no resumo so no dia que teve strike (os circulos ja estao no topo)
       strikeRow.classList.toggle('gone', !sm.failed);
       var half = (s.day | 0) === 6 && !seen('half6');
@@ -4012,7 +4058,7 @@
       var win = typeof f.win === 'boolean' ? f.win : (overWin === null ? (s.strikes < CFG.maxStrikes) : overWin);
       var days = f.days != null ? f.days : s.day, deliv = f.delivered != null ? f.delivered : s.totalDelivered;
       var stk = f.strikes != null ? f.strikes : s.strikes;
-      statNums[0].textContent = String(days | 0); statNums[1].textContent = String(deliv | 0); statNums[2].textContent = String(stk | 0);
+      statNums[0].textContent = String(days | 0); countTo(statNums[1], 0, deliv | 0); statNums[2].textContent = String(stk | 0);
       overTitle.textContent = win ? STR.win : STR.lose;
       // primeira vitoria no Easy: 'Try Normal' (contorno, abaixo de Play again)
       var dName = (CRZ.difficulty && CRZ.difficulty.name) || CFG.difficultyName || 'easy';
@@ -4094,6 +4140,7 @@
     function syncLastChip(s) {
       var on = lastDayOf(s) && (s.phase === 'plan' || s.phase === 'run');
       if (on === lastChipEl.classList.contains('gone')) lastChipEl.classList.toggle('gone', !on);
+      if (top.classList && on !== top.classList.contains('crz-last')) top.classList.toggle('crz-last', on);   // polimento 1: o dado abre espaco para o chip
     }
 
     function saveNow() {
@@ -4513,6 +4560,12 @@
         if (sOn) { try { var sr = sayEl.getBoundingClientRect(); doc.documentElement.style.setProperty('--crz-sayb', Math.round(sr.bottom) + 'px'); } catch (e) {} }
         doc.body.classList.toggle('crz-say-on', sOn);
       }
+      // polimento 1: com aviso na tela a faixa 'Day N' desce para baixo dele (antes os dois se cobriam)
+      var sAny = sayEl.classList.contains('show') && !sayIn;
+      if (doc.body && doc.body.classList && sAny !== doc.body.classList.contains('crz-sayshow')) {
+        if (sAny) { try { var sr2 = sayEl.getBoundingClientRect(); doc.documentElement.style.setProperty('--crz-sayb', Math.round(sr2.bottom) + 'px'); } catch (e) {} }
+        doc.body.classList.toggle('crz-sayshow', sAny);
+      }
       // nv8 5: a legenda segue o custo (a rua gratis usada volta a custar): reescreve quando o texto muda
       if (sel && !legendEl.classList.contains('gone')) { if (!legendAfford(sel)) syncLegend(); else { var lt = legendText(sel); if (legendEl.textContent !== lt) legendEl.textContent = lt; } }
       firstSpendTick(s); ringEverTick(s); ringGroupTick(s);
@@ -4581,7 +4634,9 @@
         if (Math.abs(mt - m.top) > 8) { m.top = mt; changed = true; }
       }
       if (bb && isFinite(bb.top) && bb.height > 0 && H > 0) {
-        var mb = Math.round(H - bb.top + 12);
+        // polimento 1: a faixa flutuante logo acima da base ('?', pausa, Skip ahead, enquadrar: 56 px) tambem e HUD;
+        // sem ela na margem as ruas passavam por baixo do Skip ahead e da pausa
+        var mb = Math.round(H - bb.top + 12 + (H >= 560 ? 56 : 0));
         if (mb > 0 && Math.abs(mb - m.bottom) > 8) { m.bottom = mb; changed = true; }
       }
       var orient = W > H ? 'land' : 'port';

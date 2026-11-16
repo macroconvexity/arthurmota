@@ -179,84 +179,86 @@
   /* ---------- CSS ---------- */
   var CSS = [
     '.crzm-btn,.crzm-btn *{pointer-events:auto}',
-    '.crzm-menubtn{position:fixed;top:calc(var(--sat,0px) + 4px);right:calc(var(--sar,0px) + 4px);width:44px;height:44px;display:flex;align-items:center;justify-content:center;color:var(--ink,#111);z-index:1;pointer-events:auto;opacity:.75}',
+    '.crzm-menubtn{position:fixed;top:calc(var(--sat,0px) + 4px);right:calc(var(--sar,0px) + var(--gutter) - 12px);width:var(--h-btn);height: var(--h-btn);display:flex;align-items:center;justify-content:center;color:var(--ink);z-index:1;pointer-events:auto;opacity:.75}',
     /* pausa no canto ESQUERDO acima da bandeja: a direita ficam as cargas do Boost (o botao cobria a do meio) */
-    '.crzm-pausebtn{position:fixed;left:calc(var(--sal,0px) + 12px);bottom:calc(var(--sab,0px) + 12px + var(--play,56px) + 14px);width:40px;height:40px;border-radius:50%;border:1.5px solid var(--gray,#cfcfcf);background:var(--bg,#fffdf8);display:none;align-items:center;justify-content:center;color:var(--ink,#111);z-index:1;pointer-events:auto}',
+    '.crzm-pausebtn{position:fixed;left:calc(var(--sal,0px) + var(--gutter));bottom:calc(var(--sab,0px) + 12px + var(--play,56px) + 14px);width:var(--h-btn);height:var(--h-btn);border-radius: 50%;border:var(--bw) solid var(--gray);background:var(--bg);display:none;align-items:center;justify-content:center;color:var(--ink);z-index:1;pointer-events:auto}',
     /* alvo de toque de 48 px (o visual segue 40 px): o circulo de 40 px perdia toque a 20 px do centro
        (passeio da testadora). O mesmo botao vira Resume quando pausado, entao vale para os dois */
-    '.crzm-pausebtn::before{content:"";position:absolute;left:50%;top:50%;width:48px;height:48px;transform:translate(-50%,-50%);border-radius:6px;background:transparent}',
+    '.crzm-pausebtn::before{content:"";position:absolute;left:50%;top:50%;width:48px;height:48px;transform:translate(-50%,-50%);border-radius: var(--r-sm);background:transparent}',
     '.crzm-pausebtn.show{display:flex}',
-    '.crzm-pausebtn.on{border-color:var(--red,#d9261c);color:var(--red,#d9261c)}',
+    '.crzm-pausebtn.on{border-color:var(--red);color:var(--red)}',
     // legenda: o botao pequeno nao se confunde com o Play/velocidade grande (jogador-so-tela 2026-11-09)
-    '.crzm-pausebtn::after{content:"pause";position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:2px;font-size:11px;font-weight:600;line-height:1;color:var(--inkText,#555);white-space:nowrap;pointer-events:none}',
-    '.crzm-pausebtn.on::after{content:"resume";color:var(--red,#d9261c)}',
-    '.crzm-stamp{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%);font-size:13px;letter-spacing:.28em;text-transform:uppercase;color:var(--ink,#111);border:1.5px solid var(--ink,#111);border-radius:14px;padding:8px 18px;background:var(--bg,#fffdf8);display:none;z-index:1;pointer-events:none}',
+    '.crzm-pausebtn::after{content:"pause";position:absolute;top:100%;left:50%;transform:translateX(-50%);margin-top:2px;font-size: var(--fs-xs);font-weight: var(--fw-semi);line-height:1;color:var(--inkText);white-space:nowrap;pointer-events:none}',
+    '.crzm-pausebtn.on::after{content:"resume";color:var(--red)}',
+    '.crzm-stamp{position:fixed;left:50%;top:38%;transform:translate(-50%,-50%);font-size: var(--fs-sm);letter-spacing:.28em;text-transform:uppercase;color:var(--ink);border:var(--bw) solid var(--ink);border-radius: var(--r-md);padding:8px 18px;background:var(--bg);display:none;z-index:1;pointer-events:none}',
     '.crzm-stamp.show{display:block}',
     // com balao do tutorial aberto o selo sobe para baixo do HUD (no meio cobria o alvo da dica)
-    'body.crz-tut-open .crzm-stamp{top:calc(var(--sat,0px) + 96px);transform:translate(-50%,0);font-size:11px;padding:4px 12px}',
-    '.crzm-layer{position:fixed;inset:0;display:none;pointer-events:auto;opacity:0;transition:opacity .22s ease}',
+    'body.crz-tut-open .crzm-stamp{top:calc(var(--sat,0px) + 96px);transform:translate(-50%,0);font-size: var(--fs-xs);padding:4px 12px}',
+    '.crzm-layer{position:fixed;inset:0;display:none;pointer-events:auto;opacity:0;transition:opacity var(--t-out) var(--ease)}.crzm-layer.vis{transition-duration:var(--t-base)}',
     '.crzm-layer.open{display:flex}.crzm-layer.vis{opacity:1}.crzm-layer.closing{pointer-events:none}',
     // fuzz 2: a folha nunca passa da tela e rola por dentro (antes so na paisagem curta)
     '.crzm-sheet{max-height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y}',
     /* tela inicial */
-    '.crzm-start{z-index:3;background:var(--bg,#fffdf8);flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:calc(var(--sat,0px) + 24px) calc(var(--sar,0px) + 24px) calc(var(--sab,0px) + 24px) calc(var(--sal,0px) + 24px);text-align:center;color:var(--ink,#111)}',
-    '.crzm-h1{margin:0;font-size:40px;font-weight:200;letter-spacing:.06em;line-height:1.05}',
-    '.crzm-sub{font-size:13px;letter-spacing:.22em;text-transform:uppercase;color:var(--inkText,#6b6b6b);margin-top:-10px}',
+    '.crzm-start{z-index:3;background:var(--bg);flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:calc(var(--sat,0px) + 24px) calc(var(--sar,0px) + var(--gutter)) calc(var(--sab,0px) + 24px) calc(var(--sal,0px) + var(--gutter));text-align:center;color:var(--ink)}',
+    '.crzm-h1{margin:0;font-size: var(--fs-d2);font-weight: var(--fw-light);letter-spacing:.06em;line-height:1.05}',
+    '.crzm-sub{font-size: var(--fs-sm);letter-spacing:.22em;text-transform:uppercase;color:var(--inkText);margin-top:-10px}',
     '.crzm-street{position:relative;width:100%;max-width:360px;height:28px;overflow:hidden;margin:10px 0}',
-    '.crzm-street i.line{position:absolute;left:0;right:0;top:50%;height:1px;background:var(--ink,#111)}',
-    '.crzm-street i.node{position:absolute;left:50%;top:50%;width:10px;height:10px;margin:-5px 0 0 -5px;border:1.5px solid var(--ink,#111);border-radius:50%;background:var(--bg,#fffdf8)}',
-    '.crzm-street i.car{position:absolute;top:50%;left:0;width:10px;height:10px;margin-top:-5px;border-radius:2px;background:var(--ink,#111);transform:translateX(-20px);animation:crzm-drive 9s linear infinite}',
-    '.crzm-street i.car.c2{background:var(--red,#d9261c);animation-duration:12s;animation-delay:-4s}',
+    '.crzm-street i.line{position:absolute;left:0;right:0;top:50%;height:1px;background:var(--ink)}',
+    '.crzm-street i.node{position:absolute;left:50%;top:50%;width:10px;height:10px;margin:-5px 0 0 -5px;border:var(--bw) solid var(--ink);border-radius: 50%;background:var(--bg)}',
+    '.crzm-street i.car{position:absolute;top:50%;left:0;width:10px;height:10px;margin-top:-5px;border-radius: var(--r-sm);background:var(--ink);transform:translateX(-20px);animation:crzm-drive 9s linear infinite}',
+    '.crzm-street i.car.c2{background:var(--red);animation-duration:12s;animation-delay:-4s}',
     '.crzm-street i.car.c3{animation-duration:10.5s;animation-delay:-8s}',
     '.crzm-street i.car.c1{animation-delay:-1s}',
     '@keyframes crzm-drive{from{transform:translateX(-20px)}to{transform:translateX(min(100vw,360px))}}',
-    '.crzm-big{min-width:220px;min-height:56px;border-radius:28px;background:var(--ink,#111);color:var(--bg,#fffdf8);font-size:19px;font-weight:600;padding:0 36px}',
-    '.crzm-ghost{min-height:48px;min-width:160px;border-radius:24px;border:1.5px solid var(--ink,#111);font-size:15px;padding:0 24px;color:var(--ink,#111);background:none}',
-    '.crzm-diff{display:flex;gap:0;border:1.5px solid var(--ink,#111);border-radius:22px;overflow:hidden;margin:4px 0 2px}',
-    '.crzm-dbtn{min-height:44px;min-width:110px;font-size:15px;font-weight:600;color:var(--ink,#111);background:none;padding:0 18px}',
-    '.crzm-dbtn.on{background:var(--ink,#111);color:var(--bg,#fffdf8)}',
-    '.crzm-dinfo{max-width:320px;font-size:13px;line-height:1.4;color:var(--inkText,#6b6b6b);margin-top:-6px;display:flex;flex-direction:column;gap:3px}',
-    '.crzm-dinfo .on{color:var(--ink,#111);font-weight:600}',
-    '.crzm-dnote{font-size:12px}',
-    '.crzm-best{font-size:12px;line-height:1.6;color:var(--inkText,#6b6b6b);min-height:20px}',
-    '.crzm-best b{color:var(--ink,#111);font-weight:600}',
+    '.crzm-big{min-width:220px;min-height: var(--h-btn-lg);border-radius: var(--r-pill);background:var(--ink);color:var(--bg);font-size: var(--fs-lg);font-weight: var(--fw-semi);padding:0 36px}',
+    '.crzm-ghost{min-height: var(--h-btn);min-width:160px;border-radius: var(--r-pill);border:var(--bw) solid var(--ink);font-size: var(--fs-md);padding:0 24px;color:var(--ink);background:none}',
+    '.crzm-diff{display:flex;gap:0;border:var(--bw) solid var(--ink);border-radius: var(--r-pill);overflow:hidden;margin:4px 0 2px}',
+    '.crzm-dbtn{min-height: var(--h-btn);min-width:110px;font-size: var(--fs-md);font-weight: var(--fw-semi);color:var(--ink);background:none;padding:0 18px}',
+    '.crzm-dbtn.on{background:var(--ink);color:var(--bg)}',
+    '.crzm-dinfo{max-width:320px;font-size: var(--fs-sm);line-height:1.4;color:var(--inkText);margin-top:-6px;display:flex;flex-direction:column;gap:3px}',
+    '.crzm-dinfo .on{color:var(--ink);font-weight: var(--fw-semi)}',
+    '.crzm-dnote{font-size: var(--fs-sm)}',
+    '.crzm-best{font-size: var(--fs-sm);line-height:1.6;color:var(--inkText);min-height:20px}',
+    '.crzm-best b{color:var(--ink);font-weight: var(--fw-semi)}',
     /* folha de menu */
-    '.crzm-menu{z-index:2;align-items:flex-end;justify-content:center;background:rgba(17,17,17,.28)}',
+    '.crzm-menu{z-index:2;align-items:flex-end;justify-content:center;background: var(--scrim)}',
     // B2: a folha de troca de dificuldade fica acima da tela inicial (3) e do menu (2)
-    '.crzm-switch{z-index:6;align-items:flex-end;justify-content:center;background:rgba(17,17,17,.28)}',
+    '.crzm-switch{z-index:6;align-items:flex-end;justify-content:center;background: var(--scrim)}',
     '.crzm-switch .crzm-sheet{display:flex;flex-direction:column;gap:10px;padding-top:16px;align-items:stretch}',
-    '.crzm-switch .crzm-switchtxt{margin:0 0 4px;font-size:16px;font-weight:600;line-height:1.4}',
-    '.crzm-sheet{width:100%;max-width:440px;background:var(--bg,#fffdf8);border:1.5px solid var(--ink,#111);border-bottom:0;border-radius:14px 14px 0 0;padding:6px calc(var(--sar,0px) + 16px) calc(var(--sab,0px) + 12px) calc(var(--sal,0px) + 16px);transform:translateY(24px);transition:transform .22s ease;color:var(--ink,#111)}',
-    '.crzm-layer.vis .crzm-sheet{transform:none}',
-    '.crzm-grab{width:36px;height:4px;border-radius:2px;background:var(--gray,#cfcfcf);margin:6px auto 4px}',
-    '.crzm-row{display:flex;align-items:center;justify-content:space-between;width:100%;min-height:52px;font-size:17px;text-align:left;border-bottom:1px solid var(--grid,#efeae0);color:var(--ink,#111)}',
-    '.crzm-row small{font-size:13px;color:var(--inkText,#6b6b6b)}',
-    '.crzm-row.armed,.crzm-row.armed small{color:var(--red,#d9261c)}',
-    '.crzm-stats{font-size:12px;color:var(--inkText,#6b6b6b);padding:12px 0 4px;text-align:center;font-variant-numeric:tabular-nums}',
+    '.crzm-switch .crzm-switchtxt{margin:0 0 4px;font-size: var(--fs-md);font-weight: var(--fw-semi);line-height:1.4}',
+    '.crzm-sheet{width:100%;max-width:440px;background:var(--bg);border:var(--bw) solid var(--ink);border-bottom:0;border-radius: var(--r-lg) var(--r-lg) 0 0;padding:6px calc(var(--sar,0px) + var(--gutter)) calc(var(--sab,0px) + 12px) calc(var(--sal,0px) + var(--gutter));transform:translateY(12px);transition:transform var(--t-out) var(--ease);color:var(--ink)}',
+    '.crzm-layer.vis .crzm-sheet{transform:none;transition-duration:var(--t-base)}',
+    // polimento 3: pausa e selo PAUSED entram e saem com fade; botoes do menu afundam ao toque (regra geral do style.css)
+    '.crzm-pausebtn.show,.crzm-stamp.show{animation:crz-in-fade var(--t-base) var(--ease) 1}',
+    '.crzm-grab{width:36px;height:4px;border-radius: var(--r-sm);background:var(--gray);margin:6px auto 4px}',
+    '.crzm-row{display:flex;align-items:center;justify-content:space-between;width:100%;min-height: var(--h-btn-lg);font-size: var(--fs-lg);text-align:left;border-bottom:var(--bw) solid var(--grid);color:var(--ink)}',
+    '.crzm-row small{font-size: var(--fs-sm);color:var(--inkText)}',
+    '.crzm-row.armed,.crzm-row.armed small{color:var(--red)}',
+    '.crzm-stats{font-size: var(--fs-sm);color:var(--inkText);padding:12px 0 4px;text-align:center;font-variant-numeric:tabular-nums}',
     /* ajuda */
-    '.crzm-help{z-index:4;flex-direction:column;background:var(--bg,#fffdf8);color:var(--ink,#111);padding-top:var(--sat,0px)}',
-    '.crzm-hhead{display:flex;align-items:center;justify-content:space-between;padding:4px calc(var(--sar,0px) + 8px) 4px calc(var(--sal,0px) + 20px);min-height:52px;border-bottom:1px solid var(--grid,#efeae0);flex:none}',
-    '.crzm-hhead h2{margin:0;font-size:20px;font-weight:300;letter-spacing:.04em}',
-    '.crzm-x{min-width:64px;min-height:44px;font-size:15px;color:var(--ink,#111)}',
-    '.crzm-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;padding:8px calc(var(--sar,0px) + 20px) calc(var(--sab,0px) + 28px) calc(var(--sal,0px) + 20px)}',
-    '.crzm-scroll h3{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--inkText,#6b6b6b);font-weight:600;margin:22px 0 8px}',
-    '.crzm-scroll p{margin:0;font-size:16px;line-height:1.45}',
-    '.crzm-li{display:flex;gap:12px;align-items:flex-start;padding:9px 0;border-bottom:1px solid var(--grid,#efeae0);font-size:15px;line-height:1.4}',
-    '.crzm-li b{font-weight:600}',
-    '.crzm-li .ic{flex:none;width:40px;height:40px;border:1.5px solid var(--gray,#cfcfcf);border-radius:12px;display:flex;align-items:center;justify-content:center;background:var(--white,#fff)}',
+    '.crzm-help{z-index:4;flex-direction:column;background:var(--bg);color:var(--ink);padding-top:var(--sat,0px)}',
+    '.crzm-hhead{display:flex;align-items:center;justify-content:space-between;padding:4px calc(var(--sar,0px) + var(--gutter)) 4px calc(var(--sal,0px) + var(--gutter));min-height: var(--h-btn-lg);border-bottom:var(--bw) solid var(--grid);flex:none}',
+    '.crzm-hhead h2{margin:0;font-size: var(--fs-xl);font-weight: var(--fw-light);letter-spacing:.04em}',
+    '.crzm-x{min-width:64px;min-height: var(--h-btn);font-size: var(--fs-md);color:var(--ink)}',
+    '.crzm-scroll{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;touch-action:pan-y;padding:8px calc(var(--sar,0px) + var(--gutter)) calc(var(--sab,0px) + 28px) calc(var(--sal,0px) + var(--gutter))}',
+    '.crzm-scroll h3{font-size: var(--fs-sm);letter-spacing:.2em;text-transform:uppercase;color:var(--inkText);font-weight: var(--fw-semi);margin:22px 0 8px}',
+    '.crzm-scroll p{margin:0;font-size: var(--fs-md);line-height:1.45}',
+    '.crzm-li{display:flex;gap:12px;align-items:flex-start;padding:9px 0;border-bottom:var(--bw) solid var(--grid);font-size: var(--fs-md);line-height:1.4}',
+    '.crzm-li b{font-weight: var(--fw-semi)}',
+    '.crzm-li .ic{flex:none;width:40px;height:40px;border:var(--bw) solid var(--gray);border-radius: var(--r-md);display:flex;align-items:center;justify-content:center;background:var(--white)}',
     '.crzm-li.lock{opacity:.45}',
-    '.crzm-li .meta{font-size:12px;color:var(--inkText,#6b6b6b);margin-top:1px}',
-    '.crzm-li .tag{color:var(--red,#d9261c)}',
+    '.crzm-li .meta{font-size: var(--fs-sm);color:var(--inkText);margin-top:1px}',
+    '.crzm-li .tag{color:var(--red)}',
     /* aviso de paisagem curta: cobre tudo (acima da ajuda e do tutorial, .crz-tut z 60), gentil, um botao que dispensa */
-    '.crzm-land{z-index:70;background:var(--bg,#fffdf8);flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:calc(var(--sat,0px) + 16px) calc(var(--sar,0px) + 24px) calc(var(--sab,0px) + 16px) calc(var(--sal,0px) + 24px);text-align:center;color:var(--ink,#111)}',
-    '.crzm-land h2{margin:0;font-size:24px;font-weight:300;letter-spacing:.04em}',
-    '.crzm-land p{margin:0;font-size:15px;line-height:1.4;max-width:320px}',
+    '.crzm-land{z-index:70;background:var(--bg);flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:calc(var(--sat,0px) + 16px) calc(var(--sar,0px) + var(--gutter)) calc(var(--sab,0px) + 16px) calc(var(--sal,0px) + var(--gutter));text-align:center;color:var(--ink)}',
+    '.crzm-land h2{margin:0;font-size: var(--fs-xl);font-weight: var(--fw-light);letter-spacing:.04em}',
+    '.crzm-land p{margin:0;font-size: var(--fs-md);line-height:1.4;max-width:320px}',
     '.crzm-land .crzm-ghost{margin-top:6px;min-height:44px}',
     '.crzm-phone{transform-origin:32px 28px;transform:rotate(-90deg);animation:crzm-upright 2.4s ease-in-out infinite}',
     '@keyframes crzm-upright{0%,25%{transform:rotate(-90deg)}55%,100%{transform:rotate(0)}}',
     /* Play anyway em paisagem curta: a tela inicial rola e o seletor fica numa linha com o texto embaixo */
     '@media (orientation:landscape) and (max-height:500px){.crzm-start{justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y;padding-top:calc(var(--sat,0px) + 12px);padding-bottom:calc(var(--sab,0px) + 12px)}.crzm-start>*{flex:none}.crzm-diff{flex-wrap:nowrap}.crzm-dbtn{white-space:nowrap}.crzm-dinfo{max-width:520px;margin-top:0}.crzm-street{display:none}.crzm-sub{margin-top:-4px}}',
-    '@media (orientation:landscape) and (max-height:500px){.crzm-start{gap:8px}.crzm-h1{font-size:30px}.crzm-street{margin:0}.crzm-big{min-height:46px}.crzm-ghost{min-height:40px}.crzm-sheet{max-height:100%;overflow-y:auto}.crzm-pausebtn{bottom:calc(var(--sab,0px) + 8px + var(--play,48px) + 10px)}}',
+    '@media (orientation:landscape) and (max-height:500px){.crzm-start{gap:8px}.crzm-h1{font-size: var(--fs-d1)}.crzm-street{margin:0}.crzm-big{min-height: var(--h-btn)}.crzm-ghost{min-height: var(--h-btn)}.crzm-sheet{max-height:100%;overflow-y:auto}.crzm-pausebtn{bottom:calc(var(--sab,0px) + 8px + var(--play,48px) + 10px)}}',
     '@media (prefers-reduced-motion:reduce){.crzm-phone{animation:none;transform:none}}',
     '@media (prefers-reduced-motion:reduce){.crzm-layer,.crzm-sheet{transition:none!important}.crzm-street i.car{animation:none!important;transform:none}.crzm-street i.c1{left:12%}.crzm-street i.c2{left:50%}.crzm-street i.c3{left:78%}}'
   ].join('\n');
@@ -780,7 +782,7 @@
     function placePause() {
       if (!pauseBtn || !has(pauseBtn, 'show') || !doc.querySelectorAll || !pauseBtn.style) { pauseKey = ''; return; }
       var q, i;
-      try { q = doc.querySelectorAll('.crz-bottom button, .crz-bottom .crz-tile, .crz-bottom .crz-chip, .crz-clear, .crz-fit, .crz-top'); } catch (x) { return; }
+      try { q = doc.querySelectorAll('.crz-bottom button, .crz-bottom .crz-tile, .crz-bottom .crz-chip, .crz-bottom .crz-tip, .crz-bottom .crz-half, .crz-clear, .crz-fit, .crz-top'); } catch (x) { return; }
       if (!vp.read) { readViewport(); }
       var key = vp.w + 'x' + vp.h + '|' + q.length;
       for (i = 0; i < q.length; i++) { key += '|' + (q[i].className || ''); }
@@ -792,10 +794,18 @@
       var list = [], low = [], r, vh = vp.h || root.innerHeight || 0, topBar = 0;
       for (i = 0; i < q.length; i++) {
         r = rectOf(q[i]); if (!r) { continue; }
+        // peca escondida (o '?' na corrida) nao ocupa lugar
+        if (has(q[i], 'crz-guidebtn')) { continue; }   // o '?' sai na corrida (some em 220 ms: ainda visivel na 1a medida)
+        try { if (root.getComputedStyle && root.getComputedStyle(q[i]).visibility === 'hidden') { continue; } } catch (x) {}
         list.push(r);
         if (has(q[i], 'crz-top')) { topBar = Math.max(topBar, r.bottom); } else if (r.top > vh * 0.4) { low.push(r); }
       }
-      var sz = d.width, cands = [d.top], minTop = vh, maxBot = 0;
+      // polimento 1: lugar fixo, na faixa logo acima da base (a mesma do '?' do plano e do Skip ahead), em todo dia.
+      // Antes caia no canto de baixo da bandeja (dia 6, legenda cortada pela borda) ou 180 px acima (dias 9 e 12)
+      var sz = d.width, cands = [], minTop = vh, maxBot = 0, bbox = null;
+      try { bbox = rectOf(doc.querySelector('.crz-bottom')); } catch (x) { bbox = null; }
+      if (bbox && bbox.top > vh * 0.3) { cands.push(bbox.top - 20 - sz); }
+      cands.push(d.top);
       for (i = 0; i < low.length; i++) {
         // so o que esta na coluna do botao conta para "acima da barra"
         if (low[i].left < d.right + 6 && low[i].right > d.left - 6) { minTop = Math.min(minTop, low[i].top); }
@@ -806,7 +816,7 @@
       cands.push(topBar + 10);                                // topo, abaixo da barra de cima
       for (i = 0; i < cands.length; i++) {
         if (cands[i] < topBar || pauseHits(d.left, cands[i], sz, list)) { continue; }
-        if (i > 0) { ps.top = Math.round(cands[i]) + 'px'; ps.bottom = 'auto'; }
+        if (cands[i] !== d.top) { ps.top = Math.round(cands[i]) + 'px'; ps.bottom = 'auto'; }
         return;
       }
       ps.top = Math.round(topBar + 10) + 'px'; ps.bottom = 'auto';

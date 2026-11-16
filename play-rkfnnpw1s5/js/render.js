@@ -46,6 +46,17 @@
   // pulso de entrega: anel na ponta de destino quando um carro chega (pool fixo, sem alocar por quadro)
   var DELIV_N = 24, DELIV_MS = 280, DELIV_RM_MS = 200;
 
+  // polimento 2026-11-15 (mesmo desenho, execucao mais fina):
+  // passo fixo do sim (game.js STEP): o render interpola a posicao dos carros entre dois passos
+  var SIM_STEP = 1 / 30;
+  // carro que nasce ou some: fade curto; aneis (ambar, vermelho, ontem, NEW): fade ao entrar e sair; ambar <-> vermelho: troca cruzada
+  var CAR_FADE_MS = 120, RING_FADE_MS = 150, RING_MIX_MS = 200;
+  // pisos em px de TELA: carro (comprimento, largura), pictograma, folga do enquadramento
+  var CAR_MIN_LEN = 6, CAR_MIN_W = 3.5, PICTO_MIN = 14, FIT_PX = 24;
+  // nitidez: o canvas usa a grade do aparelho ate 3x (antes min(2.5, rd): em tela 3x era reamostrado 1,2x e borrava)
+  var DPR_MAX = 3;
+  var CAR_SLOTS = 512, CAR_GHOSTS = 48, CAR_FADES = 64;
+
   function clamp(v, lo, hi) { return v < lo ? lo : (v > hi ? hi : v); }
   function easeOut(t) { t = 1 - t; return 1 - t * t * t; }
   function easeInOut(t) { return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; }
@@ -240,7 +251,7 @@
       for (k in hm) {
         n = nodes[k]; hv = hm[k];
         if (!n || !(hv >= HOT_MIN) || hotN >= HOT_MAX) continue;
-        hotNode[hotN] = n; hotHr[hotN] = hotRadius(n, hv, ps, dotR); hotPar[hotN] = hotN; hotN++;
+        hotNode[hotN] = n; hotHv[hotN] = hv; hotHr[hotN] = hotRadius(n, hv, ps, dotR); hotPar[hotN] = hotN; hotN++;
       }
       for (i = 0; i < hotN; i++) for (j = i + 1; j < hotN; j++) {
         dx = hotNode[i].x - hotNode[j].x; dy = hotNode[i].y - hotNode[j].y;
@@ -287,6 +298,40 @@
     var dvOn = new Uint8Array(DELIV_N), dvNext = 0, dvLive = 0;
 
     var anim = { on: false, t0: 0, fx: 0, fy: 0, fz: 1, tx: 0, ty: 0, tz: 1 };
+    // camera: true quando o ultimo movimento NAO foi um enquadramento da cidade inteira (gesto, foco, reveal).
+    // As setas de borda so aparecem nesse caso; depois de fit/fitAll a cidade esta toda na area util
+    var camUser = false, camPhase, camDay = null, dtMs = 0;
+
+    // ---- carros: interpolacao entre passos do sim, fade de entrada e de saida (nada alocado por quadro) ----
+    // Um slot por carro (Map id -> slot; so aloca quando o carro nasce). p* = posicao no passo anterior visto,
+    // c* = no passo atual. O quadro desenha p + (c - p) * frac, com frac tirado do relogio do quadro (carAcc
+    // imita o acumulador do laco: soma dt * speed, tira SIM_STEP por passo visto em st.dayTime). O sim nao e tocado.
+    var carSlot = (typeof Map === 'function') ? new Map() : null;
+    var csPx = new Float64Array(CAR_SLOTS), csPy = new Float64Array(CAR_SLOTS), csPa = new Float64Array(CAR_SLOTS);
+    var csCx = new Float64Array(CAR_SLOTS), csCy = new Float64Array(CAR_SLOTS), csCa = new Float64Array(CAR_SLOTS);
+    var csBorn = new Float64Array(CAR_SLOTS), csOff = new Float64Array(CAR_SLOTS), csSeen = new Int32Array(CAR_SLOTS);
+    var csUsed = new Uint8Array(CAR_SLOTS), csKey = new Array(CAR_SLOTS), csFree = new Int32Array(CAR_SLOTS), csFreeN = 0, csHi = 0;
+    var carWorld = null, carFrame = 0, carDayT = NaN, carAcc = 0, carStepN = 0, carFresh = true;
+    var ghX = new Float64Array(CAR_GHOSTS), ghY = new Float64Array(CAR_GHOSTS), ghA = new Float64Array(CAR_GHOSTS);
+    var ghOff = new Float64Array(CAR_GHOSTS), ghT0 = new Float64Array(CAR_GHOSTS), ghOn = new Uint8Array(CAR_GHOSTS), ghLive = 0, ghNext = 0;
+    var cfXY = new Float64Array(CAR_FADES * 8), cfAl = new Float64Array(CAR_FADES), cfN = 0;
+    // fila apertada (zoom baixo): carros por rua, para cortar cada um no espaco ate o vizinho
+    var ebHead = new Int32Array(256), ebStamp = new Int32Array(256), cbNext = new Int32Array(1024);
+    var carDbg = { frac: 1, steps: 0, tracked: 0, ghosts: 0, fading: 0, tight: false, len: 0, wid: 0 };
+    for (var csi = 0; csi < CAR_SLOTS; csi++) { csFree[csi] = CAR_SLOTS - 1 - csi; csKey[csi] = null; }
+    csFreeN = CAR_SLOTS;
+    function carReset(w) {
+      var i;
+      if (carSlot) carSlot.clear();
+      for (i = 0; i < CAR_SLOTS; i++) { csUsed[i] = 0; csKey[i] = null; csFree[i] = CAR_SLOTS - 1 - i; }
+      csFreeN = CAR_SLOTS; csHi = 0;
+      for (i = 0; i < CAR_GHOSTS; i++) ghOn[i] = 0;
+      ghLive = 0; carWorld = w; carDayT = NaN; carAcc = 0; carStepN = 0; carFresh = true;
+    }
+    // aneis de estresse: envelope de entrada/saida e mistura ambar -> vermelho por no (objeto criado uma vez por no)
+    var ringSt = {}, ringFresh = true;
+    // anel de ontem e marca NEW: envelope da camada e, no NEW, por no
+    var hotA = 0, hotHv = new Float64Array(128), njSt = {}, njSeen = {};
     // aviso curto em texto perto de um ponto (ex.: por que a rua nao saiu); um por vez
     var note = { on: false, x: 0, y: 0, text: '', t0: 0 };
     // rotulos pedidos no quadro (desenhados depois da lupa e das setas, para fugir deles); sem alocar por quadro
@@ -329,7 +374,8 @@
 
     r.resize = function () {
       var rd = (typeof root.devicePixelRatio === 'number' && root.devicePixelRatio > 0) ? root.devicePixelRatio : 1;
-      dpr = Math.min(2.5, rd);
+      // grade do aparelho, ate DPR_MAX: 3x desenha 1:1 (sem reamostrar); acima de 3x fica em 3 (inteiro)
+      dpr = rd > DPR_MAX ? DPR_MAX : rd;
       var cw = canvas.clientWidth, ch = canvas.clientHeight;
       if (!cw || !ch) {
         if (canvas.getBoundingClientRect) {
@@ -392,7 +438,7 @@
 
     r.pan = function (dx, dy) {
       var c = cam();
-      anim.on = false; held.moved = true;
+      anim.on = false; held.moved = true; camUser = true;
       c.x -= dx / c.zoom; c.y -= dy / c.zoom;
       clampCam(c);
     };
@@ -400,7 +446,7 @@
     r.zoomAt = function (factor, sx, sy) {
       if (!(factor > 0) || !isFinite(factor)) return;
       var c = cam();
-      anim.on = false; held.moved = true;
+      anim.on = false; held.moved = true; camUser = true;
       if (typeof sx !== 'number') { sx = W * 0.5; sy = H * 0.5; }
       var wx = (sx - W * 0.5) / c.zoom + c.x, wy = (sy - H * 0.5) / c.zoom + c.y;
       c.zoom = clamp(c.zoom * factor, zMin, ZMAX);
@@ -442,6 +488,7 @@
 
     r.focus = function (x, y, zoom, animated) {
       var c = cam();
+      camUser = true;
       moveCam(x, y, typeof zoom === 'number' ? zoom : c.zoom, !!animated);
     };
 
@@ -500,11 +547,24 @@
     r.layoutChanged = function () { fitBox.dirty = true; forceDraw = true; };
     r._fitBox = function () { return fitBox; };   // so para testes
 
-    // fit: enquadra a cidade, mas nunca abaixo do zoom confortavel (ZCOMF). Cidade maior que a tela
-    // fica centrada no miolo (media dos nos) e o resto se ve arrastando; setas na borda avisam.
-    r.fit = function (animated) { fitView(animated, 40, 'comfort'); };
-    // visao geral: a cidade inteira, mesmo que fique pequena (botao de enquadrar)
+    // Camera com UMA regra (2026-11-15): fit e fitAll enquadram a cidade INTEIRA na area util (usable(), entre
+    // o HUD do topo e o da base) com FIT_PX px de folga, no maior zoom que caiba (teto FIT_ZMAX nos dias 1-2,
+    // piso ZFLOOR na cidade lotada). Antes fit parava no zoom confortavel e cortava a cidade (setas na borda)
+    // e so fitAll mostrava tudo: duas regras, uma para cada fase. O tamanho legivel agora vem dos pisos em px
+    // de tela (carro, rua, pictograma), nao do zoom.
+    // r.fit continua sendo a API antiga para quem a chama NO PLANO (o segundo estado do botao de enquadrar da
+    // UI volta ao zoom confortavel por ela): no plano aproxima ate o confortavel; fora do plano (corrida, resumo)
+    // e a cidade inteira. A abertura do plano e o comeco da corrida sao enquadrados pelo proprio draw (abaixo),
+    // depois de qualquer chamada da UI no mesmo quadro: um movimento so, sempre para a cidade inteira.
+    r.fit = function (animated) {
+      var ph = game && game.state ? game.state.phase : null;
+      fitView(animated, 40, ph === 'plan' ? 'comfort' : 'all');
+    };
     r.fitAll = function (animated) { fitView(animated, 40, 'all'); };
+    // aproximar ate o zoom confortavel (rua minima = um polegar), centrado no miolo: era o fit antigo. Fica para
+    // um pedido explicito da jogadora (ex.: segundo estado do botao de enquadrar); nunca e chamado sozinho
+    r.fitComfort = function (animated) { fitView(animated, 40, 'comfort'); };
+    r.usable = function () { var u = usable(); return { l: u.l, r: u.r, t: u.t, b: u.b, w: u.w, h: u.h }; };
     // espaco para construir: com a ferramenta Rua ativa, a cidade ganha folga de uma rua maxima em volta.
     // So afasta (nunca aproxima), e nao afasta alem do zoom confortavel.
     r.fitRoom = function (animated, pad) { fitView(animated, typeof pad === 'number' ? pad : CFG.maxRoadLen, 'room'); };
@@ -528,16 +588,17 @@
         // cidade inteira com folga de ALL_PX px de tela (24 px + raio do pictograma) alem da folga de mundo:
         // em zoom baixo a folga de mundo encolhe a poucos px e o no da borda ficava sob o HUD ou fora.
         // Cidade lotada abaixo do ZMIN: o piso desta instancia desce ate caber (nunca abaixo de ZFLOOR)
-        var ALL_PX = 24 + 8, sw2 = Math.max(1, maxx - minx), sh2 = Math.max(1, maxy - miny);
+        var ALL_PX = FIT_PX, sw2 = Math.max(1, maxx - minx), sh2 = Math.max(1, maxy - miny);
         var zPx = Math.min((aw - 2 * ALL_PX) / sw2, (ah - 2 * ALL_PX) / sh2);
         z = Math.min(aw / bw, ah / bh, zPx > 0 ? zPx : ZFLOOR, FIT_ZMAX);
         if (z < zMin) { zMin = Math.max(ZFLOOR, z); r.zoomLimits.min = zMin; }
         z = clamp(z, zMin, FIT_ZMAX);
+        camUser = false;
       }
       var cx = (minx + maxx) * 0.5, cy = (miny + maxy) * 0.5;
       var rcx = ml + aw * 0.5, rcy = mt + ah * 0.5, c = cam(), cut = false;
       if (mode === 'comfort' && zAll < ZCOMF) {
-        z = ZCOMF; cut = true; cx = sx / cnt; cy = sy / cnt;
+        z = ZCOMF; cut = true; cx = sx / cnt; cy = sy / cnt; camUser = true;
       } else if (mode === 'room') {
         if (zAll >= c.zoom) {
           // ja afastado o bastante: so confere se a caixa com folga esta inteira na area livre
@@ -570,7 +631,7 @@
         if (hp.y < hu.t + hi) hdy = hp.y - (hu.t + hi); else if (hp.y > H - hu.b - hi) hdy = hp.y - (H - hu.b - hi);
         if (!hdx && !hdy) return false;
         var ht = clampCam({ x: hc.x + hdx / hc.zoom, y: hc.y + hdy / hc.zoom }, hc.zoom);
-        anim.on = false; hc.x = ht.x; hc.y = ht.y; held.moved = true;
+        anim.on = false; hc.x = ht.x; hc.y = ht.y; held.moved = true; camUser = true;
         return true;
       }
       if (!W || !H) r.resize();
@@ -578,6 +639,7 @@
       if (p.x < u.l + ins) dx = p.x - (u.l + ins); else if (p.x > W - u.r - ins) dx = p.x - (W - u.r - ins);
       if (p.y < u.t + ins) dy = p.y - (u.t + ins); else if (p.y > H - u.b - ins) dy = p.y - (H - u.b - ins);
       if (!dx && !dy) return false;
+      camUser = true;
       moveCam(c.x + dx / c.zoom, c.y + dy / c.zoom, c.zoom, !!animated);
       return true;
     };
@@ -771,6 +833,8 @@
       lastWaveHits = (w && w.stats && w.stats.waveHits) || 0;
       waveGlow = 0; lastPairs = -1;
       lastWorld = w;
+      // mundo novo: nada entra em fade (o primeiro quadro ja mostra tudo no estado final)
+      carReset(w); ringSt = {}; ringFresh = true; njSt = {}; njSeen = {}; hotA = 0; hotN = 0; clCount = 0;
     }
 
     function storeGeom(w, k, e) {
@@ -995,12 +1059,22 @@
 
     r.draw = function (now) {
       if (typeof now !== 'number' || !isFinite(now)) now = lastNow + 16.7;
+      dtMs = now - lastNow;
+      if (!(dtMs > 0)) dtMs = 0; else if (dtMs > 100) dtMs = 100;   // mesmo teto do laco (aba em segundo plano)
       lastNow = now;
       if (!W || !H) r.resize();
       var w = game && game.world;
       var st = (game && game.state) || null;
       var phase = st ? st.phase : null;
       var ov = r.overlay || {};
+      // regra unica da camera: ao abrir o plano (troca de dia) e ao comecar a corrida a cidade inteira volta ao
+      // quadro, em CAM_MS. Fora disso a camera nunca anda sozinha
+      var camD = st ? st.day : null;
+      if (phase !== camPhase || camD !== camDay) {
+        if (camPhase !== undefined && w && w.nodes && ((camPhase === 'plan' && phase === 'run') ||
+            (phase === 'plan' && (camPhase !== 'plan' || camD !== camDay)))) fitView(true, 40, 'all');
+        camPhase = phase; camDay = camD;
+      }
 
       // animacao de camera
       var c = cam(), camAnim = anim.on;
@@ -1037,23 +1111,41 @@
 
       var nodes = w.nodes, edges = w.edges, k, n, e, a, b, i;
       // escalas
-      var ps = clamp(22 * Math.pow(z, 0.3), 12, 32);         // pictograma (22 px em zoom 1)
+      var ps = clamp(22 * Math.pow(z, 0.3), PICTO_MIN, 32);   // pictograma (22 px em zoom 1; piso de tela)
       var carPx = clamp(6.5 * z, 7, 9);                        // largura do carro (piso 7 px; o teto da fila abaixo manda)
       var carLenPx = carPx * 1.4;                              // comprimento (1.4x a largura, ~8 px no piso)
       // nunca maior que o espaco da fila na sim (carLen + carGap), senao os carros se sobrepoem
       var carCap = ((CFG.carLen || 8) + (CFG.carGap || 4)) * z - 0.6;
       // em zoom muito baixo o espaco da fila fica abaixo de 3 px: o carro encolhe ate ele (piso 1 px),
       // a fila vira uma barra com frestas em vez de retangulos sobrepostos; a largura fica >= 2 px
-      if (carLenPx > carCap) { carLenPx = carCap < 1 ? 1 : carCap; carPx = Math.min(carPx, Math.max(2, carLenPx / 1.1)); }
+      // Piso de tela (2026-11-15): abaixo de CAR_MIN_LEN px de espaco de fila o carro NAO encolhe mais (chegava a
+      // ~2 px com a cidade inteira no quadro). Fica com CAR_MIN_LEN x >= CAR_MIN_W px e, na fila, cada carro e
+      // cortado no meio do caminho ate o vizinho (carTight): carro solto se le, fila vira barra com frestas
+      var carTight = false;
+      if (carLenPx > carCap) {
+        if (carCap >= CAR_MIN_LEN) { carLenPx = carCap; carPx = Math.min(carPx, Math.max(2, carLenPx / 1.1)); }
+        else { carTight = true; carLenPx = CAR_MIN_LEN; carPx = clamp(carCap / 1.1, CAR_MIN_W, CAR_MIN_LEN / 1.1); }
+      }
       var carHL = carLenPx * 0.5;                              // meio comprimento
       var roadW = clamp(2.2 * Math.pow(z, 0.25), 1.6, 3);     // linha de estrada (peso de mapa de metro)
+      // nitidez (so em tela de alta densidade, dpr >= 2): largura em px inteiros do aparelho e ruas ortogonais
+      // na grade, com a borda da linha em pixel cheio. O ajuste e de no maximo 1/4 px CSS; em dpr 1 nada muda
+      var snapOn = dpr >= 2, oddR = 0, odd3 = 0, w3 = Math.max(1, roadW * 0.7);
+      if (snapOn) {
+        var rwd = Math.round(roadW * dpr), w3d = Math.max(1, Math.round(w3 * dpr));
+        if (rwd < 1.6 * dpr) rwd = Math.ceil(1.6 * dpr - 1e-9);   // nunca abaixo do piso de 1,6 px
+        roadW = rwd / dpr; w3 = w3d / dpr; oddR = (rwd & 1) * 0.5; odd3 = (w3d & 1) * 0.5;
+      }
       var off1 = Math.max(CFG.laneOffset * z, carPx * 0.5 + roadW * 0.5 + 1.2); // carro a linha
       var laneSp = Math.max(CFG.laneOffset * z, carPx + 1.2); // distancia entre colunas de carros
       var hw2 = off1 + laneSp + carPx * 0.5 + 2.5;            // meia largura de 2 faixas
+      if (snapOn) hw2 = Math.round(hw2 * dpr) / dpr;
       var dotR = clamp(2.2 * Math.pow(z, 0.4), 1.4, 3.2);
       var cullPad = hw2 + ps + 30;
       var sx0 = -cullPad, sy0 = -cullPad, sx1 = W + cullPad, sy1 = H + cullPad;
       waveGlow *= 0.96;
+      var fresh = ringFresh;   // primeiro quadro deste mundo: aneis e marcas ja no estado final, sem fade
+      ringFresh = false;
 
       // influencia
       if (ov.showInfluence !== infId) { infId = ov.showInfluence; infT0 = now; }
@@ -1091,6 +1183,11 @@
             if (edgeFrom[k] === 1) { var tx = ax, ty = ay; ax = bx; ay = by; bx = tx; by = ty; na = b; nb = a; }
             bx = ax + (bx - ax) * g; by = ay + (by - ay) * g;
           }
+          if (snapOn) {
+            var so = pass === 3 ? odd3 : oddR;
+            if (Math.abs(ax - bx) < 0.02) ax = bx = (Math.round(ax * dpr - so) + so) / dpr;
+            else if (Math.abs(ay - by) < 0.02) ay = by = (Math.round(ay * dpr - so) + so) / dpr;
+          }
           if (pass === 1) { ctx.moveTo(ax, ay); ctx.lineTo(bx, by); any = true; continue; }
           var dx = bx - ax, dy = by - ay, L = Math.sqrt(dx * dx + dy * dy);
           if (L < 0.01) continue;
@@ -1118,7 +1215,7 @@
         if (!any) continue;
         if (pass === 0) { ctx.fillStyle = LANE_FILL; ctx.fill(); continue; }
         ctx.strokeStyle = C.ink;
-        if (pass === 3) { ctx.setLineDash(DASH_LANE); ctx.lineWidth = Math.max(1, roadW * 0.7); ctx.lineCap = 'butt'; }
+        if (pass === 3) { ctx.setLineDash(DASH_LANE); ctx.lineWidth = w3; ctx.lineCap = 'butt'; }
         else { ctx.setLineDash(DASH_NONE); ctx.lineWidth = roadW; ctx.lineCap = pass === 2 ? 'butt' : 'round'; }
         ctx.stroke();
       }
@@ -1274,12 +1371,45 @@
         if (any) { ctx.strokeStyle = C.ink; ctx.lineWidth = 1; ctx.stroke(); }
       }
 
-      // carros: um unico path
-      var cars = w.cars;
-      if (cars && cars.length) {
+      // carros: um unico path. Posicao e angulo interpolados entre o passo anterior e o atual do sim (o sim
+      // anda a 30 passos/s e a tela a 60 ou 120 Hz: sem isso o carro anda um quadro sim, um nao). Em pausa e fora
+      // da corrida nao interpola. Carro que nasce entra em CAR_FADE_MS; o que some deixa um fantasma que sai igual
+      var cars = w.cars, nCars = cars ? cars.length : 0;
+      if (w !== carWorld) carReset(w);
+      carFrame++; cfN = 0;
+      var dayT = st && typeof st.dayTime === 'number' ? st.dayTime : NaN;
+      var carRun = phase === 'run' && !st.paused && dayT === dayT && !!carSlot, stepNow = -1;
+      if (carRun && carDayT === carDayT) {
+        stepNow = Math.round((dayT - carDayT) / SIM_STEP);
+        if (stepNow < 0 || stepNow > 90) stepNow = -1;   // relogio voltou ou saltou: este quadro nao interpola
+      }
+      if (stepNow >= 0) {
+        // acumulador estimado: mesma conta do laco (dt * speed, menos um SIM_STEP por passo visto); o clamp
+        // corrige qualquer desvio (fast-forward, pausa, quadro perdido) no proximo passo
+        carAcc += dtMs * 0.001 * (+st.speed || 1) - stepNow * SIM_STEP;
+        if (!(carAcc > 0)) carAcc = 0; else if (carAcc >= SIM_STEP) carAcc = SIM_STEP * 0.999;
+        if (stepNow > 0) carStepN = stepNow;
+      } else { carAcc = 0; carStepN = 0; }
+      carDayT = carRun ? dayT : NaN;
+      // instante mostrado = passo atual menos (1 - alfa) passo; p guarda o estado de carStepN passos atras
+      var frac = (stepNow >= 0 && carStepN > 0) ? (carStepN - 1 + carAcc / SIM_STEP) / carStepN : 1;
+      var hc = carPx * 0.5, hl = carHL, carFadeIn = phase === 'run' && !reduceMotion && !carFresh;
+      carDbg.frac = frac; carDbg.steps = stepNow; carDbg.tight = carTight; carDbg.len = carLenPx; carDbg.wid = carPx;
+      if (nCars) {
+        var cj, oc, ds, sl, key;
+        if (carTight) {
+          // fila apertada: lista de carros por rua (cabecas por id de rua, carimbadas pelo quadro)
+          if (nCars > cbNext.length) cbNext = new Int32Array(nCars * 2);
+          for (i = 0; i < nCars; i++) {
+            oc = cars[i]; cj = oc ? oc.edgeId : -1;
+            if (!(cj >= 0) || cj > 65535 || cj !== (cj | 0) || typeof oc.s !== 'number') { cbNext[i] = -2; continue; }
+            if (cj >= ebHead.length) { ebHead = new Int32Array(cj * 2 + 2); ebStamp = new Int32Array(cj * 2 + 2); }
+            if (ebStamp[cj] !== carFrame) { ebStamp[cj] = carFrame; ebHead[cj] = -1; }
+            cbNext[i] = ebHead[cj]; ebHead[cj] = i;
+          }
+        }
         ctx.beginPath(); any = false;
-        var hc = carPx * 0.5, hl = carHL;
-        for (i = 0; i < cars.length; i++) {
+        for (i = 0; i < nCars; i++) {
           var car = cars[i]; if (!car) continue;
           e = edges[car.edgeId];
           var cx = car.x, cy = car.y, ang = car.ang;
@@ -1292,23 +1422,130 @@
             if (typeof cy !== 'number') cy = a.y + (b.y - a.y) * ft;
             if (typeof ang !== 'number') ang = Math.atan2((b.y - a.y) * (car.dir || 1), (b.x - a.x) * (car.dir || 1));
           }
-          var scx = cx * z + ox, scy = cy * z + oy;
-          if (scx < sx0 || scx > sx1 || scy < sy0 || scy > sy1) continue;
-          var fx = Math.cos(ang), fy = Math.sin(ang), rx = -fy, ry = fx;
+          // slot do carro: guarda o passo anterior e o atual
+          sl = -1;
+          var fa = 1;
+          if (carSlot) {
+            key = car.id !== undefined && car.id !== null ? car.id : car;
+            sl = carSlot.get(key);
+            if (sl === undefined) {
+              if (csFreeN > 0) {
+                sl = csFree[--csFreeN]; carSlot.set(key, sl); csUsed[sl] = 1; csKey[sl] = key; if (sl >= csHi) csHi = sl + 1;
+                csPx[sl] = csCx[sl] = cx; csPy[sl] = csCy[sl] = cy; csPa[sl] = csCa[sl] = ang;
+                csBorn[sl] = carFadeIn ? now : -1e9;
+              } else sl = -1;
+            } else if (stepNow > 0) {
+              var jx = cx - csCx[sl], jy = cy - csCy[sl], jl = 24 * stepNow;
+              if (jx * jx + jy * jy > jl * jl) { csPx[sl] = cx; csPy[sl] = cy; csPa[sl] = ang; }   // salto (nao e movimento): sem rastro
+              else { csPx[sl] = csCx[sl]; csPy[sl] = csCy[sl]; csPa[sl] = csCa[sl]; }
+              csCx[sl] = cx; csCy[sl] = cy; csCa[sl] = ang;
+            } else if (stepNow < 0 || cx !== csCx[sl] || cy !== csCy[sl]) {
+              // sem passo contado (pausa, plano, relogio parado) ou carro mexido por fora do relogio: posicao crua
+              csPx[sl] = csCx[sl] = cx; csPy[sl] = csCy[sl] = cy; csPa[sl] = csCa[sl] = ang;
+            }
+            if (sl >= 0) {
+              csSeen[sl] = carFrame;
+              if (frac < 1) {
+                cx = csPx[sl] + (cx - csPx[sl]) * frac; cy = csPy[sl] + (cy - csPy[sl]) * frac;
+                var dang = ang - csPa[sl];
+                dang -= TAU * Math.round(dang / TAU);
+                if (dang > -2.6 && dang < 2.6) ang = csPa[sl] + dang * frac;
+              }
+              if (csBorn[sl] > -1e8) {
+                fa = (now - csBorn[sl]) / CAR_FADE_MS;
+                if (!(fa >= 0 && fa < 1)) { fa = 1; csBorn[sl] = -1e9; } else frameAnim = true;
+              }
+            }
+          }
           var lanes = e ? (e.lanes || 1) : 1, lane = car.lane ? 1 : 0, ow = e ? e.oneway : 0, off;
           if (lane >= lanes) lane = lanes - 1;
           if (ow) off = lanes >= 2 ? laneSp * (lane ? 0.5 : -0.5) : 0;
           else off = lanes >= 2 ? off1 + laneSp * lane : off1;
+          if (sl >= 0) csOff[sl] = off;
+          var scx = cx * z + ox, scy = cy * z + oy;
+          if (scx < sx0 || scx > sx1 || scy < sy0 || scy > sy1) continue;
+          var fx = Math.cos(ang), fy = Math.sin(ang), rx = -fy, ry = fx;
           scx += rx * off; scy += ry * off;
-          fx *= hl; fy *= hl; rx *= hc; ry *= hc;
-          ctx.moveTo(scx + fx + rx, scy + fy + ry);
-          ctx.lineTo(scx + fx - rx, scy + fy - ry);
-          ctx.lineTo(scx - fx - rx, scy - fy - ry);
-          ctx.lineTo(scx - fx + rx, scy - fy + ry);
+          var hf = hl, hb = hl;
+          if (carTight && cbNext[i] !== -2) {
+            // meio caminho ate o carro da frente e o de tras na mesma rua, sentido e faixa (menos a fresta)
+            var ga = 1e9, gb = 1e9, cln = car.lane ? 1 : 0;
+            cj = ebHead[car.edgeId];
+            while (cj >= 0) {
+              if (cj !== i) {
+                oc = cars[cj];
+                if (oc.dir === car.dir && (oc.lane ? 1 : 0) === cln) {
+                  ds = oc.s - car.s;
+                  if (ds > 0) { if (ds < ga) ga = ds; } else if (-ds < gb) gb = -ds;
+                }
+              }
+              cj = cbNext[cj];
+            }
+            ga = ga * z * 0.5 - 0.3; gb = gb * z * 0.5 - 0.3;
+            if (ga < hf) hf = ga < 0.5 ? 0.5 : ga;
+            if (gb < hb) hb = gb < 0.5 ? 0.5 : gb;
+          }
+          rx *= hc; ry *= hc;
+          var x1 = scx + fx * hf, y1 = scy + fy * hf, x2 = scx - fx * hb, y2 = scy - fy * hb;
+          if (fa < 1 && cfN < CAR_FADES) {
+            // nascendo: fora do path comum, com a propria opacidade
+            cj = cfN * 8; cfAl[cfN++] = fa;
+            cfXY[cj] = x1 + rx; cfXY[cj + 1] = y1 + ry; cfXY[cj + 2] = x1 - rx; cfXY[cj + 3] = y1 - ry;
+            cfXY[cj + 4] = x2 - rx; cfXY[cj + 5] = y2 - ry; cfXY[cj + 6] = x2 + rx; cfXY[cj + 7] = y2 + ry;
+            continue;
+          }
+          ctx.moveTo(x1 + rx, y1 + ry);
+          ctx.lineTo(x1 - rx, y1 - ry);
+          ctx.lineTo(x2 - rx, y2 - ry);
+          ctx.lineTo(x2 + rx, y2 + ry);
           ctx.closePath(); any = true;
         }
         if (any) { ctx.fillStyle = CAR_COLOR; ctx.fill(); }
       }
+      // carros que sairam do mundo desde o ultimo quadro: o slot volta para a pilha e fica um fantasma curto
+      if (carSlot && csHi > 0) {
+        for (i = 0; i < csHi; i++) {
+          if (!csUsed[i] || csSeen[i] === carFrame) continue;
+          if (!reduceMotion && !carFresh) {
+            cj = ghNext; ghNext = (ghNext + 1) % CAR_GHOSTS;
+            if (!ghOn[cj]) ghLive++;
+            ghOn[cj] = 1; ghX[cj] = csCx[i]; ghY[cj] = csCy[i]; ghA[cj] = csCa[i]; ghOff[cj] = csOff[i]; ghT0[cj] = now;
+          }
+          carSlot.delete(csKey[i]); csKey[i] = null; csUsed[i] = 0; csFree[csFreeN++] = i;
+        }
+        while (csHi > 0 && !csUsed[csHi - 1]) csHi--;
+      }
+      carFresh = false;
+      if (ghLive > 0) {
+        for (i = 0; i < CAR_GHOSTS; i++) {
+          if (!ghOn[i]) continue;
+          var gt = (now - ghT0[i]) / CAR_FADE_MS;
+          if (!(gt >= 0 && gt < 1)) { ghOn[i] = 0; ghLive--; continue; }
+          frameAnim = true;
+          if (cfN >= CAR_FADES) continue;
+          var gfx = Math.cos(ghA[i]), gfy = Math.sin(ghA[i]);
+          var gsx = ghX[i] * z + ox - gfy * ghOff[i], gsy = ghY[i] * z + oy + gfx * ghOff[i];
+          if (gsx < sx0 || gsx > sx1 || gsy < sy0 || gsy > sy1) continue;
+          cj = cfN * 8; cfAl[cfN++] = 1 - gt;
+          cfXY[cj] = gsx + gfx * hl - gfy * hc; cfXY[cj + 1] = gsy + gfy * hl + gfx * hc;
+          cfXY[cj + 2] = gsx + gfx * hl + gfy * hc; cfXY[cj + 3] = gsy + gfy * hl - gfx * hc;
+          cfXY[cj + 4] = gsx - gfx * hl + gfy * hc; cfXY[cj + 5] = gsy - gfy * hl - gfx * hc;
+          cfXY[cj + 6] = gsx - gfx * hl - gfy * hc; cfXY[cj + 7] = gsy - gfy * hl + gfx * hc;
+        }
+      }
+      if (cfN > 0) {
+        ctx.fillStyle = CAR_COLOR;
+        for (i = 0; i < cfN; i++) {
+          cj = i * 8;
+          ctx.globalAlpha = cfAl[i];
+          ctx.beginPath();
+          ctx.moveTo(cfXY[cj], cfXY[cj + 1]); ctx.lineTo(cfXY[cj + 2], cfXY[cj + 3]);
+          ctx.lineTo(cfXY[cj + 4], cfXY[cj + 5]); ctx.lineTo(cfXY[cj + 6], cfXY[cj + 7]);
+          ctx.closePath(); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      }
+      carDbg.tracked = csHi; carDbg.ghosts = ghLive; carDbg.fading = cfN;
 
       // dicas de ferramenta (fase plan)
       var ht = ov.hoverTool;
@@ -1349,41 +1586,71 @@
       // marca NEW: cruzamento novo sem sinal (a UI escreve ov.newJ = [ids] so no plano). Anel PONTILHADO
       // azul-acinzentado (o vermelho e tracejado ou continuo), ponto pequeno embaixo a direita que pulsa,
       // "NEW" em cima. Some com ferramenta no no (mesmo que a UI ainda nao tenha limpado a lista)
-      var nj = ov.newJ;
+      var nj = ov.newJ, njR = ps * 0.5 + 6, njP = reduceMotion ? 0 : Math.sin(now * 0.006), njAny = false, njSoft = false, njA;
+      njBox.length = 0;
       if (nj && nj.length && (phase === 'plan' || phase === null || phase === undefined)) {
-        var njR = ps * 0.5 + 6, njP = reduceMotion ? 0 : Math.sin(now * 0.006), njAny = false;
-        njBox.length = 0;
-        ctx.beginPath();
         for (i = 0; i < nj.length; i++) {
           n = nodes[nj[i]]; if (!n || n.tool || !n.edges || n.edges.length < 3) continue;
           var njx = n.x * z + ox, njy = n.y * z + oy;
           if (njx < sx0 || njx > sx1 || njy < sy0 || njy > sy1) continue;
-          ctx.moveTo(njx + njR, njy); ctx.arc(njx, njy, njR, 0, TAU);
           njBox.push(n.id); njAny = true;
+          if (njSt[n.id] === undefined) njSt[n.id] = fresh || reduceMotion ? 1 : 0;
+          njSeen[n.id] = carFrame;
         }
-        if (njAny) {
+      }
+      // envelope por marca: entra e sai em RING_FADE_MS (a que ganhou sinal ou saiu da lista some sozinha)
+      for (k in njSt) {
+        njA = njSt[k];
+        if (njSeen[k] === carFrame) { if (njA < 1) { njA += dtMs / RING_FADE_MS; if (njA > 1 || reduceMotion) njA = 1; } }
+        else { njA -= dtMs / RING_FADE_MS; if (reduceMotion || !nodes[k]) njA = 0; }
+        if (!(njA > 0)) { delete njSt[k]; delete njSeen[k]; continue; }
+        njSt[k] = njA;
+        if (njA < 1) njSoft = true;
+      }
+      if (njSoft) {
+        // alguma marca em transicao: uma a uma, cada qual com a sua opacidade
+        frameAnim = true;
+        ctx.font = NEWJ_FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+        for (k in njSt) {
+          n = nodes[k]; njA = njSt[k];
+          var nsx = n.x * z + ox, nsy = n.y * z + oy;
+          if (nsx < sx0 || nsx > sx1 || nsy < sy0 || nsy > sy1) continue;
+          ctx.beginPath(); ctx.moveTo(nsx + njR, nsy); ctx.arc(nsx, nsy, njR, 0, TAU);
           ctx.setLineDash(DASH_NEWJ); ctx.lineCap = 'round'; ctx.strokeStyle = NEWJ_COLOR; ctx.lineWidth = 2;
-          ctx.globalAlpha = 0.9; ctx.stroke(); ctx.setLineDash(DASH_NONE); ctx.globalAlpha = 1;
-          ctx.beginPath();
-          for (i = 0; i < njBox.length; i++) {
-            n = nodes[njBox[i]];
-            var njdx = n.x * z + ox + NEWJ_DX * njR, njdy = n.y * z + oy + NEWJ_DX * njR;
-            circle(njdx, njdy, 2.6 + 0.9 * njP);
-          }
-          ctx.fillStyle = NEWJ_COLOR; ctx.globalAlpha = reduceMotion ? 1 : 0.75 + 0.25 * njP; ctx.fill(); ctx.globalAlpha = 1;
-          ctx.font = NEWJ_FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillStyle = NEWJ_COLOR;
-          for (i = 0; i < njBox.length; i++) {
-            n = nodes[njBox[i]];
-            ctx.fillText(NEWJ_TEXT, n.x * z + ox, n.y * z + oy - njR - 2);
-          }
-          if (!reduceMotion) frameAnim = true;
+          ctx.globalAlpha = 0.9 * njA; ctx.stroke(); ctx.setLineDash(DASH_NONE);
+          ctx.beginPath(); circle(nsx + NEWJ_DX * njR, nsy + NEWJ_DX * njR, 2.6 + 0.9 * njP);
+          ctx.fillStyle = NEWJ_COLOR; ctx.globalAlpha = (reduceMotion ? 1 : 0.75 + 0.25 * njP) * njA; ctx.fill();
+          ctx.globalAlpha = njA; ctx.fillText(NEWJ_TEXT, nsx, nsy - njR - 2);
         }
-      } else njBox.length = 0;
+        ctx.globalAlpha = 1;
+      } else if (njAny) {
+        ctx.beginPath();
+        for (i = 0; i < njBox.length; i++) {
+          n = nodes[njBox[i]];
+          var njx2 = n.x * z + ox, njy2 = n.y * z + oy;
+          ctx.moveTo(njx2 + njR, njy2); ctx.arc(njx2, njy2, njR, 0, TAU);
+        }
+        ctx.setLineDash(DASH_NEWJ); ctx.lineCap = 'round'; ctx.strokeStyle = NEWJ_COLOR; ctx.lineWidth = 2;
+        ctx.globalAlpha = 0.9; ctx.stroke(); ctx.setLineDash(DASH_NONE); ctx.globalAlpha = 1;
+        ctx.beginPath();
+        for (i = 0; i < njBox.length; i++) {
+          n = nodes[njBox[i]];
+          var njdx = n.x * z + ox + NEWJ_DX * njR, njdy = n.y * z + oy + NEWJ_DX * njR;
+          circle(njdx, njdy, 2.6 + 0.9 * njP);
+        }
+        ctx.fillStyle = NEWJ_COLOR; ctx.globalAlpha = reduceMotion ? 1 : 0.75 + 0.25 * njP; ctx.fill(); ctx.globalAlpha = 1;
+        ctx.font = NEWJ_FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillStyle = NEWJ_COLOR;
+        for (i = 0; i < njBox.length; i++) {
+          n = nodes[njBox[i]];
+          ctx.fillText(NEWJ_TEXT, n.x * z + ox, n.y * z + oy - njR - 2);
+        }
+        if (!reduceMotion) frameAnim = true;
+      }
 
       // aneis de estresse
       // reduceMotion: sem pisca e sem pulso (anel fixo); nada aqui le o relogio
       var blink = reduceMotion ? 1 : 0.6 + 0.4 * Math.sin(now * 0.012);
-      var boostN = 0, sDash = false;
+      var boostN = 0, sDash = false, rs, ringOn, rr0, mixP, ga0;
       // nos fora da area util, contados na mesma volta (variaveis locais: nada alocado por no)
       var ou = usable(), ox0 = ou.l - 2, ox1 = W - ou.r + 2, oy0 = ou.t - 2, oy1 = H - ou.b + 2;
       var oL = 0, oR = 0, oT = 0, oB = 0, osl = 0, osr = 0, ost = 0, osb = 0;
@@ -1394,29 +1661,51 @@
         if (osy < oy0) { oT++; ost += osx; } else if (osy > oy1) { oB++; osb += osx; }
         if (n.boost > 0 && boostN < boostList.length) boostList[boostN++] = n;
         var sv = n.stress || 0;
-        if (!n.locked && !(sv >= RING_MIN)) continue;
+        // envelope do anel: entra e sai em RING_FADE_MS (antes aparecia e sumia num quadro so). Estado por no,
+        // criado quando o anel aparece pela primeira vez; reduce-motion e mundo recem-aberto: sem fade
+        rs = ringSt[k]; ringOn = !!n.locked || sv >= RING_MIN;
+        if (!ringOn && !rs) continue;
+        if (!rs) rs = ringSt[k] = { a: fresh || reduceMotion ? 1 : 0, red: -1, r: 0, w: 2.2, dash: true };
+        if (reduceMotion) rs.a = ringOn ? 1 : 0;
+        else if (ringOn) { if (rs.a < 1) { rs.a += dtMs / RING_FADE_MS; if (rs.a >= 1) rs.a = 1; else frameAnim = true; } }
+        else { rs.a -= dtMs / RING_FADE_MS; frameAnim = true; }
+        if (!ringOn && !(rs.a > 0)) { delete ringSt[k]; continue; }
         var rx2 = n.x * z + ox, ry2 = n.y * z + oy;
         if (rx2 < sx0 || rx2 > sx1 || ry2 < sy0 || ry2 > sy1) continue;
         var base = (n.tool ? ps * 0.5 : dotR) + 5;
         ctx.beginPath();
         var wantDash = false;
+        mixP = 1;
+        if (!ringOn) {
+          // saindo: o ultimo anel desenhado, parado, so com a opacidade caindo
+          circle(rx2, ry2, rs.r);
+          wantDash = rs.dash; ctx.lineWidth = rs.w; ctx.globalAlpha = 0.9 * rs.a;
+          ctx.strokeStyle = wantDash ? STRESS_MID : C.red;
+          if (wantDash !== sDash) {
+            sDash = wantDash;
+            ctx.setLineDash(wantDash ? DASH_STRESS : DASH_NONE); ctx.lineCap = wantDash ? 'butt' : 'round';
+          }
+          ctx.stroke();
+          continue;
+        }
         // ponta de rua (portal sem ferramenta e com menos de 3 ruas): o sim limita a 0.95, nunca trava e nao ha
         // acao util; so ambar tracejado e fino, nunca vermelho continuo nem X (igual ao "Busy road end" da UI)
         var isEnd = !!n.portal && !n.tool && !(n.edges && n.edges.length >= 3);
         if (isEnd && !n.locked) {
           sv = sv > 1 ? 1 : sv;
-          circle(rx2, ry2, (base + 1 + (sv - RING_MIN) / (1 - RING_MIN) * 6) * (reduceMotion ? 1 : 1 + 0.04 * Math.sin(now * 0.005)));
+          rr0 = (base + 1 + (sv - RING_MIN) / (1 - RING_MIN) * 6) * (reduceMotion ? 1 : 1 + 0.04 * Math.sin(now * 0.005));
+          circle(rx2, ry2, rr0);
           if (!reduceMotion) frameAnim = true;
-          wantDash = true; ctx.lineWidth = 1.8; ctx.globalAlpha = 0.85;
+          wantDash = true; ctx.lineWidth = 1.8; ctx.globalAlpha = 0.85; rs.red = 0;
         } else if (n.locked && n.tool) {
           // ja tem sinal: arco em volta do icone, aberto no canto onde fica o X (o icone fica livre)
           var lr = base + 7;
           ctx.moveTo(rx2 + Math.cos(LOCK_A0) * lr, ry2 + Math.sin(LOCK_A0) * lr);
           ctx.arc(rx2, ry2, lr, LOCK_A0, LOCK_A1);
-          ctx.lineWidth = 3; ctx.globalAlpha = 1;
+          ctx.lineWidth = 3; ctx.globalAlpha = 1; rr0 = lr; rs.red = 1;
         } else if (n.locked) {
           circle(rx2, ry2, base + 7);
-          ctx.lineWidth = 4; ctx.globalAlpha = 1;
+          ctx.lineWidth = 4; ctx.globalAlpha = 1; rr0 = base + 7; rs.red = 1;
         } else {
           sv = sv > 1 ? 1 : sv;
           // a partir de 0.3 o anel ja se ve (antes, perto de 0.35, era 1 px a 55%: sumia no cinza):
@@ -1435,23 +1724,44 @@
               ctx.moveTo(rx2, ry2 - lr2);
               ctx.arc(rx2, ry2, lr2, -Math.PI / 2, -Math.PI / 2 + TAU * left);
             }
-            ctx.lineWidth = 4.2; ctx.globalAlpha = 1;
+            ctx.lineWidth = 4.2; ctx.globalAlpha = rs.a;
+            rs.r = lr2; rs.w = 4.2; rs.dash = false; rs.red = 1;
             if (wantDash !== sDash) { sDash = wantDash; ctx.setLineDash(DASH_NONE); ctx.lineCap = 'round'; }
             ctx.strokeStyle = C.red; ctx.stroke();
             continue;
           }
-          circle(rx2, ry2, (base + 1 + u * 8) * (sv > 0.8 ? 1 + 0.06 * hard : 1 + 0.05 * soft));
+          rr0 = (base + 1 + u * 8) * (sv > 0.8 ? 1 + 0.06 * hard : 1 + 0.05 * soft);
+          circle(rx2, ry2, rr0);
           wantDash = sv <= 0.6;
+          // ambar <-> vermelho: os dois estilos se cruzam em RING_MIX_MS no mesmo anel (sem cor intermediaria)
+          var redT = wantDash ? 0 : 1;
+          if (rs.red < 0 || reduceMotion) rs.red = redT;
+          else if (rs.red !== redT) {
+            rs.red += (redT ? 1 : -1) * dtMs / RING_MIX_MS;
+            if (rs.red >= 1) rs.red = 1; else if (rs.red <= 0) rs.red = 0;
+            if (rs.red !== redT) { mixP = redT ? rs.red : 1 - rs.red; frameAnim = true; }
+          }
           // cor + forma: tracejado ambar (alerta), continuo vermelho (perigo); o travado segue vermelho
           ctx.lineWidth = wantDash ? 2.2 : 3.2 + (sv - 0.6) * 1.5;
           ctx.globalAlpha = sv > 0.8 ? blink : 0.82 + 0.1 * u + 0.08 * soft;
         }
+        rs.r = rr0; rs.w = ctx.lineWidth; rs.dash = wantDash;
+        ga0 = rs.a < 1 ? ctx.globalAlpha * rs.a : ctx.globalAlpha;
         ctx.strokeStyle = wantDash ? STRESS_MID : C.red;
         if (wantDash !== sDash) {
           sDash = wantDash;
           ctx.setLineDash(wantDash ? DASH_STRESS : DASH_NONE); ctx.lineCap = wantDash ? 'butt' : 'round';
         }
+        ctx.globalAlpha = ga0 * mixP;
         ctx.stroke();
+        if (mixP < 1) {
+          // o estilo de antes sai por baixo do novo, no mesmo anel
+          sDash = !wantDash;
+          ctx.strokeStyle = sDash ? STRESS_MID : C.red; ctx.lineWidth = sDash ? 2.2 : 3.2;
+          ctx.setLineDash(sDash ? DASH_STRESS : DASH_NONE); ctx.lineCap = sDash ? 'butt' : 'round';
+          ctx.globalAlpha = ga0 * (1 - mixP);
+          ctx.stroke();
+        }
       }
       if (sDash) { ctx.setLineDash(DASH_NONE); ctx.lineCap = 'round'; }
       ctx.globalAlpha = 1;
@@ -1478,18 +1788,25 @@
 
       // mapa de problemas de ontem: anel fino tracejado (plan/summary), sem animacao. Nos a menos de
       // HOT_CLUSTER px um do outro dividem um anel envolvente com contador (sem aneis sobrepostos)
-      var hm = st && st.hot;
-      if (hm && (phase === 'plan' || phase === 'summary')) {
+      var hm = st && st.hot, hotOn = !!(hm && (phase === 'plan' || phase === 'summary'));
+      if (hotOn) {
         var hkey = hotKeyOf(hm, nodes);
         if (w !== hotW || hm !== hotHm || z !== hotZ || ps !== hotPs || hkey !== hotKey) {
           hotW = w; hotHm = hm; hotZ = z; hotPs = ps; hotKey = hkey;
           computeHot(hm, nodes, z, ps, dotR);
         }
-        var hany = false, hdot = false;
+      }
+      // a camada entra e sai em RING_FADE_MS; na saida (comeco da corrida) desenha o ultimo agrupamento calculado
+      var hotT = hotOn && hotN > 0 ? 1 : 0;
+      if (reduceMotion || fresh) hotA = hotT;
+      else if (hotA < hotT) { hotA += dtMs / RING_FADE_MS; if (hotA >= 1) hotA = 1; else frameAnim = true; }
+      else if (hotA > hotT) { hotA -= dtMs / RING_FADE_MS; if (hotA <= 0) hotA = 0; else frameAnim = true; }
+      if (hotA > 0 && hotN > 0) {
+        var hany = false, hdot = false, hal = HOT_ALPHA * hotA;
         ctx.beginPath();
         for (i = 0; i < hotN; i++) {
           n = hotNode[i];
-          if (hm[n.id] >= 0.8) hdot = true;
+          if (hotHv[i] >= 0.8) hdot = true;
           if (!hotSolo[i]) continue;
           var hx2 = n.x * z + ox, hy2 = n.y * z + oy;
           if (hx2 < sx0 || hx2 > sx1 || hy2 < sy0 || hy2 > sy1) continue;
@@ -1501,13 +1818,13 @@
           circle(cqx, cqy, clR[i]); hany = true;
         }
         if (hany) {
-          ctx.strokeStyle = HOT_COLOR; ctx.lineWidth = HOT_W; ctx.globalAlpha = HOT_ALPHA;
+          ctx.strokeStyle = HOT_COLOR; ctx.lineWidth = HOT_W; ctx.globalAlpha = hal;
           ctx.setLineDash(DASH_GHOST); ctx.lineCap = 'butt'; ctx.stroke(); ctx.setLineDash(DASH_NONE); ctx.lineCap = 'round';
         }
         if (hdot) {
-          ctx.globalAlpha = HOT_ALPHA; ctx.fillStyle = HOT_COLOR; ctx.beginPath();
+          ctx.globalAlpha = hal; ctx.fillStyle = HOT_COLOR; ctx.beginPath();
           for (i = 0; i < hotN; i++) {
-            n = hotNode[i]; if (!(hm[n.id] >= 0.8)) continue;
+            n = hotNode[i]; if (!(hotHv[i] >= 0.8)) continue;
             var dx2 = n.x * z + ox, dy2 = n.y * z + oy;
             if (dx2 < sx0 || dx2 > sx1 || dy2 < sy0 || dy2 > sy1) continue;
             circle(dx2, dy2, 2.2);
@@ -1517,6 +1834,7 @@
         ctx.globalAlpha = 1;
         // contador do anel agrupado: pastilha pequena no alto a esquerda do anel (o X do travado fica a direita)
         if (clCount && ctx.fillText) {
+          ctx.globalAlpha = hotA;
           for (i = 0; i < clCount; i++) {
             var cbx = clX[i] * z + ox + Math.cos(COUNT_A) * clR[i], cby = clY[i] * z + oy + Math.sin(COUNT_A) * clR[i];
             if (cbx < sx0 || cbx > sx1 || cby < sy0 || cby > sy1) continue;
@@ -1525,6 +1843,7 @@
             ctx.font = COUNT_FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = HOT_COLOR;
             ctx.fillText(clN[i] < COUNT_TXT.length ? COUNT_TXT[clN[i]] : COUNT_MANY, cbx, cby + 0.5);
           }
+          ctx.globalAlpha = 1;
         }
       }
 
@@ -1765,7 +2084,8 @@
       offs.lpos = oL ? osl / oL : 0; offs.rpos = oR ? osr / oR : 0; offs.tpos = oT ? ost / oT : 0; offs.bpos = oB ? osb / oB : 0;
       offs.any = !!(oL || oR || oT || oB);
       arrowN = 0;
-      if (offs.any && phase !== 'summary' && phase !== 'over') drawOffArrows(nodes, z, ox, oy);
+      // so quando a jogadora mesma mexeu na camera (gesto, foco, reveal): depois de um enquadramento nao ha seta
+      if (offs.any && camUser && phase !== 'summary' && phase !== 'over') drawOffArrows(nodes, z, ox, oy);
 
       // lupa: durante o arrasto de rua, o ponto de destino ampliado acima do dedo
       var fg = ov.finger;
@@ -2079,6 +2399,7 @@
       if (fitMo) { try { fitMo.disconnect(); } catch (e) {} fitMo = null; }
       fitEl = null;
     };
+    r._cars = function () { return carDbg; };   // so para testes: interpolacao e tamanho do ultimo quadro
     r._idle = function () { return { skipped: idleSkipped, anim: frameAnim }; }; // so para testes
     r.hotRings = hotRingsT;
     // ids com a marca NEW no ultimo quadro desenhado (UI: ov.newJ; so no plano, sem ferramenta, 3+ ruas, na tela)

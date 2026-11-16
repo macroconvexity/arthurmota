@@ -10,6 +10,41 @@
   --play: 56px;
   color-scheme: light;
 }
+/* ==== tokens (polimento 2026-11-15, passo 2). Todo valor visual abaixo aponta para um destes. ==== */
+:root {
+  /* fonte: 5 tamanhos de texto e 3 de numero/titulo grande */
+  --fs-xs: 11px; --fs-sm: 13px; --fs-md: 15px; --fs-lg: 17px; --fs-xl: 22px;
+  --fs-d1: 32px; --fs-d2: 40px; --fs-d3: 52px;
+  /* peso: normal (texto corrido), semi (rotulo, botao), bold (valor, titulo); light so nos 3 titulos finos da tela inicial */
+  --fw-light: 300; --fw-normal: 400; --fw-semi: 600; --fw-bold: 700;
+  /* cor por papel. As matizes sao as de sempre; --bg, --ink, --red, --green, --amber, --gray, --white, --grid,
+     --inkSoft e --inkText vem do bloco de cima (espelho de CFG.colors) */
+  --ink-2: var(--inkText);      /* cinza 1: texto secundario (5,2:1) */
+  --line-2: var(--inkSoft);     /* cinza 2: borda de controle apagado, bolinha vazia */
+  --line: var(--gray);          /* cinza 3: borda de ladrilho e de botao redondo */
+  --hair: var(--grid);          /* fio creme: divisores e trilho de barra */
+  --green-text: #1a7f35;        /* ganho em texto (5,0:1) */
+  --new: #7a6aa8; --new-text: #5a4c88;                 /* cruzamento NEW */
+  --warn: #d98a00; --warn-bg: #fbf3e0; --warn-line: #e5c98a; --warn-ink: #4a3a12;   /* chip de acao do resumo */
+  --scrim: rgba(17, 17, 17, 0.34);                     /* veu unico atras de folha e tutorial */
+  /* raio: 3, mais pilula e circulo */
+  --r-sm: 3px; --r-md: 12px; --r-lg: 16px; --r-pill: 999px;
+  /* borda: 2 */
+  --bw: 1.5px; --bw-2: 2px;
+  /* sombra: 2 (o que flutua sobre o mapa; cartao modal) */
+  --shadow-1: 0 2px 8px rgba(0, 0, 0, 0.22); --shadow-2: 0 10px 40px rgba(0, 0, 0, 0.25);
+  /* movimento da interface: 3 duracoes e 1 curva (saida = 160 ms, derivada da base) */
+  --t-fast: 80ms; --t-base: 220ms; --t-slow: 300ms; --t-out: calc(var(--t-base) * 0.73);
+  --ease: cubic-bezier(.2, .8, .2, 1);
+  /* lacos de ambiente (aneis de dica, pulso de espera, faixa do dia) */
+  --t-ring: 1s; --t-show: 1.2s; --t-loop: 1.6s;
+  /* botao: 2 alturas; chip: 1 */
+  --h-btn: 44px; --h-btn-lg: 56px; --h-chip: 32px;
+  /* margem lateral unica */
+  --gutter: 16px;
+}
+@media (max-height: 700px) { :root { --fs-d3: 48px; } }
+@media (orientation: landscape) and (max-height: 500px) { :root { --fs-d1: 26px; --fs-d3: 40px; } }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body {
   margin: 0; padding: 0; width: 100%;
@@ -34,11 +69,11 @@ button {
   touch-action: manipulation; -webkit-appearance: none; appearance: none; border-radius: 0;
   -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; outline: none;
 }
-button:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+button:focus-visible { outline: var(--bw-2) solid var(--red); outline-offset: 2px; }
 svg { display: block; -webkit-user-drag: none; }
 button svg { pointer-events: none; }
 .f-ink { fill: var(--ink); } .f-red { fill: var(--red); } .f-green { fill: var(--green); }
-.f-white { fill: var(--white); } .f-dim { fill: #555; } .f-none { fill: none; }
+.f-white { fill: var(--white); } .f-dim { fill: var(--ink-2); } .f-none { fill: none; }
 .s-ink { stroke: var(--ink); } .s-red { stroke: var(--red); } .s-green { stroke: var(--green); }
 
 /* camadas do HUD: so os botoes recebem toque; o resto deixa passar para o canvas */
@@ -48,12 +83,12 @@ button svg { pointer-events: none; }
 /* topo: so informacao (e o "novo jogo" discreto no canto mais longe do polegar) */
 .crz-top {
   position: absolute; left: 0; right: 0; top: 0;
-  padding: calc(var(--sat) + 8px) calc(var(--sar) + 8px) 0 calc(var(--sal) + 16px);
+  padding: calc(var(--sat) + 8px) calc(var(--sar) + var(--gutter)) 0 calc(var(--sal) + var(--gutter));
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   pointer-events: none;
 }
 .crz-dots { display: flex; gap: 3px; align-items: center; min-width: 0; }
-.crz-dot { width: 7px; height: 7px; border-radius: 50%; border: 1px solid var(--inkSoft); }
+.crz-dot { width: 7px; height: 7px; border-radius: 50%; border: var(--bw) solid var(--inkSoft); }
 .crz-dot.past { background: var(--ink); border-color: var(--ink); }
 .crz-dot.now { background: var(--red); border-color: var(--red); transform: scale(1.35); }
 .crz-die { display: flex; align-items: center; gap: 4px; min-height: 44px; min-width: 44px; padding: 0 6px; }
@@ -63,13 +98,13 @@ button svg { pointer-events: none; }
 .crz-dnext { margin-left: 4px; display: flex; }
 .crz-dnext.off { display: none; }
 .crz-die.rolling .crz-dev { opacity: 0; }
-.crz-die.rolling .crz-dpips { animation: crz-roll 0.4s ease-in-out 1; }
+.crz-die.rolling .crz-dpips { animation: crz-roll var(--t-slow) ease-in-out 1; }
 .crz-die.off { visibility: hidden; }
 .crz-strikes { display: flex; gap: 4px; }
-.crz-strike { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--ink); }
+.crz-strike { width: 12px; height: 12px; border-radius: 50%; border: var(--bw) solid var(--ink); }
 .crz-strike.on { background: var(--red); border-color: var(--red); }
 .crz-new {
-  width: 44px; height: 44px; flex: none;
+  width: 44px; height: var(--h-btn); flex: none;
   display: flex; align-items: center; justify-content: center; opacity: 0.35;
 }
 .crz-new svg { width: 14px; height: 14px; }
@@ -78,31 +113,30 @@ button svg { pointer-events: none; }
 /* base: zona do polegar. Acima do indicador de home (safe-area) + folga */
 .crz-bottom {
   position: absolute; left: 0; right: 0; bottom: 0;
-  padding: 0 calc(var(--sar) + 12px) calc(var(--sab) + 12px) calc(var(--sal) + 12px);
+  padding: 0 calc(var(--sar) + var(--gutter)) calc(var(--sab) + 12px) calc(var(--sal) + var(--gutter));
   pointer-events: none;
   display: flex; flex-direction: column; align-items: stretch; gap: 10px;
 }
 .crz-budget { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; min-height: 10px; }
-.crz-pt { width: 10px; height: 10px; border-radius: 50%; border: 1.5px solid var(--ink); }
+.crz-pt { width: 10px; height: 10px; border-radius: 50%; border: var(--bw) solid var(--ink); }
 .crz-pt.full { background: var(--ink); }
 .crz-tray { display: flex; align-items: flex-end; gap: 8px; }
 .crz-tiles { flex: 1; display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; min-width: 0; }
 .crz-tile {
-  position: relative; width: var(--tile); height: var(--tile); border-radius: 12px;
-  background: var(--white); border: 1.5px solid var(--gray);
+  position: relative; width: var(--tile); height: var(--tile); border-radius: var(--r-md);
+  background: var(--white); border: var(--bw) solid var(--gray);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
 }
 .crz-tile svg { width: 30px; height: 30px; }
-.crz-tile.sel { border-color: var(--red); border-width: 2px; }
+.crz-tile.sel { border-color: var(--red); border-width: var(--bw-2); }
 .crz-tile.poor { opacity: 0.35; }
-.crz-tile:active, .crz-undo:active { transform: scale(0.94); }
-.crz-tile.shake, .crz-card.shake, .crz-undo.shake, .crz-reroll.shake { animation: crz-shake 0.3s linear 1; }
+.crz-tile.shake, .crz-card.shake, .crz-undo.shake, .crz-reroll.shake { animation: crz-shake var(--t-slow) linear 1; }
 .crz-cost { display: flex; gap: 2px; height: 5px; }
 .crz-cost i { width: 5px; height: 5px; border-radius: 50%; background: var(--ink); display: block; }
-.crz-cost i.free { background: none; border: 1px solid var(--green); width: 5px; height: 5px; }
+.crz-cost i.free { background: none; border: var(--bw) solid var(--green); width: 5px; height: 5px; }
 .crz-undo {
   position: relative; flex: none;
-  width: var(--tile); height: var(--tile); border-radius: 12px; border: 1.5px solid var(--gray);
+  width: var(--tile); height: var(--tile); border-radius: var(--r-md); border: var(--bw) solid var(--gray);
   background: var(--white); display: flex; align-items: center; justify-content: center;
 }
 .crz-undo svg { width: 24px; height: 24px; }
@@ -110,11 +144,10 @@ button svg { pointer-events: none; }
 .crz-play {
   position: relative; flex: none;
   width: var(--play); height: var(--play); border-radius: 50%; background: var(--ink); color: var(--bg);
-  display: flex; align-items: center; justify-content: center; font-size: 17px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; font-size: var(--fs-lg); font-weight: var(--fw-bold);
   font-variant-numeric: tabular-nums;
 }
 .crz-play svg { width: 22px; height: 22px; margin-left: 3px; }
-.crz-play:active { transform: scale(0.94); }
 .crz-play.off { visibility: hidden; }
 .crz-ui[data-phase="run"] .crz-tiles, .crz-ui[data-phase="run"] .crz-undo { opacity: 0.3; }
 .crz-ui[data-phase="run"] .crz-tile, .crz-ui[data-phase="run"] .crz-undo { pointer-events: none; }
@@ -122,35 +155,35 @@ button svg { pointer-events: none; }
 
 /* dica: anel que cresce e some (transform + opacity, sem box-shadow animado) */
 .crz-tile.hint::after, .crz-play.hint::after {
-  content: ""; position: absolute; inset: -3px; border: 2px solid var(--red); border-radius: 14px;
-  pointer-events: none; animation: crz-ring 1.1s ease-out 4 forwards;
+  content: ""; position: absolute; inset: -3px; border: var(--bw-2) solid var(--red); border-radius: var(--r-md);
+  pointer-events: none; animation: crz-ring var(--t-ring) var(--ease) 4 forwards;
 }
 .crz-play.hint::after { border-radius: 50%; }
 
 /* resumo */
 .crz-sheet { position: absolute; inset: 0; display: none; pointer-events: none; }
 .crz-sheet.show { display: flex; }
-.crz-sum { align-items: flex-end; justify-content: center; padding: 0 calc(var(--sar) + 12px) calc(var(--sab) + 12px) calc(var(--sal) + 12px); }
+.crz-sum { align-items: flex-end; justify-content: center; padding: 0 calc(var(--sar) + var(--gutter)) calc(var(--sab) + 12px) calc(var(--sal) + var(--gutter)); }
 .crz-panel {
-  width: 100%; max-width: 420px; background: var(--bg); border: 1.5px solid var(--ink); border-radius: 16px;
+  width: 100%; max-width: 420px; background: var(--bg); border: var(--bw) solid var(--ink); border-radius: var(--r-lg);
   padding: 16px; display: flex; flex-direction: column; align-items: center; gap: 12px; pointer-events: auto;
 }
-.crz-big { font-size: 64px; line-height: 1; font-weight: 700; letter-spacing: 0; font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
-.crz-cap { font-size: 13px; color: var(--inkText); margin-top: -8px; }
-.crz-wait { width: 100%; height: 6px; background: var(--grid); border-radius: 3px; overflow: hidden; }
+.crz-big { font-size: var(--fs-d3); line-height: 1; font-weight: var(--fw-bold); letter-spacing: 0; font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+.crz-cap { font-size: var(--fs-sm); color: var(--inkText); margin-top: -8px; }
+.crz-wait { width: 100%; height: 6px; background: var(--grid); border-radius: var(--r-sm); overflow: hidden; }
 .crz-wait i { display: block; height: 100%; background: var(--ink); width: 0; }
 .crz-wait i.warn { background: var(--red); }
 .crz-sstrikes { display: flex; gap: 6px; }
 .crz-sstrikes .crz-strike { width: 14px; height: 14px; }
 .crz-cards { display: flex; gap: 8px; width: 100%; justify-content: center; }
 .crz-card {
-  flex: 1; max-width: 112px; min-height: 84px; border-radius: 12px; border: 1.5px solid var(--gray); background: var(--white);
+  flex: 1; max-width: 112px; min-height: 84px; border-radius: var(--r-md); border: var(--bw) solid var(--gray); background: var(--white);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; padding: 8px 4px;
 }
 .crz-card svg { width: 36px; height: 36px; }
-.crz-card span { font-size: 13px; font-weight: 600; }
+.crz-card span { font-size: var(--fs-sm); font-weight: var(--fw-semi); }
 .crz-card:active { border-color: var(--red); }
-.crz-skip { min-height: 56px; width: 100%; padding: 0 20px; border-radius: 28px; background: var(--ink); color: var(--bg); font-size: 17px; font-weight: 700; }
+.crz-skip { min-height: var(--h-btn-lg); width: 100%; padding: 0 20px; border-radius: var(--r-pill); background: var(--ink); color: var(--bg); font-size: var(--fs-lg); font-weight: var(--fw-bold); }
 
 /* fim: cobre tudo e engole o toque (o mapa embaixo nao reage) */
 .crz-over {
@@ -160,7 +193,7 @@ button svg { pointer-events: none; }
 }
 .crz-over .crz-mark svg { width: 56px; height: 56px; }
 .crz-again {
-  min-height: 52px; padding: 0 28px; border-radius: 26px; background: var(--ink); color: var(--bg); font-size: 17px; font-weight: 700;
+  min-height: var(--h-btn-lg); padding: 0 28px; border-radius: var(--r-pill); background: var(--ink); color: var(--bg); font-size: var(--fs-lg); font-weight: var(--fw-bold);
 }
 
 /* deitado (iPhone girado): altura curta, ferramentas numa linha so, resumo mais baixo */
@@ -170,7 +203,7 @@ button svg { pointer-events: none; }
   .crz-bottom { gap: 6px; padding-bottom: calc(var(--sab) + 8px); }
   .crz-tile svg { width: 26px; height: 26px; }
   .crz-panel { padding: 10px 16px; gap: 8px; }
-  .crz-big { font-size: 44px; }
+  .crz-big { font-size: var(--fs-d2); }
   .crz-card { min-height: 64px; }
 }
 
@@ -179,7 +212,7 @@ button svg { pointer-events: none; }
 @keyframes crz-shake { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-5px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-4px); } 80% { transform: translateX(3px); } }
 @media (prefers-reduced-motion: reduce) {
   .crz-tile.hint::after, .crz-play.hint::after { animation: none; }
-  .crz-tile.hint, .crz-play.hint { outline: 2px solid var(--red); outline-offset: 2px; }
+  .crz-tile.hint, .crz-play.hint { outline: var(--bw-2) solid var(--red); outline-offset: 2px; }
   .crz-tile.shake, .crz-card.shake, .crz-undo.shake, .crz-reroll.shake { animation: none; border-color: var(--red); }
   .crz-tile:active, .crz-undo:active, .crz-play:active { transform: none; }
   * { transition: none !important; }
@@ -191,20 +224,20 @@ button svg { pointer-events: none; }
 .crz-ring {
   position: absolute; inset: -6px; border-radius: 50%; pointer-events: none; display: none;
   background: conic-gradient(var(--ink) calc(var(--p, 0) * 360deg), var(--gray) 0);
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px));
-  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2.5px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), black calc(100% - 2.5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), black calc(100% - 2.5px));
 }
 .crz-play.running .crz-ring { display: block; }
 .crz-play.running svg { margin-left: 0; }
 .crz-play.hint-loop::after {
-  content: ""; position: absolute; inset: -3px; border: 2px solid var(--red); border-radius: 50%;
-  pointer-events: none; animation: crz-ring 1.6s ease-out infinite;
+  content: ""; position: absolute; inset: -3px; border: var(--bw-2) solid var(--red); border-radius: 50%;
+  pointer-events: none; animation: crz-ring var(--t-loop) var(--ease) infinite;
 }
 .crz-ui[data-phase="run"] .crz-budget { opacity: 0.3; }
 .crz-bottom.notools .crz-budget, .crz-bottom.notools .crz-tiles, .crz-bottom.notools .crz-undo { visibility: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .crz-play.hint-loop::after { animation: none; }
-  .crz-play.hint-loop { outline: 2px solid var(--red); outline-offset: 4px; }
+  .crz-play.hint-loop { outline: var(--bw-2) solid var(--red); outline-offset: 4px; }
 }
 
 /* ---- ganchos de tutorial/menu (CONGELADOS) ---- */
@@ -213,7 +246,7 @@ button svg { pointer-events: none; }
 #crz-overlay-root { position: fixed; inset: 0; pointer-events: none; z-index: 20; }
 /* menu novo substitui o botao discreto de novo jogo */
 body.crz-menu-on .crz-new { display: none; }
-body.crz-menu-on .crz-top { padding-right: calc(var(--sar) + 52px); }
+body.crz-menu-on .crz-top { padding-right: calc(var(--sar) + var(--gutter) + 46px); }
 /* overlay modal aberto: mapa e HUD nao reagem a toque (so #crz-overlay-root) */
 body.crz-modal #stage, body.crz-modal #hud, body.crz-modal #hud * { pointer-events: none !important; }
 
@@ -224,23 +257,23 @@ body.crz-modal #stage, body.crz-modal #hud, body.crz-modal #hud * { pointer-even
 .crz-dieback { position: absolute; inset: 0; pointer-events: none; }
 .crz-ui[data-phase="plan"] .crz-dieback { pointer-events: auto; }
 .crz-diepanel {
-  position: absolute; left: calc(var(--sal) + 12px); right: calc(var(--sar) + 12px);
+  position: absolute; left: calc(var(--sal) + var(--gutter)); right: calc(var(--sar) + var(--gutter));
   bottom: var(--sheetb, 96px); margin: 0 auto; max-width: 420px;
-  background: var(--bg); border: 1px solid var(--ink); border-radius: 14px;
+  background: var(--bg); border: var(--bw) solid var(--ink); border-radius: var(--r-md);
   padding: 14px 16px 12px; display: flex; flex-direction: column; gap: 10px; pointer-events: auto;
 }
 .crz-dierow.off, .crz-reroll.gone { display: none; }
-.crz-diename { font-size: 15px; font-weight: 700; padding-right: 40px; }
-.crz-dierow + .crz-dierow .crz-diename { font-weight: 600; color: var(--inkText); padding-right: 0; }
-.crz-diedesc { font-size: 13px; color: var(--ink); margin-top: 2px; }
+.crz-diename { font-size: var(--fs-md); font-weight: var(--fw-bold); padding-right: 40px; }
+.crz-dierow + .crz-dierow .crz-diename { font-weight: var(--fw-semi); color: var(--inkText); padding-right: 0; }
+.crz-diedesc { font-size: var(--fs-sm); color: var(--ink); margin-top: 2px; }
 .crz-dierow + .crz-dierow .crz-diedesc { color: var(--inkText); }
-.crz-dieclose { position: absolute; top: 0; right: 0; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; }
+.crz-dieclose { position: absolute; top: 0; right: 0; width: 44px; height: var(--h-btn); display: flex; align-items: center; justify-content: center; }
 .crz-dieclose svg { width: 16px; height: 16px; }
 .crz-reroll {
-  min-height: 44px; border-radius: 22px; background: var(--ink); color: var(--bg); font-size: 15px; font-weight: 700; padding: 0 20px;
+  min-height: var(--h-btn); border-radius: var(--r-pill); background: var(--ink); color: var(--bg); font-size: var(--fs-md); font-weight: var(--fw-bold); padding: 0 20px;
 }
 .crz-reroll.off { background: var(--grid); color: var(--inkText); }
-.crz-dienote { font-size: 13px; color: var(--inkText); text-align: center; min-height: 14px; margin-top: -4px; }
+.crz-dienote { font-size: var(--fs-sm); color: var(--inkText); text-align: center; min-height: 14px; margin-top: -4px; }
 @media (orientation: landscape) and (max-height: 500px) {
   .crz-diepanel { gap: 6px; padding: 8px 14px; }
 }
@@ -248,85 +281,85 @@ body.crz-modal #stage, body.crz-modal #hud, body.crz-modal #hud * { pointer-even
 /* ---- Boost (a velocidade manual saiu) ---- */
 .gone { display: none !important; }
 .crz-clear {
-  position: absolute; right: calc(var(--sar) + 12px); bottom: calc(var(--sab) + 12px + var(--play) + 14px);
+  position: absolute; right: calc(var(--sar) + var(--gutter)); bottom: calc(var(--sab) + 12px + var(--play) + 14px);
   display: flex; gap: 6px; align-items: center; pointer-events: none;
 }
 .crz-cp {
-  width: 26px; height: 26px; border-radius: 50%; border: 1.5px solid var(--gray); color: var(--gray);
+  width: 26px; height: 26px; border-radius: 50%; border: var(--bw) solid var(--gray); color: var(--gray);
   display: flex; align-items: center; justify-content: center; background: var(--white);
 }
 .crz-cp svg { width: 16px; height: 16px; }
 .crz-cp.on { background: var(--ink); border-color: var(--ink); color: var(--white); }
 .crz-ui[data-phase="plan"] .crz-clear { opacity: 0.35; }
-.crz-clear.shake { animation: crz-shake 0.3s linear 1; }
+.crz-clear.shake { animation: crz-shake var(--t-slow) linear 1; }
 .crz-clear.pulse::after {
-  content: ""; position: absolute; inset: -5px; border: 2px solid var(--red); border-radius: 16px;
-  pointer-events: none; animation: crz-ring 0.9s ease-out 2 forwards;
+  content: ""; position: absolute; inset: -5px; border: var(--bw-2) solid var(--red); border-radius: var(--r-lg);
+  pointer-events: none; animation: crz-ring var(--t-ring) var(--ease) 2 forwards;
 }
 @media (prefers-reduced-motion: reduce) {
   .crz-clear.shake { animation: none; }
   .crz-clear.pulse::after { animation: none; }
-  .crz-clear.pulse { outline: 2px solid var(--red); outline-offset: 3px; }
+  .crz-clear.pulse { outline: var(--bw-2) solid var(--red); outline-offset: 3px; }
 }
 
 /* ---- velocidade: cor do anel por nivel, pulso do rotulo, gorjetas, bonus do resumo ---- */
 .crz-play.lv1 .crz-ring { background: conic-gradient(var(--green) calc(var(--p, 0) * 360deg), var(--gray) 0); }
 .crz-play.lv2 .crz-ring {
   background: conic-gradient(var(--red) calc(var(--p, 0) * 360deg), var(--gray) 0);
-  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
-  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 1.5px));
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), black calc(100% - 1.5px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 2px), black calc(100% - 1.5px));
 }
-.crz-face.pop { animation: crz-pop 0.22s ease-out 1; }
+.crz-face.pop { animation: crz-pop var(--t-base) var(--ease) 1; }
 @keyframes crz-pop { 0% { transform: scale(1.35); } 100% { transform: scale(1); } }
 .crz-tip { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 8px; pointer-events: none; }
-.crz-tip b { display: block; width: 72px; height: 3px; background: var(--grid); border-radius: 2px; overflow: hidden; }
+.crz-tip b { display: block; width: 72px; height: 3px; background: var(--grid); border-radius: var(--r-sm); overflow: hidden; }
 .crz-tip i { display: block; height: 100%; width: 0; background: var(--green); }
-.crz-tip span { font-size: 13px; font-weight: 700; color: var(--green); }
-.crz-bonus { font-size: 14px; font-weight: 700; color: var(--green); }
-.crz-bonus.lost { color: var(--inkText); font-weight: 600; }
+.crz-tip span { font-size: var(--fs-sm); font-weight: var(--fw-bold); color: var(--green); }
+.crz-bonus { font-size: var(--fs-sm); font-weight: var(--fw-bold); color: var(--green); }
+.crz-bonus.lost { color: var(--inkText); font-weight: var(--fw-semi); }
 @media (prefers-reduced-motion: reduce) { .crz-face.pop { animation: none; } }
 
 /* ---- polimento de primeira vez ---- */
 .crz-die.hide { visibility: hidden; pointer-events: none; }
 .crz-die.pulse::after {
-  content: ""; position: absolute; inset: -2px; border: 2px solid var(--red); border-radius: 14px;
-  pointer-events: none; animation: crz-ring 0.9s ease-out 1 forwards;
+  content: ""; position: absolute; inset: -2px; border: var(--bw-2) solid var(--red); border-radius: var(--r-md);
+  pointer-events: none; animation: crz-ring var(--t-ring) var(--ease) 1 forwards;
 }
 .crz-die { position: relative; }
-.crz-ptn { font-size: 15px; font-weight: 700; margin-left: 2px; font-variant-numeric: tabular-nums; }
+.crz-ptn { font-size: var(--fs-md); font-weight: var(--fw-bold); margin-left: 2px; font-variant-numeric: tabular-nums; }
 .crz-budget { align-items: center; }
-.crz-headline { font-size: 15px; font-weight: 600; color: var(--ink); }
+.crz-headline { font-size: var(--fs-md); font-weight: var(--fw-semi); color: var(--ink); }
 .crz-headline.gone { display: none; }
 
 .crz-daybanner {
   position: absolute; left: 0; right: 0; top: 38%; text-align: center; pointer-events: none;
-  font-size: 44px; font-weight: 700; letter-spacing: -1px; opacity: 0; z-index: 2;
+  font-size: var(--fs-d2); font-weight: var(--fw-bold); letter-spacing: -1px; opacity: 0; z-index: 2;
 }
-.crz-daybanner.show { animation: crz-day 1.2s ease-out 1 forwards; }
+.crz-daybanner.show { animation: crz-day var(--t-show) var(--ease) 1 forwards; }
 @keyframes crz-day { 0% { opacity: 0; transform: scale(0.94); } 20% { opacity: 1; transform: scale(1); } 75% { opacity: 1; } 100% { opacity: 0; transform: scale(1.02); } }
 
-.crz-otitle { font-size: 34px; font-weight: 700; letter-spacing: -1px; }
-.crz-osub { font-size: 17px; color: var(--ink); text-align: center; padding: 0 24px; }
+.crz-otitle { font-size: var(--fs-d1); font-weight: var(--fw-bold); letter-spacing: -1px; }
+.crz-osub { font-size: var(--fs-lg); color: var(--ink); text-align: center; padding: 0 24px; }
 .crz-stats { display: flex; gap: 36px; margin: 6px 0; }
-.crz-oextra { font-size: 15px; color: var(--inkText); text-align: center; font-variant-numeric: tabular-nums; }
+.crz-oextra { font-size: var(--fs-md); color: var(--inkText); text-align: center; font-variant-numeric: tabular-nums; }
 .crz-oextra.gone { display: none; }
 .crz-stat { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 64px; }
-.crz-stat b { font-size: 52px; line-height: 1; font-weight: 700; letter-spacing: 0; font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
-.crz-stat span { font-size: 13px; color: var(--inkText); }
+.crz-stat b { font-size: var(--fs-d3); line-height: 1; font-weight: var(--fw-bold); letter-spacing: 0; font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
+.crz-stat span { font-size: var(--fs-sm); color: var(--inkText); }
 .crz-ostreet { position: relative; width: 100%; max-width: 320px; height: 20px; overflow: hidden; margin: 4px 0 8px; }
 .crz-ostreet i.line { position: absolute; left: 0; right: 0; top: 50%; height: 1px; background: var(--ink); }
-.crz-ostreet i.car { position: absolute; top: 50%; left: 0; width: 10px; height: 10px; margin-top: -5px; border-radius: 2px; background: var(--ink); transform: translateX(-20px); animation: crz-odrive 9s linear infinite; }
+.crz-ostreet i.car { position: absolute; top: 50%; left: 0; width: 10px; height: 10px; margin-top: -5px; border-radius: var(--r-sm); background: var(--ink); transform: translateX(-20px); animation: crz-odrive 9s linear infinite; }
 .crz-ostreet i.c1 { animation-delay: -1s; }
 .crz-ostreet i.c2 { background: var(--red); animation-duration: 12s; animation-delay: -4s; }
 .crz-ostreet i.c3 { animation-duration: 10.5s; animation-delay: -8s; }
 @keyframes crz-odrive { from { transform: translateX(-20px); } to { transform: translateX(340px); } }
 @media (orientation: landscape) and (max-height: 500px) {
-  .crz-over { gap: 6px; } .crz-stat b { font-size: 36px; } .crz-otitle { font-size: 26px; } .crz-ostreet { margin: 0; }
+  .crz-over { gap: 6px; } .crz-stat b { font-size: var(--fs-d2); } .crz-otitle { font-size: var(--fs-d1); } .crz-ostreet { margin: 0; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .crz-daybanner.show { animation: crz-dayfade 1.2s linear 1 forwards; }
+  .crz-daybanner.show { animation: crz-dayfade var(--t-show) linear 1 forwards; }
   .crz-die.pulse::after { animation: none; }
-  .crz-die.pulse { outline: 2px solid var(--red); outline-offset: 2px; }
+  .crz-die.pulse { outline: var(--bw-2) solid var(--red); outline-offset: 2px; }
   .crz-ostreet i.car { animation: none; transform: none; }
   .crz-ostreet i.c1 { left: 12%; } .crz-ostreet i.c2 { left: 50%; } .crz-ostreet i.c3 { left: 78%; }
 }
@@ -334,27 +367,27 @@ body.crz-modal #stage, body.crz-modal #hud, body.crz-modal #hud * { pointer-even
 
 /* ---- cartas legiveis, aviso curto, folha do dado explicada (feedback de primeira vez, 2026-11-08) ---- */
 .crz-chead { width: 100%; text-align: left; margin-bottom: -4px; }
-.crz-ctitle { font-size: 16px; font-weight: 700; }
+.crz-ctitle { font-size: var(--fs-lg); font-weight: var(--fw-bold); }
 .crz-cards.crz-cards { flex-direction: column; gap: 6px; }
 .crz-card.crz-card {
   flex: none; max-width: none; width: 100%; min-height: 60px; flex-direction: row; justify-content: flex-start;
   align-items: center; gap: 12px; padding: 8px 12px; text-align: left; position: relative;
 }
 .crz-card.crz-card svg { width: 32px; height: 32px; flex: none; }
-.crz-card.rec { border-color: var(--ink); border-width: 2px; }
+.crz-card.rec { border-color: var(--ink); border-width: var(--bw-2); }
 .crz-ctx { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-.crz-ctx .crz-cname { font-size: 15px; font-weight: 700; }
-.crz-ctx .crz-cline { font-size: 13px; font-weight: 500; color: var(--ink); line-height: 1.3; }
-.crz-ctx .crz-cgood { font-size: 12px; font-weight: 500; color: var(--inkText); line-height: 1.3; }
-.crz-ctag { font-style: normal; font-size: 11px; font-weight: 700; color: var(--bg); background: var(--ink); border-radius: 8px; padding: 1px 7px; margin-left: 8px; vertical-align: 2px; }
-.crz-sjam { width: 100%; font-size: 13px; line-height: 1.35; color: var(--red); font-weight: 600; text-align: left; }
-.crz-diewhat { font-size: 13px; line-height: 1.35; color: var(--ink); border-top: 1px solid var(--grid); padding-top: 8px; }
+.crz-ctx .crz-cname { font-size: var(--fs-md); font-weight: var(--fw-bold); }
+.crz-ctx .crz-cline { font-size: var(--fs-sm); font-weight: var(--fw-normal); color: var(--ink); line-height: 1.3; }
+.crz-ctx .crz-cgood { font-size: var(--fs-sm); font-weight: var(--fw-normal); color: var(--inkText); line-height: 1.3; }
+.crz-ctag { font-style: normal; font-size: var(--fs-xs); font-weight: var(--fw-bold); color: var(--bg); background: var(--ink); border-radius: var(--r-pill); padding: 1px 7px; margin-left: 8px; vertical-align: 2px; }
+.crz-sjam { width: 100%; font-size: var(--fs-sm); line-height: 1.35; color: var(--red); font-weight: var(--fw-semi); text-align: left; }
+.crz-diewhat { font-size: var(--fs-sm); line-height: 1.35; color: var(--ink); border-top: var(--bw) solid var(--grid); padding-top: 8px; }
 .crz-say {
   position: absolute; left: 50%; top: calc(var(--sat) + 76px); transform: translateX(-50%);
   width: max-content; max-width: min(340px, calc(100vw - 32px)); box-sizing: border-box;
-  background: var(--ink); color: var(--bg); border-radius: 14px; padding: 9px 14px;
-  font-size: 14px; font-weight: 600; line-height: 1.35; text-align: center;
-  opacity: 0; pointer-events: none; transition: opacity .18s ease; z-index: 4;
+  background: var(--ink); color: var(--bg); border-radius: var(--r-md); padding: 9px 14px;
+  font-size: var(--fs-md); font-weight: var(--fw-semi); line-height: 1.35; text-align: center;
+  opacity: 0; pointer-events: none; transition: opacity var(--t-base) var(--ease); z-index: 4;
 }
 .crz-say.show { opacity: 1; }
 @media (orientation: landscape) and (max-height: 500px) {
@@ -368,8 +401,8 @@ body.crz-modal #stage, body.crz-modal #hud, body.crz-modal #hud * { pointer-even
 /* ---- auditoria novice2: telas (2026-11-08) ---- */
 /* resumo: a carta principal e o botao cheio; "Skip reward" e secundario, transparente e menor */
 .crz-skip.crz-skip {
-  min-height: 44px; width: auto; padding: 0 22px; border-radius: 22px; background: transparent;
-  color: var(--inkText); border: 1.5px solid var(--inkSoft); font-size: 15px; font-weight: 600;
+  min-height: 44px; width: auto; padding: 0 22px; border-radius: var(--r-pill); background: transparent;
+  color: var(--inkText); border: var(--bw) solid var(--inkSoft); font-size: var(--fs-md); font-weight: var(--fw-semi);
 }
 .crz-card.main { background: var(--ink); border-color: var(--ink); color: var(--bg); }
 .crz-card.main .crz-cline { color: var(--bg); }
@@ -378,12 +411,12 @@ body.crz-modal #stage, body.crz-modal #hud, body.crz-modal #hud * { pointer-even
 .crz-card.main .f-white { fill: var(--ink); }
 .crz-card.main .crz-ctag { background: var(--bg); color: var(--ink); }
 /* comparacao com ontem */
-.crz-prev { font-size: 14px; font-weight: 600; color: var(--inkText); margin-top: -6px; font-variant-numeric: tabular-nums; }
+.crz-prev { font-size: var(--fs-sm); font-weight: var(--fw-semi); color: var(--inkText); margin-top: -6px; font-variant-numeric: tabular-nums; }
 .crz-prev.up { color: var(--green); } .crz-prev.down { color: var(--red); }
 /* carta ativa do dia */
 .crz-chip {
-  align-self: center; display: flex; align-items: center; gap: 6px; min-height: 32px; padding: 2px 12px 2px 6px;
-  border-radius: 16px; border: 1.5px solid var(--ink); background: var(--white); font-size: 13px; font-weight: 700; color: var(--ink);
+  align-self: center; display: flex; align-items: center; gap: 6px; min-height: var(--h-chip); padding: 2px 12px 2px 6px;
+  border-radius: var(--r-pill); border: var(--bw) solid var(--ink); background: var(--white); font-size: var(--fs-sm); font-weight: var(--fw-bold); color: var(--ink);
 }
 .crz-chip svg { width: 22px; height: 22px; flex: none; }
 /* marcadores do HUD que explicam ao toque: alvo maior sem mexer no layout */
@@ -392,33 +425,32 @@ body.crz-modal #stage, body.crz-modal #hud, body.crz-modal #hud * { pointer-even
 /* ---- camera: botao de enquadrar (agente RENDER) ----
  * Canto direito, logo acima da base. Discreto (esmaecido); fica forte quando ha cidade fora da tela. */
 .crz-fit {
-  position: absolute; right: calc(var(--sar) + 12px); top: -54px; width: 44px; height: 44px; border-radius: 50%;
-  background: var(--white); border: 1.5px solid var(--gray); color: var(--inkText);
+  position: absolute; right: calc(var(--sar) + var(--gutter)); top: -54px; width: 44px; height: var(--h-btn); border-radius: 50%;
+  background: var(--white); border: var(--bw) solid var(--gray); color: var(--inkText);
   display: flex; align-items: center; justify-content: center; opacity: 0.7;
 }
 .crz-fit svg { width: 20px; height: 20px; }
 .crz-fit.more { opacity: 1; color: var(--ink); border-color: var(--ink); }
-.crz-fit:active { transform: scale(0.94); }
 .crz-fit.pulse::after {
-  content: ""; position: absolute; inset: -5px; border: 2px solid var(--red); border-radius: 50%;
-  pointer-events: none; animation: crz-ring 0.9s ease-out 2 forwards;
+  content: ""; position: absolute; inset: -5px; border: var(--bw-2) solid var(--red); border-radius: 50%;
+  pointer-events: none; animation: crz-ring var(--t-ring) var(--ease) 2 forwards;
 }
 @media (prefers-reduced-motion: reduce) {
   .crz-fit.pulse::after { animation: none; }
-  .crz-fit.pulse { outline: 2px solid var(--red); outline-offset: 3px; }
+  .crz-fit.pulse { outline: var(--bw-2) solid var(--red); outline-offset: 3px; }
 }
 
 /* ---- walkthrough novice2: cartao do resumo rotulado (2026-11-08) ---- */
 .crz-srow { width: 100%; display: flex; align-items: center; gap: 10px; }
-.crz-slab { flex: none; width: 92px; font-size: 12px; font-weight: 600; color: var(--inkText); text-align: left; }
+.crz-slab { flex: none; width: 92px; font-size: var(--fs-xs); font-weight: var(--fw-semi); color: var(--inkText); text-align: left; }
 .crz-srow .crz-wait { flex: 1; width: auto; }
 .crz-srow .crz-sstrikes { flex: 1; }
 .crz-bbar i, .crz-bbar i.ok { background: var(--green); }
 /* jogar mais devagar nao e perda: queda em relacao a ontem fica neutra */
 .crz-prev.down { color: var(--inkText); }
-.crz-dienext { color: var(--inkText); margin-top: 4px; font-size: 12px; }
+.crz-dienext { color: var(--inkText); margin-top: 4px; font-size: var(--fs-sm); }
 /* "Day N" logo abaixo do HUD de cima, menor: no meio da tela ficava escrito por cima das ruas */
-.crz-daybanner { top: calc(var(--sat) + 104px); font-size: 30px; }
+.crz-daybanner { top: calc(var(--sat) + 104px); font-size: var(--fs-d1); }
 
 /* rodada 2: telas pequenas e contraste */
 .crz-sum { padding-top: calc(var(--sat) + 52px); }
@@ -430,43 +462,42 @@ body.crz-modal #stage, body.crz-modal #hud, body.crz-modal #hud * { pointer-even
   .crz-sum .crz-cgood, .crz-sum .crz-wait { display: none; }
 }
 /* texto secundario: #8a8a8a (3,4:1) -> #666 (5,7:1) */
-.crz-skip.crz-skip, .crz-ctx .crz-cgood, .crz-cap, .crz-dienote { color: #666; }
-.crz-skip.crz-skip { border-color: #666; }
-.crz-reroll.off { color: #595959; }
+.crz-skip.crz-skip, .crz-ctx .crz-cgood, .crz-cap, .crz-dienote { color: var(--ink-2); }
+.crz-skip.crz-skip { border-color: var(--ink-2); }
+.crz-reroll.off { color: var(--ink-2); }
 /* verdes de texto: #27c24c (2,2:1) -> #1a7f35 (5,2:1) */
-.crz-bonus, .crz-tip span, .crz-prev.up { color: #1a7f35; }
-.crz-bonus.lost { color: #666; }
+.crz-bonus, .crz-tip span, .crz-prev.up { color: var(--green-text); }
+.crz-bonus.lost { color: var(--ink-2); }
 
 /* rodada 2: contraste dos rotulos restantes */
-.crz-slab, .crz-dienext { color: #666; }
+.crz-slab, .crz-dienext { color: var(--ink-2); }
 
 /* rodada 2: contraste dos ultimos seletores em cinza claro */
 .crz-prev, .crz-prev.down,
 .crz-dierow + .crz-dierow .crz-diedesc,
-.crz-dierow + .crz-dierow .crz-diename { color: #666; }
+.crz-dierow + .crz-dierow .crz-diename { color: var(--ink-2); }
 
 /* rodada 2: acessibilidade */
 .crz-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap; border: 0; }
-.crz-ctag { font-size: 12px; }
+.crz-ctag { font-size: var(--fs-xs); }
 .crz-strike { position: relative; }
-.crz-strike.on::after { content: "\00d7"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--bg); font-size: 11px; font-weight: 800; line-height: 1; }
-.crz-sstrikes .crz-strike.on::after { font-size: 13px; }
+.crz-strike.on::after { content: "\00d7"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--bg); font-size: var(--fs-xs); font-weight: var(--fw-bold); line-height: 1; }
+.crz-sstrikes .crz-strike.on::after { font-size: var(--fs-sm); }
 .crz-dot.now { box-shadow: 0 0 0 1.5px var(--bg), 0 0 0 3px var(--red); }
 
 /* ---- ajudas do dia 4+ (RESULTS_HUMANS 2026-11-08) ---- */
 /* chip do Boost ao lado do no mais critico: 56 px, um dedo; pulsa (sem pulso com movimento reduzido) */
 .crz-bchip {
-  position: absolute; left: 0; top: 0; width: 56px; height: 56px; border-radius: 50%; z-index: 3;
-  background: var(--ink); color: var(--white); border: 2.5px solid var(--red);
+  position: absolute; left: 0; top: 0; width: 56px; height: var(--h-btn-lg); border-radius: 50%; z-index: 3;
+  background: var(--ink); color: var(--white); border: var(--bw-2) solid var(--red);
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25); pointer-events: auto;
+  box-shadow: var(--shadow-1); pointer-events: auto;
 }
 .crz-bchip svg { width: 24px; height: 24px; color: var(--amber); }
-.crz-bchip span { font-size: 11px; font-weight: 800; line-height: 1; margin-top: 1px; letter-spacing: 0.2px; }
-.crz-bchip:active { transform: scale(0.94); }
+.crz-bchip span { font-size: var(--fs-xs); font-weight: var(--fw-bold); line-height: 1; margin-top: 1px; letter-spacing: 0.2px; }
 .crz-bchip::after {
-  content: ""; position: absolute; inset: -6px; border: 2.5px solid var(--red); border-radius: 50%;
-  pointer-events: none; animation: crz-ring 1.1s ease-out infinite;
+  content: ""; position: absolute; inset: -6px; border: var(--bw-2) solid var(--red); border-radius: 50%;
+  pointer-events: none; animation: crz-ring var(--t-ring) var(--ease) infinite;
 }
 .crz-bchip.still::after { animation: none; display: none; }
 @media (prefers-reduced-motion: reduce) {
@@ -475,31 +506,30 @@ body.crz-modal #stage, body.crz-modal #hud, body.crz-modal #hud * { pointer-even
 }
 /* resumo: cruzamentos novos sem sinal (toque mostra o primeiro) */
 .crz-snewj {
-  width: 100%; min-height: 44px; text-align: left; font-size: 13px; font-weight: 700; color: var(--ink);
-  border: 1.5px solid var(--ink); border-radius: 12px; padding: 6px 12px;
+  width: 100%; min-height: var(--h-btn); text-align: left; font-size: var(--fs-sm); font-weight: var(--fw-bold); color: var(--ink);
+  border: var(--bw) solid var(--ink); border-radius: var(--r-md); padding: 6px 12px;
 }
-.crz-snewj::after { content: " \203a"; font-weight: 800; }
+.crz-snewj::after { content: " \203a"; font-weight: var(--fw-bold); }
 /* o toque abaixa o resumo por ~2 s para o cruzamento aparecer no mapa */
-.crz-sheet.crz-sum.crz-peek { opacity: 0.08; transition: opacity .2s ease; }
+.crz-sheet.crz-sum.crz-peek { opacity: 0.08; transition: opacity var(--t-base) var(--ease); }
 .crz-sheet.crz-sum.crz-peek * { pointer-events: none !important; }
 @media (prefers-reduced-motion: reduce) { .crz-sheet.crz-sum.crz-peek { transition: none; } }
 
 /* ---- 2026-11-09 (ui): segundo chip do Boost, menor e sem pulso ---- */
 .crz-bchip2 {
   position: absolute; left: 0; top: 0; width: 40px; height: 40px; border-radius: 50%; z-index: 3;
-  background: var(--ink); color: var(--amber); border: 2px solid var(--red); opacity: 0.88;
+  background: var(--ink); color: var(--amber); border: var(--bw-2) solid var(--red); opacity: 0.88;
   display: flex; align-items: center; justify-content: center; padding: 0;
-  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.22); pointer-events: auto;
+  box-shadow: var(--shadow-1); pointer-events: auto;
 }
 .crz-bchip2 svg { width: 18px; height: 18px; }
 .crz-bchip2::before { content: ""; position: absolute; inset: -4px; border-radius: 50%; }   /* alvo de toque 48 px */
-.crz-bchip2:active { transform: scale(0.94); }
 @media (prefers-reduced-motion: reduce) { .crz-bchip2:active { transform: none; } }
 /* Undo da troca de sinal: logo abaixo da faixa (.crz-say), alvo de 44 px */
 .crz-sayundo {
   position: absolute; left: 50%; top: calc(var(--sat) + 150px); transform: translateX(-50%); z-index: 4;
-  min-height: 44px; min-width: 88px; padding: 0 18px; border-radius: 22px; pointer-events: auto;
-  background: var(--bg); color: var(--ink); border: 2px solid var(--ink); font-size: 15px; font-weight: 700;
+  min-height: var(--h-btn); min-width: 88px; padding: 0 18px; border-radius: var(--r-pill); pointer-events: auto;
+  background: var(--bg); color: var(--ink); border: var(--bw-2) solid var(--ink); font-size: var(--fs-md); font-weight: var(--fw-bold);
 }
 /* resumo de dia com strike: "Yesterday" cinza (nao briga com o titulo "Locked!") */
 .crz-prev.struck, .crz-prev.struck.up, .crz-prev.struck.down { color: var(--inkText); }
@@ -520,7 +550,7 @@ body.crz-modal #stage, body.crz-modal #hud, body.crz-modal #hud * { pointer-even
 
 /* rodada 3: paisagem e telas pequenas */
 /* (5) bolinhas de strikes: 8 px de folga ate o menu (antes encostavam 2 px no botao de 44 px) */
-body.crz-menu-on .crz-top { padding-right: calc(var(--sar) + 62px); }
+body.crz-menu-on .crz-top { padding-right: calc(var(--sar) + var(--gutter) + 46px); }
 /* (6) aviso curto dentro do painel do resumo, preso ao topo dele (ui.js move o elemento) */
 .crz-panel > .crz-say {
   position: sticky; top: 0; left: auto; transform: none; flex: none; z-index: 2;
@@ -534,13 +564,13 @@ body.crz-menu-on .crz-top { padding-right: calc(var(--sar) + 62px); }
   position: absolute; left: -16px; right: -16px; bottom: -16px; height: 46px;
   display: flex; align-items: flex-end; justify-content: center; padding-bottom: 6px;
   background: linear-gradient(to bottom, rgba(255, 253, 248, 0), var(--bg) 62%);
-  font-size: 12px; font-weight: 700; color: #666; letter-spacing: 0.04em;
+  font-size: var(--fs-xs); font-weight: var(--fw-bold); color: var(--ink-2); letter-spacing: 0.04em;
 }
 .crz-smore span::after { content: " \25be"; }
 /* (2) iPhone SE e telas ate 700 px: resumo compacto (cartas de 56 px, numero de 48, fila calma some) */
 @media (max-height: 700px) {
   .crz-sum .crz-panel { gap: 8px; padding: 12px 16px; }
-  .crz-sum .crz-big { font-size: 48px; }
+  .crz-sum .crz-big { font-size: var(--fs-d3); }
   .crz-sum .crz-cap { margin-top: -4px; }
   .crz-sum .crz-srow.crz-lowq { display: none; }
   .crz-sum .crz-card.crz-card { min-height: 56px; padding: 6px 12px; }
@@ -562,47 +592,47 @@ body.crz-menu-on .crz-top { padding-right: calc(var(--sar) + 62px); }
 }
 /* (e) fim de jogo: um quadrado por dia jogado, vermelho = dia com strike, com legenda */
 .crz-odays { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; max-width: 320px; margin-top: 2px; }
-.crz-oday { width: 14px; height: 14px; border-radius: 3px; background: var(--ink); display: block; }
+.crz-oday { width: 14px; height: 14px; border-radius: var(--r-sm); background: var(--ink); display: block; }
 .crz-oday.bad { background: var(--red); }
-.crz-odayscap { font-size: 12px; color: #666; margin-top: -6px; }
+.crz-odayscap { font-size: var(--fs-sm); color: var(--ink-2); margin-top: -6px; }
 /* (3) chip da carta: a area de toque de 44 px (::after) fica por cima da faixa de pontos logo abaixo */
 .crz-chip { z-index: 1; }
 
 /* ---- dia 1: proximo passo fixo (faixa acima do Play, seta para ele) ---- */
 .crz-next {
   align-self: flex-end; position: relative; max-width: min(300px, 100%); box-sizing: border-box;
-  background: var(--ink); color: var(--bg); border-radius: 14px; padding: 10px 14px;
-  font-size: 15px; font-weight: 700; line-height: 1.3; margin-bottom: 8px; pointer-events: none;
+  background: var(--ink); color: var(--bg); border-radius: var(--r-md); padding: 10px 14px;
+  font-size: var(--fs-md); font-weight: var(--fw-bold); line-height: 1.3; margin-bottom: 8px; pointer-events: none;
 }
 .crz-next::after {
   content: ""; position: absolute; right: 22px; bottom: -7px; width: 14px; height: 14px;
-  background: var(--ink); transform: rotate(45deg); border-radius: 2px;
+  background: var(--ink); transform: rotate(45deg); border-radius: var(--r-sm);
 }
 .crz-next.gone { display: none; }
 
 /* ---- rotulos curtos do HUD: cada marcador diz o que e (2026-11-09) ---- */
 .crz-dots, .crz-strikes { position: relative; }
 .crz-lbl {
-  position: absolute; top: calc(100% + 3px); font-size: 11px; line-height: 1; font-weight: 600;
+  position: absolute; top: calc(100% + 3px); font-size: var(--fs-xs); line-height: 1; font-weight: var(--fw-semi);
   color: var(--inkText); white-space: nowrap; pointer-events: none; letter-spacing: 0.01em;
 }
 .crz-lbl-day { left: 0; }
 .crz-lbl-strk { left: 50%; transform: translateX(-50%); }
 .crz-die .crz-lbl-die { top: auto; bottom: -6px; left: 50%; transform: translateX(-50%); }
 .crz-budget { align-items: center; }
-.crz-budget .crz-ptn { font-size: 16px; font-weight: 700; color: var(--ink); margin-left: 4px; }
+.crz-budget .crz-ptn { font-size: var(--fs-lg); font-weight: var(--fw-bold); color: var(--ink); margin-left: 4px; }
 @keyframes crz-next-again { 0% { transform: scale(1); } 30% { transform: scale(1.06); } 60% { transform: scale(0.98); } 100% { transform: scale(1); } }
-.crz-next.again { animation: crz-next-again .5s ease-out 1; }
+.crz-next.again { animation: crz-next-again var(--t-slow) var(--ease) 1; }
 /* Play com a faixa: anel mais forte (pulso duplo) */
-.crz-play.hint-loop::after { border-width: 3px; }
+.crz-play.hint-loop::after { border-width: var(--bw-2); }
 @media (prefers-reduced-motion: reduce) { .crz-next.again { animation: none; } }
 .crz-play { position: relative; }
 .crz-play .crz-lbl-speed { display: none; top: calc(100% + 1px); left: 50%; transform: translateX(-50%); }
 .crz-play.running .crz-lbl-speed { display: block; }
 /* custo do ladrilho em numero */
 .crz-cost { height: auto; min-height: 12px; justify-content: center; }
-.crz-cost b { font-size: 12px; line-height: 1; font-weight: 700; color: var(--ink); font-variant-numeric: tabular-nums; }
-.crz-cost b.free { color: #1a7f35; }
+.crz-cost b { font-size: var(--fs-xs); line-height: 1; font-weight: var(--fw-bold); color: var(--ink); font-variant-numeric: tabular-nums; }
+.crz-cost b.free { color: var(--green-text); }
 /* rotulo fixo 'Build points' sobre os pontos */
 .crz-budget { position: relative; }
 .crz-budget .crz-lbl-bp { position: absolute; top: auto; bottom: calc(100% + 1px); left: 50%; transform: translateX(-50%); }
@@ -620,85 +650,85 @@ body.crz-menu-on .crz-top { padding-right: calc(var(--sar) + 62px); }
 /* velocidade do proximo dia, pequena no Play (so no plano) */
 .crz-play .crz-spd {
   position: absolute; right: -2px; top: -2px; min-width: 22px; height: 18px; padding: 0 4px; box-sizing: border-box;
-  border-radius: 9px; background: var(--white); color: var(--ink); border: 1.5px solid var(--ink);
-  font-size: 11px; font-weight: 700; line-height: 15px; text-align: center; pointer-events: none;
+  border-radius: var(--r-pill); background: var(--white); color: var(--ink); border: var(--bw) solid var(--ink);
+  font-size: var(--fs-xs); font-weight: var(--fw-bold); line-height: 15px; text-align: center; pointer-events: none;
 }
 .crz-play.running .crz-spd, .crz-play.off .crz-spd { display: none; }
 /* legenda 'speed' 6 px acima (cortava embaixo) */
 .crz-play .crz-lbl-speed { top: calc(100% - 5px); }
 /* 'speed' dentro do botao, sob o '1x' (embaixo cortava e o anel do dia passava por cima) */
-.crz-play .crz-lbl-speed { top: auto; bottom: 7px; font-size: 9px; color: var(--bg); opacity: 0.8; letter-spacing: 0.04em; }
+.crz-play .crz-lbl-speed { top: auto; bottom: 7px; font-size: var(--fs-xs); color: var(--bg); opacity: 0.8; letter-spacing: 0.04em; }
 .crz-play.running .crz-face { margin-top: -6px; }
 .crz-pt.sm { width: 7px; height: 7px; }
 /* faixa do proximo passo fora do fluxo: o botao de enquadrar nao anda quando ela aparece (o toque errava) */
-.crz-next { position: absolute; right: calc(var(--sar) + 66px); bottom: calc(100% + 6px); margin: 0; max-width: calc(100% - 90px); }
+.crz-next { position: absolute; right: calc(var(--sar) + var(--gutter) + 50px); bottom: calc(100% + 6px); margin: 0; max-width: calc(100% - 90px); }
 /* nome sob o icone do ladrilho da rua */
-.crz-cost .crz-tname { font-size: 11px; font-weight: 600; color: var(--inkText); margin-right: 3px; }
+.crz-cost .crz-tname { font-size: var(--fs-xs); font-weight: var(--fw-semi); color: var(--inkText); margin-right: 3px; }
 /* amanha: icone do efeito num quadro tracejado (antes um numero que parecia o efeito) */
-.crz-dnext { border: 1.5px dashed var(--inkSoft); border-radius: 6px; padding: 1px; display: inline-flex; }
+.crz-dnext { border: var(--bw) dashed var(--inkSoft); border-radius: var(--r-sm); padding: 1px; display: inline-flex; }
 
 /* ---- resumo enxuto (testadora 2026-11-09): uma dica de acao, (i) nas barras, menos espaco ---- */
 .crz-panel { gap: 8px; padding: 12px 14px; }
-.crz-big { font-size: 52px; }
+.crz-big { font-size: var(--fs-d3); }
 .crz-cap { margin-top: -4px; }
 /* as linhas antigas (dica vermelha e NEW) viram um chip so de acao */
 .crz-panel .crz-sjam, .crz-panel .crz-snewj, .crz-panel > .crz-bonus:not(.crz-carry):not(.lost) { display: none; }
 .crz-slab { width: 112px; display: flex; align-items: center; gap: 4px; }
 .crz-sinfo {
-  position: relative; width: 16px; height: 16px; border-radius: 50%; border: 1.2px solid #666; color: #666; background: none;
-  font: italic 700 10px/13px Georgia, serif; text-align: center; padding: 0; flex: none;
+  position: relative; width: 16px; height: 16px; border-radius: 50%; border: var(--bw) solid var(--ink-2); color: var(--ink-2); background: none;
+  font: italic var(--fw-bold) var(--fs-xs)/13px Georgia, serif; text-align: center; padding: 0; flex: none;
 }
 .crz-sinfo::after { content: ""; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
-.crz-sinfotxt { width: 100%; font-size: 12px; line-height: 1.35; color: #555; text-align: left; margin-top: -4px; }
+.crz-sinfotxt { width: 100%; font-size: var(--fs-sm); line-height: 1.35; color: var(--ink-2); text-align: left; margin-top: -4px; }
 .crz-sinfotxt.gone { display: none; }
-.crz-bval { flex: none; font-size: 12px; font-weight: 700; color: #1a7f35; min-width: 38px; text-align: right; white-space: nowrap; }
+.crz-bval { flex: none; font-size: var(--fs-xs); font-weight: var(--fw-bold); color: var(--green-text); min-width: 38px; text-align: right; white-space: nowrap; }
 .crz-todo {
-  width: 100%; min-height: 40px; display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: 12px;
-  background: #fbf3e0; border: 1px solid #e5c98a; color: #4a3a12; font-size: 13px; font-weight: 600; text-align: left;
+  width: 100%; min-height: var(--h-btn); display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-radius: var(--r-md);
+  background: var(--warn-bg); border: var(--bw) solid var(--warn-line); color: var(--warn-ink); font-size: var(--fs-sm); font-weight: var(--fw-semi); text-align: left;
 }
-.crz-todo::before { content: "!"; flex: none; width: 18px; height: 18px; border-radius: 50%; background: #d98a00; color: #fff; font-size: 12px; font-weight: 800; line-height: 18px; text-align: center; }
+.crz-todo::before { content: "!"; flex: none; width: 18px; height: 18px; border-radius: 50%; background: var(--warn); color: var(--white); font-size: var(--fs-xs); font-weight: var(--fw-bold); line-height: 18px; text-align: center; }
 .crz-todo.gone { display: none; }
 .crz-ctx .crz-cgood.gone { display: none; }
 .crz-card.crz-card { min-height: 52px; padding: 6px 12px; }
-.crz-skip { min-height: 48px; }
+.crz-skip { min-height: var(--h-btn); }
 
 /* ---- dicionario de botoes (testadora 2026-11-09) ---- */
 .crz-legend {
-  position: absolute; left: calc(var(--sal) + 12px); right: calc(var(--sar) + 66px); bottom: calc(100% + 6px);
-  background: var(--white); color: var(--ink); border: 1.5px solid var(--ink); border-radius: 12px; padding: 7px 12px;
-  font-size: 13px; line-height: 1.3; font-weight: 600; pointer-events: none; box-sizing: border-box;
+  position: absolute; left: calc(var(--sal) + var(--gutter)); right: calc(var(--sar) + var(--gutter) + 50px); bottom: calc(100% + 6px);
+  background: var(--white); color: var(--ink); border: var(--bw) solid var(--ink); border-radius: var(--r-md); padding: 7px 12px;
+  font-size: var(--fs-sm); line-height: 1.3; font-weight: var(--fw-semi); pointer-events: none; box-sizing: border-box;
 }
 .crz-legend.gone { display: none; }
 .crz-bottom.crz-legendon .crz-next { display: none; }
 .crz-guidebtn {
-  position: absolute; left: calc(var(--sal) + 12px); top: -50px; width: 36px; height: 36px; border-radius: 50%;
-  background: var(--white); border: 1.5px solid var(--gray); color: var(--ink); font-size: 17px; font-weight: 800; pointer-events: auto;
+  position: absolute; left: calc(var(--sal) + var(--gutter)); top: -50px; width: var(--h-btn); height: var(--h-btn); border-radius: 50%;
+  background: var(--white); border: var(--bw) solid var(--gray); color: var(--ink); font-size: var(--fs-lg); font-weight: var(--fw-bold); pointer-events: auto;
 }
-.crz-guidebtn::after { content: ""; position: absolute; left: 50%; top: 50%; width: 44px; height: 44px; transform: translate(-50%, -50%); }
+.crz-guidebtn::after { content: ""; position: absolute; left: 50%; top: 50%; width: var(--h-btn); height: var(--h-btn); transform: translate(-50%, -50%); }
 .crz-ui[data-phase="run"] .crz-guidebtn, .crz-ui[data-phase="summary"] .crz-guidebtn, .crz-bottom.crz-legendon .crz-guidebtn { visibility: hidden; }
 .crz-guide {
-  position: fixed; inset: 0; z-index: 1000; background: rgba(17, 17, 17, 0.35); display: flex; align-items: flex-end; justify-content: center;
-  padding: calc(var(--sat) + 12px) calc(var(--sar) + 10px) calc(var(--sab) + 10px) calc(var(--sal) + 10px); pointer-events: auto;
+  position: fixed; inset: 0; z-index: 1000; background: var(--scrim); display: flex; align-items: flex-end; justify-content: center;
+  padding: calc(var(--sat) + 12px) calc(var(--sar) + var(--gutter)) calc(var(--sab) + 10px) calc(var(--sal) + var(--gutter)); pointer-events: auto;
 }
-.crz-gbox { width: 100%; max-width: 440px; max-height: 100%; display: flex; flex-direction: column; background: var(--bg); border: 1.5px solid var(--ink); border-radius: 16px; overflow: hidden; }
-.crz-ghead { display: flex; align-items: center; justify-content: space-between; padding: 6px 6px 6px 16px; border-bottom: 1px solid var(--grid); }
-.crz-ghead h2 { margin: 0; font-size: 17px; }
-.crz-gx { width: 44px; height: 44px; border-radius: 22px; font-size: 26px; line-height: 1; background: none; color: var(--ink); }
+.crz-gbox { width: 100%; max-width: 440px; max-height: 100%; display: flex; flex-direction: column; background: var(--bg); border: var(--bw) solid var(--ink); border-radius: var(--r-lg); overflow: hidden; }
+.crz-ghead { display: flex; align-items: center; justify-content: space-between; padding: 6px 6px 6px 16px; border-bottom: var(--bw) solid var(--grid); }
+.crz-ghead h2 { margin: 0; font-size: var(--fs-lg); }
+.crz-gx { width: 44px; height: var(--h-btn); border-radius: var(--r-pill); font-size: var(--fs-xl); line-height: 1; background: none; color: var(--ink); }
 .crz-gbody { overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; padding: 4px 16px 16px; }
-.crz-gbody h3 { margin: 14px 0 6px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: #666; }
+.crz-gbody h3 { margin: 14px 0 6px; font-size: var(--fs-sm); text-transform: uppercase; letter-spacing: 0.06em; color: var(--ink-2); }
 .crz-grow { display: flex; gap: 12px; align-items: flex-start; padding: 6px 0; }
 .crz-gic { flex: none; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; }
 .crz-gic svg { width: 30px; height: 30px; }
-.crz-gsym { font-size: 20px; font-weight: 700; }
-.crz-gtx { font-size: 13px; line-height: 1.35; }
-.crz-gtx b { font-size: 14px; }
-.crz-gmore { font-size: 12px; color: #666; margin: 2px 0 0 46px; }
+.crz-gsym { font-size: var(--fs-xl); font-weight: var(--fw-bold); }
+.crz-gtx { font-size: var(--fs-sm); line-height: 1.35; }
+.crz-gtx b { font-size: var(--fs-md); }
+.crz-gmore { font-size: var(--fs-sm); color: var(--ink-2); margin: 2px 0 0 46px; }
 /* tela inicial: so uma linha curta no Normal; o bloco de dificuldade mora no menu */
-.crzm-dshort { font-size: 13px; color: #555; margin-top: -4px; }
+.crzm-dshort { font-size: var(--fs-sm); color: var(--ink-2); margin-top: -4px; }
 .crzm-dshort.gone, .crzm-mdiff.gone { display: none; }
 .crzm-mdiff { padding: 4px 16px 10px; display: flex; flex-direction: column; gap: 8px; }
-.crzm-mdiff .crzm-dinfo { font-size: 12px; line-height: 1.4; color: #555; }
-.crz-trynormal { min-height: 44px; padding: 0 24px; border-radius: 22px; background: transparent; color: var(--ink); border: 1.5px solid var(--ink); font-size: 15px; font-weight: 700; }
+.crzm-mdiff .crzm-dinfo { font-size: var(--fs-sm); line-height: 1.4; color: var(--ink-2); }
+.crz-trynormal { min-height: var(--h-btn); padding: 0 24px; border-radius: var(--r-pill); background: transparent; color: var(--ink); border: var(--bw) solid var(--ink); font-size: var(--fs-md); font-weight: var(--fw-bold); }
 .crz-trynormal.gone { display: none; }
 /* guia aberto: o botao do menu (fixo, por cima) sai para o X do guia receber o toque */
 body.crz-guide-on .crzm-menubtn, body.crz-guide-on .crzm-pausebtn { visibility: hidden; }
@@ -708,22 +738,22 @@ body.crz-modal #hud .crz-guide, body.crz-modal #hud .crz-guide * { pointer-event
 .crz-panel .crz-bline { display: none !important; }
 /* playtest as cegas: rua gratis pulsando, linha discreta do dia, folha de confirmacao do Play */
 @keyframes crz-freepulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(26, 127, 53, 0.55); } 50% { box-shadow: 0 0 0 6px rgba(26, 127, 53, 0); } }
-.crz-tile.crz-freeon { border-color: #1a7f35; animation: crz-freepulse 1.6s ease-out infinite; }
-@media (prefers-reduced-motion: reduce) { .crz-tile.crz-freeon { animation: none; outline: 2px solid #1a7f35; outline-offset: 2px; } }
-.crz-runhint { position: absolute; left: calc(var(--sal) + 60px); right: calc(var(--sar) + 66px); bottom: calc(100% + 6px); text-align: center; font-size: 12px; color: #555; pointer-events: none; }
+.crz-tile.crz-freeon { border-color: var(--green-text); animation: crz-freepulse var(--t-loop) var(--ease) infinite; }
+@media (prefers-reduced-motion: reduce) { .crz-tile.crz-freeon { animation: none; outline: var(--bw-2) solid var(--green-text); outline-offset: 2px; } }
+.crz-runhint { position: absolute; left: calc(var(--sal) + var(--gutter) + 44px); right: calc(var(--sar) + var(--gutter) + 50px); bottom: calc(100% + 6px); text-align: center; font-size: var(--fs-sm); color: var(--ink-2); pointer-events: none; }
 .crz-runhint.gone { display: none; }
-.crz-confirm { position: fixed; inset: 0; z-index: 900; background: rgba(17, 17, 17, 0.3); display: flex; align-items: flex-end; justify-content: center; padding: 0 calc(var(--sar) + 12px) calc(var(--sab) + 12px) calc(var(--sal) + 12px); pointer-events: auto; }
+.crz-confirm { position: fixed; inset: 0; z-index: 900; background: var(--scrim); display: flex; align-items: flex-end; justify-content: center; padding: 0 calc(var(--sar) + var(--gutter)) calc(var(--sab) + 12px) calc(var(--sal) + var(--gutter)); pointer-events: auto; }
 .crz-confirm.gone { display: none; }
-.crz-cbox { width: 100%; max-width: 420px; background: var(--bg); border: 1.5px solid var(--ink); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
-.crz-ctxt { font-size: 16px; line-height: 1.4; font-weight: 600; }
+.crz-cbox { width: 100%; max-width: 420px; background: var(--bg); border: var(--bw) solid var(--ink); border-radius: var(--r-lg); padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.crz-ctxt { font-size: var(--fs-md); line-height: 1.4; font-weight: var(--fw-semi); }
 .crz-crow { display: flex; gap: 10px; }
-.crz-crow button { flex: 1; min-height: 52px; border-radius: 26px; font-size: 16px; font-weight: 700; }
+.crz-crow button { flex: 1; min-height: var(--h-btn-lg); border-radius: var(--r-pill); font-size: var(--fs-lg); font-weight: var(--fw-bold); }
 .crz-cstart { background: var(--ink); color: var(--bg); }
-.crz-cback { background: transparent; color: var(--ink); border: 1.5px solid var(--ink); }
+.crz-cback { background: transparent; color: var(--ink); border: var(--bw) solid var(--ink); }
 body.crz-modal #hud .crz-confirm, body.crz-modal #hud .crz-confirm * { pointer-events: auto !important; }
 /* dias 1 a 3, corrida: raio com carga pulsa de leve (do dia 4 em diante so com anel) */
 @keyframes crz-boltlive { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.08); opacity: 0.85; } }
-.crz-clear.crz-boostlive { animation: crz-boltlive 1.8s ease-in-out infinite; }
+.crz-clear.crz-boostlive { animation: crz-boltlive var(--t-loop) ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .crz-clear.crz-boostlive { animation: none; } }
 /* nv7: telas baixas (375x667): ate 5 ferramentas numa linha so; baloes mais curtos para cobrir menos o mapa */
 @media (max-height: 700px) and (orientation: portrait) {
@@ -732,31 +762,30 @@ body.crz-modal #hud .crz-confirm, body.crz-modal #hud .crz-confirm * { pointer-e
   .crz-tray { gap: 6px; }
   .crz-tile svg { width: 26px; height: 26px; }
   .crz-tut .crz-tut-box { padding: 8px 12px !important; }
-  .crz-tut .crz-tut-txt { font-size: 14px !important; line-height: 1.3 !important; }
+  .crz-tut .crz-tut-txt { font-size: var(--fs-sm) !important; line-height: 1.3 !important; }
 }
-.crz-half { width: 100%; font-size: 12px; line-height: 1.3; color: #666; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.crz-half { width: 100%; font-size: var(--fs-xs); line-height: 1.3; color: var(--ink-2); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .crz-half.gone { display: none; }
 /* M1: pulso visivel em ladrilho, Play e chip de cruzamentos novos */
 .crz-tile.pulse::after, .crz-play.pulse::before {
-  content: ""; position: absolute; inset: -4px; border: 2px solid var(--red); border-radius: inherit;
-  pointer-events: none; animation: crz-ring 0.9s ease-out 2 forwards;
+  content: ""; position: absolute; inset: -4px; border: var(--bw-2) solid var(--red); border-radius: inherit;
+  pointer-events: none; animation: crz-ring var(--t-ring) var(--ease) 2 forwards;
 }
 .crz-play.pulse::before { border-radius: 50%; }
 .crz-tile { position: relative; }
-.crz-njchip.pulse { box-shadow: 0 0 0 3px rgba(122, 106, 168, 0.55); transition: box-shadow 0.3s; }
+.crz-njchip.pulse { box-shadow: 0 0 0 3px rgba(122, 106, 168, 0.55); transition: box-shadow var(--t-slow); }
 @media (prefers-reduced-motion: reduce) {
   .crz-tile.pulse::after, .crz-play.pulse::before { animation: none; }
-  .crz-tile.pulse, .crz-play.pulse { outline: 2px solid var(--red); outline-offset: 3px; }
+  .crz-tile.pulse, .crz-play.pulse { outline: var(--bw-2) solid var(--red); outline-offset: 3px; }
 }
 
 /* blind2 9: 'Skip' (fast-forward) na corrida, a esquerda do botao de velocidade */
 .crz-ffchip {
   position: absolute; right: calc(var(--sar) + 12px + var(--play) + 10px); bottom: calc(var(--sab) + 12px + (var(--play) - 40px) / 2);
-  min-height: 40px; padding: 0 14px; border-radius: 20px; border: 1.5px solid var(--ink); background: var(--white);
-  color: var(--ink); font-size: 14px; font-weight: 800; pointer-events: auto; z-index: 2;
+  min-height: var(--h-btn); padding: 0 14px; border-radius: var(--r-pill); border: var(--bw) solid var(--ink); background: var(--white);
+  color: var(--ink); font-size: var(--fs-md); font-weight: var(--fw-bold); pointer-events: auto; z-index: 2;
 }
 .crz-ffchip.gone { display: none; }
-.crz-ffchip:active { transform: scale(0.95); }
 
 /* nv8 6: o '?' fica sempre visivel no plano; a legenda da ferramenta sobe acima dele; a faixa do proximo passo
    nao chega na coluna do '?'; o selo PAUSED desce para baixo do aviso preto quando ha aviso */
@@ -772,9 +801,9 @@ body.crz-say-on.crz-say-on .crzm-stamp { top: calc(var(--crz-sayb, 140px) + 10px
 /* final check 6: 'Road free' cabe no ladrilho (375 e 393): o nome e o custo quebram em duas linhas se preciso */
 .crz-tile .crz-cost { max-width: calc(var(--tile) - 4px); flex-wrap: nowrap; white-space: nowrap; align-items: baseline; overflow: hidden; letter-spacing: -0.2px; }
 .crz-tile .crz-cost .crz-tname { margin-right: 2px; }
-.crz-cost .crz-tname { font-size: 10px; margin-right: 2px; }
-.crz-cost b { font-size: 11px; }
-.crz-cost b.free { font-size: 10px; letter-spacing: -0.3px; }
+.crz-cost .crz-tname { font-size: var(--fs-xs); margin-right: 2px; }
+.crz-cost b { font-size: var(--fs-xs); }
+.crz-cost b.free { font-size: var(--fs-xs); letter-spacing: -0.3px; }
 
 /* copy review c: o chip de avancar com o icone SVG (sem emoji) */
 .crz-ffchip { display: flex; align-items: center; gap: 6px; }
@@ -785,24 +814,23 @@ body.crz-say-on.crz-say-on .crzm-stamp { top: calc(var(--crz-sayb, 140px) + 10px
 /* Skip ahead: centrado acima da base (antes ficava sobre o Undo, que no dia nao recebe toque, e um toque
    'no Undo' pulava o dia). Nenhum alvo de toque a menos de 16 px (teste em dev/ui/test_ff.js e CDP) */
 .crz-ffchip { right: auto; left: 50%; bottom: calc(100% + 20px); transform: translateX(-50%); }
-.crz-ffchip:active { transform: translateX(-50%) scale(0.95); }
 
 /* ---- rolagem visivel do dado (dono 2026-11-10) ---- */
 .crz-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .crz-roll {
   position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center;
-  background: rgba(17, 17, 17, 0.45); pointer-events: auto; padding: 16px; box-sizing: border-box;
-  animation: crz-rollfade 0.2s ease-out 1;
+  background: var(--scrim); pointer-events: auto; padding: 16px; box-sizing: border-box;
+  animation: crz-rollfade var(--t-base) var(--ease) 1;
 }
 .crz-roll.gone { display: none; }
 .crz-rollbox {
-  width: min(320px, 100%); background: var(--bg); color: var(--ink); border-radius: 22px; padding: 22px 20px 16px;
-  display: flex; flex-direction: column; align-items: center; gap: 10px; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.25);
+  width: min(320px, 100%); background: var(--bg); color: var(--ink); border-radius: var(--r-lg); padding: 22px 20px 16px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px; box-shadow: var(--shadow-2);
   text-align: center; box-sizing: border-box;
 }
 .crz-rolldie { width: 96px; height: 96px; }
 .crz-rolldie svg { width: 96px; height: 96px; display: block; }
-.crz-rolldie.crz-rollin { animation: crz-rollbounce 1.2s cubic-bezier(.3,.7,.4,1) 1 both; }
+.crz-rolldie.crz-rollin { animation: crz-rollbounce var(--t-show) cubic-bezier(.3,.7,.4,1) 1 both; }
 @keyframes crz-rollbounce {
   0%   { transform: translateY(-150px) rotate(-260deg) scale(.8); }
   35%  { transform: translateY(0) rotate(-60deg) scale(1); }
@@ -813,42 +841,167 @@ body.crz-say-on.crz-say-on .crzm-stamp { top: calc(var(--crz-sayb, 140px) + 10px
   100% { transform: translateY(0) rotate(0deg); }
 }
 @keyframes crz-rollfade { from { opacity: 0; } to { opacity: 1; } }
-.crz-rollfx { font-size: 24px; font-weight: 800; line-height: 1.2; min-height: 29px; }
-.crz-rollfx.tone-green { color: #1a7f35; }
-.crz-rollfx.tone-red { color: #c0201a; }
-.crz-rollfx.tone-ink { color: #555; }
-.crz-rolled .crz-rollfx { animation: crz-rollfade 0.25s ease-out 1; }
-.crz-rolltut { font-size: 15px; font-weight: 600; color: var(--ink); }
-.crz-rolltom { font-size: 13px; color: #555; min-height: 16px; }
+.crz-rollfx { font-size: var(--fs-xl); font-weight: var(--fw-bold); line-height: 1.2; min-height: 29px; }
+.crz-rollfx.tone-green { color: var(--green-text); }
+.crz-rollfx.tone-red { color: var(--red); }
+.crz-rollfx.tone-ink { color: var(--ink-2); }
+.crz-rolled .crz-rollfx { animation: crz-rollfade var(--t-base) var(--ease) 1; }
+.crz-rolltut { font-size: var(--fs-md); font-weight: var(--fw-semi); color: var(--ink); }
+.crz-rolltom { font-size: var(--fs-sm); color: var(--ink-2); min-height: 16px; }
 .crz-rollrow { display: flex; gap: 10px; width: 100%; justify-content: center; margin-top: 4px; }
 .crz-rollrow.crz-hide { visibility: hidden; }
-.crz-rollreroll { min-height: 44px; padding: 0 16px; border-radius: 22px; border: 1.5px solid var(--ink); background: transparent; color: var(--ink); font-size: 15px; font-weight: 700; }
-.crz-rollreroll.off { border-color: #aaa; color: #767676; }
-.crz-rollgo { min-height: 44px; min-width: 120px; padding: 0 20px; border-radius: 22px; background: var(--ink); color: var(--bg); font-size: 16px; font-weight: 800; }
-.crz-rollnote { font-size: 13px; color: #555; min-height: 0; }
+.crz-rollreroll { min-height: var(--h-btn); padding: 0 16px; border-radius: var(--r-pill); border: var(--bw) solid var(--ink); background: transparent; color: var(--ink); font-size: var(--fs-md); font-weight: var(--fw-bold); }
+.crz-rollreroll.off { border-color: var(--line-2); color: var(--ink-2); }
+.crz-rollgo { min-height: var(--h-btn); min-width: 120px; padding: 0 20px; border-radius: var(--r-pill); background: var(--ink); color: var(--bg); font-size: var(--fs-lg); font-weight: var(--fw-bold); }
+.crz-rollnote { font-size: var(--fs-sm); color: var(--ink-2); min-height: 0; }
 .crz-roll.crz-rm .crz-rolldie.crz-rollin { animation: none; }
-@media (prefers-reduced-motion: reduce) { .crz-rolldie.crz-rollin { animation: none; } .crz-roll { animation: crz-rollfade 0.2s linear 1; } }
+@media (prefers-reduced-motion: reduce) { .crz-rolldie.crz-rollin { animation: none; } .crz-roll { animation: crz-rollfade var(--t-base) linear 1; } }
 
 /* a tela da rolagem segura crz-modal e recebe o toque */
 body.crz-modal #hud .crz-roll, body.crz-modal #hud .crz-roll * { pointer-events: auto !important; }
 /* 'Tap to roll': o dado parado pulsa de leve; 8 s sem toque ele balanca (convite), nunca rola sozinho */
-.crz-rolltap { font-size: 20px; font-weight: 800; color: var(--ink); }
-.crz-rollready .crz-rolldie { cursor: pointer; animation: crz-rollpulse 1.6s ease-in-out infinite; }
-.crz-rollready .crz-rolldie.crz-rollwiggle { animation: crz-rollwiggle 1.2s ease-in-out infinite; }
+.crz-rolltap { font-size: var(--fs-xl); font-weight: var(--fw-bold); color: var(--ink); }
+.crz-rollready .crz-rolldie { cursor: pointer; animation: crz-rollpulse var(--t-loop) ease-in-out infinite; }
+.crz-rollready .crz-rolldie.crz-rollwiggle { animation: crz-rollwiggle var(--t-show) ease-in-out infinite; }
 @keyframes crz-rollpulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
 @keyframes crz-rollwiggle { 0%, 60%, 100% { transform: rotate(0deg); } 70% { transform: rotate(-10deg); } 80% { transform: rotate(9deg); } 90% { transform: rotate(-5deg); } }
 @media (prefers-reduced-motion: reduce) { .crz-rollready .crz-rolldie, .crz-rollready .crz-rolldie.crz-rollwiggle { animation: none; } }
 /* invisivel 5: a bolinha do raio que voltou da um pulo */
-.crz-cp.crz-cppop { animation: crz-cppop 0.3s ease-out 1; }
+.crz-cp.crz-cppop { animation: crz-cppop var(--t-slow) var(--ease) 1; }
 @keyframes crz-cppop { 0% { transform: scale(0.6); } 60% { transform: scale(1.3); } 100% { transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { .crz-cp.crz-cppop { animation: none; } }
 
 /* ---- 2026-11-15, bloco 4: acessibilidade barata ---- */
 /* texto secundario: --inkSoft (#8a8a8a, 3,4:1 no fundo) fica so em linhas e bordas; texto usa --inkText (#6b6b6b, 5,2:1) */
 /* foco visivel em todo controle tocavel pelo teclado (o button ja tinha) */
-[role="button"]:focus-visible, [tabindex]:focus-visible, a:focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }
+[role="button"]:focus-visible, [tabindex]:focus-visible, a:focus-visible { outline: var(--bw-2) solid var(--red); outline-offset: 2px; }
 /* ---- 2026-11-15, bloco 3 b: folhas que nao cabem rolam por dentro (o dedo alcanca o ultimo botao) ---- */
 .crz-rollbox { max-height: calc(100% - 16px); overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; overscroll-behavior: contain; }
 .crz-cbox { max-height: calc(100vh - var(--sat, 0px) - var(--sab, 0px) - 24px); overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; overscroll-behavior: contain; }
 /* fim de partida: centrado quando cabe; quando nao cabe, rola sem cortar o topo ('safe'; navegador sem 'safe' fica no center) */
 .crz-over { justify-content: center; justify-content: safe center; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; overscroll-behavior: contain; }
+
+/* ==== polimento 2026-11-15, passo 1: colisoes e sobreposicoes (nada sai da tela; so lugar e folga) ==== */
+/* topo: faixa creme opaca com fio; o mapa termina antes dela (ui.js mede .crz-top para a margem da camera) */
+.crz-top { background: var(--bg); border-bottom: var(--bw) solid var(--grid); padding-bottom: 24px; }
+/* as tres legendas na mesma linha de base: dia a esquerda, dado no centro, strikes a direita */
+.crz-top .crz-lbl { top: calc(50% + 18px); bottom: auto; }
+.crz-top .crz-lbl-day { left: 6px; }
+.crz-top .crz-lbl-strk { left: auto; right: 6px; transform: none; }
+.crz-top .crz-die .crz-lbl-die { top: calc(50% + 18px); bottom: auto; left: 50%; transform: translateX(-50%); }
+.crz-top .crz-die .crz-lbl-next { top: calc(50% + 30px); bottom: auto; left: 50%; right: auto; transform: translateX(-50%); }
+/* dia atual: o anel nao cobre as bolinhas vizinhas */
+.crz-dot { flex: none; }
+.crz-dot.now { margin: 0 3px; }
+/* 'Last day': sai da fileira das bolinhas (empurrava o dado contra 'Strikes' e amassava as bolinhas em 375)
+   e fica ao lado de 'Day 12 of 12', na linha das legendas */
+.crz-dots .crz-lastchip { position: absolute; left: 80px; top: calc(50% + 14px); margin-left: 0; }
+.crz-top.crz-last .crz-die { margin-left: 28px; }
+/* aviso preto e Undo da troca: abaixo da faixa do topo */
+.crz-say { top: calc(var(--sat) + 84px); }
+.crz-sayundo { top: calc(var(--sat) + 158px); }
+.crz-daybanner { top: calc(var(--sat) + 112px); }
+body.crz-sayshow .crz-daybanner { top: calc(var(--crz-sayb, 140px) + 6px); }
+/* base: a barra do bonus sobe para o alto da pilha (embaixo batia nos raios com a bandeja de uma fileira e
+   empurrava 'Build points' ao comecar o dia); os pontos ficam sempre colados na bandeja */
+.crz-bottom .crz-tip { order: -1; min-height: 28px; margin-bottom: 4px; align-self: center; }
+.crz-budget { margin-top: 16px; }
+.crz-bottom .crz-budget.crz-info::after { top: calc(50% - 7px); }
+/* alvos de toque de 44 px sem mudar o desenho */
+.crz-tile::before, .crz-undo::before { content: ""; position: absolute; inset: -3.5px; }
+.crz-ffchip::before { content: ""; position: absolute; left: 0; right: 0; top: -4px; bottom: -4px; }
+/* bandeja durante o dia: fica onde esta, com UMA opacidade so (antes .3 em tres seletores) */
+.crz-ui[data-phase="run"] .crz-tiles, .crz-ui[data-phase="run"] .crz-undo, .crz-ui[data-phase="run"] .crz-budget { opacity: 0.3; }
+
+/* ==== polimento 2026-11-15, passo 2: uma coluna so (margem lateral de 16 px) ==== */
+/* os ladrilhos comecam na margem esquerda (antes centrados: borda esquerda em 19, 27 ou 95 px conforme o dia) */
+.crz-tiles { justify-content: flex-start; }
+
+/* as legendas do topo moram DENTRO da caixa do marcador (o anel do tutorial e o alvo de toque as incluem):
+   a caixa cresce 30 px para baixo sem mexer na linha (margem negativa igual) */
+.crz-top .crz-dots.crz-info, .crz-top .crz-strikes.crz-info { padding-bottom: 42px; margin-bottom: -42px; }
+.crz-top .crz-dots .crz-lbl-day { top: auto; bottom: 16px; }
+.crz-top .crz-strikes .crz-lbl-strk { top: auto; bottom: 19px; }
+.crz-top .crz-dots .crz-lastchip { top: auto; bottom: 12px; }
+/* nome do ladrilho em telas baixas (ladrilho de 42 px): 'Road 2' cabe sem cortar a primeira letra */
+@media (max-height: 700px) and (orientation: portrait) {
+  .crz-tile .crz-cost { letter-spacing: -0.5px; }
+  .crz-tile .crz-cost .crz-tname { margin-right: 1px; }
+}
+
+/* ==== polimento 2026-11-15, passo 3: fluidez da interface ====
+ * Regras: a classe continua mandando (show/gone/on = aberto/fechado, como antes); a entrada e uma animacao que
+ * comeca quando o elemento aparece (ja recebe toque no primeiro quadro); a saida e uma transicao de opacity com
+ * display 'allow-discrete' (o elemento so some da arvore ao fim de 160 ms, mas para de receber toque na hora).
+ * Navegador sem allow-discrete: a saida e o corte seco de antes. Movimento reduzido: sem deslocamento, fade curto. */
+@keyframes crz-in-up { from { opacity: 0; translate: 0 12px; } }
+@keyframes crz-in-pop { from { opacity: 0; translate: 0 6px; } }
+@keyframes crz-in-fade { from { opacity: 0; } }
+@keyframes crz-out-down { to { opacity: 0; translate: 0 12px; } }
+
+/* botao pressionado: 0,97 em 80 ms (propriedade scale: nao briga com transform de posicao) */
+button, [role="button"] { transition: scale var(--t-fast) var(--ease), var(--tr, opacity 0s); }
+button:active, [role="button"]:active { scale: 0.97; }
+
+/* folhas: sobem 12 px com fade em 220 ms, descem em 160 ms */
+.crz-sum, .crz-diesheet, .crz-confirm, .crz-roll {
+  transition: opacity var(--t-out) var(--ease), display var(--t-out) allow-discrete;
+}
+.crz-sum .crz-panel, .crz-diesheet .crz-diepanel, .crz-confirm .crz-cbox, .crz-roll .crz-rollbox { transition: translate var(--t-out) var(--ease); }
+.crz-sum.show .crz-panel, .crz-diesheet.show .crz-diepanel, .crz-confirm .crz-cbox, .crz-roll .crz-rollbox, .crz-guide .crz-gbox {
+  animation: crz-in-up var(--t-base) var(--ease) 1;
+}
+.crz-confirm, .crz-guide, .crz-over.show { animation: crz-in-fade var(--t-base) var(--ease) 1; }
+.crz-sum:not(.show), .crz-diesheet:not(.show), .crz-confirm.gone, .crz-roll.gone { opacity: 0; }
+.crz-sum:not(.show) .crz-panel, .crz-diesheet:not(.show) .crz-diepanel, .crz-confirm.gone .crz-cbox, .crz-roll.gone .crz-rollbox { translate: 0 12px; }
+/* fechando: nada ali recebe toque (vale sobre o pointer-events:auto dos filhos e do crz-modal) */
+html body #hud .crz-sum:not(.show), html body #hud .crz-sum:not(.show) *,
+html body #hud .crz-diesheet:not(.show), html body #hud .crz-diesheet:not(.show) *,
+html body #hud .crz-confirm.gone, html body #hud .crz-confirm.gone *,
+html body #hud .crz-roll.gone, html body #hud .crz-roll.gone *,
+html body #hud .crz-guide.crz-leaving, html body #hud .crz-guide.crz-leaving * { pointer-events: none !important; }
+/* guia: o no sai do DOM na hora; ui.js deixa uma copia muda (.crz-leaving) que desce e some */
+.crz-guide.crz-leaving { animation: crz-in-fade var(--t-out) var(--ease) 1 reverse forwards; }
+.crz-guide.crz-leaving .crz-gbox { animation: crz-out-down var(--t-out) var(--ease) 1 forwards; }
+
+/* baloes e faixas: fade + 6 px */
+.crz-next, .crz-legend, .crz-runhint, .crz-half, .crz-todo, .crz-sinfotxt { animation: crz-in-pop var(--t-base) var(--ease) 1; }
+.crz-say { translate: 0 -6px; transition: opacity var(--t-base) var(--ease), translate var(--t-base) var(--ease); }
+.crz-say.show { translate: 0 0; }
+.crz-panel > .crz-say { translate: 0 0; }
+/* chips e avisos: fade na entrada e na saida */
+.crz-chip, .crz-njchip, .crz-ffchip, .crz-lastchip, .crz-pchip, .crz-bchip, .crz-bchip2, .crz-sayundo, .crz-headline, .crz-bonus {
+  animation: crz-in-fade var(--t-base) var(--ease) 1;
+}
+.crz-chip, .crz-njchip, .crz-ffchip, .crz-lastchip, .crz-pchip, .crz-sayundo, .crz-next, .crz-legend, .crz-runhint {
+  --tr: opacity var(--t-out) var(--ease), display var(--t-out) allow-discrete;
+  transition: scale var(--t-fast) var(--ease), opacity var(--t-out) var(--ease), display var(--t-out) allow-discrete;
+}
+.crz-chip.gone, .crz-njchip.gone, .crz-ffchip.gone, .crz-lastchip.gone, .crz-pchip.gone, .crz-sayundo.gone, .crz-next.gone, .crz-legend.gone, .crz-runhint.gone {
+  opacity: 0; pointer-events: none !important;
+}
+
+/* troca de fase: plano <-> corrida <-> resumo em fade cruzado (nada pisca, nada pula) */
+.crz-tiles, .crz-budget, .crz-clear, .crz-cp { transition: opacity var(--t-base) var(--ease), background-color var(--t-base) var(--ease), border-color var(--t-base) var(--ease), color var(--t-base) var(--ease); }
+.crz-undo, .crz-fit, .crz-tile { --tr: opacity var(--t-base) var(--ease), border-color var(--t-base) var(--ease); }
+/* a barra do bonus guarda o lugar no plano (invisivel, fora da arvore de acessibilidade): a pilha nao muda de
+   altura ao comecar o dia, entao '?', enquadrar, chips e pontos ficam onde estavam */
+.crz-bottom .crz-tip { transition: opacity var(--t-base) var(--ease), visibility 0s; }
+.crz-bottom .crz-tip.gone { display: flex !important; visibility: hidden; opacity: 0; transition: opacity var(--t-out) var(--ease), visibility 0s var(--t-out); }
+.crz-guidebtn { --tr: opacity var(--t-base) var(--ease), visibility 0s; }
+.crz-ui[data-phase="run"] .crz-guidebtn, .crz-ui[data-phase="summary"] .crz-guidebtn { opacity: 0; --tr: opacity var(--t-base) var(--ease), visibility 0s var(--t-base); }
+.crz-play .crz-face, .crz-play.running .crz-ring { animation: crz-in-fade var(--t-base) var(--ease) 1; }
+.crz-bottom { animation: crz-in-fade var(--t-base) var(--ease) 1; transition: opacity var(--t-out) var(--ease), display var(--t-out) allow-discrete; }
+.crz-ui[data-phase="summary"] .crz-bottom, .crz-ui[data-phase="over"] .crz-bottom { opacity: 0; }
+html body #hud .crz-ui[data-phase="summary"] .crz-bottom, html body #hud .crz-ui[data-phase="summary"] .crz-bottom *,
+html body #hud .crz-ui[data-phase="over"] .crz-bottom, html body #hud .crz-ui[data-phase="over"] .crz-bottom * { pointer-events: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  /* sem deslocamento e sem escala: so um fade curto na entrada; a saida e imediata (transition: none acima) */
+  button:active, [role="button"]:active { scale: none; }
+  .crz-sum.show .crz-panel, .crz-diesheet.show .crz-diepanel, .crz-confirm .crz-cbox, .crz-roll .crz-rollbox, .crz-guide .crz-gbox,
+  .crz-next, .crz-legend, .crz-runhint, .crz-half, .crz-todo, .crz-sinfotxt { animation: crz-in-fade var(--t-fast) linear 1; }
+  .crz-sum:not(.show) .crz-panel, .crz-diesheet:not(.show) .crz-diepanel, .crz-confirm.gone .crz-cbox, .crz-roll.gone .crz-rollbox { translate: none; }
+  .crz-say, .crz-say.show { translate: none; }
+  .crz-guide.crz-leaving, .crz-guide.crz-leaving .crz-gbox { animation: none; display: none; }
+}
