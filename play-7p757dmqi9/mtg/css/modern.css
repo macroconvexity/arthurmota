@@ -1,0 +1,88 @@
+/* Modern interface (2026-11-16). Loaded last; overrides only. The cards keep their 1993 look; everything around them
+   is flat, dark and quiet: glass panels, sans-serif type, one accent colour (the primary button). Stage 1 covers the
+   top bar, Home, the deck picker, deck tiles and every button; Decks, Collection and dialogs follow. */
+:root{--m-sans:ui-sans-serif,-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif;
+  --m-serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif;
+  --m-ink:#eef1f7;--m-dim:#98a1b3;--m-faint:#6c7587;--m-line:#ffffff1a;--m-glass:#12151ddb;--m-chip:#ffffff0d;--m-acc:#ff8a2a;--m-acc2:#f2661b}
+
+/* ---- backdrop: deep blue-black with a warm horizon, the same on every menu ---- */
+#app,#app[data-view=collection],#app[data-view=decks]{background:linear-gradient(#070910b8,#070910e6),url(../assets/ui/menu_bg_arena.jpg) center/cover no-repeat #080a10}
+
+/* ---- top bar ---- */
+#nav{background:#0a0c12c7;border-bottom:1px solid var(--m-line);backdrop-filter:blur(16px) saturate(1.2);-webkit-backdrop-filter:blur(16px) saturate(1.2)}
+.logo i{background:var(--m-line)}
+.logo b{font:600 15px/1 var(--m-sans);letter-spacing:.3em;color:#cfd6e4}
+#tabs button{font:600 14px/1.2 var(--m-sans);letter-spacing:.04em;color:var(--m-dim);border-bottom:2px solid transparent;transition:color .15s}
+#tabs button svg{stroke-width:1.5}
+#tabs button:hover:not(:disabled){color:var(--m-ink)}
+#tabs button.on{background:none;color:#fff;border-bottom-color:var(--m-acc)}
+
+/* ---- Home ---- */
+.home{gap:10px}
+.home h1{font:500 68px/1 var(--m-serif);letter-spacing:.02em;color:#f6f2e8;text-shadow:0 2px 30px #000a}
+.home .tag,.tag{font:500 11px/1.4 var(--m-sans);letter-spacing:.24em;color:var(--m-dim);margin:2px 0 18px}
+.home>.muted,.muted{font-family:var(--m-sans);color:var(--m-faint)}
+html .hpanel,html.compact .hpanel,html.portrait .hpanel,html.compact.portrait .hpanel{border:1px solid var(--m-line)!important;border-image:none!important;border-radius:22px;background:var(--m-glass);
+  backdrop-filter:blur(22px) saturate(1.15);-webkit-backdrop-filter:blur(22px) saturate(1.15);box-shadow:0 30px 80px #000a,inset 0 1px 0 #ffffff0f;padding:28px 30px}
+html.compact .hpanel{padding:12px 16px!important;border-radius:16px}
+.hpanel label{font:600 11px/1 var(--m-sans);letter-spacing:.2em;color:var(--m-faint)}
+.hpanel .info{border:1px solid var(--m-line);background:var(--m-chip);color:var(--m-dim);font:600 12px/1 var(--m-sans)}
+.fmtnote{font-family:var(--m-sans);color:var(--m-faint)}
+.resume{border:1px solid #58d68d66;background:#58d68d14;color:#d9f7e4;font:14px var(--m-sans);border-radius:14px}
+.resume b{color:#7be3a6}.resume span{color:#9cc9ae}
+
+/* chips and segmented switches: neutral; the selected one is light, never orange */
+.edchip{font:500 13px/1 var(--m-sans);border:1px solid var(--m-line);background:var(--m-chip);color:#c8cfdc;transition:background .15s,color .15s}
+.edchip:hover{background:#ffffff1a}
+.edchip.on{background:#f1f3f8;border-color:#f1f3f8;color:#0b0d12;box-shadow:none}
+.fmtseg,.metaf,.lvl{background:var(--m-chip);border:1px solid var(--m-line);border-radius:12px;padding:3px;gap:3px}
+.fmtseg button,.metaf button,.lvl button,html.compact .metaf button{flex:1;border:0!important;border-radius:9px!important;background:none;color:var(--m-dim);font:600 13px/1 var(--m-sans);letter-spacing:.01em;min-height:32px;padding:7px 14px;transition:background .15s,color .15s}
+.fmtseg button:hover,.metaf button:hover,.lvl button:hover{color:var(--m-ink)}
+.fmtseg button.on,.metaf button.on,.lvl button.on{background:#ffffff26;color:#fff;box-shadow:inset 0 1px 0 #ffffff1f}
+.lvl{margin-bottom:0}
+
+/* ---- buttons: one flat primary (the only accent on screen), neutral secondaries ---- */
+html body #action button,html body .play,html body .scrbtns button,html body #over .obtns button,html body .homebox .play{
+  border:0!important;border-image:none!important;border-radius:14px!important;background:linear-gradient(180deg,#ff9a3c,var(--m-acc2))!important;color:#fff!important;
+  font:700 15px/1.1 var(--m-sans)!important;letter-spacing:.09em;text-shadow:0 1px 1px #0003;box-shadow:0 10px 26px #f2661b4d,inset 0 1px 0 #ffffff59!important;padding:12px 18px!important}
+html body .play{font-size:19px!important;padding:16px 18px!important;border-radius:16px!important;letter-spacing:.14em}
+html body .scrbtns button,html body #over .obtns button{font-size:15px!important;padding:13px 26px!important;min-width:140px}
+html body #action button#act-alt,html body #action button#act-undo,html body .scrbtns .no,html body #over .obtns .alt,html body .homebox .ghost,html body .hpanel .ghost{
+  border:1px solid var(--m-line)!important;border-image:none!important;border-radius:14px!important;background:#ffffff14!important;color:var(--m-ink)!important;
+  font:600 13px/1.1 var(--m-sans)!important;letter-spacing:.1em;text-transform:uppercase;box-shadow:none!important;text-shadow:none;padding:12px 18px!important}
+html body .hpanel .ghost{width:100%;margin-top:8px}
+html body #action button#act-alt,html body #action button#act-undo{font-size:max(11px,2.1cqh)!important;padding:9px 12px!important}
+html body #act-btn.wait{background:#ffffff14!important;color:#9aa3b5!important;box-shadow:none!important;border:1px solid var(--m-line)!important}
+html.phone body #action button{font-size:max(11px,2.5cqh)!important;padding:10px 10px!important;letter-spacing:.06em}
+html body .play:disabled,html body .scrbtns button:disabled{filter:none;opacity:.35;box-shadow:none!important}
+@media (max-height:520px){html body .scrbtns button,html body #over .obtns button{font-size:13px!important;padding:10px 20px!important;min-width:110px}html body .play{font-size:16px!important;padding:11px 14px!important}}
+
+/* ---- deck tiles: full-bleed art, no frame, name and details on a soft scrim ---- */
+.dtframe{display:none}
+.dtile{border-radius:14px;overflow:hidden;filter:none;box-shadow:0 0 0 1px var(--m-line),0 12px 28px #0009;transition:box-shadow .18s,transform .18s;background:#0d1016}
+.dtwin{left:0;top:0;width:100%;height:100%;border-radius:0;background:#0d1016}
+.dta+.dta{border-left:1px solid #ffffff24}
+.dtvig{background:linear-gradient(#0000 38%,#06080dcc 68%,#06080df7 100%)}
+.dtmana{right:5%;top:4.5%;bottom:auto;gap:3%}.dtmana img{width:9.5cqw;height:9.5cqw}
+.dtplate{left:7%;width:86%;top:auto;bottom:5.5%;height:auto;align-items:flex-start;text-align:left;gap:1.2cqw}
+.dtname{font:700 7.4cqw/1.12 var(--m-sans);color:#fff;letter-spacing:.005em;text-shadow:0 1px 3px #000c}
+.dtsub{font:500 4cqw/1.2 var(--m-sans);color:#aab3c4}
+.dtstars{font-size:4.2cqw;color:#ffb85c;letter-spacing:.06em}
+.dtnote{font:500 3.6cqw/1.2 var(--m-sans)}
+.dtile.sel{filter:none;box-shadow:0 0 0 2px var(--m-acc),0 0 30px #ff8a2a59,0 12px 28px #0009;transform:translateY(-3px)}
+.tbtn:hover .dtile:not(.sel){box-shadow:0 0 0 1px #ffffff47,0 16px 34px #000b;transform:translateY(-2px)}
+.tbtn:focus-visible .dtile{filter:none;box-shadow:0 0 0 2px #fff}
+.dtile.show .dtname{font-size:8cqw}.dtile.show .dtsub{font-size:3.9cqw;padding:0}
+.hpanel .hl .dtile.sel{transform:none;box-shadow:0 0 0 1px var(--m-line),0 18px 44px #000b}
+
+/* ---- deck picker ---- */
+.scr.picker{background:#06080dee;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+.scrbox h2{font:600 26px/1.2 var(--m-sans);letter-spacing:.01em;color:#fff}
+.scrbox p{font-family:var(--m-sans);color:var(--m-dim)}
+.fmtbadges{border:1px solid var(--m-line);background:var(--m-chip);color:var(--m-dim);font:600 12px/1 var(--m-sans);letter-spacing:.08em;padding:11px 16px;border-radius:12px}
+.pickctl{gap:10px;align-items:center;margin-bottom:10px}
+.scrbox .oppnote{font:500 11px/1.3 var(--m-sans);letter-spacing:.14em;color:var(--m-faint)}
+.dtiles{gap:18px}
+.dtiles::-webkit-scrollbar{width:8px;height:8px}.dtiles::-webkit-scrollbar-thumb{background:#ffffff2e;border-radius:8px}.dtiles::-webkit-scrollbar-track{background:none}
+html.compact .metaf button.on,html.compact .lvl button.on,html.compact .fmtseg button.on{background:#ffffff26;color:#fff}
+.dtsub{font-size:4.7cqw}.dtstars{font-size:5cqw}
