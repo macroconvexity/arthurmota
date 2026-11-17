@@ -824,28 +824,85 @@ body.crz-say-on.crz-say-on .crzm-stamp { top: calc(var(--crz-sayb, 140px) + 10px
 }
 .crz-roll.gone { display: none; }
 .crz-rollbox {
-  width: min(320px, 100%); background: var(--bg); color: var(--ink); border-radius: var(--r-lg); padding: 22px 20px 16px;
-  display: flex; flex-direction: column; align-items: center; gap: 10px; box-shadow: var(--shadow-2);
-  text-align: center; box-sizing: border-box;
+  width: min(320px, 100%); color: var(--ink); border-radius: var(--r-lg); padding: 22px 20px 16px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  text-align: center; box-sizing: border-box; position: relative; z-index: 0;
 }
-.crz-rolldie { width: 96px; height: 96px; }
+/* o branco do cartao e uma camada propria: na abertura so ela escala (FLIP), o texto e o dado nao deformam */
+.crz-rollbg {
+  position: absolute; inset: 0; z-index: -1; background: var(--bg); border-radius: var(--r-lg); box-shadow: var(--shadow-2);
+  pointer-events: none; transform-origin: 50% 50%;
+}
+/* compacto ('Tap to roll' e rolando): quase quadrado, conteudo no meio; o texto do resultado nem ocupa lugar */
+.crz-roll.crz-rollc .crz-rollbox { width: min(288px, 100%); height: 248px; justify-content: center; padding: 16px 14px; }
+.crz-rollc .crz-rolltom, .crz-rollc .crz-rollrow, .crz-rollc .crz-rollnote, .crz-rollc .crz-rollfx:empty { display: none; }
+/* abrindo ou fechando: o fundo passa da caixa durante o FLIP de volta, nada corta */
+.crz-roll.crz-rollmove .crz-rollbox { overflow: visible; }
+/* abrindo: o texto ja esta no lugar e aparece quando o cartao esta quase aberto; 'Today' primeiro, de uma vez */
+.crz-rollfxhid .crz-rollfx { opacity: 0; }
+.crz-rolltom, .crz-rollrow, .crz-rollnote { transition: opacity 140ms var(--ease); }
+.crz-rollresthid .crz-rolltom, .crz-rollresthid .crz-rollrow, .crz-rollresthid .crz-rollnote { opacity: 0; transition: none; }
+.crz-rollstage { position: relative; width: 96px; height: 96px; flex: none; }
+.crz-rolldie { position: relative; width: 96px; height: 96px; }
+.crz-rollsq { width: 96px; height: 96px; transform-origin: 50% 100%; }
 .crz-rolldie svg { width: 96px; height: 96px; display: block; }
-.crz-rolldie.crz-rollin { animation: crz-rollbounce var(--t-show) cubic-bezier(.3,.7,.4,1) 1 both; }
-@keyframes crz-rollbounce {
-  0%   { transform: translateY(-150px) rotate(-260deg) scale(.8); }
-  35%  { transform: translateY(0) rotate(-60deg) scale(1); }
-  50%  { transform: translateY(-38px) rotate(-20deg); }
-  65%  { transform: translateY(0) rotate(0deg); }
-  77%  { transform: translateY(-12px) rotate(6deg); }
-  88%  { transform: translateY(0) rotate(0deg); }
-  100% { transform: translateY(0) rotate(0deg); }
+/* o corpo do dado e da cor do cartao: igual em cima do cartao, solido quando passa por cima do veu na queda */
+.crz-rollsq svg > :first-child { fill: var(--bg); }
+/* sombra de contato: elipse chapada da tinta, so opacidade e escala; some no 'Tap to roll' */
+.crz-rollshadow {
+  position: absolute; left: 50%; top: calc(100% - 8px); width: 70px; height: 10px; margin-left: -35px;
+  border-radius: 50%; background: var(--ink); opacity: 0; pointer-events: none;
 }
+.crz-rolled .crz-rollshadow, .crz-rollmove .crz-rollshadow { opacity: 0.24; }
+/* rola no meio do cartao compacto (1000 ms; impactos a 460, 724 e 880 ms = ROLL_IMPACTS em ui.js): parte de onde
+   estava no 'Tap to roll' (--ry), sobe so um pouco (22 px + um quarto de onde estava; o dado nunca vai ao alto do cartao),
+   quica 12 px e 4 px; uma volta inteira e aterrissa de pe */
+.crz-rollstage.crz-rollin .crz-rolldie { animation: crz-rolldrop 1000ms linear 1 both; }
+.crz-rollstage.crz-rollin .crz-rollsq { animation: crz-rollsquash 1000ms linear 1 both; }
+.crz-rollstage.crz-rollin .crz-rollshadow { animation: crz-rollshade 1000ms linear 1 both; }
+@keyframes crz-rolldrop {
+  0%     { transform: translate(0, var(--ry, 0px)) rotate(0deg); animation-timing-function: cubic-bezier(.25, .6, .45, 1); }
+  24%    { transform: translate(var(--rx, 8px), calc(min(var(--ry, 0px), 0px) * .25 - 22px)) rotate(calc(-190deg * var(--rd, 1))); animation-timing-function: cubic-bezier(.55, 0, .9, .45); }
+  46%    { transform: translate(0, 0) rotate(calc(-378deg * var(--rd, 1))); animation-timing-function: cubic-bezier(.1, .5, .5, 1); }
+  59.2%  { transform: translate(0, -12px) rotate(calc(-367deg * var(--rd, 1))); animation-timing-function: cubic-bezier(.55, 0, .9, .45); }
+  72.4%  { transform: translate(0, 0) rotate(calc(-355deg * var(--rd, 1))); animation-timing-function: cubic-bezier(.1, .5, .5, 1); }
+  80%    { transform: translate(0, -4px) rotate(calc(-357.5deg * var(--rd, 1))); animation-timing-function: cubic-bezier(.55, 0, .9, .45); }
+  88%    { transform: translate(0, 0) rotate(calc(-361.5deg * var(--rd, 1))); animation-timing-function: ease-out; }
+  93%    { transform: translate(0, 0) rotate(calc(-359.5deg * var(--rd, 1))); animation-timing-function: ease-in-out; }
+  97%, 100% { transform: translate(0, 0) rotate(calc(-360deg * var(--rd, 1))); }
+}
+@keyframes crz-rollsquash {
+  0%, 40%   { transform: scale(.97, 1.04); animation-timing-function: ease-in; }
+  46%       { transform: scale(1.08, .92); animation-timing-function: ease-out; }
+  50%       { transform: scale(.98, 1.02); animation-timing-function: ease-in-out; }
+  54%, 69%  { transform: scale(1, 1); animation-timing-function: ease-in; }
+  72.4%     { transform: scale(1.05, .95); animation-timing-function: ease-out; }
+  75.5%     { transform: scale(.99, 1.01); }
+  78%, 85.5% { transform: scale(1, 1); animation-timing-function: ease-in; }
+  88%       { transform: scale(1.03, .97); animation-timing-function: ease-out; }
+  92%, 100% { transform: scale(1, 1); }
+}
+@keyframes crz-rollshade {
+  0%     { opacity: .10; transform: scale(.7); animation-timing-function: ease-out; }
+  24%    { opacity: .07; transform: scale(.6); animation-timing-function: ease-in; }
+  46%    { opacity: .28; transform: scale(1.08); animation-timing-function: ease-out; }
+  59.2%  { opacity: .16; transform: scale(.8); animation-timing-function: ease-in; }
+  72.4%  { opacity: .27; transform: scale(1.06); animation-timing-function: ease-out; }
+  80%    { opacity: .22; transform: scale(.94); animation-timing-function: ease-in; }
+  88%    { opacity: .26; transform: scale(1.04); }
+  95%, 100% { opacity: .24; transform: scale(1); }
+}
+/* parada: o numero (ou os pontos) da um pulinho de assentar */
+.crz-rollstage.crz-rollpop .crz-rollsq text, .crz-rollstage.crz-rollpop .crz-rollsq circle {
+  transform-box: fill-box; transform-origin: 50% 50%; animation: crz-rollnum 240ms cubic-bezier(.3, .7, .4, 1) 1;
+}
+@keyframes crz-rollnum { 0% { transform: scale(1); } 40% { transform: scale(1.16); } 100% { transform: scale(1); } }
 @keyframes crz-rollfade { from { opacity: 0; } to { opacity: 1; } }
 .crz-rollfx { font-size: var(--fs-xl); font-weight: var(--fw-bold); line-height: 1.2; min-height: 29px; }
 .crz-rollfx.tone-green { color: var(--green-text); }
 .crz-rollfx.tone-red { color: var(--red); }
 .crz-rollfx.tone-ink { color: var(--ink-2); }
-.crz-rolled .crz-rollfx { animation: crz-rollfade var(--t-base) var(--ease) 1; }
+.crz-rolled .crz-rollfx { animation: none; }   /* o efeito entra de uma vez, junto com a cor do dado */
 .crz-rolltut { font-size: var(--fs-md); font-weight: var(--fw-semi); color: var(--ink); }
 .crz-rolltom { font-size: var(--fs-sm); color: var(--ink-2); min-height: 16px; }
 .crz-rollrow { display: flex; gap: 10px; width: 100%; justify-content: center; margin-top: 4px; }
@@ -854,8 +911,8 @@ body.crz-say-on.crz-say-on .crzm-stamp { top: calc(var(--crz-sayb, 140px) + 10px
 .crz-rollreroll.off { border-color: var(--line-2); color: var(--ink-2); }
 .crz-rollgo { min-height: var(--h-btn); min-width: 120px; padding: 0 20px; border-radius: var(--r-pill); background: var(--ink); color: var(--bg); font-size: var(--fs-lg); font-weight: var(--fw-bold); }
 .crz-rollnote { font-size: var(--fs-sm); color: var(--ink-2); min-height: 0; }
-.crz-roll.crz-rm .crz-rolldie.crz-rollin { animation: none; }
-@media (prefers-reduced-motion: reduce) { .crz-rolldie.crz-rollin { animation: none; } .crz-roll { animation: crz-rollfade var(--t-base) linear 1; } }
+.crz-roll.crz-rm .crz-rollstage.crz-rollin *, .crz-roll.crz-rm .crz-rollstage.crz-rollpop * { animation: none; }
+@media (prefers-reduced-motion: reduce) { .crz-rollstage.crz-rollin *, .crz-rollstage.crz-rollpop * { animation: none; } .crz-rolltom, .crz-rollrow, .crz-rollnote { transition: none; } .crz-roll { animation: crz-rollfade var(--t-base) linear 1; } }
 
 /* a tela da rolagem segura crz-modal e recebe o toque */
 body.crz-modal #hud .crz-roll, body.crz-modal #hud .crz-roll * { pointer-events: auto !important; }

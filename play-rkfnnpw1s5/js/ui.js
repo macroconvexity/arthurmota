@@ -3489,10 +3489,21 @@
     // folha central por cima do mapa escurecido: o dado grande entra quicando (~1,2 s) e para no numero;
     // depois o efeito grande e colorido, amanha pequeno, Reroll secundario e Continue. Um toque pula a
     // animacao, o 2o continua. Dia normal fecha sozinho em 2 s. Uma vez por dia por partida (hints '@seed').
-    var ROLL_ANIM_MS = 1200;
+    // dado com peso, encenacao v2 (dono 2026-11-16): o cartao comeca compacto e o dado rola no MEIO dele o tempo
+    // todo (pulo curto, 3 quiques que diminuem, sombra no chao, achata no impacto), sem nunca passar da borda. Parado no
+    // numero (ainda neutro, tinta), o cartao abre (FLIP: o fundo escala, o dado sobe por translate, ~300 ms) e no fim
+    // da abertura entram juntos a cor do tom e 'Today: ...'; amanha e os botoes logo depois. Linha do tempo da CSS
+    // (crz-rolldrop, 1000 ms): impactos em ROLL_IMPACTS; o 3o impacto e a parada.
+    var ROLL_IMPACTS = [460, 724, 880], ROLL_LAND_MS = 880, ROLL_GROW_AT = 1000, ROLL_GROW_MS = 300;
+    var ROLL_FX_AT = 190, ROLL_REST_AT = 250, ROLL_SHRINK_MS = 260;
+    // trocas de numero: rapidas no comeco, lentas no fim (a ultima troca aleatoria antes da parada)
+    var ROLL_SPIN = [60, 120, 180, 240, 320, 400, 500, 620, 780];
+    var ROLL_GUARD_MS = 350;   // depois da abertura: toque no cartao ou no fundo so continua passado este tempo
     var rollEl = el('div', 'crz-roll gone'); rollEl.setAttribute('role', 'dialog'); rollEl.setAttribute('aria-modal', 'true');
     rollEl.setAttribute('aria-label', STR.rollTitle);
     var rollBox = tut(el('div', 'crz-rollbox'), 'roll'); rollBox.setAttribute('data-scroll', '');
+    var rollBg = el('div', 'crz-rollbg');   // o fundo branco do cartao: so ele escala na abertura (o texto nao deforma)
+    var rollStage = el('div', 'crz-rollstage'), rollShadow = el('div', 'crz-rollshadow'), rollSq = el('div', 'crz-rollsq');
     var rollDie = el('div', 'crz-rolldie'), rollTapEl = el('div', 'crz-rolltap gone'), rollFx = el('div', 'crz-rollfx'), rollTutEl = el('div', 'crz-rolltut gone');
     var rollTom = el('div', 'crz-rolltom'), rollNote = el('div', 'crz-rollnote');
     var rollRow = el('div', 'crz-rollrow');
@@ -3502,12 +3513,16 @@
     rollRow.appendChild(rollReroll); rollRow.appendChild(rollGo);
     rollDie.setAttribute('role', 'button'); rollDie.setAttribute('tabindex', '0'); rollDie.setAttribute('aria-label', STR.rollAria);
     rollTapEl.textContent = STR.rollTap;
-    rollBox.appendChild(rollDie); rollBox.appendChild(rollTapEl); rollBox.appendChild(rollFx); rollBox.appendChild(rollTutEl); rollBox.appendChild(rollTom);
+    rollDie.appendChild(rollSq); rollStage.appendChild(rollShadow); rollStage.appendChild(rollDie);
+    rollBox.appendChild(rollBg);
+    rollBox.appendChild(rollStage); rollBox.appendChild(rollTapEl); rollBox.appendChild(rollFx); rollBox.appendChild(rollTutEl); rollBox.appendChild(rollTom);
     rollBox.appendChild(rollRow); rollBox.appendChild(rollNote); rollBox.appendChild(rollLive);
     rollEl.appendChild(rollBox); ui.appendChild(rollEl);
     // dono 2026-11-10: quem rola e a jogadora. 'ready' = dado parado, 'Tap to roll'; o resultado ja veio do jogo
+    // estagios: ready -> anim (rola no meio) -> land (parado, neutro) -> grow (abre) -> result; reroll: shrink -> anim
     var ROLL_WIGGLE_MS = 8000;
-    var roll = { open: false, stage: '', t0: 0, resAt: 0, autoAt: 0, spinAt: 0, normal: false, mine: false, readyAt: 0 };
+    var roll = { open: false, stage: '', t0: 0, g0: 0, s0: 0, resAt: 0, autoAt: 0, spinI: 0, imp: 0, shown: 0, last: 0,
+      fxOn: false, restOn: false, anims: [], tut: false, normal: false, mine: false, readyAt: 0 };
     var rollShutT = 0, ROLL_SHUT_MS = 260;
     function rollKey(d) { return 'roll' + d + runTag; }
     function rollSeen(d) { return !!hints[rollKey(d)]; }
@@ -3528,14 +3543,42 @@
         '<path d="M18 2L10 13H26Z M4 10L10 13L7 24 M32 10L26 13L29 24 M10 13L18 27L26 13 M7 24L18 27L29 24 M18 27V34" fill="none" stroke-width="0.9" stroke-linejoin="round" class="s-' + tone + '" opacity="0.35"/>' +
         '<text x="18" y="23" text-anchor="middle" font-size="12" font-weight="800" class="f-ink">' + value + '</text>', '0 0 36 36');
     }
-    function rollPaint(s, value) {
+    // neutral: o giro pinta com o contorno de tinta (o mesmo do '?'); a cor do tom so quando o efeito aparece
+    function rollPaint(s, value, neutral) {
       var D = s.die; if (!D) return;
-      rollDie.innerHTML = bigDieSvg(value, D.faces, D.kind);
+      rollSq.innerHTML = bigDieSvg(value, D.faces, neutral ? 'plain' : D.kind);
     }
-    function rollResultPaint(s) {
-      var D = s.die; if (!D) return;
+    // numero aleatorio do giro: nunca repete o anterior (troca visivel a cada passo)
+    function rollSpinPaint(s) {
+      var n = (s.die && s.die.faces) || 6, v = 1 + Math.floor(Math.random() * (n - 1));
+      if (v >= roll.shown) v++;
+      if (v > n) v = 1;
+      roll.shown = v; rollPaint(s, v, true);
+    }
+    // FLIP: caixas medidas antes e depois da troca de layout; so transform anima (Web Animations, no compositor)
+    function rollRect(e) { try { var r = e.getBoundingClientRect(); return r && r.height > 0 ? r : null; } catch (x) { return null; } }
+    function rollFlipCancel() { roll.anims.forEach(function (a) { try { a.cancel(); } catch (x) {} }); roll.anims = []; }
+    function rollFlip(e, from, ms) {
+      if (!e.animate || reducedMotion()) return;
+      try { roll.anims.push(e.animate([{ transform: from }, { transform: 'none' }], { duration: ms, easing: 'cubic-bezier(.2, .75, .3, 1)' })); } catch (x) {}
+    }
+    // b0/d0: cartao e dado no layout de onde se sai; depois da troca de classes mede o novo e anima do velho ao novo
+    function rollFlipTo(b0, d0, ms) {
+      var b1 = rollRect(rollBox), d1 = rollRect(rollStage);
+      if (b0 && b1) {
+        var dx = (b0.left + b0.width / 2) - (b1.left + b1.width / 2), dy = (b0.top + b0.height / 2) - (b1.top + b1.height / 2);
+        rollFlip(rollBg, 'translate(' + dx.toFixed(2) + 'px, ' + dy.toFixed(2) + 'px) scale(' + (b0.width / b1.width).toFixed(4) + ', ' + (b0.height / b1.height).toFixed(4) + ')', ms);
+      }
+      if (d0 && d1) rollFlip(rollStage, 'translate(' + (d0.left - d1.left).toFixed(2) + 'px, ' + (d0.top - d1.top).toFixed(2) + 'px)', ms);
+    }
+    function rollCls(add, rem) {
+      (rem || []).forEach(function (c) { rollEl.classList.remove(c); });
+      (add || []).forEach(function (c) { rollEl.classList.add(c); });
+    }
+    var ROLL_STATE_CLS = ['crz-rollc', 'crz-rollready', 'crz-rolling', 'crz-rolled', 'crz-rollmove', 'crz-rollfxhid', 'crz-rollresthid'];
+    function rollFill(s) {
+      var D = s.die; if (!D) return '';
       var tone = kindTone(D.kind), fx = rollFxText(D);
-      rollPaint(s, D.value);
       rollFx.textContent = fx; rollFx.className = 'crz-rollfx tone-' + tone;
       var hasNext = !!s.nextDie && !lastDayOf(s);
       rollTom.textContent = hasNext ? STR.lblTomorrow(s.nextDie.id) : '';
@@ -3547,10 +3590,17 @@
       rollReroll.setAttribute('aria-disabled', ri.reason ? 'true' : 'false');
       var badHint = ri.avail && !ri.reason && D.kind === 'bad';
       rollNote.textContent = ri.avail && ri.reason ? (rushShort(s, ri) || ri.reason) : (badHint ? STR.rollBad(ri.cost) : '');
-      if (badHint) emitUI('rerollHint', {});
+      rollTutEl.classList.add('gone');   // a linha do tutorial ('Tap the dice') sai depois de rolar
+      return fx;
+    }
+    function rollResultPaint(s) {
+      var D = s.die; if (!D) return;
+      var tone = kindTone(D.kind), ri = rerollInfo(s);
+      rollPaint(s, D.value);
+      var fx = rollFill(s);
+      if (ri.avail && !ri.reason && D.kind === 'bad') emitUI('rerollHint', {});
       var fxs = fx.replace(/^Today: /, '').replace(/^Normal day: no change$/, 'Normal day');
       rollLive.textContent = STR.rollLive(D.value, fxs.charAt(0).toUpperCase() + fxs.slice(1));
-      rollTutEl.classList.add('gone');   // a linha do tutorial ('Tap the dice') sai depois de rolar
       roll.normal = D.id === 'plain' || tone === 'ink';
     }
     function rollAnyModal() {
@@ -3565,23 +3615,25 @@
       rollEl.classList.remove('crz-shut');
       rollEl.classList.remove('gone'); rollEl.classList.toggle('crz-rm', reducedMotion());
       var tutLine = !seen('rollAny') && tutorScript();
+      roll.tut = !!tutLine;
       rollTutEl.textContent = STR.rollTut; rollTutEl.classList.toggle('gone', !tutLine);
       markSeen('fu:die');
       emitUI('dieOpen', { roll: true });
-      if (animate) rollReady(); else rollResult(false);
+      if (animate) rollReady(); else rollResultNow(false);
     }
     function rollReady() {
       var s = game.state;
+      rollFlipCancel();
       roll.stage = 'ready'; roll.readyAt = nowMs(); roll.autoAt = 0;
-      rollEl.classList.remove('crz-rolling'); rollEl.classList.remove('crz-rolled'); rollEl.classList.add('crz-rollready');
-      rollDie.classList.remove('crz-rollwiggle'); rollDie.classList.remove('crz-rollin');
-      rollDie.innerHTML = bigDieSvg((s.die && s.die.faces > 6) ? '?' : 5, (s.die && s.die.faces) || 6, 'plain');
+      rollCls(['crz-rollc', 'crz-rollready'], ROLL_STATE_CLS);
+      rollDie.classList.remove('crz-rollwiggle'); rollStage.classList.remove('crz-rollin'); rollStage.classList.remove('crz-rollpop');
+      rollSq.innerHTML = bigDieSvg((s.die && s.die.faces > 6) ? '?' : 5, (s.die && s.die.faces) || 6, 'plain');
       rollTapEl.classList.remove('gone');
       rollFx.textContent = ''; rollTom.textContent = ''; rollNote.textContent = '';
       // nv10 2: primeiro dia do dado de 20 faces: a frase vem ANTES de rolar
       var big = !!(s.die && s.die.faces > 6) && !seen('bigDie');
       if (big) { rollFx.textContent = STR.rollBig(s.die.faces); rollFx.className = 'crz-rollfx tone-ink'; emitUI('bigDieSaid', {}); }
-      rollRow.classList.add('crz-hide'); rollGo.setAttribute('tabindex', '-1');
+      rollGo.setAttribute('tabindex', '-1');
       rollLive.textContent = big ? STR.rollBig(s.die.faces) + ' ' + STR.rollTap : STR.rollTap;
       try { if (rollDie.focus) rollDie.focus(); } catch (e) {}
     }
@@ -3590,30 +3642,85 @@
       // rolou: este dia nao volta para 'Tap to roll' ao recarregar
       markSeen('rollAny'); rollMark(s.day | 0);
       if (s.die && s.die.faces > 6 && !seen('bigDie')) markSeen('bigDie');
-      rollEl.classList.remove('crz-rollready'); rollTapEl.classList.add('gone'); rollDie.classList.remove('crz-rollwiggle');
-      roll.stage = 'anim'; roll.t0 = now; roll.spinAt = 0; roll.autoAt = 0;
-      rollEl.classList.add('crz-rolling'); rollEl.classList.remove('crz-rolled');
+      if (reducedMotion()) { rollResultNow(true); return; }
+      rollFlipCancel();
+      var d0 = rollRect(rollStage);   // onde o dado estava (no 'Tap to roll' ele fica acima do meio, com o texto embaixo)
+      rollCls(['crz-rollc', 'crz-rolling'], ROLL_STATE_CLS);
+      rollTapEl.classList.add('gone'); rollTutEl.classList.add('gone'); rollDie.classList.remove('crz-rollwiggle');
+      roll.stage = 'anim'; roll.t0 = now; roll.spinI = 0; roll.imp = 0; roll.shown = 0; roll.autoAt = 0;
       rollFx.textContent = ''; rollTom.textContent = ''; rollNote.textContent = '';
-      rollRow.classList.add('crz-hide'); rollGo.setAttribute('tabindex', '-1');
-      rollDie.classList.remove('crz-rollin'); void rollDie.offsetWidth; rollDie.classList.add('crz-rollin');
-      rollPaint(s, 1 + Math.floor(Math.random() * ((s.die && s.die.faces) || 6)));
-      if (reducedMotion()) rollResult(true);
+      rollGo.setAttribute('tabindex', '-1');
+      var d1 = rollRect(rollStage), ry = (d0 && d1) ? d0.top - d1.top : 0;
+      // cada rolagem pula de um jeito: lado e deriva sorteados (so CSS; aterrissa sempre de pe, no meio)
+      var dir = Math.random() < 0.5 ? -1 : 1;
+      try {
+        rollStage.style.setProperty('--rd', String(dir));
+        rollStage.style.setProperty('--ry', ry.toFixed(1) + 'px');
+        rollStage.style.setProperty('--rx', (dir * Math.round(4 + Math.random() * 10)) + 'px');
+      } catch (e) {}
+      rollStage.classList.remove('crz-rollpop'); rollStage.classList.remove('crz-rollin'); void rollStage.offsetWidth; rollStage.classList.add('crz-rollin');
+      rollSpinPaint(s);
     }
-    function rollResult(sound) {
+    // parada no meio: o numero final, ainda neutro; o som do dado
+    function rollLand() {
       var s = game.state;
+      roll.stage = 'land'; roll.last = s.die ? s.die.value : 0;
+      rollPaint(s, roll.last, true);
+      if (!reducedMotion()) rollStage.classList.add('crz-rollpop');
+      snd('dice');
+    }
+    // abertura: o cartao vai ao layout do resultado (texto ja no lugar, invisivel) e o FLIP anima do compacto ate ele
+    function rollGrowStart() {
+      var s = game.state, b0 = rollRect(rollBox), d0 = rollRect(rollStage);
+      rollFill(s);
+      rollCls(['crz-rollmove', 'crz-rollfxhid', 'crz-rollresthid'], ['crz-rollc', 'crz-rolling', 'crz-rollready']);
+      roll.stage = 'grow'; roll.g0 = nowMs(); roll.fxOn = false; roll.restOn = false;
+      rollFlipTo(b0, d0, ROLL_GROW_MS);
+    }
+    // a cor do tom e 'Today: ...' de uma vez (o efeito e o premio: nunca depois de amanha e dos botoes)
+    function rollRevealFx() {
+      roll.fxOn = true;
+      rollResultPaint(game.state);
+      rollCls(['crz-rolled'], ['crz-rollfxhid']);
+    }
+    function rollRevealRest() { roll.restOn = true; rollCls([], ['crz-rollresthid']); }
+    function rollDone() {
       roll.stage = 'result'; roll.resAt = nowMs();
-      rollEl.classList.remove('crz-rolling'); rollEl.classList.add('crz-rolled');
-      rollDie.classList.remove('crz-rollin');
-      rollResultPaint(s);
-      rollRow.classList.remove('crz-hide'); rollGo.removeAttribute('tabindex');
+      rollCls([], ['crz-rollmove']);
+      rollGo.removeAttribute('tabindex');
       try { if (rollGo.focus) rollGo.focus(); } catch (e) {}
-      if (sound) snd('dice');
       roll.autoAt = 0;   // a jogadora rolou: o resultado espera o Continue (ou um toque), tambem no dia normal
+    }
+    // resultado de uma vez (toque que pula, Escape, movimento reduzido, reabrir pelo dado do topo)
+    function rollResultNow(sound) {
+      rollFlipCancel();
+      rollCls(['crz-rolled'], ROLL_STATE_CLS);
+      rollTapEl.classList.add('gone');
+      rollStage.classList.remove('crz-rollin'); rollStage.classList.remove('crz-rollpop');
+      rollResultPaint(game.state);
+      roll.fxOn = roll.restOn = true;
+      rollDone();
+      if (sound) snd('dice');
+    }
+    // relance: o cartao volta ao compacto (FLIP ao contrario) com o dado no meio, neutro; depois rola de novo
+    function rollShrink() {
+      var s = game.state, b0 = rollRect(rollBox), d0 = rollRect(rollStage);
+      rollFlipCancel();
+      if (reducedMotion()) { rollAnim(); return; }
+      rollPaint(s, roll.last || 1, true);
+      rollFx.textContent = ''; rollTom.textContent = ''; rollNote.textContent = '';
+      rollStage.classList.remove('crz-rollin'); rollStage.classList.remove('crz-rollpop');
+      rollCls(['crz-rollc', 'crz-rolling', 'crz-rollmove'], ROLL_STATE_CLS);
+      rollGo.setAttribute('tabindex', '-1');
+      roll.stage = 'shrink'; roll.s0 = nowMs();
+      rollFlipTo(b0, d0, ROLL_SHRINK_MS);
     }
     function rollClose() {
       if (!roll.open) return;
       roll.open = false; roll.stage = '';
-      rollEl.classList.add('gone'); rollEl.classList.remove('crz-rolling'); rollEl.classList.remove('crz-rolled');
+      rollFlipCancel();
+      rollStage.classList.remove('crz-rollin'); rollStage.classList.remove('crz-rollpop');
+      rollEl.classList.add('gone'); rollCls([], ['crz-rolling', 'crz-rolled', 'crz-rollmove', 'crz-rollfxhid', 'crz-rollresthid']);
       // F001 do fuzz: a saida e uma transicao de 160 ms que so anda com quadros. Sem quadros (Chrome headless
       // parado, aba congelada e devolvida) a folha ficava na tela com 'gone', opacidade ~1 e sem toque. Um timer
       // (nao depende de quadro) encerra a saida aos 260 ms: com quadros normais a transicao ja acabou e nada muda
@@ -3625,10 +3732,23 @@
     function rollScreenTick(s, now) {
       if (roll.open) {
         if (s.phase !== 'plan') { rollClose(); return; }
-        if (roll.stage === 'anim') {
-          if (now - roll.t0 >= ROLL_ANIM_MS) rollResult(true);
-          else if (now - roll.spinAt >= 90) { roll.spinAt = now; rollPaint(s, 1 + Math.floor(Math.random() * ((s.die && s.die.faces) || 6))); }
-        } else if (roll.stage === 'ready' && now - roll.readyAt >= ROLL_WIGGLE_MS && !rollDie.classList.contains('crz-rollwiggle')) {
+        var st = roll.stage;
+        if (st === 'anim') {
+          var el = now - roll.t0, chg = false;
+          if (el >= ROLL_LAND_MS) { rollLand(); return; }
+          while (roll.imp < ROLL_IMPACTS.length - 1 && el >= ROLL_IMPACTS[roll.imp]) { roll.imp++; snd('tick'); }
+          while (roll.spinI < ROLL_SPIN.length && el >= ROLL_SPIN[roll.spinI]) { roll.spinI++; chg = true; }
+          if (chg) rollSpinPaint(s);
+        } else if (st === 'land') {
+          if (now - roll.t0 >= ROLL_GROW_AT) rollGrowStart();
+        } else if (st === 'grow') {
+          var g = now - roll.g0;
+          if (!roll.fxOn && g >= ROLL_FX_AT) rollRevealFx();
+          if (!roll.restOn && g >= ROLL_REST_AT) rollRevealRest();
+          if (g >= ROLL_GROW_MS) { if (!roll.fxOn) rollRevealFx(); if (!roll.restOn) rollRevealRest(); rollDone(); }
+        } else if (st === 'shrink') {
+          if (now - roll.s0 >= ROLL_SHRINK_MS) rollAnim();
+        } else if (st === 'ready' && now - roll.readyAt >= ROLL_WIGGLE_MS && !rollDie.classList.contains('crz-rollwiggle')) {
           rollDie.classList.add('crz-rollwiggle');   // convite: balanca de leve, nunca rola sozinho
         }
         return;
@@ -3637,12 +3757,15 @@
       if (bootFrames >= 0 || holdUntil || rollAnyModal() || modal()) return;
       rollOpen(true);
     }
-    // toque em qualquer lugar: na animacao pula para o resultado; no resultado continua (fora o Reroll)
+    function rollMoving() { return roll.stage === 'anim' || roll.stage === 'land' || roll.stage === 'grow' || roll.stage === 'shrink'; }
+    // toque em qualquer lugar: rolando, pula para o resultado; no resultado continua (fora o Reroll), passada a guarda
     on(rollEl, 'click', function (e) {
       if (!roll.open) return;
       if (e && e.target && (e.target === rollReroll)) return;
       if (roll.stage === 'ready') { rollAnim(); return; }
-      if (roll.stage === 'anim') { rollResult(true); return; }
+      if (rollMoving()) { rollResultNow(roll.stage === 'anim' || roll.stage === 'shrink'); return; }
+      // o toque que rolou (ou um toque duplo) nao fecha o resultado sem ser visto
+      if (nowMs() - roll.resAt < ROLL_GUARD_MS) return;
       rollClose();
     });
     on(rollGo, 'click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); rollClose(); });
@@ -3654,12 +3777,12 @@
       var r = game.rerollDie(), okR = !!(r && r.ok);
       emitUI('dieReroll', { ok: okR });
       if (!okR) { snd('deny'); shake(rollReroll); return; }
-      rollAnim();
+      rollShrink();
     });
     on(doc, 'keydown', function (e) {
       if (!e || !roll.open) return;
       if (roll.stage === 'ready' && (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape')) { pd(e); rollAnim(); return; }
-      if (e.key === 'Escape') { if (roll.stage === 'anim') rollResult(true); else rollClose(); }
+      if (e.key === 'Escape') { if (rollMoving()) rollResultNow(roll.stage === 'anim' || roll.stage === 'shrink'); else rollClose(); }
     });
     on(panel, 'scroll', syncMore);
     on(skipBtn, 'click', function () {
