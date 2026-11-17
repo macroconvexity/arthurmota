@@ -1095,6 +1095,7 @@
         var v1 = -1.02 * h * ux - 0.62 * h * uy, v2 = 1.02 * h * ux - 0.62 * h * uy, v3 = 1.08 * h * uy;
         return Math.max(v1, v2, v3) + Math.max(1.6, s * 0.15) * 0.5;
       }
+      if (tool === 'stop') return SS.ext(h, ux, uy);   // octogono: apotema h nos eixos e nas diagonais
       return h;
     }
     var sgUse = true;   // r._signShift(false): so para capturas de comparacao (desliga o recuo no sinal)
@@ -1111,13 +1112,28 @@
       var L = +CFG.lockSeconds || 8;
       return Math.max(0, Math.min(1, (t - lockAt[id]) / L));
     }
+    // octogono regular de apotema a, lado plano em cima e embaixo (sinal de Pare), como subcaminho
+    var SS = CRZ.STOP_SIGN, stopFont = {};
+    function octagon(x, y, a) {
+      var t = a * SS.T;
+      ctx.moveTo(x - t, y - a); ctx.lineTo(x + t, y - a); ctx.lineTo(x + a, y - t); ctx.lineTo(x + a, y + t);
+      ctx.lineTo(x + t, y + a); ctx.lineTo(x - t, y + a); ctx.lineTo(x - a, y + t); ctx.lineTo(x - a, y - t); ctx.closePath();
+    }
     function circle(x, y, rad) { if (!(rad > 0)) rad = 0; ctx.moveTo(x + rad, y); ctx.arc(x, y, rad, 0, TAU); }
 
     function drawPicto(tool, x, y, s, phase) {
       var h = s * 0.5;
       if (tool === 'stop') {
-        ctx.fillStyle = C.red; ctx.beginPath(); circle(x, y, h); ctx.fill();
-        ctx.fillStyle = C.white; ctx.fillRect(x - s * 0.31, y - s * 0.09, s * 0.62, s * 0.18);
+        // Pare: octogono vermelho de apotema h (mesma caixa e centro do circulo antigo), borda branca fina e,
+        // a partir de STOP_SIGN.textMin px de largura, a palavra STOP condensada (geometria em config.js)
+        ctx.fillStyle = C.red; ctx.beginPath(); octagon(x, y, h); ctx.fill();
+        ctx.fillStyle = C.white; ctx.beginPath(); octagon(x, y, h * SS.rimOut); octagon(x, y, h * SS.rimIn); ctx.fill('evenodd');
+        if (SS.hasText(s) && ctx.fillText) {
+          var fs = Math.round(SS.fontPx(h) * 4) / 4;
+          ctx.font = stopFont[fs] || (stopFont[fs] = SS.weight + ' ' + fs + 'px ' + SS.font);
+          ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+          ctx.fillText('STOP', x, y + fs * SS.capH * 0.5, h * SS.textW);
+        }
       } else if (tool === 'yield') {
         var ty = y - h * 0.62;
         ctx.beginPath();

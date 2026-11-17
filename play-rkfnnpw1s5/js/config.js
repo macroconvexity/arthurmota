@@ -218,6 +218,51 @@
     }
   };
 
+  /* Sinal de Pare (2026-11-16): geometria UNICA do icone do Stop, usada pelo mapa (render.js, canvas), pela
+   * bandeja, guia e cartao do tutorial (ui.js, SVG 48) e pelo How to play (menu.js, SVG 24). O icone do app
+   * (tools/make_icons.py) repete as mesmas fracoes. Octogono regular vermelho com lado plano em cima e embaixo;
+   * `half` = apotema = meia largura, a mesma caixa e o mesmo centro do circulo antigo (layout e toque iguais).
+   * Borda branca fina entre as apotemas half*rimOut e half*rimIn. A palavra STOP (branca, negrito, centrada,
+   * largura half*textW, condensada) so entra quando a largura do octogono (2*half, px de tela) e >= textMin: abaixo disso
+   * vira borrao e o octogono com a borda ja le como Pare. */
+  CRZ.STOP_SIGN = {
+    rimOut: 0.9, rimIn: 0.76, textW: 1.36, fontK: 0.6, capH: 0.72, textMin: 18,
+    font: '-apple-system, system-ui, "Helvetica Neue", Helvetica, Arial, sans-serif', weight: 800,
+    T: Math.tan(Math.PI / 8),
+    // 8 vertices [x, y] da octogono de apotema a, em sentido horario a partir do canto de cima a esquerda
+    pts: function (cx, cy, a) {
+      var t = a * this.T;
+      return [[cx - t, cy - a], [cx + t, cy - a], [cx + a, cy - t], [cx + a, cy + t],
+              [cx + t, cy + a], [cx - t, cy + a], [cx - a, cy + t], [cx - a, cy - t]];
+    },
+    // meia extensao na direcao unitaria (ux, uy): maior projecao dos vertices (apotema nos eixos e nas diagonais)
+    // (vertices (+-t, +-a) e (+-a, +-t), t = a tan 22,5: sem alocar, roda por quadro)
+    ext: function (a, ux, uy) {
+      var x = Math.abs(ux), y = Math.abs(uy), t = a * this.T;
+      return Math.max(x * a + y * t, x * t + y * a);
+    },
+    hasText: function (widthPx) { return widthPx >= this.textMin; },
+    // corpo da letra 0,6 a; a palavra (~2,7 em de largura natural) e comprimida para textW*a, letra condensada
+    // como a da placa real (canvas: maxWidth do fillText; SVG: textLength)
+    fontPx: function (a) { return a * this.fontK; },
+    // SVG: red/white sao atributos de preenchimento ('class="f-red"' ou 'fill="#d9261c"'); text: com a palavra
+    svg: function (cx, cy, a, red, white, text) {
+      var self = this;
+      function d(k) {
+        return self.pts(cx, cy, a * k).map(function (p, i) { return (i ? 'L' : 'M') + (+p[0].toFixed(3)) + ' ' + (+p[1].toFixed(3)); }).join('') + 'Z';
+      }
+      var s = '<path ' + red + ' d="' + d(1) + '"/>' +
+        '<path ' + white + ' fill-rule="evenodd" d="' + d(this.rimOut) + d(this.rimIn) + '"/>';
+      if (text) {
+        var fs = this.fontPx(a);
+        s += '<text ' + white + ' x="' + cx + '" y="' + (+(cy + fs * this.capH * 0.5).toFixed(3)) + '" text-anchor="middle" font-size="' +
+          (+fs.toFixed(3)) + '" font-weight="' + this.weight + '" font-family=\'' + this.font + '\' textLength="' + (+(a * this.textW).toFixed(3)) +
+          '" lengthAdjust="spacingAndGlyphs">STOP</text>';
+      }
+      return s;
+    }
+  };
+
   /* utilitario: PRNG deterministico (mulberry32). Todos usam este. */
   CRZ.rng = function (seed) {
     var a = (seed >>> 0) || 1;

@@ -6,7 +6,7 @@
 // A pagina (index.html) busca este arquivo com cache:'no-store' ao abrir e ao voltar a aba,
 // le a VERSION e compara com a do SW ativo (mensagem 'version'): se mudou, pede update().
 // Fluxo completo e testes: dev/ios/REVIEW.md, secao "Atualizacao do app instalado".
-const VERSION = 'g-78534751f6c9';
+const VERSION = 'g-28eb59efe3ec';
 const CACHE = 'cruzamento-' + VERSION;
 const ASSETS = [
   './',

@@ -159,7 +159,8 @@
   var G = 'fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"';
   var TOOL_SVG = {
     road: '<circle cx="5" cy="19" r="2.2" ' + G + '/><circle cx="19" cy="5" r="2.2" ' + G + '/><path d="M6.8 17.2L17.2 6.8" ' + G + '/>',
-    stop: '<path d="M8.5 3.5h7l5 5v7l-5 5h-7l-5-5v-7z" ' + G + '/><path d="M8 12h8" ' + G + '/>',
+    // Pare: o mesmo sinal da bandeja e do mapa (CRZ.STOP_SIGN, config.js), apotema 8,5 = a caixa do contorno antigo
+    stop: CRZ.STOP_SIGN ? CRZ.STOP_SIGN.svg(12, 12, 8.5, 'style="fill:var(--red,#d9261c)"', 'style="fill:var(--white,#fff)"', true) : '',
     yield: '<path d="M3.5 5h17L12 20z" ' + G + '/>',
     light: '<rect x="8" y="2.5" width="8" height="19" rx="4" ' + G + '/><circle cx="12" cy="7.5" r="1.6" fill="#d9261c"/><circle cx="12" cy="12" r="1.6" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="12" cy="16.5" r="1.6" style="fill:var(--green,#2f8f55)"/>',
     upgrade: '<path d="M8 3v18M16 3v18" ' + G + '/><path d="M12 8v8" ' + G + ' stroke-dasharray="2 2.5"/>',
@@ -906,7 +907,7 @@
   }
 
   CRZ.Menu = {
-    create: create, STR: STR,
+    create: create, STR: STR, toolSvg: toolSvg,
     logic: { diffLine: diffLine, readBest: readBest, recordOver: recordOver, readSound: readSound, writeSound: writeSound, hasContinue: hasContinue, saveDay: saveDay, resetSession: function () { sessionFlag = false; } },
     keys: { save: KEY_SAVE, best: KEY_BEST, sound: KEY_SOUND, session: KEY_SESSION, land: KEY_LAND }
   };

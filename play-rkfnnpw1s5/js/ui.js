@@ -1099,7 +1099,8 @@
     return '<svg viewBox="' + (vb || '0 0 48 48') + '" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">' + inner + '</svg>';
   }
   var ICONS = {
-    stop: '<circle cx="24" cy="24" r="17" class="f-red"/><rect x="13" y="20.5" width="22" height="7" rx="1" class="f-white"/>',
+    // Pare: octogono de apotema 17 (a caixa do circulo antigo, r = 17), borda branca e STOP (CRZ.STOP_SIGN, config.js)
+    stop: CRZ.STOP_SIGN ? CRZ.STOP_SIGN.svg(24, 24, 17, 'class="f-red"', 'class="f-white"', true) : '',
     yield: '<path class="f-red" fill-rule="evenodd" d="M5 9H43L24 42Z M13.5 14.5H34.5L24 32.5Z"/>',
     light: '<rect x="15" y="4" width="18" height="40" rx="9" class="f-ink"/><circle cx="24" cy="14" r="4" class="f-dim"/><circle cx="24" cy="24" r="4" class="f-dim"/><circle cx="24" cy="34" r="4.2" class="f-green"/>',
     // rotatoria e faixa iguais ao mapa (drawPicto do render.js com s = 36): aro r = 0,4s, traco 0,16s,
