@@ -517,6 +517,14 @@ body.crz-modal #stage, body.crz-modal #hud, body.crz-modal #hud * { pointer-even
   pointer-events: none; animation: crz-ring var(--t-ring) var(--ease) infinite;
 }
 .crz-bchip.still::after { animation: none; display: none; }
+/* v2y: o chip sai com fade curto quando a fila resolve sozinha (sem toque durante o fade) */
+.crz-bchip.fade { opacity: 0; transition: opacity 0.2s var(--ease); pointer-events: none; }
+.crz-bchip.fade::after { display: none; }
+/* v2y: linha curta do chip ate o cruzamento, quando o chip fica longe dele */
+.crz-blead {
+  position: absolute; left: 0; top: 0; height: 2px; width: 0; z-index: 2; background: var(--red); border-radius: 1px;
+  transform-origin: 0 50%; pointer-events: none;
+}
 @media (prefers-reduced-motion: reduce) {
   .crz-bchip::after { animation: none; display: none; }
   .crz-bchip:active { transform: none; }
@@ -528,7 +536,8 @@ body.crz-modal #stage, body.crz-modal #hud, body.crz-modal #hud * { pointer-even
 }
 .crz-snewj::after { content: " \203a"; font-weight: var(--fw-bold); }
 /* o toque abaixa o resumo por ~2 s para o cruzamento aparecer no mapa */
-.crz-sheet.crz-sum.crz-peek { opacity: 0.08; transition: opacity var(--t-base) var(--ease); }
+/* v2y (playtest cego 5, shot 027): o resumo some de todo no peek (antes 8%: texto fantasma sobre o mapa, ilegivel) */
+.crz-sheet.crz-sum.crz-peek { opacity: 0; transition: opacity var(--t-base) var(--ease); }
 .crz-sheet.crz-sum.crz-peek * { pointer-events: none !important; }
 @media (prefers-reduced-motion: reduce) { .crz-sheet.crz-sum.crz-peek { transition: none; } }
 
@@ -928,6 +937,21 @@ body.crz-say-on.crz-say-on .crzm-stamp { top: calc(var(--crz-sayb, 140px) + 10px
 .crz-rollreroll.off { border-color: var(--line-2); color: var(--ink-2); }
 .crz-rollgo { min-height: var(--h-btn); min-width: 120px; padding: 0 20px; border-radius: var(--r-pill); background: var(--ink); color: var(--bg); font-size: var(--fs-lg); font-weight: var(--fw-bold); }
 .crz-rollnote { font-size: var(--fs-sm); color: var(--ink-2); min-height: 0; }
+/* dado v2 (2026-11-16): a oferta. Os dois lados nas cores de tom que o cartao ja usa (verde e vermelho), Pass no estilo
+   do botao secundario de antes (Reroll), Keep menor e so com texto, e a face guardada sob 'Tap to roll' */
+.crz-rollsides { display: flex; flex-direction: column; gap: 2px; font-size: var(--fs-lg); font-weight: var(--fw-bold); line-height: 1.25; margin-top: -4px; }
+.crz-rollside.tone-green { color: var(--green-text); }
+.crz-rollside.tone-red { color: var(--red); }
+.crz-rollc .crz-rollsides, .crz-rollsides.gone { display: none; }
+.crz-rollfxhid .crz-rollsides { opacity: 0; }
+.crz-rolltom.crz-rollhint { color: var(--ink); font-weight: var(--fw-semi); font-size: var(--fs-md); }
+.crz-rollpass { min-height: var(--h-btn); min-width: 96px; padding: 0 16px; border-radius: var(--r-pill); border: var(--bw) solid var(--ink); background: transparent; color: var(--ink); font-size: var(--fs-lg); font-weight: var(--fw-bold); }
+.crz-rollgo.crz-rolluse { min-width: 120px; }
+.crz-rollkeep { min-height: var(--h-btn); padding: 0 16px; margin-top: -6px; border-radius: var(--r-pill); background: transparent; color: var(--ink-2); font-size: var(--fs-md); font-weight: var(--fw-semi); text-decoration: underline; text-underline-offset: 3px; }
+.crz-rollkept { min-height: var(--h-btn); padding: 0 14px; border-radius: var(--r-pill); border: var(--bw) dashed var(--ink); background: transparent; color: var(--ink); font-size: var(--fs-md); font-weight: var(--fw-semi); }
+.crz-rollc .crz-rollkeep { display: none; }
+.crz-rollkeep { transition: opacity 140ms var(--ease); }
+.crz-rollresthid .crz-rollkeep { opacity: 0; transition: none; }
 .crz-roll.crz-rm .crz-rollstage.crz-rollin *, .crz-roll.crz-rm .crz-rollstage.crz-rollpop * { animation: none; }
 @media (prefers-reduced-motion: reduce) { .crz-rollstage.crz-rollin *, .crz-rollstage.crz-rollpop * { animation: none; } .crz-rolltom, .crz-rollrow, .crz-rollnote { transition: none; } .crz-roll { animation: crz-rollfade var(--t-base) linear 1; } }
 
@@ -977,7 +1001,8 @@ body.crz-modal #hud .crz-roll, body.crz-modal #hud .crz-roll * { pointer-events:
 /* 'Last day': sai da fileira das bolinhas (empurrava o dado contra 'Strikes' e amassava as bolinhas em 375)
    e fica ao lado de 'Day 12 of 12', na linha das legendas */
 .crz-dots .crz-lastchip { position: absolute; left: 80px; top: calc(50% + 14px); margin-left: 0; }
-.crz-top.crz-last .crz-die { margin-left: 28px; }
+/* v2a: com 10 bolinhas (um capitulo) a fileira encolheu e o dado chegou 20 px mais perto do chip: 28 -> 40 */
+.crz-top.crz-last .crz-die { margin-left: 40px; }
 /* aviso preto e Undo da troca: abaixo da faixa do topo */
 .crz-say { top: calc(var(--sat) + 84px); }
 .crz-sayundo { top: calc(var(--sat) + 158px); }
@@ -1089,3 +1114,6 @@ html body #hud .crz-ui[data-phase="over"] .crz-bottom, html body #hud .crz-ui[da
   .crz-guide.crz-leaving, .crz-guide.crz-leaving .crz-gbox { animation: none; display: none; }
 }
 
+/* v2 capitulos: a linha 'Chapter 2' sob o letreiro do dia (mesmo letreiro, texto menor) */
+.crz-daybanner .crz-daysub { display: block; font-size: var(--fs-lg); letter-spacing: 0; margin-top: 2px; color: var(--inkText); }
+.crz-dot.gone { display: none; }

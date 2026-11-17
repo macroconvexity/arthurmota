@@ -7,8 +7,22 @@
 
   CRZ.CFG = {
     version: 1,
-    maxDays: 12,          // uma partida
-    maxStrikes: 3,        // travamentos permitidos antes do fim
+    maxDays: 30,          // uma partida (v2, D1: 30 dias). Todo o resto le daqui; nada assume 12
+    // v2 (D9, dono 2026-11-16): tres capitulos de chapterDays dias. Strikes contam por capitulo e voltam ao
+    // maximo no primeiro dia de cada capitulo (11 e 21). Gastou os strikes do capitulo: a partida volta a manha do
+    // primeiro dia daquele capitulo (checkpoint gravado no save), sem zerar a partida.
+    chapterDays: 10,
+    maxStrikes: 3,        // strikes por capitulo (difficulty.js troca: Easy 4, Normal 3)
+    strikeGraceUntil: 5,  // dias 1 a 5: o cruzamento trava e aparece como sempre, mas nao conta strike nem encerra o dia
+    graceUnlockSeconds: 4, // dias livres: o cruzamento travado destrava sozinho depois disso (s de jogo); o Boost tambem destrava
+    graceRelief: 0.4,     // estresse que sai do cruzamento quando ele destrava sozinho num dia livre
+    // v2/economia.md secao 4 e v2/jogador.md 5.3: nenhum recomeco de capitulo antes do dia noRestartBeforeDay; o
+    // strike que esgotaria o capitulo e perdoado (a fileira mostra um a menos e uma linha diz isso)
+    noRestartBeforeDay: 15,
+    chapter1LastStrikeWarns: true,   // capitulo 1: o ultimo strike so avisa (perdoado), nunca manda de volta (medir)
+    // modo "um crash, do zero" (D9, liberado depois de vencer; sem UI ainda): o primeiro strike contado encerra a
+    // partida, sem checkpoint, sem perdao
+    ironMode: false,
 
     // geometria do mundo (unidades = px em zoom 1)
     snapAngle: 45,        // graus, estradas so em multiplos disso
@@ -38,35 +52,76 @@
     // s a 1x (o dia roda a 4x por padrao; o jogador troca a velocidade). Dias 1 e 2 eram 22 e 32 (~5 s e 8 s
     // reais a 4x: o balao do dia 1 saia antes de ser lido); 48 e 64 dao 12 s e 16 s a 4x. Medido 2026-11-08:
     // nenhum strike nos dias 1 a 3 e vitorias dentro de 5 pontos (dev/balance/profiles.js, dev/novice2)
-    // 2026-11-16 (ritmo, RITMO_PARA_APROVAR.md): 48 e 64 -> 44 e 32 (22 s e 16 s reais a 2x). O dia 1 e quase todo
-    // roteiro: tres faixas de 6 s em fila (cars, run, speed1), a ultima sai ate 43,5 s de jogo com o robo humano que nao
-    // toca nas faixas (dev/e2e/results_humans/ritmo, timeline); menos que 44 corta a licao da velocidade. Dia 2: a faixa
-    // 'progress' sai ate 21,6 s de jogo; 32 deixa 5 a 7 s reais de corrida livre, contra 20 s antes.
-    dayLen:   [44, 32, 45, 60, 75, 90, 100, 110, 115, 120, 125, 130],
+    // v2 (v2/economia.md, tabela 2.1 e 6.2): 30 posicoes. Dias 1 e 2 (44 s e 32 s) sao os de main, medidos contra o
+    // tutorial (ritmo, 2026-11-16, RITMO_PARA_APROVAR.md): eles valem sobre a economia, que propunha 48 e 45 s.
+    // Dia 1: tres faixas de 6 s em fila (cars, run, speed1), a ultima sai ate 43,5 s de jogo; menos que 44 corta a licao
+    // da velocidade. Dia 2: a faixa 'progress' sai ate 21,6 s de jogo; 32 deixa 5 a 7 s reais de corrida livre.
+    dayLen:   [44, 32, 45, 45, 45, 45, 48, 48, 50, 50,      // capitulo 1
+               50, 50, 50, 52, 52, 52, 54, 54, 55, 55,      // capitulo 2
+               55, 56, 56, 58, 58, 58, 60, 60, 60, 60],     // capitulo 3
     speeds:   [1, 2, 4],  // multiplicadores de velocidade permitidos
-    // pontos por dia. 2026-11-16 (ritmo): dia 2 de 2 para 4 (duas ruas: a da ponta nova e uma escolha). O dia 1 fica 2:
-    // a cidade do dia 1 e a mesma em toda semente e a segunda rua nao muda o placar do dia (24 contra 22 a 24 carros)
-    budget:   [2, 4, 3, 4, 5, 6, 7, 8, 8, 9, 9, 10],
+    // pontos por dia (v2/economia.md 2.1). Dia 2 = 4 (ritmo, de main: duas ruas, a da ponta nova e uma escolha)
+    // integracao (2026-11-17): capitulos 2 e 3 de 5 para 4 (faixa de v2/economia.md 6.2: 4 a 6). Com a vaga de semaforos
+    // (v2m) e sem manutencao, o robo que escolhe bem deixava 3,7 pontos parados por dia no Normal; com 4, 2,9, e o
+    // dado pela regra passa a vencer usar sempre e passar sempre (39, 33 e 33 de 40). Easy igual (40 de 40).
+    // Medido em dev/review/v2int/measure_out (exp.jsonl, E1), INTEGRACAO.md secao 9
+    budget:   [2, 4, 3, 3, 4, 4, 4, 4, 4, 4,
+               4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
+               4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
     carryCap: 3,          // pontos que sobram e passam ao dia seguinte
-    // carros novos por segundo, por portal, antes do multiplicador do dado
-    // 2026-11-16 (ritmo): o dia 2 tem metade do tempo (64 -> 32 s) e o dobro de carros por segundo (day2Mul): os
-    // mesmos ~21 carros do dia 2 de antes, sem o placar do dia 2 cair para metade do dia 1 ('Yesterday 17' sob '9 cars').
-    // Medido em node (40 sementes, Easy): anel >= 0,3 no dia 2 em 1 de 40 (igual ao dia de 64 s), media 3,4 carros no mapa.
+    // carros novos por segundo, por portal, antes do multiplicador do dado (v2/economia.md 6.2): capitulo 1 a curva de
+    // antes x0,85 (dias 1 e 2 iguais aos de main), capitulo 2 o valor do dia 10 + 0,008 por dia, capitulo 3 + 0,03 de
+    // degrau + 0,008 por dia.
+    // Dia 2 (ritmo, de main): metade do tempo (64 -> 32 s) e o dobro de carros por segundo (day2Mul): os mesmos ~21
+    // carros do dia 2 de antes. Medido em node (40 sementes, Easy): anel >= 0,3 no dia 2 em 1 de 40.
     day2Mul: 2,
-    spawnRate: function (day) { return day === 1 ? 0.234 : (0.1326 + 0.01872 * day) * (day === 2 ? CRZ.CFG.day2Mul : 1); },
+    spawnRate: function (day) {
+      var c1 = 0.85 * (0.1326 + 0.01872 * 10);
+      if (day <= 1) return 0.234;
+      if (day === 2) return (0.1326 + 0.01872 * 2) * CRZ.CFG.day2Mul;   // main, sem o x0,85
+      if (day <= 10) return 0.85 * (0.1326 + 0.01872 * day);
+      if (day <= 20) return c1 + 0.008 * (day - 10);
+      return c1 + 0.08 + 0.03 + 0.008 * (day - 20);
+    },
 
     // ferramentas: custo e dia em que liberam
+    // v2 (2026-11-16, v2/sistemas.md 2.2 e 7 regras 6 e 7): Road 1, Stop 3, Yield 5, Light 8, Two lanes 9.
+    //  round: fora da bandeja fixa; entra pela carta de escolha (choiceCard, dia 19) contra Free power. unlockDay 99 =
+    //    nunca por dia (o jogo libera por state.perks.round).
+    //  oneway: so nos arquetipos que a pedem (CFG.archetypes.<id>.oneway, v2/nivel.md 3.2: Rio); fora deles nao aparece.
+    //  cross: CORTADA (nunca valeu: v2/sistemas.md 1.4). removed: true; o custo fica para devolver o ponto de um save
+    //    antigo que tinha uma (game.js normSave: vira cruzamento sem sinal + reembolso).
     tools: {
       road:    { cost: 2, unlockDay: 1 },
       stop:    { cost: 1, unlockDay: 3 },
-      yield:   { cost: 1, unlockDay: 4 },
-      light:   { cost: 4, unlockDay: 5 },
-      upgrade: { cost: 3, unlockDay: 6 },
-      cross:   { cost: 1, unlockDay: 7 },
-      round:   { cost: 3, unlockDay: 8 },
-      oneway:  { cost: 1, unlockDay: 9 }
+      yield:   { cost: 1, unlockDay: 5 },
+      light:   { cost: 4, unlockDay: 8 },
+      upgrade: { cost: 3, unlockDay: 9 },
+      cross:   { cost: 1, unlockDay: 999, removed: true },
+      round:   { cost: 3, unlockDay: 99, choiceDay: 19 },
+      oneway:  { cost: 1, unlockDay: 9 }   // so no arquetipo com oneway: true (archetypes.river)
     },
-    toolOrder: ['road', 'stop', 'yield', 'light', 'upgrade', 'cross', 'round', 'oneway'],
+    toolOrder: ['road', 'stop', 'yield', 'light', 'upgrade', 'round', 'oneway'],
+    // v2: carta de escolha no resumo do dia `day` (componente das cartas do fim do dia): uma das duas, para o resto da
+    // partida. round = libera a Roundabout; freePower = um semaforo sem manutencao (CFG.upkeep). Pular = nenhuma.
+    choiceCard: { day: 19, cards: ['round', 'freePower'] },
+    // v2 (2026-11-16, v2/nivel.md 3.2 e 3.3): formas de cidade, uma por partida, escolhida pela semente
+    // (game.js archetypeOf; a primeira partida e sempre a Classica, main.js). Terreno sem cor nova (R8): o rio e uma
+    // faixa em colors.grid sem contorno; o parque e um contorno tracejado em colors.inkSoft sem preenchimento.
+    //  river: faixa |y| < half no meio do lote; a rua do dia 1 e vertical (260: o T do dia 2 nasce fora da agua) e ja e
+    //    a ponte 1 (x = 0); a ponte 2 so no
+    //    lugar marcado (x = bridges[1], tracejado curto sobre a agua). Nada se constroi na agua; rua (da cidade ou do
+    //    jogador) so atravessa a +-bridgeW de uma ponte. One-way entra aqui (mao unica em par nas pontes).
+    //  park: o parque ocupa |x| < half fora do gargalo |y| < gapY, onde passa a rua do dia 1: duas metades e um
+    //    cruzamento de cada lado do gargalo. Nada se constroi no parque e nenhuma rua o atravessa.
+    archetypes: {
+      classic: { name: 'Classic town' },
+      river:   { name: 'River town', oneway: true, day1: 'vertical', day1Half: 130, river: { half: 18, bridges: [0, 330], bridgeW: 26 } },
+      park:    { name: 'Park town', park: { half: 46, gapY: 70 } }
+    },
+    archetypeList: ['classic', 'river', 'park'],
+    // v2: semaforos ligados por uma rua pareiam sozinhos (o botao "Pair lights" saiu). false volta ao par manual
+    lightsAutoPair: true,
 
     // regras de cruzamento (segundos). Dono da implementacao: sim.js
     junction: {
@@ -79,7 +134,10 @@
       // cruzamento de 4 entradas (20% das cidades no dia 3) levava a fila ao travamento sem ninguem agir: strike no
       // dia 3 em 1,5% (Easy) e 3,3% (Normal) das partidas do jogador parado, 400 sementes. Com 0.10 (e o teto do dado
       // no comboio, game.js TEACH.spawnCap): 0 strikes, anel vermelho ainda em 64% (Easy) e 77% (Normal) delas.
-      none:  { serve: 1.1, multiApproachPenalty: 0.10, late: { fromDay: 4, serve: 1.5, multiApproachPenalty: 1.2 } },
+      // v2 (2026-11-16, v2/sistemas.md 2.2 e 7 regra 2): late.serve 1.5 -> 1.1. O cruzamento sem sinal com pouco carro
+      // deixa de pagar imposto (na cruz calma passa a ser melhor que Stop e semaforo); a penalidade por entrada ocupada
+      // alem de 2 (1.2) fica, entao com tres ou mais ruas ocupadas ele ainda trava rapido.
+      none:  { serve: 1.1, multiApproachPenalty: 0.10, late: { fromDay: 4, serve: 1.1, multiApproachPenalty: 1.2 } },
       // 2026-11-09 (nichos): cada sinal tem um lugar onde ganha. Medido com dev/novice2/decisions.js (60 sementes,
       // "so uma ferramenta" no Normal: Pare 88->78%, Preferencial 17->77%, Semaforo 57->83%, Rotatoria 100->80%,
       // faixa 72->73%) e com uma bancada de no isolado por forma (capacidade sustentavel x demanda do dia 10):
@@ -93,9 +151,22 @@
       //  Faixa de pedestre: capacidade baixa, mas o estresse do no sobe 30% mais devagar; numa reta/curva so
       //    segura os carros na vez do pedestre
       stop:  { serve: 0.9, fullStop: 0.8 },
-      yield: { serve: 0.6, minorServe: 1.1, minorMaxWait: 7, batch: 0 },
-      light: { green: 5, allRed: 1.1, serve: 0.75, pairGreenBonus: 0.5, pairHold: 0.8, actuated: true, minGreen: 2.5, gapOut: 1 },
-      round: { serve: 1.25, parallel: 1, parallelBig: 2, extraApproachPenalty: 0.1 },
+      // v2 (v2/sistemas.md 7 regra 3): minorMaxWait 7 -> 12. A lateral so forca a vez depois de 12 s: o Yield trava
+      // quando as duas ruas tem o mesmo movimento (cruz equilibrada), e segue o melhor no T de rua principal.
+      yield: { serve: 0.6, minorServe: 1.1, minorMaxWait: 12, batch: 0 },
+      // v2m (2026-11-17, v2/_scripts/v2m): o semaforo atuado (pulava o eixo vazio e segurava o verde enquanto ninguem mais
+      // esperava) era o melhor ou empatado em TODA situacao da bancada (out/bench_before.md): nunca tinha lado ruim.
+      // Agora o ciclo e FIXO (actuated: false): cada rua tem a vez, mesmo vazia. Num cruzamento calmo, num T de rua
+      // principal ou onde 5+ ruas se encontram (3 vezes por ciclo) a fila espera no vermelho a toa e o anel fica ambar;
+      // no cruzamento cheio de todo lado ele e o unico que nao trava. serve 0.75 -> 0.55: no verde o pelotao sai mais
+      // rapido (o ciclo fixo perde tempo no vermelho geral).
+      light: { green: 5, allRed: 1.1, serve: 0.55, pairGreenBonus: 0.5, pairHold: 0.8, actuated: false, minGreen: 2.5, gapOut: 1 },
+      // v2m: serve 1.25 -> 1.4: a rotatoria enche antes (trava no cruzamento cheio, onde o semaforo e a peca)
+      round: { serve: 1.4, parallel: 1, parallelBig: 2, extraApproachPenalty: 0.1 },
+      // v2m: Two lanes GUARDA mais carros, mas o cruzamento solta um carro por entrada de cada vez ('storage'): ajuda onde
+      // a fila chega ao cruzamento de tras ou a uma ponta de rua, nao acelera o cruzamento que e o gargalo. 'parallel'
+      // volta a regra antiga (semaforo e Yield soltavam por faixa, o dobro).
+      twoLanes: 'storage',
       cross: { serve: 0.9, pedEvery: 9, pedDur: 2.2, stressMul: 0.7 }
     },
     // fila de portal (sim.js spawn): carro que nasce espera no portal ate ter faixa livre de entrada. A espera do
@@ -118,7 +189,9 @@
       cap: function (day) { return Math.min(12, 2 + day); } },   // teto de portais cheios da cidade
     // aneis do crescimento (ligacoes entre nos existentes): a partir de fromDay, base + 1 com chance extraP,
     // + 1 a partir de lateDay. Cada anel abre cruzamentos novos sem sinal.
-    growRing: { fromDay: 6, base: 1, extraP: 0.4, lateDay: 99 },
+    // v2 (spec_v2.js GROWRING, v2/economia.md 6.2): extraP 0.4 -> 0.8 e +1 do dia 11 em diante (a cidade ganha
+    // cruzamentos sem crescer na tela).
+    growRing: { fromDay: 6, base: 1, extraP: 0.8, lateDay: 11 },
     // Trafego nas ruas de fora (2026-11-10, queixa da testadora; medido em web/dev/sim/NOTES_TRAFFIC.md).
     // usefulGrowth (game.js growRing): o anel so liga dois nos se encurtar o caminho entre ao menos um par de pontas
     //   (portais) em mais de usefulMin px; sem isso 13 a 16% das ruas internas da borda ficavam quase vazias.
@@ -136,6 +209,11 @@
     // paciencia (anel de estresse enche mais rapido). A cada `tipsPerPoint` gorjetas acumuladas
     // (os restos passam de um dia ao outro) o jogador ganha 1 build point no dia seguinte.
     // Nao ha desaceleracao automatica: quem controla e o jogador.
+    // v2 (2026-11-16, v2/sistemas.md 7 regra 1, v2/economia.md 3.1, DECISOES_PENDENTES.md 2): o bonus de entrega
+    // vira PLACAR, nao build points. mode 'score': cada barra cheia soma scorePerBar ao placar do dia (summary.score e
+    // summary.bonusScore); summary.speedBonus segue contando as barras (a barra da tela), mas nada entra no orcamento.
+    // mode 'points' volta a regra antiga (1 build point por barra no dia seguinte).
+    deliveryBonus: { mode: 'score', scorePerBar: 20 },
     speedDial: {
       defaultSpeed: 4,                       // velocidade do primeiro dia; depois lembra a ultima escolha
       tipsPerPoint: 30,
@@ -168,9 +246,43 @@
     // proxima obra desse tipo sai de graca; 'light' cai para 'road' se o semaforo ainda nao existe).
     // Probabilidades: d6 = 17% ruim, 33% normal, 50% bom/otimo; d20 = 15% ruim, 25% normal, 40% bom,
     // 15% otimo, 5% jackpot (60% de dias a favor do jogador contra 15% contra).
+    // v2 (2026-11-16, v2/sistemas.md 3 e v2/jogador.md 4): UM d6 a partida inteira. O jogador toca para rolar; a face
+    // sai de semente + dia (recarregar nao pesca outra). Antes de firstOffer a face e de lado bom ou neutra e vale sozinha
+    // (sem escolha). De firstOffer em diante a face e uma OFERTA com dois lados: Use aplica os dois, Pass e um dia normal
+    // (gratis, sem limite). Nada e aplicado antes da escolha. Nenhuma face ruim e forcada. Sem relance. Keep (de keepFrom
+    // em diante) guarda a face num bolso de uma vaga; numa manha futura o jogador a usa no lugar de rolar.
+    // Faixas (tier): gift (dias fromDay a firstOffer-1), first (firstOffer), ch1 (ate costFrom-1), ch2 e ch3 (pelo
+    // capitulo do dia: chapterLen, padrao 10, ou CFG.chapterLen se existir). budget em lista = [ch1, ch2, ch3].
+    // needs: a face so entra no sorteio quando o sistema de outro dono existe (game.js diceFeature); senao sai do pool.
     dice: {
-      rerollCost: 1,   // pontos para relancar o dado do dia (uma vez por dia, so no planejamento)
-      day1Face: 2,     // dia 1: dado escondido na UI, face fixa neutra (plain)
+      faces: 6, fromDay: 2, firstOffer: 7, costFrom: 13, keepFrom: 15, chapterLen: 10,
+      pools: {
+        gift:  ['plain', 'plain', 'plain', 'luck1', 'luck2', 'free'],
+        first: ['busy', 'busy', 'busy', 'busy', 'patient', 'patient'],
+        ch1:   ['busy', 'busy', 'quiet', 'quiet', 'patient', 'lucky'],
+        ch2:   ['busy', 'quiet', 'patient', 'lucky', 'loan', 'festival'],
+        ch3:   ['busy', 'quiet', 'patient', 'loan', 'festival', 'biggame']
+      },
+      defs: {
+        // v2x: pip = o numero que a face mostra, fixo por oferta (cada oferta dos capitulos 1 a 3 tem o seu)
+        plain:    { kind: 'plain', pip: 1 },
+        luck1:    { kind: 'good', budget: 1, pip: 2 },
+        luck2:    { kind: 'good', budget: 2, pip: 3 },
+        free:     { kind: 'great', free: 'road', pip: 6 },
+        lucky:    { kind: 'good', budget: 2, pip: 6 },
+        busy:     { kind: 'good', offer: true, budget: [2, 3, 3], spawnMul: 1.1, pip: 3 },      // x1,2 era passe em quase toda cidade no garfo (measure_v2b.js fork); x1,1 muda de sinal com a cidade (faixa x1,1 a x1,3 de economia.md)
+        // integracao (2026-11-17): Quiet x0,75 -> x0,8 e Patient x1,3 -> x1,2 (faixas de v2/sistemas.md): no garfo do dia
+        // 18 (Normal) usar era melhor que passar em 17 e 20 de 39 cidades e nunca pior; agora 9 e 6, pior em 3 e 2.
+        // Na partida, a regra simples segue acima de usar sempre e passar sempre (dev/review/v2int/measure_out, E2)
+        quiet:    { kind: 'good', offer: true, budget: [-1, -2, -2], spawnMul: 0.8, pip: 4 },
+        patient:  { kind: 'good', offer: true, budget: [-1, -2, -2], patienceMul: 1.2, pip: 5 }, // sistemas.md 3.1: -1 no cap. 2 e usar sempre
+        loan:     { kind: 'good', offer: true, budget: 4, debt: 3, pip: 2 },                     // -3 no orcamento de amanha
+        festival: { kind: 'good', offer: true, budget: [2, 2, 3], festivalMul: 2, needs: 'festival', pip: 1 },
+        biggame:  { kind: 'good', offer: true, budget: 5, eventMul: 1.5, needs: 'event', pip: 6 }
+      },
+      // tabelas do dado de antes (d6 nos dias 1 a 5, d20 nos dias 6 a 12): so para abrir um save antigo com o dado de hoje
+      rerollCost: 1,
+      day1Face: 2,
       early: { faces: 6, outcomes: [            // dias 1 a 5
         { min: 1, max: 1, id: 'rush',  kind: 'bad',   spawnMul: 1.5 },
         { min: 2, max: 3, id: 'plain', kind: 'plain' },
@@ -210,7 +322,50 @@
     // crescimento da cidade. hardshipWeight: peso extra do no/estrada que mais sofreu ontem para receber o ramo novo
     // (no: 1 + 3 x hw x estresse, ate 4x; estrada: 1 + 2 x hw x estresse). AJUDA DELIBERADA, sem sinal visivel, por
     // decisao do dono (2026-11-10): fica 1 (o valor de sempre); 0 tiraria o vies.
-    growth: { hardshipWeight: 1 },
+    growth: {
+      hardshipWeight: 1,
+      // v2 (2026-11-16, v2/nivel.md 2, v2/economia.md 2.4, v2/_scripts/spec_v2.js nodeCapV2): a cidade cresce ate um
+      // teto e depois MUDA POR DENTRO, para seguir tocavel num iPhone em pe.
+      //  lot: o crescimento automatico fica dentro de uma elipse em pe de semieixos rx x ry (mundo), a proporcao da tela
+      //    (antes: circulo de worldRadius 900). citySpacing: no novo da cidade (e o ponto de corte numa rua) fica a
+      //    citySpacing ou mais de qualquer no; nos dias 1 a earlySpacing.untilDay vale earlySpacing.d (a rua do dia 1 tem
+      //    180 e o T do dia 2 nasce no meio dela).
+      //  nodeCap(dia): teto de nos do mundo (cidade + ruas do jogador) no crescimento: 3 por dia ate 28 no dia 10, +2 por
+      //    dia ate 40 no dia 16, 40 ate o fim (spec_v2.js NODECAP). Vale para qualquer numero de dias.
+      //  afterCap: no teto, o dia muda por dentro: rings a mais (ligacoes entre nos que ja existem) e, a cada shiftEvery
+      //    dias, uma ponta fraca vira ponta cheia (mais carros saem e chegam ali: "a cidade muda para onde quer ir") e a
+      //    ponta cheia menos usada vira fraca. A UI avisa no lugar ('shift'). ringCap: o canto de um anel pode passar do
+      //    teto ate este numero (a rua nova e por dentro da cidade, nao para fora).
+      // lot 460 x 620 (nao os 500 x 800 de nivel.md): a area util medida no Chrome e 334 x 437 a 479 px em 390x844
+      // (topo 84, base 281 a 323 conforme o HUD), mais larga que os 318 x 501 da conta de nivel.md 2.2. Medido em
+      // v2/_scripts/v2c/city30.js, 20 sementes: menor distancia entre cruzamentos no dia 30, mediana 33 px e pior 30 px
+      // (500 x 800: 31 e 23 px).
+      lot: { rx: 460, ry: 620 },
+      citySpacing: 100, earlySpacing: { untilDay: 3, d: 80 },
+      nodeCap: function (day) { return day <= 10 ? Math.min(28, 3 * day) : day <= 20 ? Math.min(40, 28 + 2 * (day - 10)) : 40; },
+      afterCap: { rings: 1, shiftEvery: 2, ringCap: 46 }
+    },
+    // v2 (v2/sistemas.md 2.3 e 7 regra 4, v2/economia.md 3.1): manutencao do semaforo. Toda manha do dia fromDay em
+    // diante, cada semaforo custa perLight build point, descontado do orcamento do dia ja somado (base, sobra, dado,
+    // carta). Tirar um semaforo e gratis (sem reembolso). Se os pontos nao cobrem, os semaforos que ficaram sem pagar
+    // APAGAM nesse dia (o cruzamento funciona como sem sinal, o icone fica esmaecido): os menos usados ontem primeiro.
+    // Os semaforos da carta Free power (st.perks.freePower) nao pagam.
+    // v2m (2026-11-17): a manutencao saiu (perLight 0; o codigo fica, desligado). O custo de cada semaforo agora e a VAGA:
+    // a cidade liga no maximo lightCap semaforos (abaixo). Medido em v2/_scripts/v2m/out: com a vaga a manutencao nao
+    // mudava nenhuma politica e era uma conta a mais para a jogadora. Sem manutencao nenhum semaforo apaga.
+    upkeep: { fromDay: 11, perLight: 0 },
+    // v2m: quantos semaforos a cidade liga ("2 of 3" no cartao). byDay: [dia, N] em ordem (o ultimo que ja chegou vale).
+    // perkPlus: cada escolha da carta Free power soma +1 vaga. Tirar um semaforo e gratis (sem reembolso) e libera a vaga.
+    lightCap: { byDay: [[8, 1], [15, 2], [22, 3]], perkPlus: 1 },
+    // v2x (playtest cego 5): o conselho da manha joga o dia de ontem de novo com cada peca (game.whatIf) e so manda a peca
+    // que baixa a espera mais longa do resumo em gain (fracao) e minS s, sem travar e sem subir o anel mais que pTol.
+    // Depois de seguido, outra peca so com mudanca material (tipo mudou ou carros/min mais que material) e gainChanged
+    advice: { gain: 0.25, minS: 2, pTol: 0.05, material: 1 / 3, gainChanged: 0.4, hi: 1.2 },
+    // v2 (v2/economia.md 3.2 e 6.2, v2/sistemas.md 4): Road crew, a troca entre hoje e depois. Nas manhas de fromDay a
+    // toDay o plano oferece: pagar cost pontos hoje e receber perDay ponto toda manha pelos proximos days dias (a
+    // partir de amanha). No maximo maxActive ao mesmo tempo. Paga-se no 4o dia (cost / perDay) e rende +6. days e a
+    // alavanca: ate o fim da partida faz 'investir sempre' vencer; 6 dias faz perder (medido em economia.md 3.2).
+    crew: { fromDay: 16, toDay: 26, cost: 4, perDay: 1, days: 10, maxActive: 2 },
     // efeito de cada carta (game.js le daqui; a UI le por CRZ.Game cardInfo(id) para nao copiar numero)
     cardEffects: {
       plus2:     { budget: 2 },
@@ -219,6 +374,59 @@
       patient:   { patienceMul: 1.3 },
       waveBonus: { waveMul: 2 },
       smooth:    { speedMul: 1.1 }
+    },
+
+    // eventos de lugar (events.js, v2e; v2/nivel.md secao 4 e 5). calendar: { ch, rel, type } com rel = dia dentro do
+    // capitulo (1 a 10; capitulo de CFG.chapterLen dias, padrao 10). Capitulo 1 sem evento (o jogador aprende o basico),
+    // o 2 leve, o 3 e a pressao principal. type 'hat': sorteado da semente entre os de `hat`. perDayMax: teto por dia.
+    // test: modo de teste (headless --set events.test=1, pagina ?events=test): os capitulos 2 e 3 cabem nas janelas de
+    // testWindows (partida de 12 dias). Nos 30 dias (CFG.maxDays 30) os eventos caem nos dias 13, 15, 18, 22 a 25, 27, 29, 30.
+    // types: kind 'surge' = a ponta marcada solta mul vezes mais carros entre win[0] e win[1] do dia; kind 'close' = uma
+    // rua da rota mais usada fecha o dia todo (nunca a que deixa uma ponta sem caminho). size (scale, face Big game do
+    // dado) cresce a parte extra: mul efetivo = 1 + (mul - 1) x size; na obra, size 1,5 poe detourMul nas 2 pontas mais perto.
+    // obra: skip = pula as `skip` ruas mais usadas (escolhe entre as 3 seguintes); detourMax = desvio ate N vezes a rua.
+    // Numeros medidos com tools/headless.js (--events, v2e): ver o relatorio do ramo.
+    events: {
+      on: true, test: false, perDayMax: 2, testPerDayMax: 1,
+      testWindows: { 2: [6, 8], 3: [9, 12] },
+      calendar: [
+        { ch: 2, rel: 3, type: 'roadwork' }, { ch: 2, rel: 5, type: 'school' }, { ch: 2, rel: 8, type: 'game' },
+        { ch: 3, rel: 2, type: 'school' }, { ch: 3, rel: 3, type: 'hat' }, { ch: 3, rel: 4, type: 'roadwork' },
+        { ch: 3, rel: 5, type: 'hat' }, { ch: 3, rel: 7, type: 'game' }, { ch: 3, rel: 7, type: 'school' },
+        { ch: 3, rel: 9, type: 'hat' }, { ch: 3, rel: 10, type: 'game' }
+      ],
+      hat: ['school', 'game', 'roadwork'],
+      types: {
+        game:     { kind: 'surge', place: 'far', mul: 14, win: [0.4, 0.5], label: 'Big game at the stadium', mark: 'Big game' },
+        school:   { kind: 'surge', place: 'tee', mul: 12, win: [0.45, 0.55], label: 'School out at noon', mark: 'School out' },
+        roadwork: { kind: 'close', place: 'busy', skip: 2, detourMax: 4, detourMul: 2, label: 'Roadwork closes a road', mark: 'Road closed' }
+      },
+      // textos (ingles; marca ate 6 palavras, faixa ate ~10, balao ate 10)
+      text: {
+        today: 'today', tomorrow: 'tomorrow', festival: 'Festival road today', festivalOffer: 'Festival road',
+        // v2ev (web/dev/events/prep.js): o preparo que ajuda e uma segunda rua saindo da ponta (jogo, escola) e Two
+        // lanes no desvio (obra). Variantes: xBoost quando a segunda rua nao cabe ali, xDone quando ja existe
+        stripEve: { game: 'Big game here tomorrow: add a second road out.', gameBoost: 'Big game here tomorrow: Boost the next crossing.',
+                    gameDone: 'Big game here tomorrow: your second road is ready.',
+                    school: 'School out here tomorrow: add a second road out.', schoolBoost: 'School out here tomorrow: Boost the next crossing.',
+                    schoolDone: 'School out here tomorrow: your second road is ready.',
+                    roadwork: 'Roadwork tomorrow: give the detour two lanes.' },
+        stripToday: { game: 'Big game today: add a second road out.', gameBoost: 'Big game today: Boost the next crossing.',
+                      gameDone: 'Big game today: your second road is ready.',
+                      school: 'School out today: add a second road out.', schoolBoost: 'School out today: Boost the next crossing.',
+                      schoolDone: 'School out today: your second road is ready.',
+                      roadwork: 'Roadwork today: give the detour two lanes.' },
+        first: 'Get ready today: tap the mark to see what helps.',
+        tap: { game: 'Midday, cars pour out here. Add a second road out.', gameBoost: 'Midday, cars pour out here. Boost the next crossing.',
+               gameDone: 'Midday, cars pour out here. Two roads share them.',
+               school: 'At noon, cars rush out. Add a second road out.', schoolBoost: 'At noon, cars rush out here. Boost the next crossing.',
+               schoolDone: 'At noon, cars rush out here. Two roads share them.',
+               roadwork: 'No cars on this road. Give the detour two lanes.', festival: 'Twice the cars from here today. Sign the next crossing.' },
+        now: 'Here come the cars. Boost this crossing.',
+        why: { game: 'Big game today: more cars came.', school: 'School out today: more cars came.', roadwork: 'Roadwork today: one road was closed.',
+               gamePrep: 'Big game today: your second road took the cars.', schoolPrep: 'School out today: your second road took the cars.',
+               roadworkPrep: 'Roadwork today: your two lanes held the line.' }
+      }
     },
 
     // visual: todos usam estas cores
@@ -274,6 +482,30 @@
   };
 
   /* utilitario: PRNG deterministico (mulberry32). Todos usam este. */
+  // Textos do jogo que citam dias fixos (integracao v2): os numeros saem do CFG, nunca escritos no texto.
+  // CRZ.dayText('From {strikeDay}, ...') troca as marcas pelos valores de agora; objetos e listas: troca em toda string
+  // (no lugar). Marcas: {strikeDay} primeiro dia em que um jam conta, {graceEnd} ultimo dia livre, {offerDay} primeira
+  // oferta do dado, {keepDay} Keep, {upkeepDay} manutencao do semaforo, {roundDay} escolha da Roundabout,
+  // {restartDay} primeiro dia em que a volta ao capitulo vale, {newjDay} cruzamento sem sinal mais lento,
+  // {chapterLen} dias por capitulo, {chapters} capitulos.
+  CRZ.dayText = function (x) {
+    var C = CRZ.CFG || {}, D = C.dice || {}, L = C.chapterDays > 0 ? C.chapterDays : (C.chapterLen > 0 ? C.chapterLen : 10);
+    var J = C.junction && C.junction.none && C.junction.none.late;
+    var map = {
+      '{strikeDay}': (C.strikeGraceUntil | 0) + 1, '{graceEnd}': C.strikeGraceUntil | 0,
+      '{diceDay}': D.fromDay || 2, '{offerDay}': D.firstOffer || 7, '{keepDay}': D.keepFrom || 15,
+      '{upkeepDay}': (C.upkeep && C.upkeep.fromDay) || 11, '{roundDay}': (C.choiceCard && C.choiceCard.day) || (C.tools && C.tools.round && C.tools.round.choiceDay) || 19,
+      '{restartDay}': C.noRestartBeforeDay | 0, '{newjDay}': (J && J.fromDay) || 4,
+      '{chapterLen}': L, '{chapters}': Math.ceil((C.maxDays || 30) / L), '{days}': C.maxDays || 30
+    };
+    function one(t) { for (var k in map) if (t.indexOf(k) >= 0) t = t.split(k).join(String(map[k])); return t; }
+    if (typeof x === 'string') return one(x);
+    if (x && typeof x === 'object') for (var q in x) if (Object.prototype.hasOwnProperty.call(x, q)) {
+      if (typeof x[q] === 'string') x[q] = one(x[q]); else if (x[q] && typeof x[q] === 'object') CRZ.dayText(x[q]);
+    }
+    return x;
+  };
+
   CRZ.rng = function (seed) {
     var a = (seed >>> 0) || 1;
     function next() {

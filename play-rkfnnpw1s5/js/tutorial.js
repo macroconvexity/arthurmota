@@ -12,11 +12,11 @@
     // primeiro plano: os marcadores do topo, um balao por vez, antes da primeira rua
     days: 'Day 1 of {days}.',
     // blind2: 'crossing' so e definida no dia 3; aqui palavras comuns
-    goal: 'Get cars across town. A jammed road is a strike. {n} strikes end the game.',
-    strikes: 'Strikes: a crossing jams. {n} strikes end the game.',
+    goal: 'Get cars across town for {days} days. From day {strikeDay}, a jam is a strike.',
+    strikes: 'From day {strikeDay} a jam is a strike. {n} in a chapter: replay it.',
     // primeira frase do jogo: o objetivo em palavras simples (nada de jargao antes de explicar)
     road: 'Cars need roads to get from one end to another. Tap Road.',
-    roadDrag: 'Cars enter at road ends. Drag outward from this road end to build.',
+    roadDrag: "Cars enter at the city's road ends. Drag outward from this one to build.",
     roadMissed: 'Drag from the circled end out to an empty spot.',
     cars: 'The small blue squares are cars.',
     // uma acao so (dono no iPhone, 2026-11-09: 'Undo is free' + dois aneis confundiam o proximo passo)
@@ -32,17 +32,17 @@
     runNoRoom: 'No room right now. Try another road end.',
     dest: 'Each car drives to another road end. Arriving counts as delivered.',
     summary: 'Cars arrived. That is your score. Now pick a reward for tomorrow.',
-    summaryBonus: 'Cars delivered. A full Delivery bonus bar gives +1 build point. Pick a reward.',
+    summaryBonus: 'Cars delivered. A full Delivery bonus bar adds score. Pick a reward.',
     grew: 'The city grew a new road end. Tap Road, then drag from it.',
     grewDrag: 'Now drag from a road end to link it to the city.',
     // tudo ja ligado: nao ha o que "ligar a cidade"
     grewDragAny: 'Now drag from the circled end to add a new road.',
     // dia 2 em corrida: velocidade (pausa ate tocar) e onde ver o progresso do dia
-    speed: 'This button sets speed. Faster = more bonus points, but drivers wait less.',
+    speed: 'This button sets speed. Faster = more bonus score, but drivers wait less.',
     // 'ring' tinha 3 sentidos: o do botao do dia vira 'day clock'
     progress: 'The circle around this button is the day clock. Full circle means day over.',
     // dia 1 em corrida: o Play virou o botao de velocidade (1x, 2x, 4x e volta). Toast, sem pausa
-    speed1: 'This button now sets speed (1\u00d7, 2\u00d7, 4\u00d7). Faster = more bonus points, but drivers wait less.',
+    speed1: 'This button now sets speed (1\u00d7, 2\u00d7, 4\u00d7). Faster = more bonus score, but drivers wait less.',
     // primeiro uso de cada controle restante, no momento em que importa (uma vez cada)
     junction: 'A crossing is where roads meet. Cars take turns here.',
     fit: 'Lost part of the city? Tap this to see all of it.',
@@ -56,8 +56,9 @@
     tool: {
       stop: 'Stop, {c}: cheap. Cars take turns at quiet crossings.',
       yield: 'Yield, {c}: the main road never stops. Best with three roads.',
-      light: 'Traffic light, {c}: best for heavy four-way traffic.',
-      upgrade: 'Two lanes, {c}: doubles a road\'s flow. Best with a traffic light.',
+      // v2m: a manutencao saiu (CFG.upkeep.perLight 0); o custo do semaforo e a vaga (CFG.lightCap, '1 of 2' no ladrilho)
+      light: 'Traffic light, {c}: for crossings busy from every side. Few allowed.',
+      upgrade: 'Two lanes, {c}: holds a longer line. The crossing is no faster.',
       // o motivo do "pouco": a faixa para carros por pedestres (o cartao passa de 10 palavras por isso)
       cross: 'Crosswalk, {c}: cars stay calm longer, so rings show up later.',
       round: 'Roundabout, {c}: four or more busy roads. Weak with only three.',
@@ -73,13 +74,15 @@
     ringStop: '{R}. Tap it to boost; tomorrow, add a Stop.',
     ringBoost: '{R}. Tap the crossing to boost it (uses \u26a1\ufe0e).',
     ringFast: '{L}: tap speed to slow down, or tap the crossing to boost.',
-    ringLock: '{R}. If it fills, the crossing jams: 1 strike.',
+    ringLock: '{R}. If it fills, it jams. From day {strikeDay}, a strike.',
     // anel numa ponta de rua: Boost ali manda MAIS um carro, entao a dica e para o planejamento
     ringEnd: '{E}. Tomorrow, build a road nearby to spread cars.',
     ringEndLane: '{E}. Tomorrow, give that road a second lane.',
     // ultimo dia: nao ha amanha
     ringEndLast: '{E}. A boost cannot help here.',
     ringNice: 'Nice. The line is gone.',
+    // v2 (v2/jogador.md 4.2, dia 2): o primeiro engarrafamento, roteirizado no T (game.js TEACH); o dia pausa aqui
+    jam: 'Jammed! Cars can\'t move. Tap \u26a1\ufe0e.',
     ringAmber: 'Amber ring: this crossing is busy. If it turns red, it is about to jam.',
     ringSlow: '{L}: tap it to boost, or slow the day down.',
     slowDown: 'Slow down',
@@ -87,7 +90,7 @@
     // lembrete diario (Easy, dias 4 a 9, sem Boost ontem): aponta o chip do Boost da UI, sem pausar
     // faixa (blind2): sem seta; o chip do raio ja pulsa ao lado do anel
     ringAgain: 'Tap the glowing \u26a1\ufe0e next to the ring to clear it.',
-    tipStrike: 'This crossing jammed: 1 strike. {n} strikes end the game.',
+    tipStrike: 'This crossing jammed: 1 strike. {n} in a chapter and you replay it.',
     tipHot: "Dashed rings: yesterday's trouble spots. Tap one to see what helps.",
     tipEndJunction: 'This road end is now a crossing. Stop, Yield and lights work here too.',
     // o sim coordena o par pelo caminho mais curto entre os dois (nao precisa ser a mesma rua)
@@ -105,6 +108,8 @@
     for (id in STR.tool) {
       if (!has(STR.tool, id)) continue;
       c = T && T[id] ? T[id].cost : null;
+      var U = CRZ.CFG && CRZ.CFG.upkeep;
+      STR.tool[id] = STR.tool[id].replace('{u}', U && U.fromDay ? String(U.fromDay) : '11');
       STR.tool[id] = typeof c === 'number'
         ? STR.tool[id].replace('{c}', c + (c === 1 ? ' build point' : ' build points'))
         : STR.tool[id].replace(', {c}', '');
@@ -125,6 +130,7 @@
       if (!has(STR, k) || typeof STR[k] !== 'string') continue;
       Object.keys(map).forEach(function (t) { STR[k] = STR[k].split(t).join(map[t]); });
     }
+    if (CRZ.dayText) CRZ.dayText(STR);   // dias de regra (config.js): {strikeDay} e os outros
   })();
 
   var KEY = 'cruzamento.tut';
@@ -444,7 +450,7 @@
     // (antes so fechava tocando no dado e a jogadora achava que isso gastava o relance).
     // Tocar no dado abre a folha (o que saiu, amanha, relancar) e tambem fecha o passo.
     { id: 'die', win: at(2, 'plan'), mode: 'act', escapeNow: true, text: STR.die, target: T('die'),
-      need: function (c) { return !!st(c).die; },
+      need: function (c) { var s = st(c); return !!s.die || ((s.day || 0) >= 2 && s.dieState === 'none'); },   // dado v2: antes do toque nao ha face
       on: { dieOpen: true } },
     // Dia 2: um balao nao bloqueante com acao
     // uma acao so: sem Got it (o balao pede a rua; Skip tutorial segue disponivel)
@@ -531,13 +537,31 @@
       .replace('{E}', red ? L.redEnd : L.busyEnd);
   }
   // o primeiro anel, em qualquer dia (no walkthrough so veio no dia 5): o que e e o que fazer
+  // v2: cena do dia 2 (game.js TEACH, state.teach.jam): o T da rajada passou de jamAt (anel vermelho)
+  function jamAt() { var T = CRZ.Game && CRZ.Game._teach; return T && T.jamAt > 0 ? T.jamAt : 0.6; }
+  function jamNode(c) { var s = st(c), t = s.teach; if (s.phase !== 'run' || !t || !t.jam || t.target === null || t.target === undefined) return null; return nodeById(c, t.target); }
+  function jamPending(c) { return !!jamNode(c) && !c.seen('jam'); }
   var SAFETY = [
+    // o primeiro engarrafamento: pausa, aponta o raio (o chip ao lado do T) e espera o Boost; o 'Nice' vem depois
+    { id: 'jam', mode: 'act', safety: true, pause: true, escapeNow: true,
+      ready: function (c) { var n = jamNode(c); return !!n && !c.seen('jam') && (n.stress || 0) >= jamAt(); },
+      enter: function (c, cu) {
+        var n = jamNode(c); cu.data.node = n ? n.id : null; c.ringId = cu.data.node;
+        c.mark('ring'); c.mark('ringAmber'); c.mark('tip:boostJ');   // o aviso do primeiro anel ja foi esta cena
+      },
+      on: { clearUsed: function (d) { return !!d.ok; } },
+      text: function () { return STR.jam; },
+      target: function (c) {
+        if (c.hasEl && c.hasEl('boost-chip')) return { sel: 'boost-chip' };
+        var n = nodeById(c, c.cur.data.node); return n ? W([n]) : null;
+      },
+      avoid: function (c) { var n = nodeById(c, c.cur.data.node); return n ? [W([n])] : null; } },
     // primeiro anel AMBAR num cruzamento: o que as cores querem dizer, preso ao anel (Got it); o aviso com o
     // que fazer ('ring') espera o anel ficar vermelho
     // blind2 1: o aviso ambar (o que a cor quer dizer) virou faixa; o balao com acao e o 'ring' (vermelho)
     { id: 'ringAmber', mode: 'continue', safety: true, strip: true, btn: 'ok',
       ready: function (c) {
-        if (st(c).phase !== 'run' || c.seen('ring')) return false;
+        if (st(c).phase !== 'run' || c.seen('ring') || jamPending(c)) return false;
         var n = ringNode(c); return !!n && !(n.portal && deg(n) < 2) && !ringRed(n);
       },
       enter: function (c, cu) { var n = ringNode(c); cu.data.node = n ? n.id : null; c.amberShown = true; },
@@ -545,7 +569,7 @@
       target: function (c) { var n = nodeById(c, c.cur.data.node); return n ? W([n]) : null; } },
     { id: 'ring', mode: 'continue', safety: true, pause: true,
       ready: function (c) {
-        if (st(c).phase !== 'run') return false;
+        if (st(c).phase !== 'run' || jamPending(c)) return false;
         var n = ringNode(c); if (!n) return false;
         // depois do aviso ambar desta sessao, o aviso com acao so no vermelho (ou ponta)
         return !(c.amberShown && !(n.portal && deg(n) < 2) && !ringRed(n));
@@ -704,6 +728,8 @@
     // pareamento: o plano o poe no dia 8
     { id: 'tip:pair', mode: 'toast', text: STR.tipPair,
       ready: function (c) {
+        // v2: par automatico (CFG.lightsAutoPair): nao ha o que ensinar
+        if (!CRZ.CFG || CRZ.CFG.lightsAutoPair !== false) return false;
         if (st(c).phase !== 'plan' || st(c).day < 8) return false;
         var L = nodesOf(c.game), i, n = 0;   // conta sem filtrar (roda todo quadro do plano)
         for (i = 0; i < L.length; i++) {

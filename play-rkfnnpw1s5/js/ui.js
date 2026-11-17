@@ -12,11 +12,14 @@
     // resumo sem cartas: o unico botao so avanca (antes dizia "Skip reward" sem recompensa nenhuma)
     cont: 'Continue',
     cars: 'cars',
+    carsScore: function (n) { return 'cars · day score ' + n; },
     win: 'You made it',
     lose: 'Game over',
     // vocabulario fixo: "ring" = qualquer anel, "busy crossing" = anel ambar (0,3-0,6),
     // "red ring" = anel vermelho (acima de 0,6), "locked" = travou
     lockedSay: 'This crossing jammed: 1 strike.',
+    // v2x: a regra numa linha, com o limite da dificuldade em jogo (CFG.maxStrikes: Easy 4, Normal 3)
+    lockedFirst: function (n) { return 'This crossing jammed: 1 strike. ' + n + ' in a chapter: replay it.'; },
     loseCause: function (d, sign) { return 'Day ' + d + ': ' + (sign ? 'the crossing with a ' + sign : 'a crossing with no sign') + ' jammed.'; },
     loseNext: {
       sign: function (a) { return 'Next time, try a ' + a + ' there.'; },
@@ -29,12 +32,12 @@
     yesterday: function (prev, delta) { return 'Yesterday ' + prev + (delta > 0 ? ' (+' + delta + ')' : ''); },
     cardToday: function (name) { return name + ' today'; },
     info: {
-      strikes: function (s, m) { return 'Strikes: ' + s + ' of ' + m + '. A jammed crossing adds one.'; },
-      days: function (d, m) { return d >= m ? STR.lastDay(d, m) : 'Day ' + d + ' of ' + m + '.'; },
+      strikes: function (s, m) { return CRZ.dayText('Strikes this chapter: ' + s + ' of ' + m + '. From day {strikeDay}, a jam adds one.'); },
+      days: function (d, m) { var L = (CRZ.CFG && CRZ.CFG.chapterDays) || m; return d >= m ? STR.lastDay(d, m) : 'Day ' + d + ' of ' + m + ', chapter ' + Math.ceil(d / L) + ' of ' + Math.ceil(m / L) + '.'; },
       budget: function (n) { return n + (n === 1 ? ' build point' : ' build points') + '. New every day; 3 unused can stay for tomorrow.'; },
       tipsLast: function (n, per) { return STR.tipsLast(n, per); },
       // a barra mede carros entregues (1 por carro a 1x, mais a 2x e 4x), somados de um dia para o outro
-      tips: function (n, per) { return 'Delivery bonus: ' + n + ' of ' + per + '. Full bar: +1 build point tomorrow.'; },
+      tips: function (n, per) { return 'Delivery bonus: ' + n + ' of ' + per + '. Full bar: +' + BONUS_SCORE() + ' score.'; },
       // toque perto das bolinhas do Boost (ao lado do Play): curto, sem parecer recusa do Play (passeio da testadora)
       boost: function (n) { return 'Boost: tap a road end for an extra car, or a busy crossing.'; }
     },
@@ -42,6 +45,23 @@
     roadFromEnd: 'Drag from a road end.',
     // rotulos curtos do HUD (dono, 2026-11-09: 'nao assuma que o jogador sabe nada'): cada marcador diz o que e
     lblDay: function (d, m) { return 'Day ' + d + ' of ' + m; },
+    // v2 capitulos: a linha extra do letreiro do dia no primeiro dia de cada capitulo, e o momento de fim de capitulo
+    chapterN: function (c) { return 'Chapter ' + c; },
+    chapterDone: function (c) { return 'Chapter ' + c + ' complete'; },
+    chapterLine: function (cars, left, max) { return cars + (cars === 1 ? ' car' : ' cars') + ' this chapter \u00b7 ' + left + ' of ' + max + ' strikes left'; },
+    chapterStop: 'A good place to stop: your game is saved.',
+    // v2 strikes (D9): dias livres, perdao, volta ao capitulo, vitoria com voltas
+    freeJamFirst: 'No strike this time. From day {strikeDay} it counts.',
+    strikesFrom: function (n) { return 'From today, a jam is a strike. ' + n + ' in a chapter: replay it.'; },
+    strikesBack: function (n) { return 'New chapter: ' + n + ' strikes again.'; },
+    forgiven: {
+      chapter1: 'Last strike forgiven: chapter 1 never starts over.',
+      early: function (d) { return 'Last strike forgiven: no restart before day ' + d + '.'; }
+    },
+    loseChapter: function (d) { return 'City jammed on day ' + d; },
+    retryLine: function (d) { return 'Retry: back to the morning of day ' + d + ', city as it was.'; },
+    retryBtn: function (c) { return 'Retry chapter ' + c; },
+    winRetries: function (n) { return 'Finished with ' + n + (n === 1 ? ' chapter retry' : ' chapter retries'); },
     lblStrikes: 'Strikes', lblDie: 'Dice', lblBp: 'Build points',
     // blind3 3: a face do dado e o efeito em palavras ('Today: 11 · normal day'); nunca um numero solto
     // nv10 1: amanha sem o numero (a rolagem de amanha sempre dava esse numero: virava teatro); so o efeito
@@ -51,8 +71,11 @@
     // sob o dado: o tipo do dia em palavra comum; sob o numero tracejado: 'Tomorrow' (parecia o preco do relance)
     lblToday: function (id, kind, v) { return 'Today: ' + (v != null ? v + ' \u00b7 ' : '') + STR.dayWord(STR.dieShort[id] || ({ bad: 'bad', good: 'good', great: 'great', jackpot: 'jackpot' }[kind] || 'normal')); },
     // o efeito do dado em 2 ou 3 palavras (rotulos do topo)
-    dieShort: { rush: 'more cars', rain: 'slower cars', festival: 'more cars', plain: 'normal', luck1: '+1 point', luck2: '+2 points',
-                luck3: '+3 points', free: 'free build', calm: 'fewer cars', jackpot: '+5 points' },
+    dieShort: { rush: 'more cars', rain: 'slower cars', festival: 'festival', plain: 'normal', luck1: '+1 point', luck2: '+2 points',
+                luck3: '+3 points', free: 'free build', calm: 'fewer cars', jackpot: '+5 points',
+                busy: 'busy', quiet: 'quiet', patient: 'patient', lucky: '+2 points', loan: 'loan', biggame: 'big game' },
+    // dado v2 (2026-11-16): o topo depois da escolha. Passou ou guardou: dado neutro, dia normal
+    lblPassed: 'Today: normal day', lblKept: function (name) { return 'Kept: ' + name; },
     // primeiro gasto da partida (uma vez): o que aconteceu com os pontos
     firstSpend: function (n) { return 'You spent ' + n + (n === 1 ? ' build point' : ' build points') + '. You get new build points every day. Up to 3 unused ones stay for tomorrow.'; },
     lblPts: function (n) { return n + (n === 1 ? ' build point' : ' build points'); },
@@ -66,7 +89,7 @@
     roadFirst: 'Build one road first.',
     carryAsk: function (b, cap) { return 'You have ' + b + ' build points. Only ' + cap + ' are kept. Tap \u25b6\ufe0e again to start.'; },
     dieFirst: 'Tap the dice to see today\'s effect.',
-    speedFirst: 'This button now sets speed (1\u00d7, 2\u00d7, 4\u00d7). Faster = more bonus points, but drivers wait less.',
+    speedFirst: 'This button now sets speed (1\u00d7, 2\u00d7, 4\u00d7). Faster = more bonus score, but drivers wait less.',
     toolUse: function (id) {
       var n = STR.tools[id] || id;
       if (id === 'upgrade' || id === 'oneway') return 'Pick ' + n + ', then tap a road.';
@@ -75,7 +98,6 @@
     },
     nextFirst: 'Pick Road, drag from a road end, then tap \u25b6\ufe0e.',
     pickAgain: 'Tap again to pick it.',
-    halfway: 'Halfway! You can stop here: your game is saved.',
     cStart: 'Start day', cBack: 'Back to building',
     cWhyNew: function (n) { return n === 1 ? '1 new crossing has no sign.' : n + ' new crossings have no sign.'; },
     cWhyFree: 'You still have a free road today.',
@@ -84,6 +106,9 @@
     undid: function (lbl, back) { return 'Undid' + (lbl ? ': ' + lbl : '') + (back > 0 ? ' (+' + back + (back === 1 ? ' point)' : ' points)') : '') + '.'; },
     boostWhen: 'Boost works while the day runs.',
     boostNothing: 'Nothing to boost here yet.', boostAllCalm: 'All calm. Nothing needs a boost.',
+    // v2y: toque tardio no lugar do chip que saiu; sem cargas (uma vez por partida, com a regra real)
+    boostSaved: 'It cleared up. Boost saved.',
+    boostOut: function (n) { return 'No Boosts left. You get ' + n + ' again tomorrow.'; },
     freeRoadNow: 'Your next road costs nothing.',
     // nv10 3: rerrolar devolve o bonus do dado de hoje (pontos ou a obra gratis); o botao diz isso
     rerollLbl: function (c, loses) { return 'Reroll: ' + c + (c === 1 ? ' point' : ' points') + (loses ? " (today's bonus is replaced)" : ''); },
@@ -100,20 +125,21 @@
     // dicionario de botoes (testadora 2026-11-09): uma frase por ferramenta
     toolUseLine: {
       road: 'Drag from a circled road end or a crossing to build a road.',
-      stop: 'Cars take turns. Best at quiet crossings.',
-      yield: 'The main road never stops. Best where a busy road meets a side road.',
-      light: 'Handles heavy four-way traffic. Pair two lights so cars get green after green.',
-      upgrade: 'Tap a road to add a second lane. Best with a traffic light.',
+      // v2m: uma linha por peca: onde ela e boa e onde ela atrapalha (o territorio de cada uma)
+      stop: 'Cars take turns. Good on small crossings, slow on a main road.',
+      yield: 'Main road keeps going, side road waits. Jams if all are busy.',
+      light: 'For crossings busy from every side. Quiet streets wait on red.',
+      upgrade: 'Holds a longer line. The crossing itself does not get faster.',
       cross: 'Drivers wait longer before the ring turns red. Replaces the sign.',
-      round: 'For four or more busy roads. Weak with only three roads.',
+      round: 'No stopping where 4+ roads meet. Jams on a T or when packed.',
       oneway: 'Tap a road: cars drive away from the half you tap.'
     },
     toolWorks: {
       road: 'Joins a road end or a crossing to a new spot. Undo gives the points back.',
       stop: 'Goes on a crossing with 3 or more roads. Replaces the sign there.',
       yield: 'Goes on a crossing with 3 or more roads. Replaces the sign there.',
-      light: 'Goes on a crossing with 3 or more roads. Works best with Two lanes.',
-      upgrade: 'Works on any road. Best on the road into a traffic light.',
+      light: 'Goes on a crossing with 3 or more roads. Replaces the sign there.',
+      upgrade: 'Works on any road. Best where a line backs up into a crossing.',
       cross: 'Goes where 2 or more roads meet. Replaces the sign there.',
       round: 'Goes on a crossing with 4 or more roads. Replaces the sign there.',
       oneway: 'Tap again to flip, a third time for two-way. A car with no route waits, then counts as lost.'
@@ -130,27 +156,27 @@
     ],
     toolWorksLightEarly: 'Goes on a crossing with 3 or more roads. Replaces the sign there.', guideMore: 'More tools arrive each day.', guideButtons: 'Buttons', guideMarks: 'Colors and marks', guideCards: 'Reward cards',
     guideBtnRows: [
-      ['@play', 'Play / speed', 'Starts the day. While it runs, tap for 1\u00d7, 2\u00d7 or 4\u00d7. Faster = more bonus points, but drivers wait less.'],
+      ['@play', 'Play / speed', 'Starts the day. While it runs, tap for 1\u00d7, 2\u00d7 or 4\u00d7. Faster = more bonus score, but drivers wait less.'],
       ['\u275a\u275a', 'Pause', 'Stops the day for a moment. Tap again to go on.'],
       ['\u21b6', 'Undo', 'Takes back your last build and gives the points back.'],
       ['@fit', 'Whole map', 'Shows the whole city.'],
       ['@bolt', 'Boost', 'Recharges in the first days; 3 a day after that. Sends an extra car from a road end, or clears a busy crossing.'],
-      ['\u2680', 'Dice', 'Today\'s roll and tomorrow\'s. Reroll once a day for 1 build point.'],
+      ['\u2680', 'Dice', 'Today\'s roll. From day {offerDay} you choose: use it, or pass for a normal day.'],
       ['\u2630\ufe0e', 'Menu', 'How to play, sound, this guide and a new game.']
     ],
     guideMarkRows: [
       ['amber', 'Amber ring', 'A busy crossing: cars are waiting in line.'],
-      ['red', 'Red ring', 'About to jam. A jam is a strike.'],
+      ['red', 'Red ring', 'About to jam. From day {strikeDay}, a jam is a strike.'],
       ['hot', 'Gray dashed ring', 'Yesterday\'s trouble spot.'],
       ['new', 'NEW', 'Roads just met here. Give it a sign.'],
-      ['days', 'Day dots', 'The red dot is today. 12 days in all.'],
-      ['strikes', 'Strike circles', 'A jam fills one. When all fill, the game ends.'],
+      ['days', 'Day dots', 'The red dot is today. {chapterLen} days a chapter, {days} in all.'],
+      ['strikes', 'Strike circles', 'From day {strikeDay} a jam fills one. All full: you replay the chapter.'],
       ['points', 'Build points', 'Spend them on roads and signs. Up to 3 unused ones stay for tomorrow.']
     ],
     // resumo enxuto (testadora 2026-11-09)
-    infoQueue: 'The longest line of waiting cars today. A full bar means a crossing almost jammed.',
-    infoBonus: 'Every car delivered fills this bar; 2\u00d7 and 4\u00d7 fill it faster. Full bar: +1 build point tomorrow.',
-    bvalPlus: function (n, last) { return '+' + n + (n === 1 ? ' point' : ' points') + (last ? '' : ' tomorrow'); },
+    infoQueue: 'How close a crossing came to jamming today. A full bar is a jam.',
+    infoBonus: 'Every car delivered fills this bar; 2\u00d7 and 4\u00d7 fill it faster. Full bar: +' + BONUS_SCORE() + ' score.',
+    bvalPlus: function (n) { return '+' + n + ' score'; },
     todoNew: function (n) { return 'To do before tomorrow: ' + n + (n === 1 ? ' new crossing needs a sign \u203a' : ' new crossings need a sign \u203a'); },
     todoBusy: 'Busiest crossing today \u203a',
     todoBusyWhy: 'This crossing got too busy. Tomorrow, boost it early.',
@@ -161,9 +187,30 @@
     ringGroup: function (n) { return (n === 2 ? 'Two' : String(n)) + ' busy crossings are close together.'; },
     // D/L: primeiro cruzamento novo e a regra do dia 4
     newJFirst: 'NEW: roads just met here. Give this crossing a sign before you start.',
-    newJRule: 'From day 4, a crossing without a sign gets much slower.',
+    newJRule: 'From day {newjDay}, a crossing without a sign gets much slower.',
     day4Rule: 'From today, a crossing with no sign gets slow. Give each NEW crossing a sign.',
     boostsFixed: 'From today: 3 boosts a day.',
+    // v2: cidade no teto (CFG.growth.afterCap): uma ponta passa a mandar e receber mais carros
+    shiftUp: 'The city changed: more cars use this road end now.',
+    // v2: arquetipo (CFG.archetypes), uma linha no primeiro plano da partida
+    archLine: {
+      river: 'River town: roads cross the water only at a bridge.',
+      park: 'Park town: nothing is built in the park. Its gap is busy.'
+    },
+    // v2: manutencao do semaforo (CFG.upkeep). Linha da manha e, na primeira vez, a regra
+    upkeepLine: function (paid, dark) { return 'Lights: -' + paid + ' today' + (dark > 0 ? '. ' + dark + (dark === 1 ? ' light is' : ' lights are') + ' off: not enough points.' : '.'); },
+    // v2: Road crew (CFG.crew): a oferta da manha, o retorno e o chip das equipes
+    crewOffer: function (cost, per, days) { return 'Road crew: pay ' + cost + ' build points now, get +' + per + ' every morning for ' + days + ' days.'; },
+    crewFirst: 'New: spend today, earn later.',
+    crewHire: 'Hire', crewNo: 'Not now',
+    crewHired: function (days) { return 'Crew hired: +1 every morning, starting tomorrow, for ' + days + ' days.'; },
+    crewLine: function (n) { return 'Crew: +' + n + ' today.'; },
+    crewChip: function (n, left) { return (n === 1 ? 'Crew' : n + ' crews') + ': ' + left + (left === 1 ? ' day left' : ' days left'); },
+    // v2m: a vaga de semaforos (CFG.lightCap): no guia, no ladrilho ('1 of 2') e na recusa
+    guideCap: function (n) { return 'Your city powers ' + n + (n === 1 ? ' light' : ' lights') + ' now, more later. Removing one is free.'; },
+    capTile: function (used, cap) { return used + ' of ' + cap; },
+    guideUpkeep: function (d, per) { return 'From day ' + d + ': ' + per + (per === 1 ? ' build point' : ' build points') + ' every morning. Removing it is free.'; },
+    upkeepFirst: function (per, notToday) { return (notToday ? 'Each light costs ' : 'From today, each light costs ') + per + (per === 1 ? ' build point' : ' build points') + ' every morning. Removing one is free.'; },
     resumedDay: 'Resumed from the start of the day.',
     cWhyFreeLight: 'You still have a free traffic light today.',
     newJChipSay: 'Each NEW crossing needs a sign.',
@@ -176,12 +223,14 @@
     // J: pontos que sobram
     carryOver: function (n) { return 'Saved for tomorrow: ' + n; },
     // K: dia 3 a 4x
-    day3Fast: 'Day 3 runs at 4\u00d7. Faster = more bonus points, but drivers wait less.',
+    day3Fast: 'Day 3 runs at 4\u00d7. Faster = more bonus score, but drivers wait less.',
     sentOther: 'That end was full: the extra car left from the next road end.',
     // um termo so para o raio: boost (definido aqui, na primeira vez que o dia roda)
     boostFirst: 'Boost: tap a road end to send an extra car.',
     panLocked: 'Use two fingers to move the map.',
     nextDone: function (d) { return 'Done building? Tap \u25b6\ufe0e to start Day ' + d + '.'; },
+    // integracao: a faixa de duas linhas cobria a ponta de baixo da cidade (print do dono, dia 3): a mesma frase curta
+    nextDoneShort: function (d) { return 'Tap \u25b6\ufe0e to start Day ' + d + '.'; },
     // dia 2 com pontos para outra rua: as duas saidas (ritmo, 2026-11-16)
     nextMore: function (d) { return 'Build another road, or tap \u25b6\ufe0e to start Day ' + d + '.'; },
     // arrasto que comecou perto de um ponto mas fora dele (o mapa so andava, sem aviso)
@@ -193,13 +242,14 @@
     ghostCross: 'Crosses a road: makes a crossing',
     ghostCrossN: function (n) { return 'Crosses ' + n + ' roads: makes ' + n + ' crossings'; },
     // rotulos do cartao do resumo
-    sumQueue: 'Longest line of cars',
+    sumQueue: 'Closest to a jam',
     sumBonus: 'Delivery bonus',
     sumStrikes: 'Strikes',
     // folha do dado: o icone tracejado ao lado do dado
     dieNextWhat: "Dashed dice at the top: tomorrow's roll, shown in advance.",
-    deadEnd: 'Dead end: no cars use it. Link it to another road.',
-    deadEndTap: 'Dead end: no cars use it. Link it to another road.',
+    // v2x (playtest cego 5): 'no cars use it' contradizia 'Cars enter at road ends'. Carros nascem so nas pontas da cidade
+    deadEnd: "Dead end: only the city's road ends send cars. Link it to a road.",
+    deadEndTap: "Dead end: only the city's road ends send cars. Link it to a road.",
     // vitoria contada com dados reais da partida
     winFlawless: 'Flawless: no strikes',
     winOne: function (d) { return 'Made it with 1 strike'; },
@@ -226,11 +276,11 @@
     ffLabel: 'Skip ahead (fast forward)',
     ffOn: 'fast forward',
     ffSlowed: 'Slowed down: a crossing is getting busy.',
-    tipNext: '+1 tomorrow',
+    tipNext: 'Bonus full',
     speedBonusYes: 'Delivery bonus: +',
-    speedBonusTail: ' tomorrow',
+    speedBonusTail: ' score',
     speedBonusNone: 'Delivery bonus: ',
-    speedBonusToward: ' toward +1 build point',
+    speedBonusToward: ' toward +' + BONUS_SCORE() + ' score',
     speedBonusHow: 'Every car delivered fills it; 2\u00d7 and 4\u00d7 fill it faster.',
     bonusParts: function (cars, speed, prev) {
       return ' (' + cars + (cars === 1 ? ' car' : ' cars') + (speed > 0 ? ' + ' + speed + ' speed bonus' : '') + (prev > 0 ? ' + ' + prev + ' saved' : '') + ')';
@@ -248,14 +298,18 @@
     // cartas do resumo: nome curto, UMA linha do que muda, e "Good if" (os numeros espelham game.js: 1.3, 1.1, +2)
     cardsTitle: 'Pick one reward for tomorrow',
     cardSuggest: 'Good pick',
-    cards: { plus2: '+2 build points', freeRoad: 'Free road', freeLight: 'Free traffic light', patient: 'Patient drivers', waveBonus: 'Double green waves', smooth: 'Faster cars' },
+    cards: { plus2: '+2 build points', freeRoad: 'Free road', freeLight: 'Free traffic light', patient: 'Patient drivers', waveBonus: 'Double green waves', smooth: 'Faster cars',
+             round: 'Roundabout', freePower: 'Free power' },
     cardLine: {
       plus2: 'Start tomorrow with 2 extra build points.',
       freeRoad: 'Your first new road tomorrow costs nothing.',
       freeLight: 'Your first traffic light tomorrow costs nothing.',
       patient: 'Drivers wait 30% longer before the ring turns red.',
       waveBonus: 'Green waves are worth double tomorrow.',
-      smooth: 'All cars drive 10% faster tomorrow.'
+      smooth: 'All cars drive 10% faster tomorrow.',
+      round: 'Unlocks the Roundabout tool. No stopping, until it gets packed.',
+      // integracao: v2m trocou a manutencao pela vaga de semaforos (CFG.lightCap); a carta soma uma vaga
+      freePower: 'Your city powers one more traffic light.'
     },
     cardGood: {
       plus2: 'Good if you have a lot to fix.',
@@ -263,7 +317,9 @@
       freeLight: 'Good if one crossing is very busy.',
       patient: 'Good if you saw rings today.',
       waveBonus: 'Good if you have paired lights.',
-      smooth: 'Good if lines were long today.'
+      smooth: 'Good if lines were long today.',
+      round: 'Good with many four-way crossings.',
+      freePower: 'Good if all your lights are in use.'
     },
     // quando a condicao do "Good if" nao vale hoje: diz isso, sem recomendar
     cardGoodNo: {
@@ -284,6 +340,7 @@
       same: 'This spot already has that tool.',
       sameTool: function (name) { return 'Already a ' + name + ' here.'; },
       sameLanes: 'This road already has two lanes.',
+      cap: function (n) { return 'Your city powers ' + n + (n === 1 ? ' light' : ' lights') + '. Remove one (free) to move it here.'; },
       notJunction: 'Tap a crossing, where roads meet.',
       // sem cruzamento a frente para pulsar (antes pulsava o no do meio da rua, que nao e ponta nem cruzamento)
       portalNone: 'Road ends can\'t take a Stop, Yield or light. Pick a crossing with three or more roads.',
@@ -331,6 +388,19 @@
       keepLane: function (t) { return 'Red ring at this ' + t + ': try Two lanes on its busiest road.'; },
       keepBoost: function (t) { return 'Red ring at this ' + t + ': Boost it early while the day runs.'; },
       keepPair: function (t) { return 'Red ring at this ' + t + ': pair it with a nearby light.'; },
+      // v2m: a peca de ontem nao serve para este cruzamento: diz o problema que se ve e a peca que serve
+      lightWaste: function (to) { return 'This light gives green to empty streets. A ' + to + ' fits here.'; },
+      roundPacked: 'This roundabout is packed. A traffic light fits here.',
+      roundT: 'A roundabout jams with only three roads. A ' + 'yield fits here.',
+      stopMain: 'Every car stops on the main road. A yield fits here.',
+      yieldEven: function (to) { return 'Side roads wait too long at this yield. A ' + to + ' fits here.'; },
+      stopBusy: function (to) { return 'Too busy from every side for a stop. A ' + to + ' fits here.'; },
+      lightFull: function (n) { return 'Busy from every side, but all ' + n + ' lights are in use. Move one.'; },
+      // v2x: o conselho que sai do 'e se' (game.adviceFor: o dia de ontem jogado de novo com cada peca)
+      wiSwap: function (from, to) { return 'Red ring at this ' + from + ': a ' + to + ' cuts the wait here.'; },
+      wiNew: function (to) { return 'Red ring at a crossing: a ' + to + ' cuts the wait here.'; },
+      wiMain: ' The lit road is the main road.',
+      wiBest: 'This crossing is doing its best. Try a new road nearby.',
       unlocksTomorrow: function (name) { return ' New tool tomorrow: ' + name + '.'; },
       dirs: { n: 'north', s: 'south', e: 'east', w: 'west' }
     },
@@ -338,6 +408,8 @@
     ringEdgeTool: 'That ring is a hint. Tap the road itself.',
     ringEdgeLane: function () { return 'That ring is a hint. Tap its busiest road to widen it.'; },
     paired: 'Lights paired: cars get green after green.',
+    // v2: carta de escolha do dia 19 (CFG.choiceCard): titulo do resumo nesse dia
+    cardsTitleChoice: 'Pick one for the rest of the game',
     // parear com intencao: chip ao lado do semaforo tocado; depois do chip, o toque no outro semaforo pareia
     pairChip: 'Pair lights',
     pairChipAria: 'Pair this traffic light with another one',
@@ -353,7 +425,7 @@
     swapCancelBtn: 'Cancel',
     swapCancelAria: 'Cancel the swap',
     // fim de partida: penultimo strike, ultimo dia (chip e faixa) e linha de fechamento do resumo do dia 12
-    strikeWarn: 'One more strike ends the game.',
+    strikeWarn: 'One more strike and this chapter starts over.',
     lastChip: 'Last day',
     // sem repetir os numeros que o fim ja mostra logo abaixo (dias, carros)
     closing: function (d) { return 'Last day done: your city kept moving for all ' + d + ' days.'; },
@@ -420,6 +492,8 @@
         dieCalm: 'Calm day: fewer cars came.',
         dieRain: 'Rain today: cars drove slower.',
         shorter: 'Shorter day today: fewer cars.',
+        // v2x: depois do dia 2 (o dobro de carros por segundo) e do comboio do dia 3 o dia normal tem menos carros
+        afterRush: 'Yesterday was a rush; today was normal.',
         longer: 'Longer day today: more cars.',
         grew: 'The city grew: more cars came.'
       }
@@ -437,7 +511,8 @@
     roadWhy: {
       short: 'Too short', long: 'Too far', range: 'Out of range', budget: 'Not enough build points', stub: 'Leaves a tiny piece',
       near: 'Too close to a crossing', blocked: 'Blocked by a road', angle: 'Too close to another road',
-      linked: 'Already linked', phase: 'Only before the day starts', deadEnd: 'Dead end', other: "Can't build here"
+      linked: 'Already linked', phase: 'Only before the day starts', deadEnd: 'Dead end', other: "Can't build here",
+      terrain: 'Not across the river or the park'
     },
     // a mesma recusa em linguagem simples, com o limite (faixa do topo ao soltar o dedo).
     // Sem jargao ("steps" saiu, WALKTHROUGH2): o limite e a marca vermelha que o fantasma desenha
@@ -451,14 +526,32 @@
       blocked: 'A road is in the way: cross it straight on, or go around.',
       angle: 'Too close to another road: roads must meet at a wider angle.',
       linked: 'Already linked.',
+      // v2 (arquetipos): agua so na ponte marcada; parque nunca
+      terrain: 'Roads cross the river only at a bridge mark, and never the park.',
       other: "Can't build here: try another direction."
     },
     // folha do dado: o que o dado faz e a regra do relance, em uma linha cada
     // nv10 5: a jogadora rola (toque), o dado nunca rola sozinho; do dia 6 em diante vai de 1 a 20
-    dieWhat: 'Each morning you tap the dice to roll it. Good rolls give build points or a free build. Bad rolls bring more or slower cars. From day 6 the dice go from 1 to 20.',
+    // dado v2: oferta com dois lados a partir do dia 7; Keep a partir do dia 15
+    dieWhat: 'Each morning you tap the dice to roll it. From day {offerDay} a roll is an offer with a good side and a cost: use it, or pass for a normal day. From day {keepDay} you can keep one for a later morning.',
     // rolagem visivel (dono: 'o que nao se ve nao existe')
     rollTitle: "Today's roll", rollTut: 'Every day starts with a roll. Tap the dice.', rollTap: 'Tap to roll', rollAria: 'Roll the dice',
     rollContinue: 'Continue', rollTapSkip: 'Tap to skip',
+    // dado v2: a oferta. Dois lados em duas linhas curtas (verde e vermelho), Use / Pass, Keep do dia 15 em diante
+    rollUse: 'Use', rollPass: 'Pass', rollKeep: 'Keep',
+    rollUseAria: function (name) { return 'Use ' + name; }, rollPassAria: 'Pass: a normal day', rollKeepAria: function (name) { return 'Keep ' + name + ' for a later morning'; },
+    rollKeptBtn: function (name) { return 'Use kept: ' + name; },
+    hintOffer: 'Use it, or pass for a normal day.',
+    hintCost: 'Most rolls have a cost now.',
+    hintKeep: 'Keep saves it for a later morning.',
+    rollUsedNote: 'In use today.', rollPassedNote: 'Passed: a normal day.', rollKeptNote: 'Kept for a later morning.',
+    loanPaid: function (n) { return 'Loan: -' + n + (n === 1 ? ' build point' : ' build points') + ' today.'; },
+    forecast: function (label) { return 'Tomorrow: ' + label; },
+    sidePts: function (n) { return (n > 0 ? '+' : '-') + Math.abs(n) + (Math.abs(n) === 1 ? ' build point' : ' build points'); },
+    sideCars: function (pct, more) { return pct + '% ' + (more ? 'more' : 'fewer') + ' cars'; },
+    sidePatient: 'Drivers wait longer', sideDebt: function (n) { return '-' + n + (n === 1 ? ' build point' : ' build points') + ' tomorrow'; },
+    sideFestival: 'Twice the cars on one road', sideEvent: "Tomorrow's event is bigger", sideFree: 'A free road',
+    rollOfferLive: function (name, a, b) { return "Today's roll: " + name + '. ' + a + (b ? ', ' + b : '') + '. Use or pass.'; },
     grewEnds: function (n) { return 'The city grew: ' + n + (n === 1 ? ' new road end' : ' new road ends'); },
     grewRoads: function (n) { return 'The city grew: ' + n + (n === 1 ? ' new road' : ' new roads'); },
     rollNormal: 'Normal day: no change', rollFreeLight: 'a free traffic light',
@@ -478,10 +571,20 @@
       luck3: { name: 'Great day', desc: '+3 build points today.' },
       free: { name: 'Free build', desc: 'Your next road or light is free.' },
       calm: { name: 'Calm day', desc: 'Fewer cars and +1 build point today.' },
-      jackpot: { name: 'Jackpot', desc: '+5 build points and patient drivers.' }
+      jackpot: { name: 'Jackpot', desc: '+5 build points and patient drivers.' },
+      busy: { name: 'Busy day', desc: 'More build points, more cars.' },
+      quiet: { name: 'Quiet day', desc: 'Fewer cars, fewer build points.' },
+      patient: { name: 'Patient drivers', desc: 'Drivers wait longer, for build points.' },
+      lucky: { name: 'Lucky!', desc: '+2 build points today.' },
+      loan: { name: 'Loan', desc: 'Build points now, fewer tomorrow.' },
+      biggame: { name: 'Big game', desc: "Build points now; tomorrow's event is bigger." }
     }
   };
+  if (CRZ.dayText) CRZ.dayText(STR);   // integracao v2: dias de regra nos textos ({strikeDay}, {offerDay}...) saem do CFG
 
+  // v2: placar de uma barra cheia do Delivery bonus (CFG.deliveryBonus.scorePerBar)
+  function BONUS_SCORE() { var D = CRZ.CFG && CRZ.CFG.deliveryBonus; return (D && D.scorePerBar) || 20; }
+  function bonusScoreOf(sm) { return typeof sm.bonusScore === 'number' ? sm.bonusScore | 0 : (sm.speedBonus | 0) * BONUS_SCORE(); }
   function lc(s) { return String(s).charAt(0).toLowerCase() + String(s).slice(1); }
   // nomes de ferramenta em minuscula para o meio da frase ("a stop", "a traffic light")
   var TL = {};
@@ -491,9 +594,29 @@
     var d = STR.dice[id];
     return d ? d.name : (STR.events[id] || '');
   }
+  // dado v2: os dois lados de uma face em linhas curtas, lado bom (verde) primeiro e o custo (vermelho) depois.
+  // Sem numero para somar: pontos e uma porcentagem de carros, no maximo duas linhas (texto de jogador.md)
+  function dieSides(die) {
+    var e = (die && die.effect) || {}, good = [], bad = [];
+    function pct(m) { return Math.round(Math.abs(m - 1) * 100); }
+    if (e.budget > 0) good.push(STR.sidePts(e.budget));
+    if (typeof e.spawnMul === 'number' && e.spawnMul < 1) good.push(STR.sideCars(pct(e.spawnMul), false));
+    if (typeof e.patienceMul === 'number' && e.patienceMul > 1) good.push(STR.sidePatient);
+    if (e.free) good.push(STR.sideFree);
+    if (e.budget < 0) bad.push(STR.sidePts(e.budget));
+    if (typeof e.spawnMul === 'number' && e.spawnMul > 1) bad.push(STR.sideCars(pct(e.spawnMul), true));
+    if (e.debt > 0) bad.push(STR.sideDebt(e.debt));
+    if (e.festivalMul) bad.push(STR.sideFestival);
+    if (e.eventMul) bad.push(STR.sideEvent);
+    var out = [];
+    if (good.length) out.push({ text: good[0], tone: 'green' });
+    if (bad.length) out.push({ text: bad[0], tone: 'red' });
+    return out;
+  }
   // descricao a partir dos campos de effect (certa mesmo se o config mudar); STR.dice e o reserva
   function describeDie(die) {
     if (!die) return '';
+    if (die.v === 2 && die.offer) return dieSides(die).map(function (x) { return x.text; }).join(', ') + '.';
     var e = die.effect, parts = [], p;
     function pct(m) { return Math.round(Math.abs(m - 1) * 100); }
     function pts(n) { return '+' + n + (n === 1 ? ' build point' : ' build points') + ' today.'; }
@@ -516,7 +639,17 @@
     return d ? d.desc : '';
   }
   // ferramenta liberada no dia `day` (le CFG; nao depende do state)
-  function toolOpen(cfg, id, day) { var t = cfg && cfg.tools && cfg.tools[id]; return !!t && day >= t.unlockDay; }
+  // v2: a ferramenta existe nesta partida e esta liberada? matchHook (ligado pelo create a game.state.tools) diz false
+  // para o que nao entra na partida (Crosswalk; One-way fora do arquetipo) e true para o que a carta do dia 19 liberou.
+  // Sem hook (testes puros): a regra do dia, e nunca uma ferramenta cortada (removed)
+  var matchHook = null;
+  function toolOpen(cfg, id, day) {
+    var t = cfg && cfg.tools && cfg.tools[id];
+    if (!t || t.removed) return false;
+    var h = matchHook ? matchHook(id) : undefined;
+    if (h === false || h === true) return h;
+    return day >= t.unlockDay;
+  }
   // o que ajuda num ponto com fila: ponta de rua (portal) ou cruzamento, com ou sem sinal. day = dia em que
   // o jogador vai agir (no resumo, amanha). Puro: testado em test_ui.js.
   // world (opcional): com o mundo a dica diz qual rua e pula o que ja foi feito (jamPick). avoid = chave da
@@ -589,13 +722,24 @@
     // Entao so ha troca com o no sem sinal ou com sinal posto hoje (ctx.fresh, o game devolve o custo).
     // Sem ctx: conta como comprado antes (resumo, tutorial e fim de jogo falam do dia seguinte)
     var fresh = !!(ctx && ctx.fresh);
-    if (junction && n.tool && !fresh) return keepSign(n, day, cfg, world, heat, ctx);
-    var roundOk = n.tool !== 'light' || (deg >= 4 && roundBeats(n, world));
+    // v2x: com o 'e se' do dia (ctx.wi = game.adviceFor) a peca vem da medida, nunca do tipo: so uma peca que baixa a
+    // espera mais longa (o numero do resumo) sem travar nem subir o anel; nada ganha: o cruzamento ja da o que pode
+    var wi = ctx && ctx.wi;
+    if (junction && wi && !fresh) {
+      if (!wi.tool) return { key: 'best', tool: 'road', wi: true, text: J.wiBest };
+      var me = wi.tool === 'yield' ? mainEdges(n, world) : null;
+      return { key: 'sign:' + wi.tool, tool: wi.tool, wi: true, main: me,
+               text: (n.tool && STR.tools[n.tool] ? J.wiSwap(TL[n.tool], TL[wi.tool]) : J.wiNew(TL[wi.tool])) + (me ? J.wiMain : '') };
+    }
+    if (junction && n.tool && !fresh) { var mf = misfit(n, day, cfg, world, ctx); return mf || keepSign(n, day, cfg, world, heat, ctx); }
+    // v2m: a peca vem do jeito do cruzamento (fitSign), nao da ordem 'a mais forte que couber'. Troca no mesmo dia so
+    // para uma peca que serve melhor (outra peca, nao necessariamente mais cara)
     if (junction) {
-      if (deg >= 4 && better('round') && roundOk) pick = 'round';
-      else if (better('light')) pick = 'light';
-      else if ((deg === 3 || !n.edges) && better('yield') && mainRoad(n, world)) pick = 'yield';
-      else if (better('stop')) pick = 'stop';
+      var f = fitSign(n, day, cfg, world, ctx);
+      // semaforo de hoje -> rotatoria so quando ela e claramente melhor (roundBeats: 4-5 ruas de uma faixa, sem par)
+      if (f.tool && f.tool !== n.tool && !(n.tool === 'light' && f.tool === 'round' && !roundBeats(n, world))) pick = f.tool;
+      else if (!n.tool && better('stop')) pick = 'stop';
+      if (f.full && !pick) return { key: 'full', tool: 'light', text: J.lightFull(f.full) };
     }
     if (pick) return { key: 'sign:' + pick, tool: pick, text: n.tool && STR.tools[n.tool] ? J.swap(TL[n.tool], TL[pick]) : J.junction(TL[pick], '') };
     if (toolOpen(cfg, 'upgrade', day)) {
@@ -608,6 +752,36 @@
     }
     if (!junction) return { key: 'road', tool: 'road', text: end ? J.endRoad : J.roadNew };
     return { key: 'boost', tool: 'clear', text: n.tool ? J.boostAgain : J.boost };
+  }
+  // v2m: a peca que serve ao cruzamento, pelo tipo de ontem (ctx.kind = state.kinds[id], de Game.kindOf) e pela forma.
+  //  main num T de rua reta -> Yield; heavy (todo lado, muito) -> semaforo se ha vaga (ctx.lightRoom), senao Roundabout
+  //  com 4+ ruas ou Stop; even/calm/sem dado -> Roundabout com 4+ ruas (se liberada), senao Stop (Yield no T de rua
+  //  reta sem dado). Devolve { tool, full } (full = vagas quando o semaforo serviria mas todas estao em uso).
+  function fitSign(n, day, cfg, world, ctx) {
+    var kd = ctx && ctx.kind, k = kd && kd.k, deg = degOf(n) || 3, tee = (deg === 3 || !n.edges) && mainRoad(n, world);
+    var open = function (id) { return toolOpen(cfg, id, day); }, out = { tool: null, full: 0 };
+    if (k === 'heavy') {
+      if (open('light') && !(ctx && ctx.lightRoom === false)) { out.tool = 'light'; return out; }
+      if (open('light') && ctx && ctx.lightCap) out.full = ctx.lightCap;
+      out.tool = deg >= 4 && open('round') ? 'round' : (tee && open('yield') ? 'yield' : (open('stop') ? 'stop' : null));
+      return out;
+    }
+    if (tee && open('yield') && (k === 'main' || !k)) { out.tool = 'yield'; return out; }
+    if (deg >= 4 && open('round')) { out.tool = 'round'; return out; }
+    out.tool = open('stop') ? 'stop' : (open('yield') ? 'yield' : null);
+    return out;
+  }
+  // v2m: sinal de dia anterior que nao serve ao tipo do cruzamento (so com dado de ontem): diz o que se ve e a peca certa
+  function misfit(n, day, cfg, world, ctx) {
+    var kd = ctx && ctx.kind; if (!kd) return null;
+    var J = STR.jam, f = fitSign(n, day, cfg, world, ctx), to = f.tool, t = n.tool;
+    if (!to || to === t) return null;
+    var text = null;
+    if (t === 'light') text = J.lightWaste(TL[to]);
+    else if (t === 'round') text = degOf(n) === 3 && to === 'yield' ? J.roundT : (to === 'light' ? J.roundPacked : null);
+    else if (t === 'stop') text = to === 'yield' ? J.stopMain : (to === 'light' || to === 'round' ? J.stopBusy(TL[to]) : null);
+    else if (t === 'yield') text = J.yieldEven(TL[to]);
+    return text ? { key: 'fit:' + to, tool: to, text: text } : null;
   }
   // no com sinal de dia anterior: nada de troca. Ordem: segunda faixa na rua mais cheia (se liberada e de 1
   // faixa), Boost se ha carga (ctx.boost !== false), parear com um semaforo vizinho sem par (so semaforo).
@@ -650,7 +824,7 @@
   // memoria curta por no (instancia da UI): a mesma dica no mesmo no por 2 dias seguidos; no terceiro, outra.
   // memo[id] = {key, start, last}. Mesmo dia: mesma dica (anel, resumo e Yield concordam). Puro sobre memo.
   function adviseVary(memo, n, a, day, cfg, world, heat) {
-    if (!memo || !n || !a || n.id === undefined) return a;
+    if (!memo || !n || !a || n.id === undefined || a.wi) return a;   // v2x: o conselho medido nao gira
     var m = memo[n.id], d = day | 0;
     if (m && m.alt && m.last === d) return labelAdvice(m.alt, n, heat);
     // partida nova (dia voltou), outra dica ou um dia sem dica: recomeca
@@ -698,6 +872,23 @@
       if (d >= Math.PI * 5 / 6 && side.lanes <= Math.min(p.lanes, q.lanes)) return true;
     }
     return false;
+  }
+  // v2x: as duas ruas da rua principal de um T (quase em linha), para o mapa acender o que o conselho do Yield chama de
+  // 'main road'. null sem geometria ou sem rua principal
+  function mainEdges(n, world) {
+    var nodes = world && world.nodes, edges = world && world.edges, L = [], i, e, o;
+    if (!n || !n.edges || !nodes || !edges || n.edges.length !== 3) return null;
+    for (i = 0; i < 3; i++) {
+      e = edges[n.edges[i]]; o = e && nodes[e.a === n.id ? e.b : e.a];
+      if (!e || !o) return null;
+      L.push({ id: e.id, a: Math.atan2(o.y - n.y, o.x - n.x), lanes: e.lanes || 1 });
+    }
+    for (i = 0; i < 3; i++) {
+      var p = L[i], q = L[(i + 1) % 3], side = L[(i + 2) % 3];
+      var d = Math.abs(p.a - q.a); if (d > Math.PI) d = 2 * Math.PI - d;
+      if (d >= Math.PI * 5 / 6 && side.lanes <= Math.min(p.lanes, q.lanes)) return [p.id, q.id];
+    }
+    return null;
   }
   // direcao de uma rua a partir do no (tela: y cresce para baixo, entao y menor e norte)
   function dirOf(n, o) {
@@ -883,7 +1074,17 @@
     if (why === 'phase') return D.phase;
     if (why === 'same') return tool === 'upgrade' ? D.sameLanes : (STR.tools[tool] ? D.sameTool(TL[tool]) : D.same);
     if (why === 'node') return D.notJunction;
+    if (why === 'cap') { var lc = s && s.tools ? s.tools.filter(function (x) { return x.id === 'light'; })[0] : null; return D.cap(lc && lc.cap != null ? lc.cap : 1); }
     return D.other;
+  }
+  // barra do resumo: pico do anel ate JAM_RING_BAR; dali ate cheia, o relogio da trava (1 = travou). Save antigo sem
+  // lockNear: so o anel (nunca cheia sem jam)
+  var JAM_RING_BAR = 0.8;
+  function jamBar(sm) {
+    if (!sm) return 0;
+    var pk = Math.max(0, Math.min(1, +sm.peak || 0)), ln = Math.max(0, Math.min(1, +sm.lockNear || 0));
+    if (sm.failed || ln >= 1) return 1;
+    return pk < 1 ? pk * JAM_RING_BAR : JAM_RING_BAR + (1 - JAM_RING_BAR) * Math.min(0.95, ln);
   }
   function kindTone(kind) {
     return kind === 'bad' ? 'red' : ((kind === 'good' || kind === 'great' || kind === 'jackpot') ? 'green' : 'ink');
@@ -1146,7 +1347,9 @@
     freeLight: ICONS.light + BADGE,
     patient: '<circle cx="24" cy="24" r="16" fill="none" stroke-width="3.5" class="s-ink"/><path d="M24 13V24L31 29" fill="none" stroke-width="3.5" stroke-linecap="round" class="s-ink"/>',
     waveBonus: '<path d="M4 24Q14 4 24 24T44 24" fill="none" stroke-width="4" stroke-linecap="round" class="s-green"/>',
-    smooth: '<path d="M8 12L20 24L8 36 M24 12L36 24L24 36" fill="none" stroke-width="4" stroke-linejoin="round" class="s-ink"/>'
+    smooth: '<path d="M8 12L20 24L8 36 M24 12L36 24L24 36" fill="none" stroke-width="4" stroke-linejoin="round" class="s-ink"/>',
+    round: ICONS.round + BADGE,
+    freePower: ICONS.light + BADGE
   };
   var UNDO_ICON = '<path d="M16 14L8 22L16 30 M8 22H28A10 10 0 0 1 28 42H20" fill="none" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" class="s-ink"/>';
   var PLAY_ICON = '<path d="M8 4L20 12L8 20Z" fill="currentColor"/>';
@@ -1220,6 +1423,16 @@
     } else if (id === 'free') {
       s = '<path d="M3.5 20.5L11.5 12.5" stroke-width="3"' + LN + ' class="s-ink"/><circle cx="14" cy="9.5" r="4.4" class="f-ink"/>' +
         '<circle cx="18" cy="18" r="5" class="' + F + '"/><text x="18" y="21" text-anchor="middle" font-size="8" font-weight="700" class="f-white">0</text>';
+    } else if (id === 'quiet') {
+      s = '<path d="M2 12Q6.5 6 12 12T22 12" stroke-width="2.6"' + LN + ' class="' + S + '"/>';
+    } else if (id === 'patient') {
+      // ampulheta: esperar mais
+      s = '<path d="M6 3H18 M6 21H18 M7 3Q7 9 12 12Q17 9 17 3 M7 21Q7 15 12 12Q17 15 17 21" stroke-width="1.8"' + LN + ' stroke-linejoin="round" class="' + S + '"/>';
+    } else if (id === 'lucky' || id === 'loan') {
+      s = '<circle cx="4.6" cy="12" r="3.6" class="' + F + '"/>' +
+        '<text x="9.2" y="16.2" font-size="11" font-weight="700" letter-spacing="-0.4" class="f-ink">+' + (id === 'loan' ? 4 : 2) + '</text>';
+    } else if (id === 'biggame') {
+      s = '<polygon points="' + starPoints(12, 12, 10.5, 5.2, 5) + '" class="' + F + '"/>';
     } else if (id === 'calm') {
       s = '<path d="M2 12Q6.5 6 12 12T22 12" stroke-width="2.6"' + LN + ' class="' + S + '"/>';
     } else if (id === 'jackpot') {
@@ -1316,12 +1529,14 @@
   function fbkToolName(t) { return STR.fbk.tool[t] || STR.tools[t] || t; }
   function dieFx(id, day, cfg) {
     var D = cfg && cfg.dice; if (!D || typeof id !== 'string') return {};
+    // dado v2: as faces de CFG.dice.defs (o history so guarda a face que valeu no dia: usada ou sem escolha)
+    if (D.defs && D.defs[id]) return D.defs[id];
     var tab = day <= 5 ? D.early : D.late, i;
     for (i = 0; tab && i < tab.outcomes.length; i++) if (tab.outcomes[i].id === id) return tab.outcomes[i];
     return {};
   }
   // linha do porque: a causa principal do numero de hoje contra ontem, uma so, por prioridade:
-  // strike > vigiado que melhorou > dado > duracao do dia > cidade maior. Cada frase so sai quando o sentido bate com o
+  // strike > evento de lugar de hoje (events.js whyOf) > vigiado que melhorou > dado > duracao do dia > cidade maior. Cada frase so sai quando o sentido bate com o
   // numero (dia mais curto E menos carros); sem causa honesta, nenhuma linha. Devolve { key, text } ou null
   function whyCause(s, cfg) {
     var sm = s && s.summary, hs = (s && s.history) || [], W = STR.fbk.why;
@@ -1329,6 +1544,11 @@
     var t = hs[hs.length - 1], y = hs[hs.length - 2];
     if (!t || t.day !== s.day) return null;
     if (sm.failed) return { key: 'strike', text: W.strike };
+    // evento de lugar de hoje (events.js): depois do strike e antes do dado
+    if (y && typeof y.delivered === 'number' && CRZ.Events && typeof CRZ.Events.whyOf === 'function') {
+      var ew = CRZ.Events.whyOf(s, (t.delivered | 0) - (y.delivered | 0));
+      if (ew) return { key: 'event', text: ew.text, type: ew.type };
+    }
     var L = s.watch && s.watch.day === s.day ? s.watch.list || [] : [], i;
     for (i = 0; i < L.length; i++) {
       if (fbkResult(L[i]) !== 'better') continue;
@@ -1337,6 +1557,10 @@
     }
     if (!y || typeof y.delivered !== 'number') return null;
     var dd = (t.delivered | 0) - (y.delivered | 0);
+    // v2x (playtest cego 5: 33 -> 15 -> 12 carros nos dias 3 e 4 sem motivo): o dia 2 tem day2Mul vezes os carros por
+    // segundo e o dia 3 o comboio do tutorial; o dia seguinte a eles e um dia comum
+    var TD = CRZ.Game && CRZ.Game._teach && CRZ.Game._teach.day;
+    if (dd < 0 && ((y.day === 2 && cfg.day2Mul > 1) || (TD && y.day === TD && t.day === TD + 1))) return { key: 'afterRush', text: W.afterRush };
     var ft = dieFx(t.die, t.day, cfg), fy = dieFx(y.die, y.day, cfg);
     var sT = ft.spawnMul || 1, sY = fy.spawnMul || 1, vT = ft.speedMul || 1, vY = fy.speedMul || 1;
     if (sT > 1.05 && !(sY > 1.05) && dd > 0) return { key: 'dieMore', text: W.dieMore((STR.dice[t.die] && STR.dice[t.die].name) || 'Busy day') };
@@ -1353,6 +1577,13 @@
   function create(opts) {
     var CFG = CRZ.CFG, C = CFG.colors;
     var rootEl = opts.root, game = opts.game, render = opts.render, audio = opts.audio;
+    // v2: o que entra nesta partida vem de game.state.tools (o game sabe do arquetipo e da carta do dia 19)
+    matchHook = function (id) {
+      var L = game && game.state && game.state.tools, i;
+      if (!L || !L.length) return undefined;
+      for (i = 0; i < L.length; i++) if (L[i].id === id) return CFG.tools[id] && CFG.tools[id].choiceDay ? !!L[i].unlocked : undefined;
+      return false;
+    };
     // tela da rolagem do dado (padrao ligado; testes antigos que nao tratam dela passam rollScreen: false)
     var ROLL_ON = opts.rollScreen !== false;
     // blind3 6: depois de construir ou pôr um sinal no plano a camera NAO anda sozinha (tutorial, dica, reveal)
@@ -1445,7 +1676,8 @@
     // L1: so objeto (primitivo ou lista fazia seen() sempre falso e a fila de dicas crescer todo quadro)
     if (!hints || typeof hints !== 'object' || Array.isArray(hints)) hints = {};
     // M4: dicas 'uma vez por PARTIDA' levam a semente na chave; as de outras partidas saem ao carregar
-    var PER_RUN = { bigDie: 1, sumInfo: 1, firstSpend: 1, ringGroup: 1, day4rule: 1, boostJ1: 1, runHint: 1, half6: 1, boosts4: 1, resumed: 1 };
+    var PER_RUN = { boostOut: 1, bigDie: 1, sumInfo: 1, firstSpend: 1, ringGroup: 1, day4rule: 1, boostJ1: 1, runHint: 1, half6: 1, boosts4: 1, resumed: 1,
+                    strikes6: 1, chapter11: 1, chapter21: 1 };
     var runTag = '@' + ((game.world && game.world.seed) != null ? game.world.seed : 0);
     (function pruneRunHints() {
       var k, ch = false;
@@ -1481,8 +1713,10 @@
 
     var top = el('div', 'crz-top');
     var dotsEl = tut(el('div', 'crz-dots'), 'dots'), dotEls = [], i;
-    for (i = 0; i < CFG.maxDays; i++) { var d = el('span', 'crz-dot'); d.setAttribute('aria-label', 'Day ' + (i + 1)); dotsEl.appendChild(d); dotEls.push(d); }
-    // rotulo 'Day N of 12' sob os pontinhos (o ponto vermelho e hoje)
+    // v2: as bolinhas sao as do capitulo de hoje (CFG.chapterDays, 10), o mesmo componente; o rotulo diz 'Day 14 of 30'
+    var CH_LEN = (CFG.chapterDays | 0) > 0 ? Math.min(CFG.chapterDays | 0, CFG.maxDays) : CFG.maxDays;
+    for (i = 0; i < CH_LEN; i++) { var d = el('span', 'crz-dot'); d.setAttribute('aria-label', 'Day ' + (i + 1)); dotsEl.appendChild(d); dotEls.push(d); }
+    // rotulo 'Day N of 30' sob os pontinhos (o ponto vermelho e hoje)
     var dayLbl = el('span', 'crz-lbl crz-lbl-day'); dayLbl.setAttribute('aria-hidden', 'true'); dotsEl.appendChild(dayLbl);
     // dado + previsao formam um unico botao (alvo de toque >= 44 px)
     var dieEl = tut(el('button', 'crz-die off'), 'die');
@@ -1669,6 +1903,11 @@
     var againBtn = el('button', 'crz-again'); againBtn.textContent = STR.again;
     // vitoria no Easy, primeira vez: convite secundario para o Normal (troca pelo fluxo de difficulty.set)
     var tryNormalBtn = tut(el('button', 'crz-trynormal gone'), 'try-normal'); tryNormalBtn.textContent = STR.tryNormal;
+    // v2: derrota com volta ao capitulo: 'Retry chapter N' e o principal (againBtn) e 'New game' o secundario (mesmo
+    // desenho do 'Try Normal'); a vitoria conta as voltas numa linha cinza como a do melhor dia
+    var newGameBtn = tut(el('button', 'crz-trynormal crz-newgame gone'), 'over-new'); newGameBtn.textContent = STR.newGame;
+    var overRetries = el('div', 'crz-oextra gone');
+    var overRetry = null;   // { chapter, day } quando a derrota oferece a volta
     // vitoria no ultimo dia: a linha de fechamento do dia 12 (o game vai do dia 12 direto ao fim, sem resumo)
     var overClose = tut(el('div', 'crz-sclose gone'), 'over-closing');
     overEl.appendChild(markEl); overEl.appendChild(overTitle); overEl.appendChild(overSub); overEl.appendChild(overClose); overEl.appendChild(statsEl);
@@ -1678,7 +1917,7 @@
     overDays.setAttribute('role', 'img');
     overDaysCap.textContent = STR.daysLegend;
     overStreet.classList.add('gone');
-    overEl.appendChild(overBest); overEl.appendChild(overHard); overEl.appendChild(overStreet); overEl.appendChild(overDays); overEl.appendChild(overDaysCap); overEl.appendChild(againBtn); overEl.appendChild(tryNormalBtn);
+    overEl.appendChild(overBest); overEl.appendChild(overHard); overEl.appendChild(overRetries); overEl.appendChild(overStreet); overEl.appendChild(overDays); overEl.appendChild(overDaysCap); overEl.appendChild(againBtn); overEl.appendChild(tryNormalBtn); overEl.appendChild(newGameBtn);
 
     // folha do dado: de baixo, acima da bandeja; no run nao bloqueia o mapa
     var sheetEl = el('div', 'crz-diesheet');
@@ -1710,6 +1949,11 @@
     var dayBannerT = 0;
     function showDayBanner(s) {
       dayBanner.textContent = s.day >= CFG.maxDays ? STR.finalDay : STR.dayN + s.day;
+      // v2: primeiro dia de um capitulo: uma linha a mais, menor, no mesmo letreiro
+      var d0 = s.day | 0;
+      if (CH_LEN < CFG.maxDays && d0 >= 1 && (d0 - 1) % CH_LEN === 0) {
+        var sub = el('span', 'crz-daysub'); sub.textContent = STR.chapterN((d0 - 1) / CH_LEN + 1); dayBanner.appendChild(sub);
+      }
       dayBanner.classList.remove('show'); void dayBanner.offsetWidth; dayBanner.classList.add('show');
       if (dayBannerT) root.clearTimeout(dayBannerT);
       dayBannerT = later(function () { dayBanner.classList.remove('show'); dayBannerT = 0; }, 1250);
@@ -1785,6 +2029,9 @@
     var bchip2El = tut(el('button', 'crz-bchip2 gone', svg(BOLT_ICON, '0 0 24 24')), 'boost-chip2');
     bchip2El.setAttribute('aria-label', STR.chipAria);
     ui.appendChild(bchip2El);
+    // v2y: linha curta do chip ate o cruzamento, quando o chip tem de ficar longe dele (sem toque)
+    var bleadEl = el('i', 'crz-blead gone');
+    ui.insertBefore ? ui.insertBefore(bleadEl, bchipEl) : ui.appendChild(bleadEl);
     // chip "Pair lights" ao lado do semaforo tocado sem ferramenta (plano): parear e uma escolha, nunca um
     // efeito colateral de ler a dica de dois aneis
     var pairChipEl = tut(el('button', 'crz-pchip gone'), 'pair-chip');
@@ -1890,16 +2137,33 @@
       var c = s.clear, fresh = false;
       if (!tomorrow && s.phase === 'plan' && n && n.tool && planTools) fresh = planTools[n.id] !== n.tool;
       var boost = !!(c && c.unlocked) && (tomorrow || (c.charges | 0) > 0);
-      return { budget: s.budget | 0, fresh: fresh, boost: boost };
+      var lt = s.tools ? s.tools.filter(function (x) { return x.id === 'light'; })[0] : null;
+      var room = lt && lt.cap != null ? (lt.used - (n && n.tool === 'light' ? 1 : 0)) < lt.cap : true;
+      // v2x: o 'e se' do dia que acabou (resumo: calcula; manha seguinte: le o que o resumo guardou)
+      var wi = null;
+      if (n && typeof game.adviceFor === 'function' && (tomorrow || s.phase === 'plan')) { try { wi = game.adviceFor(n.id); } catch (e) { warnOnce('game.adviceFor', e); } }
+      return { budget: s.budget | 0, fresh: fresh, boost: boost, kind: (s.kinds && n && s.kinds[n.id]) || null, lightRoom: room, lightCap: lt && lt.cap != null ? lt.cap : 0, wi: wi };
     }
     function nodeAdvice(s, n, day) {
       var d = day != null ? day : (s.day | 0), h = function (o) { return heatOf(s, o); };
       return adviseVary(adviceMemo, n, advise(n, d, CFG, game.world, h, adviceCtx(s, n, day != null && day > (s.day | 0))), d, CFG, game.world, h);
     }
+    var WI_NODES = 2;
+    function wiPrime(s) {
+      var w = game.world, h = s.hot || {}, L = [], k;
+      for (k in h) if (h.hasOwnProperty(k) && w.nodes[k] && !w.nodes[k].portal && degOf(w.nodes[k]) >= 3 && +h[k] >= HOT_TAP) L.push(+k);
+      L.sort(function (a, b) { return (+h[b] - +h[a]) || (a - b); });
+      for (var i = 0; i < L.length && i < WI_NODES; i++) { try { game.adviceFor(L[i]); } catch (e) { warnOnce('game.adviceFor', e); } }
+    }
     function tapAdvice(s, n) { var a = nodeAdvice(s, n); if (a) showAdviceRoad(a); return a ? a.text : ''; }
     // conselho de segunda faixa: destaca no mapa a rua mais ocupada do no (o texto nao diz ponto cardeal).
     // Feature-detect: render.highlightRoad(edgeId, ms) pode nao existir num render mais antigo
     function showAdviceRoad(a) {
+      // v2x: conselho do Yield: a rua principal acende enquanto o conselho esta aberto (o texto diz 'the lit road')
+      if (a && a.main && render && typeof render.highlightRoad === 'function') {
+        try { a.main.forEach(function (eid) { render.highlightRoad(eid, 4000); }); } catch (e) { warnOnce('render.highlightRoad', e); }
+        return;
+      }
       if (!a || a.tool !== 'upgrade' || a.edge == null) return;
       if (render && typeof render.highlightRoad === 'function') { try { render.highlightRoad(a.edge, 2000); } catch (e) { warnOnce('render.highlightRoad', e); } }
     }
@@ -1957,8 +2221,10 @@
         // 'Works best with Two lanes' so quando Two lanes ja existe
         var wk = STR.toolWorks[t.id];
         if (t.id === 'light' && !toolOpen(CFG, 'upgrade', s.day | 0)) wk = STR.toolWorksLightEarly;
-        body.appendChild(gRow(toolIcon(t.id), (STR.tools[t.id] || t.id) + ' \u00b7 ' + c + (c === 1 ? ' point' : ' points'),
-          [STR.toolUseLine[t.id], wk]));
+        var gl = [STR.toolUseLine[t.id], wk];
+        if (t.id === 'light' && CFG.upkeep && CFG.upkeep.perLight > 0) gl.push(STR.guideUpkeep(CFG.upkeep.fromDay, CFG.upkeep.perLight));   // v2
+        if (t.id === 'light' && t.cap != null && isFinite(t.cap)) gl.push(STR.guideCap(t.cap));   // v2m
+        body.appendChild(gRow(toolIcon(t.id), (STR.tools[t.id] || t.id) + ' \u00b7 ' + c + (c === 1 ? ' point' : ' points'), gl));
       }
       var more = el('div', 'crz-gmore'); more.textContent = STR.guideMore; body.appendChild(more);
       sec(STR.guideButtons);
@@ -2462,6 +2728,13 @@
       var jn = !(n.portal && (!n.edges || n.edges.length < 2));
       // Boost correndo e o anel ainda abaixo do chip (CHIP_ON): o segundo so tiraria pouco, recusa tambem
       var stz = n.stress || 0, runB = (n.boost || 0) > 0 && stz < CHIP_ON;
+      // v2y: toque tardio no lugar do chip que saiu (a fila resolveu sozinha ou o Boost ja corre): sem carga e sem
+      // recusa; a faixa diz que a carga ficou (nunca 'Nothing to boost' logo depois de um chip)
+      if (ghost && jn && (stz < BOOST_MIN || runB)) {
+        flash(n.x, n.y, 'ok'); say(STR.boostSaved, 1600);
+        emitUI('clearUsed', { ok: false, kind: null, reason: 'calm', id: n.id, ui: true, ghost: true });
+        return false;
+      }
       if (jn && !fromChip && (cl.charges | 0) > 0 && !s.paused && (stz < BOOST_MIN || runB)) {
         var why = stz >= BOOST_MIN ? 'running' : 'calm';
         snd('deny'); flash(n.x, n.y, 'bad');
@@ -2538,9 +2811,17 @@
       say(STR.yieldBusy(TL[a.tool], null));
     }
 
-    // (1) chip do Boost: aparece com estresse >= CHIP_ON e cargas sobrando, some abaixo de CHIP_OFF
+    // (1) chip do Boost (v2y, playtest cego 5 achado 2): o Boost e a acao do dia, entao o chip tem de valer sempre.
+    //  - aparece no ambar do anel (estresse >= RING_BUSY e subindo) ou acima de chipOn(), nunca nos ultimos 3 s reais
+    //    do dia (a fila que comeca tao tarde nao trava antes do fim: lockSeconds de jogo com estresse 1);
+    //  - um so chip, no cruzamento mais urgente; o segundo espera o primeiro sair;
+    //  - fica pelo menos CHIP_MIN_MS reais (salvo se a fila sumir de vez: sai com fade curto); enquanto esta na tela
+    //    o dia corre a 1x de parede (ui.timeScale, lido por main.js), e volta a velocidade escolhida depois;
+    //  - o toque no chip sempre age (Boost no no do chip); o toque tardio no lugar dele nunca gasta carga a toa;
+    //  - posicao: a mesma regra de faixas do balao do retorno (HUD, aneis, outros nos), com linha ate o no se longe.
     var bchip = { id: null, x: -1, y: -1, side: null, rects: null, rectAt: 0, cool: {},
-                  id2: null, x2: -1, y2: -1, at: -1e9, hist: {} };
+                  id2: null, x2: -1, y2: -1, at: -1e9, hist: {}, shownAt: 0, fadeEnd: 0, tapAt: 0, holdUntil: 0, want: null };
+    var CHIP_MIN_MS = 3000, CHIP_EASE_MS = 5000, CHIP_SEE_MS = 2000, CHIP_FADE_MS = 220, CHIP_GONE = 0.15, CHIP_RISE = 0.02, CHIP_TAIL = 3.7;
     function rectOf(e) {
       try {
         var r = e.getBoundingClientRect();
@@ -2556,24 +2837,48 @@
         if (!L[i] || (L[i].classList && L[i].classList.contains('gone'))) continue;
         r = rectOf(L[i]); if (r) out.push(r);
       }
+      // a faixa preta e o balao do retorno tambem sao HUD enquanto estao na tela
+      if (sayEl && sayEl.classList.contains('show')) { r = rectOf(sayEl); if (r) out.push(r); }
+      if (fbkEl && fbkEl.classList.contains('on')) { r = rectOf(fbkEl); if (r) out.push(r); }
       return out;
     }
+    // v2y: o segundo chip saiu (dois chips encavalados no playtest cego 5, 266 e 327); fica so o elemento, sempre gone
     function hideChip2() {
-      if (bchip.id2 === null) return;
       bchip.id2 = null; bchip.x2 = bchip.y2 = -1;
-      bchip2El.classList.add('gone');
+      if (!bchip2El.classList.contains('gone')) bchip2El.classList.add('gone');
     }
     // o chip saiu da tela: guarda onde estava e de que no era. Um toque que chega ali logo depois (o dedo ja vinha)
     // vale para ESSE no, nunca para o que estava escondido sob o chip (playtest cego 3, 144/145: o toque caiu numa
     // curva sob o chip e o carro extra saiu de uma ponta do outro lado)
     var CHIP_GHOST_MS = 1500;
     var chipGhost = { id: null, l: 0, t: 0, r: 0, b: 0, at: -1e9 };
-    function hideChip() {
+    function chipLead(on, p, c) {
+      if (!on) { if (!bleadEl.classList.contains('gone')) bleadEl.classList.add('gone'); return; }
+      // linha do centro do no ate a borda do chip (fica atras do chip)
+      var dx = c.x - p.x, dy = c.y - p.y, L = Math.sqrt(dx * dx + dy * dy) - CHIP_PX / 2 - 10, a = Math.atan2(dy, dx);
+      if (!(L > 8)) { chipLead(false); return; }
+      bleadEl.style.left = Math.round(p.x + Math.cos(a) * 10) + 'px';
+      bleadEl.style.top = Math.round(p.y + Math.sin(a) * 10 - 1) + 'px';
+      bleadEl.style.width = Math.round(L) + 'px';
+      bleadEl.style.transform = 'rotate(' + (a * 180 / Math.PI).toFixed(1) + 'deg)';
+      bleadEl.classList.remove('gone');
+    }
+    function hideChip(fade) {
       hideChip2();
       if (bchip.id === null) return;
       if (bchip.x >= 0) chipGhost = { id: bchip.id, l: bchip.x - CHIP_PX / 2 - 8, t: bchip.y - CHIP_PX / 2 - 8, r: bchip.x + CHIP_PX / 2 + 8, b: bchip.y + CHIP_PX / 2 + 8, at: nowMs() };
-      bchip.id = null; bchip.side = null; bchip.x = bchip.y = -1;
-      bchipEl.classList.add('gone');
+      bchip.id = null; bchip.side = null; bchip.x = bchip.y = -1; bchip.shownAt = 0;
+      bchipEl.classList.remove('fade');
+      chipLead(false);
+      // fade curto (CSS, sem toque durante o fade); movimento reduzido: some direto
+      // o fim do fade e conferido no tick (fadeEnd), nunca por timer: reload, fim do dia ou aba parada nao deixam chip
+      if (fade && !reducedMotion()) { bchipEl.classList.add('fade'); bchip.fadeEnd = nowMs() + CHIP_FADE_MS; }
+      else { bchipEl.classList.add('gone'); bchip.fadeEnd = 0; }
+    }
+    function chipFadeTick(now, force) {
+      if (!bchip.fadeEnd || (!force && now < bchip.fadeEnd)) return;
+      bchip.fadeEnd = 0;
+      if (bchip.id === null) { bchipEl.classList.add('gone'); bchipEl.classList.remove('fade'); }
     }
     // historia curta do estresse por no (amostra a cada recalculo): subida nos ultimos CHIP_WIN s de jogo
     function chipSample(t) {
@@ -2592,81 +2897,149 @@
       var h = bchip.hist[n.id];
       return h && h.length ? (n.stress || 0) - h[0][1] : 0;
     }
-    function chipValid(id, t) {
-      var n = id !== null ? game.world.nodes[id] : null;
-      return !!(n && boostable(n) && (n.stress || 0) >= chipOff() && !(bchip.cool[id] > t));
+    // condicoes do chip sem contar as cargas (sem carga o chip nao sai, mas a linha de 'amanha' sim)
+    function chipScene(s) {
+      // v2: na cena do dia 2 (state.teach.jam) o chip do raio aparece cedo, e tambem com o dia pausado pelo tutorial
+      var cl = s.clear, jamTeach = !!(s.teach && s.teach.jam);
+      return s.phase === 'run' && ((s.day | 0) >= ASSIST_DAY || jamTeach) && (!s.paused || jamTeach) && !modal() && !holdUntil &&
+        !!(cl && cl.unlocked) && !!(render && render.toScreen);
     }
-    function chipWanted(s) {
-      var cl = s.clear;
-      return s.phase === 'run' && (s.day | 0) >= ASSIST_DAY && !s.paused && !modal() && !holdUntil &&
-        !!(cl && cl.unlocked && (cl.charges | 0) > 0) && !!(render && render.toScreen);
+    function chipWanted(s) { return chipScene(s) && ((s.clear.charges | 0) > 0); }
+    // tempo de jogo que falta basta para 3 s reais de chip: a rampa da velocidade (~0,5 s de parede ainda rapidos)
+    // mais CHIP_TAIL s a 1x. A cena do dia 2 espera a fila (jamHold no game): sem corte
+    function chipTimeOk(s) {
+      if (s.teach && s.teach.jam) return true;
+      var left = (+s.dayLen || 0) - (+s.dayTime || 0), sp = Math.max(1, +s.speed || 1);
+      return left >= CHIP_TAIL + 0.5 * sp;
     }
-    function boostChipTick(s, now) {
-      if (!chipWanted(s)) { hideChip(); return; }
-      var t = +s.dayTime || 0, id = bchip.id, id2 = bchip.id2;
-      // recalcula a cada CHIP_EVERY ms, ou ja quando o no do chip deixou de valer (sem chip: todo quadro)
-      if (id === null || !chipValid(id, t) || (id2 !== null && !chipValid(id2, t)) || now - bchip.at >= CHIP_EVERY) {
-        bchip.at = now;
-        chipSample(t);
-        var rk = chipRank(game.world, bchip.id, bchip.id2, chipOn(), chipOff(), function (x) { return bchip.cool[x.id] > t; }, chipRate);
-        id = rk.id; id2 = rk.second;
+    // candidato a chip: ambar subindo, ou acima de chipOn(); o pedido do balao 'Busy again' (bchip.want) vale no ambar
+    function chipCandidate(t) {
+      var w = game.world, q, n, st, best = null, bs = -1, on = chipOn(), want = bchip.want && bchip.want.until > nowMs() ? bchip.want.id : null;
+      for (q in w.nodes) if (w.nodes.hasOwnProperty(q)) {
+        n = w.nodes[q];
+        if (!boostable(n) || bchip.cool[n.id] > t || (n.boost || 0) > 0) continue;
+        st = n.stress || 0;
+        if (!(st >= on || (st >= RING_BUSY && (chipRate(n) >= CHIP_RISE || n.id === want)))) continue;
+        // mais urgente: estresse; empate (CHIP_TIE): quem sobe mais rapido
+        var sc = st + (n.id === want ? CHIP_TIE : 0) + Math.max(0, chipRate(n)) * 0.5;
+        if (sc > bs) { bs = sc; best = n; }
       }
-      // o anel sumiu: o chip fica mais 2 s (o toque que ja vinha nao cai no mapa como 'calm')
-      if (id === null) {
-        if (bchip.id !== null) { if (!bchip.lostAt) bchip.lostAt = now; if (now - bchip.lostAt < CHIP_LINGER) return; }
-        bchip.lostAt = 0; hideChip(); return;
+      return best;
+    }
+    // so um aviso por partida: sem cargas, a fila apertou; os Boosts voltam amanha (CFG.clear.charges por dia)
+    function chipOutLine(s, t) {
+      if (seen('boostOut') || tutorScript() || sayUntil || (s.day | 0) <= ((CFG.earlyBoost && CFG.earlyBoost.days) | 0)) return;
+      var w = game.world, q, n;
+      for (q in w.nodes) if (w.nodes.hasOwnProperty(q)) {
+        n = w.nodes[q];
+        if (boostable(n) && (n.stress || 0) >= chipOn()) {
+          if (sayShown(STR.boostOut((CFG.clear && CFG.clear.charges) || 3), 3500)) { markSeen('boostOut'); addPulse(n.x, n.y); }
+          return;
+        }
       }
-      bchip.lostAt = 0;
-      var n = game.world.nodes[id], fresh = id !== bchip.id;
-      if (fresh) {
-        bchip.id = id; bchip.side = null; bchip.rects = null;
-        bchipEl.classList.remove('gone');
-        bchipEl.classList.toggle('still', reducedMotion());
-        emitUI('boostChip', { id: id });
+    }
+    // posicao do chip: candidatos em 8 lados, perto do no e depois mais longe (com linha ate ele), dentro da faixa
+    // entre os HUDs e com folga para o pulso (o anel de 56 px cresce 1,3x: 16 px de folga na borda); faixas como
+    // fbkPlace: HUD + aneis + outros nos, depois HUD + aneis, depois so HUD
+    var CHIP_EDGE = 18;
+    function chipSpot(n, W, H) {
+      var p = render.toScreen(n.x, n.y), m = render.margins || {}, R = CHIP_PX / 2;
+      var y0 = Math.max(6, (m.top || 0) - 10), y1 = H - Math.max(6, (m.bottom || 0) - 10);
+      var hud = (bchip.rects || []).map(function (r) { return { x: r.l, y: r.t, w: r.r - r.l, h: r.b - r.t }; });
+      var nb = nodeBoxes(n.id), self = { x: p.x - 18, y: p.y - 18, w: 36, h: 36 };
+      var tiers = [hud.concat([self], nb.rings, nb.dots), hud.concat([self], nb.rings), hud.concat([self])];
+      var dirs = [[1, 0, 'r'], [-1, 0, 'l'], [0, -1, 'u'], [0, 1, 'd'], [0.71, -0.71, 'ur'], [-0.71, -0.71, 'ul'], [0.71, 0.71, 'dr'], [-0.71, 0.71, 'dl']];
+      if (bchip.side) dirs.sort(function (a, b) { return (b[2] === bchip.side) - (a[2] === bchip.side); });
+      var dists = [R + 22, R + 52, R + 92, R + 140], ti, di, k, d, x, y;
+      for (ti = 0; ti < tiers.length; ti++) for (di = 0; di < dists.length; di++) for (k = 0; k < dirs.length; k++) {
+        d = dists[di]; x = p.x + dirs[k][0] * d; y = p.y + dirs[k][1] * d;
+        if (x - R < CHIP_EDGE || x + R > W - CHIP_EDGE || y - R < y0 + 4 || y + R > y1 - 4) continue;
+        if (fbkHit(x - R - 4, y - R - 4, 2 * R + 8, 2 * R + 8, tiers[ti])) continue;
+        return { x: x, y: y, side: dirs[k][2], lead: di > 0, p: p };
       }
+      // nada coube (no colado no HUD): a posicao antiga, dentro da tela
+      var c = chipPlace(p, W, H, bchip.rects || [], bchip.side);
+      c.x = clamp(c.x, R + CHIP_EDGE, W - R - CHIP_EDGE);
+      c.lead = Math.hypot(c.x - p.x, c.y - p.y) > R + 30; c.p = p;
+      return c;
+    }
+    function chipShow(n, now) {
+      bchip.id = n.id; bchip.side = null; bchip.rects = hudRects(); bchip.rectAt = now; bchip.shownAt = now; bchip.fadeEnd = 0; bchip.tapAt = 0;
+      bchip.x = bchip.y = -1;
+      bchipEl.classList.remove('gone'); bchipEl.classList.remove('fade');
+      bchipEl.classList.toggle('still', reducedMotion());
+      emitUI('boostChip', { id: n.id });
+    }
+    function chipMove(n, now) {
       if (!bchip.rects || now - bchip.rectAt > 1000) { bchip.rects = hudRects(); bchip.rectAt = now; }
-      var p = render.toScreen(n.x, n.y);
       var W = render.width || root.innerWidth || 390, H = render.height || root.innerHeight || 844;
-      var c = chipPlace(p, W, H, bchip.rects, bchip.side);
+      var c = chipSpot(n, W, H);
       bchip.side = c.side;
       if (Math.abs(c.x - bchip.x) >= 1 || Math.abs(c.y - bchip.y) >= 1) {
         bchip.x = c.x; bchip.y = c.y;
         bchipEl.style.left = Math.round(c.x - CHIP_PX / 2) + 'px';
         bchipEl.style.top = Math.round(c.y - CHIP_PX / 2) + 'px';
       }
-      // segundo no: chip menor ao lado dele (nunca por cima do chip grande)
-      var n2 = id2 !== null && id2 !== id ? game.world.nodes[id2] : null;
-      if (!n2) { hideChip2(); return; }
-      if (id2 !== bchip.id2) { bchip.id2 = id2; bchip2El.classList.remove('gone'); }
-      var big = { l: c.x - CHIP_PX / 2, t: c.y - CHIP_PX / 2, r: c.x + CHIP_PX / 2, b: c.y + CHIP_PX / 2 };
-      var c2 = chipPlace(render.toScreen(n2.x, n2.y), W, H, bchip.rects.concat([big]), null, CHIP2_PX);
-      if (Math.abs(c2.x - bchip.x2) >= 1 || Math.abs(c2.y - bchip.y2) >= 1) {
-        bchip.x2 = c2.x; bchip.y2 = c2.y;
-        bchip2El.style.left = Math.round(c2.x - CHIP2_PX / 2) + 'px';
-        bchip2El.style.top = Math.round(c2.y - CHIP2_PX / 2) + 'px';
-      }
+      chipLead(!!c.lead, c.p, c);
     }
-    on(bchipEl, 'click', function (e) {
+    function boostChipTick(s, now) {
+      hideChip2();
+      chipFadeTick(now, s.phase !== 'run');
+      if (!chipWanted(s)) {
+        if (bchip.id !== null) hideChip(false);   // pausa, folha, fim do dia, sem carga: sai na hora
+        if (chipScene(s) && (s.clear.charges | 0) <= 0) chipOutLine(s, +s.dayTime || 0);
+        return;
+      }
+      var t = +s.dayTime || 0;
+      if (now - bchip.at >= CHIP_EVERY || bchip.id === null) { bchip.at = now; chipSample(t); }
+      if (bchip.id !== null) {
+        var n = game.world.nodes[bchip.id], st = n ? n.stress || 0 : 0, age = now - bchip.shownAt;
+        // sai: no sumiu ou travou; fila resolvida de vez; ou, passados os 3 s, abaixo do desligar e caindo
+        var gone = !n || !boostable(n) || st < CHIP_GONE || (age >= CHIP_MIN_MS && st < chipOff() && chipRate(n) <= 0);
+        if (gone) { hideChip(true); return; }
+        chipMove(n, now);
+        return;
+      }
+      if (!chipTimeOk(s)) return;
+      var c = chipCandidate(t);
+      if (!c) return;
+      chipShow(c, now);
+      chipMove(c, now);
+    }
+    // escala de tempo do dia (main.js: game.update(dt * ui.timeScale())): chip na tela => 1x de parede, sem pulo
+    // (aproximacao exponencial de ~0,2 s), e volta a velocidade escolhida depois do toque ou quando o chip sai.
+    // Nao muda regra: st.speed (paciencia, gorjeta) segue o que a jogadora escolheu
+    var tScale = 1, TS_TAU = 0.2;
+    function timeScaleTick(s, dt) {
+      var sp = Math.max(1, +s.speed || 1);
+      // depois do toque o 1x segue ate o chip completar 3 s e por 2 s depois do toque: a fila some a vista, o dia
+      // nao acaba logo atras do toque (playtest cego 5: 4 de 5 toques e o resumo ja na tela)
+      // quem deixa o chip na tela sem tocar volta a velocidade escolhida depois de CHIP_EASE_MS (o chip fica)
+      var nw = nowMs(), held = (bchip.id !== null && nw - bchip.shownAt < CHIP_EASE_MS) || nw < bchip.holdUntil;
+      var want = held && s.phase === 'run' && !s.paused && !s.ff && sp > 1 ? 1 / sp : 1;
+      if (s.phase !== 'run') { tScale = 1; bchip.holdUntil = 0; return; }
+      var k = dt > 0 ? Math.min(1, dt / TS_TAU) : 0;
+      tScale += (want - tScale) * k;
+      if (Math.abs(tScale - want) < 0.005) tScale = want;
+    }
+    function timeScale() { return tScale; }
+    function chipTap(e) {
       if (e && e.stopPropagation) e.stopPropagation();
       var s = game.state, n = bchip.id !== null ? game.world.nodes[bchip.id] : null;
       if (!n || s.phase !== 'run' || modal()) return;
       emitUI('nodeTap', { id: n.id });   // o tutorial despausa no toque de no (como no mapa)
+      sayUntil = 0;                      // a confirmacao do Boost sempre aparece (o toque precisa de resposta)
       if (runTap(s, n, undefined, undefined, true)) {
         // o Boost dura CFG.clear.seconds: o chip nao volta para o mesmo no antes disso (nao queima carga)
         bchip.cool[n.id] = (+s.dayTime || 0) + ((CFG.clear && CFG.clear.seconds) || 6);
-        hideChip();
+        var now0 = nowMs();
+        bchip.holdUntil = Math.max(bchip.shownAt + CHIP_MIN_MS, now0 + CHIP_SEE_MS);
+        hideChip(false);
+        chipGhost.id = null;             // o segundo toque do dedo no mesmo lugar nao vira outro Boost
       }
-    });
-    on(bchip2El, 'click', function (e) {
-      if (e && e.stopPropagation) e.stopPropagation();
-      var s = game.state, n = bchip.id2 !== null ? game.world.nodes[bchip.id2] : null;
-      if (!n || s.phase !== 'run' || modal()) return;
-      emitUI('nodeTap', { id: n.id });
-      if (runTap(s, n)) {
-        bchip.cool[n.id] = (+s.dayTime || 0) + ((CFG.clear && CFG.clear.seconds) || 6);
-        hideChip2(); bchip.at = -1e9;
-      }
-    });
+    }
+    on(bchipEl, 'click', chipTap);
+    on(bchip2El, 'click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); });
 
     // chip "Pair lights": arma o pareamento a partir do semaforo do chip (o proximo toque noutro semaforo pareia)
     on(pairChipEl, 'click', function (e) {
@@ -2913,7 +3286,8 @@
       });
       emitUI('playConfirmBack', {});
     });
-    function confirmOpen() { return !confirmEl.classList.contains('gone'); }
+    // integracao: a folha da Road crew (v2c) e do mesmo componente: com ela aberta nenhuma faixa entra por cima
+    function confirmOpen() { return !confirmEl.classList.contains('gone') || !!(crewEl && !crewEl.classList.contains('gone')); }
     function playAsk(s) {
       if (!assistGet('playConfirm', easyOn()) || tutorTalking()) return false;
       var L = morningList(s);
@@ -3089,6 +3463,10 @@
         } else if (tr && tr.ok && was) {
           say(STR.swapped(STR.tools[was], STR.tools[sel], costNow, lost, wasFree), 5000);
           showSwapUndo(5000);
+        } else if (tr && tr.ok && sel === 'light' && tr.paired !== undefined && tr.paired !== null) {
+          // v2: o par automatico (game.autoPair) se anuncia uma vez, no lugar; o render desenha a linha do par
+          var pn = game.world.nodes[tr.paired]; addPulse(n.x, n.y); if (pn) addPulse(pn.x, pn.y);
+          say(STR.paired, 2600);
         } else if (tr && tr.ok && sel !== 'yield') {
           // retorno imediato: anel no no e a frase 'Stop placed here.'
           addPulse(n.x, n.y); say(STR.placed(STR.tools[sel] || TL[sel] || sel), 1800);
@@ -3142,6 +3520,8 @@
         return;
       }
       // sem ferramenta
+      // marca de evento de lugar (anel pontilhado com rotulo): o balao diz o que vai acontecer e o que ajuda
+      if (!(pairArm && nowMs() < pairArm.until) && evTap(sx, sy)) return;
       n = render.pickNode(sx, sy);
       var armed = pairArm && nowMs() < pairArm.until ? pairArm : null;
       if (!n) {
@@ -3203,7 +3583,8 @@
     // chip "Pair lights" ao lado do semaforo tocado (como o chip do Boost); fica ate PAIR_MS ou outro toque
     var pchip = { id: null, x: -1, y: -1, side: null, rects: null };
     function showPairChip(n) {
-      if (!otherLight(n.id) || !render) { hidePairChip(); return; }
+      // v2 (CFG.lightsAutoPair): o par e automatico; a pilula 'Pair lights' nao aparece mais
+      if (CFG.lightsAutoPair !== false || !otherLight(n.id) || !render) { hidePairChip(); return; }
       pchip.id = n.id; pchip.side = null; pchip.rects = hudRects();
       pairChipEl.classList.remove('gone'); pairChipEl.classList.remove('armed');
       pairChipTick(true);
@@ -3396,7 +3777,8 @@
     });
     // o que o Undo desfez, por comparacao antes/depois (o game nao guarda o nome da acao)
     function undoSnap() {
-      var w = game.world, o = { e: 0, tools: {}, lanes: {}, ow: {}, die: game.state.die ? game.state.die.id + ':' + game.state.die.value : '', b: game.state.budget | 0 }, k;
+      // dado v2: o Undo nunca mexe no dado, entao o dado sai da comparacao
+      var w = game.world, o = { e: 0, tools: {}, lanes: {}, ow: {}, die: '', b: game.state.budget | 0 }, k;
       for (k in w.edges) if (w.edges.hasOwnProperty(k) && w.edges[k]) { o.e++; o.lanes[k] = w.edges[k].lanes || 1; o.ow[k] = w.edges[k].oneway || 0; }
       for (k in w.nodes) if (w.nodes.hasOwnProperty(k) && w.nodes[k]) o.tools[k] = w.nodes[k].tool || '';
       return o;
@@ -3434,7 +3816,8 @@
       newArmed = 5000; newBtn.classList.add('armed'); snd('select');
       newBtn.setAttribute('aria-label', STR.confirmNew);
     });
-    on(againBtn, 'click', function () { restart(); });
+    on(againBtn, 'click', function () { if (overRetry && retryChapter()) return; restart(); });
+    on(newGameBtn, 'click', function () { restart(); });
     on(tryNormalBtn, 'click', function () {
       var D = CRZ.difficulty;
       markSeen('tryNormal');
@@ -3475,6 +3858,7 @@
       if (modal()) return;
       var c = (game.state.cards || [])[0];
       if (c && STR.cardLine[c]) { say(c === 'freeRoad' ? STR.freeRoadNow : STR.cardLine[c]); snd('select'); }
+      else if (game.state.crew && game.state.crew.active && game.state.crew.active.length) { say(STR.crewHired(Math.max.apply(null, game.state.crew.active)).replace('starting tomorrow, ', '')); snd('select'); }
     });
 
     // ---- dado do dia: folha com hoje, amanha e relancar ----
@@ -3516,7 +3900,8 @@
       } catch (e) {}
     }
     function rerollInfo(s) {
-      var cost = (CFG.dice && CFG.dice.rerollCost) || 1, avail = typeof game.rerollDie === 'function' && typeof game.canReroll === 'function';
+      // dado v2: sem relance (sistemas.md 3.2); o botao nao aparece
+      var cost = (CFG.dice && CFG.dice.rerollCost) || 1, avail = !(CFG.dice && CFG.dice.pools) && typeof game.rerollDie === 'function' && typeof game.canReroll === 'function';
       var reason = '', r;
       if (!avail) return { avail: false, cost: cost, reason: '' };
       if (s.phase !== 'plan') reason = STR.reasonPhase;
@@ -3539,16 +3924,20 @@
     function lastDayOf(s) { return (s.day | 0) >= CFG.maxDays; }
     function refreshSheet(s) {
       if (!sheetOpen || !s.die) return;
-      var ri = rerollInfo(s), hasNext = s.phase === 'plan' && !!s.nextDie && !lastDayOf(s);
-      var key = [s.die.id, s.die.value, s.die.faces, s.nextDie ? s.nextDie.id + ':' + s.nextDie.value : '-', s.phase, s.rerolled ? 1 : 0, s.budget].join('|');
+      // dado v2: amanha nao mostra o dado; a linha de amanha e o evento com o lugar, quando existe
+      var ri = rerollInfo(s), fc = null;
+      try { fc = typeof game.forecast === 'function' && !lastDayOf(s) ? game.forecast() : null; } catch (e) { fc = null; }
+      var hasNext = !!(fc && fc.label), neutral = s.die.v === 2 && s.dieState !== 'used' && s.dieState !== 'auto';
+      var key = [s.die.id, s.die.value, s.die.faces, s.dieState, hasNext ? fc.label : '-', s.phase, s.budget].join('|');
       if (key === sheetKey) return;
       sheetKey = key;
-      todayName.textContent = STR.today + ': ' + dieName(s.die.id);
-      todayIco.innerHTML = eventSvg(s.die.id, s.die.kind, freeGrant(s.die, s.day));
-      tomIco.innerHTML = hasNext ? eventSvg(s.nextDie.id, s.nextDie.kind, freeGrant(s.nextDie, (s.day | 0) + 1)) : '';
-      todayDesc.textContent = describeDie(s.die);
+      todayName.textContent = neutral ? STR.lblPassed : STR.today + ': ' + dieName(s.die.id);
+      todayIco.innerHTML = neutral ? '' : eventSvg(s.die.id, s.die.kind, freeGrant(s.die, s.day));
+      tomIco.innerHTML = '';
+      todayDesc.textContent = neutral ? (s.dieState === 'kept' ? STR.rollKeptNote : STR.rollPassedNote) : describeDie(s.die);
       tomBox.classList.toggle('off', !hasNext);
-      if (hasNext) { tomName.textContent = STR.tomorrow + ': ' + dieName(s.nextDie.id); tomDesc.textContent = describeDie(s.nextDie).replace(/ today\./g, ' tomorrow.'); }
+      if (hasNext) { tomName.textContent = STR.forecast(fc.label); tomDesc.textContent = ''; }
+      tomWhat.classList.add('gone');
       rerollBtn.classList.toggle('gone', !ri.avail);
       // botao proprio e curto no painel do dado: 'Reroll (1)' = custa 1 ponto (o aria diz por extenso)
       // 'Reroll (1)' parecia contagem de relances: o custo escrito
@@ -3579,7 +3968,7 @@
     on(dieEl, 'click', function () {
       if (modal()) return;
       // no plano o dado do topo reabre a tela da rolagem (sem animacao); no dia, a folha de antes
-      if (ROLL_ON && game.state.phase === 'plan' && game.state.die && (game.state.day | 0) >= 2) { if (sheetOpen) closeSheet(); rollOpen(false); return; }
+      if (ROLL_ON && game.state.phase === 'plan' && (game.state.day | 0) >= 2 && (game.state.die || diceInfoOf(game.state).canRoll)) { if (sheetOpen) closeSheet(); rollOpen(!game.state.die); return; }
       if (sheetOpen) closeSheet(); else openSheet();
     });
     on(sheetClose, 'click', function () { closeSheet(); });
@@ -3618,17 +4007,24 @@
     var rollStage = el('div', 'crz-rollstage'), rollShadow = el('div', 'crz-rollshadow'), rollSq = el('div', 'crz-rollsq');
     var rollDie = el('div', 'crz-rolldie'), rollTapEl = el('div', 'crz-rolltap gone'), rollFx = el('div', 'crz-rollfx'), rollTutEl = el('div', 'crz-rolltut gone');
     var rollTom = el('div', 'crz-rolltom'), rollNote = el('div', 'crz-rollnote');
+    // dado v2: os dois lados da oferta (verde e vermelho), Pass e Use no lugar de Reroll e Continue, Keep pequeno embaixo,
+    // e no 'Tap to roll' o botao da face guardada (no lugar de rolar)
+    var rollSides = el('div', 'crz-rollsides'), rollSideA = el('div', 'crz-rollside'), rollSideB = el('div', 'crz-rollside');
+    rollSides.appendChild(rollSideA); rollSides.appendChild(rollSideB);
     var rollRow = el('div', 'crz-rollrow');
-    var rollReroll = tut(el('button', 'crz-rollreroll'), 'roll-reroll'), rollGo = tut(el('button', 'crz-rollgo'), 'roll-continue');
-    rollGo.textContent = STR.rollContinue;
+    var rollPass = tut(el('button', 'crz-rollpass gone'), 'roll-pass'), rollGo = tut(el('button', 'crz-rollgo'), 'roll-continue');
+    var rollKeep = tut(el('button', 'crz-rollkeep gone'), 'roll-keep'), rollKept = tut(el('button', 'crz-rollkept gone'), 'roll-kept');
+    rollGo.textContent = STR.rollContinue; rollPass.textContent = STR.rollPass; rollKeep.textContent = STR.rollKeep;
+    rollPass.setAttribute('aria-label', STR.rollPassAria);
     var rollLive = el('div', 'crz-sr'); rollLive.setAttribute('aria-live', 'polite');
-    rollRow.appendChild(rollReroll); rollRow.appendChild(rollGo);
+    rollRow.appendChild(rollPass); rollRow.appendChild(rollGo);
     rollDie.setAttribute('role', 'button'); rollDie.setAttribute('tabindex', '0'); rollDie.setAttribute('aria-label', STR.rollAria);
     rollTapEl.textContent = STR.rollTap;
     rollDie.appendChild(rollSq); rollStage.appendChild(rollShadow); rollStage.appendChild(rollDie);
     rollBox.appendChild(rollBg);
-    rollBox.appendChild(rollStage); rollBox.appendChild(rollTapEl); rollBox.appendChild(rollFx); rollBox.appendChild(rollTutEl); rollBox.appendChild(rollTom);
-    rollBox.appendChild(rollRow); rollBox.appendChild(rollNote); rollBox.appendChild(rollLive);
+    rollBox.appendChild(rollStage); rollBox.appendChild(rollTapEl); rollBox.appendChild(rollKept); rollBox.appendChild(rollFx); rollBox.appendChild(rollSides);
+    rollBox.appendChild(rollTutEl); rollBox.appendChild(rollTom);
+    rollBox.appendChild(rollRow); rollBox.appendChild(rollKeep); rollBox.appendChild(rollNote); rollBox.appendChild(rollLive);
     rollEl.appendChild(rollBox); ui.appendChild(rollEl);
     // dono 2026-11-10: quem rola e a jogadora. 'ready' = dado parado, 'Tap to roll'; o resultado ja veio do jogo
     // estagios: ready -> anim (rola no meio) -> land (parado, neutro) -> grow (abre) -> result; reroll: shrink -> anim
@@ -3640,6 +4036,7 @@
     function rollSeen(d) { return !!hints[rollKey(d)]; }
     function rollMark(d) { hints[rollKey(d)] = 1; lsSet(HINT_KEY, JSON.stringify(hints)); }
     function rollFxText(die) {
+      if (die && die.v === 2 && (die.offer || die.id === 'lucky')) return dieName(die.id);   // dado v2: o nome da face (os lados vem embaixo)
       if (!die || die.id === 'plain' || !(STR.rollFx[die.id])) return STR.rollNormal;
       // invisivel 1 (D1): a face 'Free build' do d20 da semaforo gratis quando ele ja existe (game.dieGrant):
       // a frase le o que o jogo deixou gratis de verdade
@@ -3658,6 +4055,8 @@
     // neutral: o giro pinta com o contorno de tinta (o mesmo do '?'); a cor do tom so quando o efeito aparece
     function rollPaint(s, value, neutral) {
       var D = s.die; if (!D) return;
+      // passou ou guardou: o dado fica neutro (o tom e de face que vale hoje)
+      if (s.dieState === 'passed' || s.dieState === 'kept') neutral = true;
       rollSq.innerHTML = bigDieSvg(value, D.faces, neutral ? 'plain' : D.kind);
     }
     // numero aleatorio do giro: nunca repete o anterior (troca visivel a cada passo)
@@ -3665,6 +4064,9 @@
       var n = (s.die && s.die.faces) || 6, v = 1 + Math.floor(Math.random() * (n - 1));
       if (v >= roll.shown) v++;
       if (v > n) v = 1;
+      // a ultima troca nunca cai no numero final: a parada e sempre uma troca visivel
+      var fin = s.die ? s.die.value : 0;
+      if (roll.spinI >= ROLL_SPIN.length && v === fin) { v = v % n + 1; if (v === roll.shown) v = v % n + 1; }
       roll.shown = v; rollPaint(s, v, true);
     }
     // FLIP: caixas medidas antes e depois da troca de layout; so transform anima (Web Animations, no compositor)
@@ -3688,39 +4090,82 @@
       (add || []).forEach(function (c) { rollEl.classList.add(c); });
     }
     var ROLL_STATE_CLS = ['crz-rollc', 'crz-rollready', 'crz-rolling', 'crz-rolled', 'crz-rollmove', 'crz-rollfxhid', 'crz-rollresthid'];
+    // dado v2: a linha de ensino da manha (uma por vez, cada uma uma vez por aparelho: hints 'dice:*')
+    function rollHint(s) {
+      if (s.dieState !== 'offer' || !s.die) return '';
+      var di = diceInfoOf(s);
+      if (!seen('dice:offer')) return 'dice:offer';
+      if ((di.tier === 'ch2' || di.tier === 'ch3') && !seen('dice:cost')) return 'dice:cost';
+      if (di.canKeep && !seen('dice:keep')) return 'dice:keep';
+      return '';
+    }
+    var HINT_TEXT = { 'dice:offer': 'hintOffer', 'dice:cost': 'hintCost', 'dice:keep': 'hintKeep' };
+    function diceInfoOf(s) {
+      var di = null;
+      try { di = typeof game.diceInfo === 'function' ? game.diceInfo() : null; } catch (e) { di = null; }
+      return di || { tier: '', canKeep: false, canPlayKept: false, kept: null, debtPaid: 0 };
+    }
+    // a linha pequena acima dos botoes: ensino, depois o Loan de ontem, depois o evento de amanha com o lugar
+    // (sistemas.md 3.2: a previsao nunca mostra o dado)
+    function rollTomText(s) {
+      var h = rollHint(s);
+      if (h) return STR[HINT_TEXT[h]];
+      var di = diceInfoOf(s);
+      if (di.debtPaid > 0) return STR.loanPaid(di.debtPaid);
+      var fc = null;
+      try { fc = typeof game.forecast === 'function' ? game.forecast() : null; } catch (e) { fc = null; }
+      return fc && fc.label && !lastDayOf(s) ? STR.forecast(fc.label) : '';
+    }
     function rollFill(s) {
       var D = s.die; if (!D) return '';
-      var tone = kindTone(D.kind), fx = rollFxText(D);
+      var offer = s.dieState === 'offer', v2 = D.v === 2 && (D.offer || D.id === 'lucky');
+      var tone = v2 ? 'ink' : kindTone(D.kind), fx = rollFxText(D);
       rollFx.textContent = fx; rollFx.className = 'crz-rollfx tone-' + tone;
-      var hasNext = !!s.nextDie && !lastDayOf(s);
-      rollTom.textContent = hasNext ? STR.lblTomorrow(s.nextDie.id) : '';
-      var ri = rerollInfo(s);
-      rollReroll.classList.toggle('gone', !ri.avail);
-      rollReroll.textContent = STR.rerollLbl(ri.cost, rerollLoses(s));
-      rollReroll.setAttribute('aria-label', STR.rerollAria(ri.cost, rerollLoses(s)));
-      rollReroll.classList.toggle('off', !!ri.reason);
-      rollReroll.setAttribute('aria-disabled', ri.reason ? 'true' : 'false');
-      var badHint = ri.avail && !ri.reason && D.kind === 'bad';
-      rollNote.textContent = ri.avail && ri.reason ? (rushShort(s, ri) || ri.reason) : (badHint ? STR.rollBad(ri.cost) : '');
+      var sd = v2 ? dieSides(D) : [];
+      rollSideA.textContent = sd[0] ? sd[0].text : ''; rollSideA.className = 'crz-rollside' + (sd[0] ? ' tone-' + sd[0].tone : '');
+      rollSideB.textContent = sd[1] ? sd[1].text : ''; rollSideB.className = 'crz-rollside' + (sd[1] ? ' tone-' + sd[1].tone : '');
+      rollSides.classList.toggle('gone', !sd.length);
+      roll.hint = rollHint(s);
+      rollTom.textContent = rollTomText(s);
+      rollTom.classList.toggle('crz-rollhint', !!roll.hint);
+      // botoes: oferta = Pass e Use (e Keep do dia 15); o resto = Continue
+      var name = dieName(D.id), di = diceInfoOf(s);
+      rollPass.classList.toggle('gone', !offer);
+      rollKeep.classList.toggle('gone', !(offer && di.canKeep));
+      rollKeep.setAttribute('aria-label', STR.rollKeepAria(name));
+      rollGo.textContent = offer ? STR.rollUse : STR.rollContinue;
+      if (offer) rollGo.setAttribute('aria-label', STR.rollUseAria(name)); else if (rollGo.removeAttribute) rollGo.removeAttribute('aria-label');
+      rollGo.classList.toggle('crz-rolluse', offer);
+      var after = { used: s.dieFromKept ? '' : STR.rollUsedNote, passed: STR.rollPassedNote, kept: STR.rollKeptNote }[s.dieState];
+      rollNote.textContent = (!offer && v2 && after) ? after : '';
       rollTutEl.classList.add('gone');   // a linha do tutorial ('Tap the dice') sai depois de rolar
       return fx;
     }
     function rollResultPaint(s) {
       var D = s.die; if (!D) return;
-      var tone = kindTone(D.kind), ri = rerollInfo(s);
+      var tone = kindTone(D.kind);
       rollPaint(s, D.value);
       var fx = rollFill(s);
-      if (ri.avail && !ri.reason && D.kind === 'bad') emitUI('rerollHint', {});
-      var fxs = fx.replace(/^Today: /, '').replace(/^Normal day: no change$/, 'Normal day');
-      rollLive.textContent = STR.rollLive(D.value, fxs.charAt(0).toUpperCase() + fxs.slice(1));
+      if (s.dieState === 'offer') {
+        var sd = dieSides(D);
+        rollLive.textContent = STR.rollOfferLive(dieName(D.id), sd[0] ? sd[0].text : '', sd[1] ? sd[1].text : '');
+      } else {
+        var fxs = fx.replace(/^Today: /, '').replace(/^Normal day: no change$/, 'Normal day');
+        rollLive.textContent = STR.rollLive(D.value, fxs.charAt(0).toUpperCase() + fxs.slice(1));
+      }
       roll.normal = D.id === 'plain' || tone === 'ink';
     }
+    // a manha tem escolha pendente: o toque no fundo nao escolhe nem fecha
+    function rollChoosing() { return game.state.dieState === 'offer'; }
     function rollAnyModal() {
       var menuAny = false; try { menuAny = !!(CRZ.app && CRZ.app.menu && CRZ.app.menu.isOpenAny && CRZ.app.menu.isOpenAny()); } catch (e) { warnOnce('menu.isOpenAny', e); }
       return menuAny || !!guideEl || confirmOpen() || sheetOpen;
     }
     function rollOpen(animate) {
-      var s = game.state; if (!s.die || roll.open) return;
+      var s = game.state; if (roll.open) return;
+      // dado v2: nada rolado = 'Tap to roll'; rolado = resultado (a oferta pendente reabre com os botoes)
+      if (!s.die) { if (!animate || !diceInfoOf(s).canRoll) return; }
+      else animate = false;
       roll.open = true; ffOff();
       roll.mine = true; modalReg().set(doc.body, 'roll', true);
       if (rollShutT) { try { root.clearTimeout(rollShutT); } catch (e) {} rollShutT = 0; }
@@ -3739,26 +4184,28 @@
       roll.stage = 'ready'; roll.readyAt = nowMs(); roll.autoAt = 0;
       rollCls(['crz-rollc', 'crz-rollready'], ROLL_STATE_CLS);
       rollDie.classList.remove('crz-rollwiggle'); rollStage.classList.remove('crz-rollin'); rollStage.classList.remove('crz-rollpop');
-      rollSq.innerHTML = bigDieSvg((s.die && s.die.faces > 6) ? '?' : 5, (s.die && s.die.faces) || 6, 'plain');
+      rollSq.innerHTML = bigDieSvg(5, 6, 'plain');
       rollTapEl.classList.remove('gone');
       rollFx.textContent = ''; rollTom.textContent = ''; rollNote.textContent = '';
-      // nv10 2: primeiro dia do dado de 20 faces: a frase vem ANTES de rolar
-      var big = !!(s.die && s.die.faces > 6) && !seen('bigDie');
-      if (big) { rollFx.textContent = STR.rollBig(s.die.faces); rollFx.className = 'crz-rollfx tone-ink'; emitUI('bigDieSaid', {}); }
+      rollSideA.textContent = rollSideB.textContent = ''; rollSides.classList.add('gone');
+      rollPass.classList.add('gone'); rollKeep.classList.add('gone');
+      // dado v2: face guardada (Keep) pode ser usada no lugar de rolar; botao pequeno sob 'Tap to roll'
+      var di = diceInfoOf(s);
+      rollKept.classList.toggle('gone', !di.canPlayKept);
+      if (di.canPlayKept) rollKept.textContent = STR.rollKeptBtn(dieName(di.kept.id));
       rollGo.setAttribute('tabindex', '-1');
-      rollLive.textContent = big ? STR.rollBig(s.die.faces) + ' ' + STR.rollTap : STR.rollTap;
+      rollLive.textContent = STR.rollTap;
       try { if (rollDie.focus) rollDie.focus(); } catch (e) {}
     }
     function rollAnim() {
       var s = game.state, now = nowMs();
       // rolou: este dia nao volta para 'Tap to roll' ao recarregar
       markSeen('rollAny'); rollMark(s.day | 0);
-      if (s.die && s.die.faces > 6 && !seen('bigDie')) markSeen('bigDie');
       if (reducedMotion()) { rollResultNow(true); return; }
       rollFlipCancel();
       var d0 = rollRect(rollStage);   // onde o dado estava (no 'Tap to roll' ele fica acima do meio, com o texto embaixo)
       rollCls(['crz-rollc', 'crz-rolling'], ROLL_STATE_CLS);
-      rollTapEl.classList.add('gone'); rollTutEl.classList.add('gone'); rollDie.classList.remove('crz-rollwiggle');
+      rollTapEl.classList.add('gone'); rollTutEl.classList.add('gone'); rollKept.classList.add('gone'); rollDie.classList.remove('crz-rollwiggle');
       roll.stage = 'anim'; roll.t0 = now; roll.spinI = 0; roll.imp = 0; roll.shown = 0; roll.autoAt = 0;
       rollFx.textContent = ''; rollTom.textContent = ''; rollNote.textContent = '';
       rollGo.setAttribute('tabindex', '-1');
@@ -3802,12 +4249,13 @@
       rollGo.removeAttribute('tabindex');
       try { if (rollGo.focus) rollGo.focus(); } catch (e) {}
       roll.autoAt = 0;   // a jogadora rolou: o resultado espera o Continue (ou um toque), tambem no dia normal
+      emitUI('rollResult', { offer: rollChoosing(), id: game.state.die ? game.state.die.id : '' });
     }
     // resultado de uma vez (toque que pula, Escape, movimento reduzido, reabrir pelo dado do topo)
     function rollResultNow(sound) {
       rollFlipCancel();
       rollCls(['crz-rolled'], ROLL_STATE_CLS);
-      rollTapEl.classList.add('gone');
+      rollTapEl.classList.add('gone'); rollKept.classList.add('gone');
       rollStage.classList.remove('crz-rollin'); rollStage.classList.remove('crz-rollpop');
       rollResultPaint(game.state);
       roll.fxOn = roll.restOn = true;
@@ -3865,36 +4313,62 @@
         }
         return;
       }
-      if (!ROLL_ON || s.phase !== 'plan' || !s.die || (s.day | 0) < 2 || rollSeen(s.day | 0)) return;
+      // dado v2: abre sozinho enquanto a manha tem algo a fazer (rolar, ou escolher uma oferta)
+      if (!ROLL_ON || s.phase !== 'plan' || (s.day | 0) < 2 || (s.dieState !== 'none' && s.dieState !== 'offer')) return;
+      if (s.dieState === 'none' && !diceInfoOf(s).canRoll) return;
       if (bootFrames >= 0 || holdUntil || rollAnyModal() || modal()) return;
-      rollOpen(true);
+      rollOpen(s.dieState === 'none');
     }
     function rollMoving() { return roll.stage === 'anim' || roll.stage === 'land' || roll.stage === 'grow' || roll.stage === 'shrink'; }
     // toque em qualquer lugar: rolando, pula para o resultado; no resultado continua (fora o Reroll), passada a guarda
+    // o toque que rola: o jogo sorteia a face agora (semente + dia) e o dado anima ate ela
+    function rollTap() {
+      var s = game.state;
+      if (!s.die) { var r = null; try { r = game.rollDie(); } catch (x) { r = null; } if (!r || !r.ok || !game.state.die) return; }
+      rollAnim();
+    }
     on(rollEl, 'click', function (e) {
       if (!roll.open) return;
-      if (e && e.target && (e.target === rollReroll)) return;
-      if (roll.stage === 'ready') { rollAnim(); return; }
+      if (e && e.target && (e.target === rollPass || e.target === rollKeep || e.target === rollKept)) return;
+      if (roll.stage === 'ready') { rollTap(); return; }
       if (rollMoving()) { rollResultNow(roll.stage === 'anim' || roll.stage === 'shrink'); return; }
+      // manha com escolha: toque perdido nao escolhe nem fecha (so os botoes)
+      if (rollChoosing()) return;
       // o toque que rolou (ou um toque duplo) nao fecha o resultado sem ser visto
       if (nowMs() - roll.resAt < ROLL_GUARD_MS) return;
       rollClose();
     });
-    on(rollGo, 'click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); rollClose(); });
-    on(rollReroll, 'click', function (e) {
+    // escolha da oferta: marca a linha de ensino vista, toca o som e fecha; o topo passa a mostrar a escolha
+    function rollChoose(fn, sound, kind) {
+      if (roll.stage !== 'result' || !rollChoosing()) return false;
+      var r = null; try { r = fn(); } catch (x) { r = null; }
+      if (!r || !r.ok) { snd('deny'); return false; }
+      if (roll.hint) markSeen(roll.hint);
+      snd(sound); emitUI('dieChoice', { choice: kind, id: game.state.die ? game.state.die.id : '' });
+      rollClose();
+      return true;
+    }
+    on(rollGo, 'click', function (e) {
       if (e && e.stopPropagation) e.stopPropagation();
-      if (roll.stage !== 'result') return;
-      var s = game.state, ri = rerollInfo(s);
-      if (rollReroll.classList.contains('off') || !ri.avail) { snd('deny'); shake(rollReroll); emitUI('dieReroll', { ok: false }); return; }
-      var r = game.rerollDie(), okR = !!(r && r.ok);
-      emitUI('dieReroll', { ok: okR });
-      if (!okR) { snd('deny'); shake(rollReroll); return; }
-      rollShrink();
+      if (rollChoosing()) { rollChoose(function () { return game.useDie(); }, 'place', 'use'); return; }
+      rollClose();
+    });
+    on(rollPass, 'click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); rollChoose(function () { return game.passDie(); }, 'select', 'pass'); });
+    on(rollKeep, 'click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); rollChoose(function () { return game.keepDie(); }, 'select', 'keep'); });
+    // a face guardada no lugar de rolar: vale na hora; o cartao mostra a face aberta com Continue
+    on(rollKept, 'click', function (e) {
+      if (e && e.stopPropagation) e.stopPropagation();
+      if (roll.stage !== 'ready') return;
+      var r = null; try { r = game.playKept(); } catch (x) { r = null; }
+      if (!r || !r.ok) { snd('deny'); return; }
+      markSeen('rollAny'); rollMark(game.state.day | 0);
+      emitUI('dieChoice', { choice: 'kept', id: game.state.die ? game.state.die.id : '' });
+      rollResultNow(true);
     });
     on(doc, 'keydown', function (e) {
       if (!e || !roll.open) return;
-      if (roll.stage === 'ready' && (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape')) { pd(e); rollAnim(); return; }
-      if (e.key === 'Escape') { if (rollMoving()) rollResultNow(roll.stage === 'anim' || roll.stage === 'shrink'); else rollClose(); }
+      if (roll.stage === 'ready' && (e.key === 'Enter' || e.key === ' ' || e.key === 'Escape')) { pd(e); rollTap(); return; }
+      if (e.key === 'Escape') { if (rollMoving()) rollResultNow(roll.stage === 'anim' || roll.stage === 'shrink'); else if (!rollChoosing()) rollClose(); }
     });
     on(panel, 'scroll', syncMore);
     on(skipBtn, 'click', function () {
@@ -3936,6 +4410,16 @@
         if (sayEl.textContent === STR.pickAgain) { sayUntil = 0; sayEl.classList.remove('show'); sayEl.textContent = ''; }
       }
       if (sumArm && now >= sumArmUntil) disarmSum();
+    }
+    // v2 (D9): volta a manha do primeiro dia do capitulo (game.retrySave). main.js grava e recarrega; sem main.js
+    // (testes), grava aqui. false = nada a voltar
+    function retryChapter() {
+      if (CRZ.app && CRZ.app.retry) return CRZ.app.retry() !== false;
+      var d = game.retrySave ? game.retrySave() : null;
+      if (!d) return false;
+      leaving = true; lsSet(SAVE_KEY, JSON.stringify(d)); lsDel(PLAN_KEY); lsDel(RUN_KEY);
+      try { root.location.reload(); } catch (e) {}
+      return true;
     }
     function restart() {
       if (CRZ.app && CRZ.app.restart) { CRZ.app.restart(); return; }
@@ -4045,7 +4529,10 @@
         // nv10 1: a gratuidade que veio do dado so aparece depois de a jogadora rolar
         if (c === 0 && (t.id === 'road' || t.id === 'light') && dieFreeHidden(s)) c = CFG.tools[t.id].cost;
         // a rua ganha o nome ('Road') ao lado do custo: so o icone nao dizia o que era
-        if (c !== tl.c) { tl.c = c; tl.cost.innerHTML = (t.id === 'road' && c > 0 ? '<span class="crz-tname">' + STR.roadTile + '</span>' : '') + toneCost(c); }   // final check 6: 'Road free' estourava o ladrilho; gratis mostra so 'free'
+        // v2m: o ladrilho do semaforo diz quantos a cidade liga ('1 of 2', a mesma etiqueta do 'Road')
+        var ck = t.id === 'light' && t.cap != null && isFinite(t.cap) ? c + '|' + t.used + '|' + t.cap : c;
+        if (ck !== tl.c) { tl.c = ck; tl.cost.innerHTML = (t.id === 'road' && c > 0 ? '<span class="crz-tname">' + STR.roadTile + '</span>' : '') +
+          (ck !== c ? '<span class="crz-tname">' + STR.capTile(t.used, t.cap) + '</span>' : '') + toneCost(c); }   // final check 6: 'Road free' estourava o ladrilho; gratis mostra so 'free'
         var poor = !t.afford;
         if (poor !== tl.poor) { tl.poor = poor; tl.el.classList.toggle('poor', poor); }
         // rua gratis do dia ainda nao usada: o ladrilho Road pulsa (o 'free' ja aparece no custo)
@@ -4066,40 +4553,49 @@
     var rollMs = 0, rollTick = 0;
     // nv10 1 (2026-11-15): enquanto o dado de hoje nao foi rolado, o topo nao entrega o resultado: face neutra '?',
     // sem 'Today', sem icone do efeito; pontos sem o bonus do dado; amanha some. O estado do jogo nao muda
+    // dado v2: pendente = ainda nao rolou, ou o cartao esta rolando (a face ja saiu do jogo mas nao apareceu)
     function rollPending(s) {
-      if (!ROLL_ON || !s || s.phase !== 'plan' || !s.die || (s.day | 0) < 2) return false;
-      return !rollSeen(s.day | 0) || (roll.open && roll.stage !== 'result');
+      if (!ROLL_ON || !s || s.phase !== 'plan' || (s.day | 0) < 2) return false;
+      if (s.dieState === 'none') return !!diceInfoOf(s).canRoll;
+      return roll.open && roll.stage !== 'result';
     }
+    // o efeito da face ja esta no orcamento (sem escolha, ou usada)
+    function dieLive(s) { return !!s.die && (s.dieState === 'auto' || s.dieState === 'used'); }
     function cardGives(s, id) { return (s.cards || []).indexOf(id) >= 0; }
     function dieFreeHidden(s) {
       var fx = s && s.die && s.die.effect;
-      return !!(fx && fx.free) && rollPending(s) && !cardGives(s, 'freeRoad') && !cardGives(s, 'freeLight');
+      return !!(fx && fx.free) && dieLive(s) && rollPending(s) && !cardGives(s, 'freeRoad') && !cardGives(s, 'freeLight');
     }
     function shownBudget(s) {
       var b = s.budget | 0;
-      if (!rollPending(s)) return b;
+      if (!rollPending(s) || !dieLive(s)) return b;
       var fx = s.die && s.die.effect;
       return Math.max(0, b - ((fx && fx.budget) | 0));
     }
     function drawDie(die, value, hide) {
-      if (hide) {
+      if (hide || !die) {
         diePips.innerHTML = dieSvg('?', 20, 'plain'); dieEv.innerHTML = ''; dieLbl.textContent = STR.lblDie;
         if (diePips.firstChild && diePips.firstChild.setAttribute) diePips.firstChild.setAttribute('class', 'pips');
         return;
       }
-      diePips.innerHTML = dieSvg(value, die.faces, die.kind);
-      dieEv.innerHTML = eventSvg(die.id, die.kind, freeGrant(die, game.state && game.state.day));
-      dieLbl.textContent = STR.lblToday(die.id, die.kind, die.value);
+      // dado v2: oferta passada ou guardada = dado neutro, sem icone (dia normal); usada = a face no tom dela
+      var ds = game.state && game.state.dieState, neutral = die.v === 2 && (ds === 'passed' || ds === 'kept' || ds === 'offer');
+      diePips.innerHTML = dieSvg(value, die.faces, neutral ? 'plain' : die.kind);
+      dieEv.innerHTML = neutral ? '' : eventSvg(die.id, die.kind, freeGrant(die, game.state && game.state.day));
+      dieLbl.textContent = neutral ? STR.lblPassed : STR.lblToday(die.id, die.kind, die.value);
       if (diePips.firstChild && diePips.firstChild.setAttribute) diePips.firstChild.setAttribute('class', 'pips');
       if (dieEv.firstChild && dieEv.firstChild.setAttribute) dieEv.firstChild.setAttribute('class', 'ev');
     }
     function syncTop(s) {
       var i;
       if (cache.day !== s.day || cache.phase !== s.phase) {
+        var base = (Math.max(1, Math.ceil((s.day | 0) / CH_LEN)) - 1) * CH_LEN;   // dia antes do primeiro do capitulo
         for (i = 0; i < dotEls.length; i++) {
-          var past = i + 1 < s.day;   // passados cheios, o dia atual com anel (tambem no resumo e na derrota), futuros vazios
-          var now = i + 1 === s.day;
-          dotEls[i].className = 'crz-dot' + (past ? ' past' : (now ? ' now' : ''));
+          var di = base + i + 1;
+          var past = di < s.day;   // passados cheios, o dia atual com anel (tambem no resumo e na derrota), futuros vazios
+          var now = di === s.day;
+          dotEls[i].className = 'crz-dot' + (past ? ' past' : (now ? ' now' : '')) + (di > CFG.maxDays ? ' gone' : '');
+          dotEls[i].setAttribute('aria-label', 'Day ' + di);
           if (now) dayLbl.textContent = STR.lblDay(s.day | 0, CFG.maxDays);
           if (now) dotEls[i].setAttribute('aria-current', 'step'); else if (dotEls[i].removeAttribute) dotEls[i].removeAttribute('aria-current');
           if (now && lastDayOf(s) && dotsEl.setAttribute) dotsEl.setAttribute('aria-label', STR.lastDay(s.day | 0, CFG.maxDays));
@@ -4114,27 +4610,32 @@
         else { dieEl.setAttribute('data-tut', 'die'); if (wasHidden) pulseEl(dieEl); }
       }
       // dado: compara campos primitivos (antes montava uma string por quadro)
-      var D = s.die, dc = cache.dieF, rpend = rollPending(s);
-      if (D ? (!dc || dc.faces !== D.faces || dc.value !== D.value || dc.id !== D.id || dc.kind !== (D.kind || '') || dc.pend !== rpend) : dc !== null) {
-        var had = !!dc;
-        cache.dieF = D ? { faces: D.faces, value: D.value, id: D.id, kind: D.kind || '', pend: rpend } : null;
-        if (s.die) {
-          drawDie(s.die, s.die.value, rpend);
+      // dado v2: antes de rolar o topo mostra '?' (nunca a face); depois a face usada no tom, ou neutro se passou
+      var D = s.die, dc = cache.dieF, rpend = rollPending(s), dst = s.dieState || '';
+      var showD = !!D || rpend;
+      if (showD ? (!dc || !D !== !dc.id || (D && (dc.faces !== D.faces || dc.value !== D.value || dc.id !== D.id || dc.kind !== (D.kind || ''))) || dc.pend !== rpend || dc.st !== dst) : dc !== null) {
+        var had = !!(dc && dc.id);
+        cache.dieF = showD ? { faces: D ? D.faces : 0, value: D ? D.value : 0, id: D ? D.id : '', kind: D ? (D.kind || '') : '', pend: rpend, st: dst } : null;
+        if (showD) {
+          var neu = !D || rpend || (D.v === 2 && (dst === 'passed' || dst === 'kept' || dst === 'offer'));
+          drawDie(D, D ? D.value : 0, rpend);
           dieEl.classList.remove('off');
-          dieEl.setAttribute('data-kind', rpend ? 'plain' : (s.die.kind || 'plain'));
-          dieEl.setAttribute('aria-label', rpend ? STR.dieLabel + ': ' + STR.dieNotRolled : STR.dieLabel + ': ' + dieName(s.die.id));
-          if (had && !reducedMotion()) { rollMs = 400; rollTick = 0; dieEl.classList.add('rolling'); }
+          dieEl.setAttribute('data-kind', neu ? 'plain' : (D.kind || 'plain'));
+          dieEl.setAttribute('aria-label', rpend || !D ? STR.dieLabel + ': ' + STR.dieNotRolled : STR.dieLabel + ': ' + (neu ? STR.lblPassed : dieName(D.id)));
+          if (had && D && !rpend && !reducedMotion()) { rollMs = 400; rollTick = 0; dieEl.classList.add('rolling'); }
           else { rollMs = 0; dieEl.classList.remove('rolling'); }
         } else { dieEl.classList.add('off'); rollMs = 0; }
       }
       // previsao: so no planejamento e quando o game informa o dia seguinte (some no dia 12)
-      var N = (s.phase === 'plan' && s.nextDie && !dieHide && !lastDayOf(s) && !rpend) ? s.nextDie : null, nc = cache.nextF;
-      if (N ? (!nc || nc.faces !== N.faces || nc.value !== N.value || nc.kind !== (N.kind || '') || nc.id !== N.id) : nc !== null) {
-        cache.nextF = N ? { faces: N.faces, value: N.value, kind: N.kind || '', id: N.id } : null;
+      // dado v2: a previsao do dado saiu (sistemas.md 3.2). O lugar dela ao lado do dado e o bolso do Keep: um dado
+      // pequeno tracejado com o numero da face guardada, e o rotulo 'Kept: <face>'
+      var N = (s.kept && !dieHide) ? s.kept : null, nc = cache.nextF;
+      if (N ? (!nc || nc.value !== N.value || nc.id !== N.id) : nc !== null) {
+        cache.nextF = N ? { value: N.value, id: N.id } : null;
         if (N) {
-          // amanha: o icone do efeito (o numero tirado, '13' no d20, parecia o efeito) e o efeito em palavras
-          dieNext.innerHTML = eventSvg(s.nextDie.id, s.nextDie.kind, freeGrant(s.nextDie, (s.day | 0) + 1));
-          nextLbl.textContent = STR.lblTomorrow(s.nextDie.id);
+          dieNext.innerHTML = miniDieSvg(N.value, 'plain');
+          nextLbl.textContent = STR.lblKept(dieName(N.id));
+          dieNext.setAttribute('aria-label', STR.lblKept(dieName(N.id)));
           if (dieNext.firstChild && dieNext.firstChild.setAttribute) dieNext.firstChild.setAttribute('class', 'nxt');
           dieNext.classList.remove('off');
         } else dieNext.classList.add('off');
@@ -4207,11 +4708,15 @@
       if (cid && !STR.cards[cid]) cid = '';
       // obra gratis ja usada (state.free.* = false): o chip "Free road/light today" some
       if ((cid === 'freeRoad' && s.free && !s.free.road) || (cid === 'freeLight' && s.free && !s.free.light)) cid = '';
-      if (cid !== chipKey) {
-        chipKey = cid;
-        chipEl.innerHTML = cid ? cardIcon(cid) + '<span>' + STR.cardToday(STR.cards[cid]) + '</span>' : '';
-        chipEl.setAttribute('aria-label', cid ? STR.cardToday(STR.cards[cid]) + '. ' + STR.cardLine[cid] : '');
-        chipEl.classList.toggle('gone', !cid);
+      // v2: sem carta ativa, o mesmo chip mostra as equipes da Road crew (quantas e quantos dias faltam)
+      var crA = !cid && (s.phase === 'plan' || s.phase === 'run') && s.crew && s.crew.active && s.crew.active.length ? s.crew.active : null;
+      var crKey = crA ? 'crew:' + crA.join(',') : cid;
+      if (crKey !== chipKey) {
+        chipKey = crKey;
+        var crTxt = crA ? STR.crewChip(crA.length, Math.max.apply(null, crA)) : '';
+        chipEl.innerHTML = cid ? cardIcon(cid) + '<span>' + STR.cardToday(STR.cards[cid]) + '</span>' : (crA ? toolIcon('road') + '<span>' + crTxt + '</span>' : '');
+        chipEl.setAttribute('aria-label', cid ? STR.cardToday(STR.cards[cid]) + '. ' + STR.cardLine[cid] : crTxt);
+        chipEl.classList.toggle('gone', !cid && !crA);
         layoutDirty = true;
       }
       // orcamento
@@ -4249,6 +4754,9 @@
       var hl = sm.headline || '';
       headEl.textContent = hl; headEl.classList.toggle('gone', !hl);
       countTo(bigEl, 0, sm.delivered | 0);
+      // v2x (playtest cego 5: o '+N score' do Delivery bonus nunca aparecia somado): com bonus, a legenda dos carros
+      // traz o placar do dia, ja com o bonus dentro (summary.score: o mesmo numero que a partida soma)
+      capEl.textContent = bonusScoreOf(sm) > 0 && typeof sm.score === 'number' ? STR.carsScore(sm.score | 0) : STR.cars;
       // ontem: state.history ja inclui hoje; compara com a entrada anterior
       var hs = s.history || [], prevD = null;
       if (hs.length) {
@@ -4264,12 +4772,14 @@
       prevEl.classList.toggle('up', !struck && prevD !== null && (sm.delivered | 0) > prevD);
       prevEl.classList.toggle('down', !struck && prevD !== null && (sm.delivered | 0) < prevD);
       fbkSummary(s);
-      // "Worst queue": o pico de estresse do dia (o anel mais cheio), nao a espera media
-      var ratio = clamp(+sm.peak || 0, 0, 1);
+      // v2x: 'Closest to a jam' (playtest cego 5: barra 100% vermelha em 5 dias e nenhum strike). O anel cheio leva a
+      // barra a JAM_RING_BAR; o resto so enche com o relogio da trava (summary.lockNear). Cheia = travou hoje
+      var ratio = jamBar(sm);
       waitFill.style.width = Math.round(ratio * 100) + '%';
-      waitFill.className = ratio >= RING_SEEN ? 'warn' : '';
+      var pk0 = clamp(+sm.peak || 0, 0, 1);
+      waitFill.className = pk0 >= RING_SEEN ? 'warn' : '';
       // tela baixa (<= 700 px, CSS): fila calma (pico < 0,3) nao ocupa linha
-      queueRow.classList.toggle('crz-lowq', ratio < 0.3); queueInfo.classList.toggle('crz-lowq', ratio < 0.3);
+      queueRow.classList.toggle('crz-lowq', pk0 < 0.3); queueInfo.classList.toggle('crz-lowq', pk0 < 0.3);
       for (i = 0; i < sStrikeEls.length; i++) sStrikeEls[i].classList.toggle('on', i < s.strikes);
       var bTxt = '', pp = (s.speedDial && s.speedDial.perPoint) || (CFG.speedDial && CFG.speedDial.tipsPerPoint) || 0;
       // barra do bonus: cheia quando rendeu ponto; senao o resto acumulado de 0 a perPoint (bate com "N of 30")
@@ -4277,7 +4787,8 @@
       bonusFill.style.width = Math.round(bfr * 100) + '%';
       bonusFill.className = 'ok';
       bonusRow.classList.toggle('gone', !(pp > 0));
-      if (sm.speedBonus > 0) bTxt = STR.speedBonusYes + sm.speedBonus + (sm.speedBonus === 1 ? ' build point' : ' build points') + (lastDayOf(s) ? '' : STR.speedBonusTail);
+      // v2 (CFG.deliveryBonus 'score'): a barra cheia vira placar (bonusScore); save antigo sem o campo: barras x valor
+      if (sm.speedBonus > 0) bTxt = STR.speedBonusYes + bonusScoreOf(sm) + STR.speedBonusTail;
       // o resto que sobra (< pp) arredondado para baixo: nunca '30 of 30' sem o ponto
       else if (sm.tipCarry > 0 && pp > 0) {
         bTxt = STR.speedBonusNone + Math.min(pp - 1, Math.floor(sm.tipCarry)) + ' of ' + pp + STR.speedBonusToward;
@@ -4290,13 +4801,13 @@
       bonusEl.textContent = bTxt;
       bonusEl.classList.toggle('gone', !bTxt);
       // (A2) o valor na barra, a direita; a linha verde de texto nao aparece mais (fica para o (i))
-      if (sm.speedBonus > 0) { var lastB = lastDayOf(s); countTo(bonusVal, 0, sm.speedBonus | 0, function (v) { return STR.bvalPlus(v, lastB); }); }
+      if (sm.speedBonus > 0) { countTo(bonusVal, 0, bonusScoreOf(sm), function (v) { return STR.bvalPlus(v); }); }
       else { bonusVal.__crzCount = (bonusVal.__crzCount | 0) + 1; bonusVal.textContent = pp > 0 ? Math.min(pp - 1, Math.floor(+sm.tipCarry || 0)) + '/' + pp : ''; }
       // (A1) strikes no resumo so no dia que teve strike (os circulos ja estao no topo)
       strikeRow.classList.toggle('gone', !sm.failed);
-      var half = (s.day | 0) === 6 && !seen('half6');
-      if (half) markSeen('half6');
-      halfEl.textContent = half ? STR.halfway : ''; halfEl.classList.toggle('gone', !half);
+      // v2: o ponto natural de parada e o fim de capitulo (antes: 'Halfway!' no dia 6 de 12)
+      var half = !!chapterDoneOf(sm);
+      halfEl.textContent = half ? STR.chapterStop : ''; halfEl.classList.toggle('gone', !half);
       // (A3) explicacoes: abertas no primeiro resumo da partida, depois atras do (i)
       var firstSum = !seen('sumInfo'); if (firstSum) markSeen('sumInfo');
       for (i = 0; i < infoRows.length; i++) setInfo(infoRows[i], firstSum);
@@ -4304,6 +4815,9 @@
       carryEl.textContent = carryN > 0 ? STR.carryOver(carryN) : '';
       carryEl.classList.toggle('gone', !(carryN > 0));
       bonusEl.classList.toggle('lost', !(sm.speedBonus > 0));
+      // v2x: o 'e se' dos cruzamentos de anel de hoje (os WI_NODES mais quentes) sai agora, enquanto a manha de hoje
+      // esta na memoria do game; o toque no anel amanha le o resultado guardado
+      if (typeof game.adviceFor === 'function' && !lastDayOf(s)) wiPrime(s);
       // pior ponto do dia (o anel tracejado no mapa) e o que ajuda ali amanha
       var worst = worstNode(s, game.world), wh = worst ? heatOf(s, worst) : 0;
       var jTxt = '';
@@ -4318,6 +4832,9 @@
       // no resumo do dia 11 a linha avisa que amanha e o ultimo dia)
       var cTxt = lastDayOf(s) ? STR.closing(s.day | 0, (s.totalDelivered | 0) || (sm.delivered | 0))
         : ((s.day | 0) === CFG.maxDays - 1 ? STR.tomorrowLast : '');
+      // v2: fim de capitulo (game: summary.chapterDone): titulo e linha de fechamento do proprio cartao
+      var cd = chapterDoneOf(sm);
+      if (cd) { headEl.textContent = STR.chapterDone(cd.chapter); headEl.classList.remove('gone'); cTxt = STR.chapterLine(cd.cars, cd.strikesLeft, CFG.maxStrikes | 0); }
       closeEl.textContent = cTxt; closeEl.classList.toggle('gone', !cTxt);
       // (4) cruzamentos que o crescimento criou e seguem sem sinal (dia 4+, nao no ultimo dia)
       var nj = (s.day | 0) >= ASSIST_DAY && !lastDayOf(s) ? newJList().length : 0;
@@ -4347,6 +4864,8 @@
       // dono 2026-11-10: 'Faster cars' e 'Double green wave' sairam do jogo (RETIRED); se um sorteio antigo trouxer, nao aparecem
       function shownCard(id) { return !RETIRED[id] && !(id === 'freeLight' && (dieFL || !lightTomorrow)) && !(id === 'patient' && !ringEver); }
       var nShown = dr.filter(shownCard).length;
+      var choiceDay = !!(CFG.choiceCard && dr.some(function (c) { return (CFG.choiceCard.cards || []).indexOf(c) >= 0; }));
+      cardsTitle.textContent = choiceDay ? STR.cardsTitleChoice : STR.cardsTitle;
       cardsHead.classList.toggle('gone', !nShown);
       // sem cartas o botao e o unico caminho adiante: "Continue", nao "Skip reward"
       skipBtn.textContent = nShown ? STR.skip : STR.cont;
@@ -4387,13 +4906,27 @@
         })(dr[i], i);
       }
     }
+    function forgivenText(f) {
+      return f === 'chapter1' ? STR.forgiven.chapter1 : (f === 'early' ? STR.forgiven.early(CFG.noRestartBeforeDay | 0) : '');
+    }
+    function chapterDoneOf(sm) {
+      var c = sm && sm.chapterDone;
+      return c && typeof c === 'object' && c.chapter > 0 ? { chapter: c.chapter | 0, cars: Math.max(0, c.cars | 0), strikesLeft: Math.max(0, c.strikesLeft | 0) } : null;
+    }
     function buildOver(s) {
       var f = s.final || {};
       var win = typeof f.win === 'boolean' ? f.win : (overWin === null ? (s.strikes < CFG.maxStrikes) : overWin);
       var days = f.days != null ? f.days : s.day, deliv = f.delivered != null ? f.delivered : s.totalDelivered;
       var stk = f.strikes != null ? f.strikes : s.strikes;
+      // v2: a vitoria conta os strikes da partida inteira (eles voltam a cada capitulo); a derrota, os do capitulo
+      if (win && f.strikesTotal != null) stk = f.strikesTotal | 0;
       statNums[0].textContent = String(days | 0); countTo(statNums[1], 0, deliv | 0); statNums[2].textContent = String(stk | 0);
-      overTitle.textContent = win ? STR.win : STR.lose;
+      overRetry = !win && f.retry && f.retry.chapter > 0 && game.retrySave ? f.retry : null;
+      overTitle.textContent = win ? STR.win : (overRetry ? STR.loseChapter(days | 0) : STR.lose);
+      againBtn.textContent = overRetry ? STR.retryBtn(overRetry.chapter | 0) : STR.again;
+      newGameBtn.classList.toggle('gone', !overRetry);
+      var nr = win ? (f.chapterRetries | 0) : 0;
+      overRetries.textContent = nr > 0 ? STR.winRetries(nr) : ''; overRetries.classList.toggle('gone', !(nr > 0));
       // primeira vitoria no Easy: 'Try Normal' (contorno, abaixo de Play again)
       var dName = (CRZ.difficulty && CRZ.difficulty.name) || CFG.difficultyName || 'easy';
       tryNormalBtn.classList.toggle('gone', !(win && dName === 'easy' && !seen('tryNormal') && CRZ.difficulty && typeof CRZ.difficulty.set === 'function'));
@@ -4401,7 +4934,7 @@
       var lockN = win ? null : lockedNodeOf(s, game.world);
       overSub.textContent = win ? (stk === 0 ? STR.winFlawless : stk === 1 ? STR.winOne(days | 0) : STR.winMany(stk | 0))
         : (lockN ? loseText(lockN, days, CFG, lockN.edges ? game.world : null, function (o) { return heatOf(s, o); }, { budget: s.budget | 0 }) : (STR.loseSub1 + (days | 0) + STR.loseSub2));
-      var oc = win && (days | 0) >= CFG.maxDays ? (f.lastFailed ? STR.closingJam : STR.closing(days | 0, deliv | 0)) : '';
+      var oc = win && (days | 0) >= CFG.maxDays ? (f.lastFailed ? STR.closingJam : STR.closing(days | 0, deliv | 0)) : (overRetry ? STR.retryLine(overRetry.day | 0) : '');
       overClose.textContent = oc; overClose.classList.toggle('gone', !oc);
       // melhor dia (do historico; senao do final) e pior momento (so se houve strike)
       var hs2 = s.history || [], bN = -1, bD = 0, tD = 0, hi;
@@ -4448,7 +4981,11 @@
         holdUntil = nowMs() + LOCK_HOLD_MS;
         try { if (render && render.focus) render.focus(lk.x, lk.y, Math.max((render.camera && render.camera.zoom) || 1, 1.15), true); } catch (e) { warnOnce('render.focus', e); }
         addPulse(lk.x, lk.y); later(function () { addPulse(lk.x, lk.y); }, 1000);
-        say(STR.lockedSay);
+        // v2: strike perdoado (capitulo 1, antes de noRestartBeforeDay): a mesma faixa diz que o capitulo segue
+        var fg = forgivenText(s.summary.forgiven);
+        // v2x: o primeiro strike contado da partida diz a regra com o numero da dificuldade (e o anel pulsa no cruzamento)
+        say(fg || (firstStrike(s) ? STR.lockedFirst(strikeMax()) : STR.lockedSay), fg || firstStrike(s) ? 4200 : undefined);
+        if (fg) announce(fg);
         refitOnPlan = true;
       }
       ui.classList.toggle('crz-hold', !!holdUntil);
@@ -4464,11 +5001,21 @@
       if (s.phase === 'over') buildOver(s);
       if (s.phase === 'plan') { hint = null; layoutDirty = true; showDayBanner(s); planWarn(s); }
     }
+    function strikeMax() { return CFG.ironMode ? 1 : CFG.maxStrikes | 0; }
+    // hoje e o primeiro dia com strike contado desta partida (o historico ja tem hoje)
+    function firstStrike(s) {
+      var h = (s && s.history) || [], i, n = 0;
+      for (i = 0; i < h.length; i++) if (h[i] && h[i].failed) n++;
+      return n === 1 && !!(s.summary && s.summary.failed);
+    }
     // entrada no plano: penultimo strike (o proximo encerra a partida) e ultimo dia. Uma vez por strike / dia
     var warned = { strikes: -1, last: -1 };
     function planWarn(s) {
-      var M = CFG.maxStrikes | 0, k = s.strikes | 0;
-      if (M > 1 && k === M - 1 && warned.strikes !== k) { warned.strikes = k; say(STR.strikeWarn, 3800); announce(STR.strikeWarn); return; }
+      var M = CFG.ironMode ? 1 : CFG.maxStrikes | 0, k = s.strikes | 0;
+      // v2: so avisa quando o proximo strike de fato encerra o capitulo (perdao: capitulo 1, antes de noRestartBeforeDay)
+      var bites = !(CRZ.Game && CRZ.Game.forgiveWhy && CRZ.Game.forgiveWhy(s.day | 0));
+      var wk = Math.ceil((s.day | 0) / CH_LEN) * 10 + k;
+      if (M > 1 && k === M - 1 && bites && warned.strikes !== wk) { warned.strikes = wk; say(STR.strikeWarn, 3800); announce(STR.strikeWarn); return; }
       if (lastDayOf(s) && warned.last !== (s.day | 0)) { warned.last = s.day | 0; say(STR.lastDay(s.day | 0, CFG.maxDays), 3200); }
     }
     function syncLastChip(s) {
@@ -4498,6 +5045,9 @@
         saveNow();
       }
       else if (ev.type === 'grow') { onGrow(); growPend = { ids: (ev.nodeIds || []).slice() }; }
+      // dado v2: rolou ou escolheu: grava na hora (recarregar volta na mesma face ou na mesma escolha pendente)
+      else if (ev.type === 'die' && game.state.phase === 'plan' && ev.die) saveNow();
+      else if (ev.type === 'shift') shiftPend = { up: ev.up, day: (game.state.day | 0) + 1 };
       // invisivel 5: carga do raio que voltou (dias 1 a 3): pop na bolinha e um som curto
       else if (ev.type === 'boostReady') { snd('charge'); boltPopAt = nowMs(); }
       // invisivel 8: carro que desistiu (sem rota): '-1' cinza na ponta, so nos dias de dicas (ate o dia 6)
@@ -4506,11 +5056,14 @@
         try { if (ln && render && render.note) render.note(ln.x, ln.y, '-1', 'gray'); } catch (e) { warnOnce('render.note', e); }
       }
       else if (ev.type === 'ffEnd') onFFEnd(ev);
+      else if (ev.type === 'placeEvent' && ev.what === 'open') evOpen(ev);
       else if (ev.type === 'built' && ev.kind === 'road') onPlanEdit();
       else if (ev.type === 'unlock') {
         if (ev.tool === 'clear') pend.clear = true;
       }
-      else if (ev.type === 'over') { overWin = !!ev.win; lsDel(SAVE_KEY); if (game.state.phase === 'over') buildOver(game.state); }
+      // v2: derrota com volta ao capitulo: o save (com o checkpoint) fica, para o Retry sobreviver a um reload
+      else if (ev.type === 'over') { overWin = !!ev.win; if (ev.retry) saveNow(); else lsDel(SAVE_KEY); if (game.state.phase === 'over') buildOver(game.state); }
+      else if (ev.type === 'freeJam' && ev.first) pendFreeJam = true;
     });
 
     // ---- dicas de tutorial ----
@@ -4621,7 +5174,17 @@
       var show = nextOn && !tutBalloonOn() && !modal() && !sayEl.classList.contains('show') && !sheetOpen;
       if (show) {
         var tx = nextText(s);
+        // a faixa nunca cobre rua: cobrindo, a frase curta (uma linha); ainda cobrindo, so o Play pulsa
+        if (tx === STR.nextDone(s.day | 0) && nextShort === (s.day | 0)) tx = STR.nextDoneShort(s.day | 0);
         if (nextEl.textContent !== tx) nextEl.textContent = tx;
+        if (now >= nextCoverAt && !nextEl.classList.contains('gone')) {
+          nextCoverAt = now + 400;
+          if (nextCovers()) {
+            if (tx === STR.nextDone(s.day | 0)) { nextShort = s.day | 0; nextEl.textContent = STR.nextDoneShort(s.day | 0); }
+            else { nextHid = s.day | 0; }
+          }
+        }
+        if (nextHid === (s.day | 0)) { show = false; playBtn.classList.add('hint-loop'); }
         // parada 10 s com a faixa na tela: repete (pulo curto) e o Play pulsa de novo
         var idleFrom = Math.max(lastTouchAt, nextBumpAt);
         if (now - idleFrom >= NEXT_AGAIN) {
@@ -4632,6 +5195,21 @@
       }
       if (show === nextEl.classList.contains('gone')) { nextEl.classList.toggle('gone', !show); bottom.classList.toggle('crz-nexton', show); }
       return show;
+    }
+    var nextCoverAt = 0, nextShort = -1, nextHid = -1;
+    // a faixa (retangulo na tela) passa por cima de algum no ou rua do mapa?
+    function nextCovers() {
+      if (!render || typeof render.toScreen !== 'function' || !nextEl.getBoundingClientRect) return false;
+      var b; try { b = nextEl.getBoundingClientRect(); } catch (e) { return false; }
+      if (!b || !(b.height > 0)) return false;
+      var w = game.world, k, t;
+      function inR(p) { return p.x >= b.left - 4 && p.x <= b.right + 4 && p.y >= b.top - 4 && p.y <= b.bottom + 4; }
+      for (k in w.nodes) if (w.nodes.hasOwnProperty(k) && inR(render.toScreen(w.nodes[k].x, w.nodes[k].y))) return true;
+      for (k in w.edges) if (w.edges.hasOwnProperty(k)) {
+        var e = w.edges[k], a = w.nodes[e.a], c = w.nodes[e.b]; if (!a || !c) continue;
+        for (t = 0.1; t < 1; t += 0.1) if (inR(render.toScreen(a.x + (c.x - a.x) * t, a.y + (c.y - a.y) * t))) return true;
+      }
+      return false;
     }
     function nextStepOn() { return nextOn; }
     // dias 1 e 2, durante o dia: uma linha discreta, uma vez, depois de 15 s sem tocar em nada (sem balao)
@@ -4776,6 +5354,101 @@
       if (v && v === runTag + '|' + (game.state.day | 0) && game.state.phase === 'plan') resumePend = true;
       lsDel(RUN_KEY);
     })();
+    // v2 (D9): o que muda nos strikes, na hora em que importa, com a faixa de sempre (uma vez cada por partida)
+    //  - o primeiro jam livre (dias 1 a 5): nao contou, e a partir de quando conta
+    //  - a primeira manha em que um jam vira strike (dia strikeGraceUntil + 1)
+    //  - a manha de cada capitulo novo (11, 21): strikes cheios de novo
+    //  (o perdao do ultimo strike sai na faixa do travamento, em onPhase: forgivenText)
+    var pendFreeJam = false, bannerWait = -1;
+    function chapterTick(s) {
+      var d = s.day | 0, G = CFG.strikeGraceUntil | 0;
+      // a manha de um capitulo novo abre com o cartao do dado por cima do letreiro: o letreiro (com 'Chapter N') volta
+      // quando o cartao fecha
+      if (s.phase === 'plan' && d > 1 && CH_LEN < CFG.maxDays && (d - 1) % CH_LEN === 0) {
+        // integracao: o letreiro e a primeira mensagem da manha; as faixas (capitulo, manutencao, problema do dia)
+        // esperam ele sair (antes a faixa cobria 'Day 11')
+        if (roll.open) bannerWait = d; else if (bannerWait === d) { bannerWait = -1; showDayBanner(s); if (!sayEl.classList.contains('show')) sayUntil = Math.max(sayUntil, nowMs() + 1300); }
+      }
+      if (modal() || tutBalloonOn() || sayUntil || confirmOpen()) return;
+      if (pendFreeJam && s.phase === 'run') { if (sayShown(STR.freeJamFirst, 4000)) pendFreeJam = false; return; }
+      // o primeiro dia em que um jam conta: na corrida, quando passa a valer (o plano da manha ja tem as suas dicas)
+      if (s.phase === 'run' && G > 0 && d === G + 1 && !seen('strikes6')) { if (sayShown(STR.strikesFrom(strikeMax()), 4200)) markSeen('strikes6'); return; }
+      if (s.phase !== 'plan' || roll.open || growPend || bootFrames >= 0) return;
+      if (d > 1 && CH_LEN < CFG.maxDays && (d - 1) % CH_LEN === 0 && !seen('chapter' + d)) {
+        if (sayShown(STR.strikesBack(CFG.ironMode ? 1 : CFG.maxStrikes | 0), 3600)) markSeen('chapter' + d);
+      }
+    }
+    // v2: manutencao do semaforo de manha (game.state.upkeep): uma faixa por dia; a primeira vez diz a regra antes
+    var upkeepSaid = -1, shiftPend = null;
+    // v2: cidade no teto muda por dentro: a ponta que ficou cheia pulsa com uma linha (o que nao se ve nao existe)
+    function shiftTick(s) {
+      if (!shiftPend || s.phase !== 'plan') return;
+      if (shiftPend.day !== s.day) { shiftPend = null; return; }
+      if (roll.open || growPend || bootFrames >= 0 || modal() || tutBalloonOn() || sayUntil || confirmOpen()) return;
+      var n = game.world.nodes[shiftPend.up];
+      if (!n) { shiftPend = null; return; }
+      if (!sayShown(STR.shiftUp, 3600)) return;
+      addPulse(n.x, n.y); later(function () { addPulse(n.x, n.y); }, 900);
+      try { if (render && render.reveal) render.reveal(n.x, n.y, true); } catch (e) {}
+      shiftPend = null;
+    }
+    // v2: o nome da forma da cidade, uma vez, no primeiro plano (cartao do dia 1: a faixa de aviso que ja existe)
+    var archSaid = false;
+    function archTick(s) {
+      var a = s.archetype, line = a && STR.archLine[a];
+      if (archSaid || !line || s.phase !== 'plan') return;
+      if (roll.open || growPend || bootFrames >= 0 || modal() || tutBalloonOn() || sayUntil || confirmOpen()) return;
+      if ((s.day | 0) > 2) { archSaid = true; return; }
+      if (sayShown(line, 5000)) archSaid = true;
+    }
+    function upkeepTick(s) {
+      var U = s.upkeep && s.upkeep.day === s.day && s.upkeep.owed > 0 ? s.upkeep : null;
+      var cInc = s.crew && s.crew.day === s.day ? s.crew.income | 0 : 0;
+      if (s.phase !== 'plan' || upkeepSaid === s.day || (!U && !cInc)) return;
+      if (roll.open || growPend || bootFrames >= 0 || modal() || tutBalloonOn() || sayUntil || confirmOpen() || crewOpen()) return;
+      var per = (CFG.upkeep && CFG.upkeep.perLight) || 1, first = !!U && !seen('upkeep');
+      var dark = U && U.dark ? U.dark.length : 0;
+      var txt = (first ? STR.upkeepFirst(per, (s.day | 0) !== ((CFG.upkeep && CFG.upkeep.fromDay) | 0)) + ' ' : '') + (U ? STR.upkeepLine(U.paid | 0, dark) : '') + (cInc ? (U ? ' ' : '') + STR.crewLine(cInc) : '');
+      U = U || { dark: [] };
+      if (!sayShown(txt, first ? 7000 : 3600)) return;
+      upkeepSaid = s.day;
+      if (first) markSeen('upkeep');
+      var w = game.world, i; for (i = 0; dark && i < U.dark.length; i++) { var dn = w.nodes[U.dark[i]]; if (dn) addPulse(dn.x, dn.y); }
+    }
+    // v2: oferta da Road crew de manha (state.crew.offer): folha com Hire e Not now (o componente da confirmacao do Play)
+    var crewEl = tut(el('div', 'crz-confirm crz-crew gone'), 'crew-offer'), crewAskDay = -1;
+    crewEl.setAttribute('role', 'dialog'); crewEl.setAttribute('aria-modal', 'true');
+    var crewBox = el('div', 'crz-cbox'), crewTxt = el('div', 'crz-ctxt'), crewRow = el('div', 'crz-crow');
+    crewTxt.id = 'crz-crew-txt'; crewEl.setAttribute('aria-labelledby', 'crz-crew-txt');
+    var crewNo = tut(el('button', 'crz-cback'), 'crew-no'), crewYes = tut(el('button', 'crz-cstart'), 'crew-hire');
+    crewNo.textContent = STR.crewNo; crewYes.textContent = STR.crewHire;
+    crewRow.appendChild(crewNo); crewRow.appendChild(crewYes);
+    crewBox.appendChild(crewTxt); crewBox.appendChild(crewRow); crewEl.appendChild(crewBox);
+    ui.appendChild(crewEl);
+    function crewOpen() { return !crewEl.classList.contains('gone'); }
+    // integracao (fuzz): a folha e uma camada dona de body.crz-modal, como a tela do dado; o balao do tutorial espera
+    // (antes o holofote do tutorial abria por cima e o 'Hire'/'Not now' nao recebia o toque)
+    function crewClose() { crewEl.classList.add('gone'); modalReg().set(doc.body, 'crew', false); }
+    on(crewNo, 'click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); crewClose(); snd('select'); if (game.declineCrew) game.declineCrew(); emitUI('crew', { hire: false }); });
+    on(crewYes, 'click', function (e) {
+      if (e && e.stopPropagation) e.stopPropagation(); crewClose();
+      var r = game.hireCrew ? game.hireCrew() : null;
+      if (r && r.ok) { snd('place'); sayUntil = 0; say(STR.crewHired((CFG.crew && CFG.crew.days) || 10), 4000); }
+      else { snd('deny'); say(denyText(r, 'road', game.state, CFG, CFG.crew && CFG.crew.cost)); }
+      emitUI('crew', { hire: !!(r && r.ok) });
+    });
+    function crewTick(s) {
+      var C = CFG.crew;
+      if (crewOpen() && (s.phase !== 'plan' || !s.crew || !s.crew.offer)) { crewClose(); return; }
+      if (!C || s.phase !== 'plan' || !s.crew || !s.crew.offer || crewAskDay === s.day) return;
+      if ((s.budget | 0) < C.cost) return;   // sem pontos para pagar: a oferta nao aparece (nada a decidir)
+      if (roll.open || growPend || bootFrames >= 0 || modal() || tutBalloonOn() || sayUntil || confirmOpen()) return;
+      crewAskDay = s.day;
+      var first = !seen('crew'); if (first) markSeen('crew');
+      crewTxt.textContent = (first ? STR.crewFirst + ' ' : '') + STR.crewOffer(C.cost, C.perDay, C.days);
+      crewEl.classList.remove('gone'); modalReg().set(doc.body, 'crew', true); snd('select');
+      emitUI('crewOffer', {});
+    }
     function day4RuleTick(s) {
       if (seen('day4rule') || s.phase !== 'plan' || (s.day | 0) !== 4 || roll.open || growPend || bootFrames >= 0) return;
       if (modal() || tutBalloonOn() || sayUntil || confirmOpen()) return;
@@ -4787,7 +5460,7 @@
       if (seen('ringGroup') || (s.phase !== 'plan' && s.phase !== 'summary') || !render || typeof render.hotRings !== 'function' || sayUntil) return;
       var L = render.hotRings() || [], i;
       for (i = 0; i < L.length; i++) if (L[i].count >= 2) {
-        if (tutBalloonOn() || modal()) return;
+        if (tutBalloonOn() || modal() || confirmOpen() || roll.open) return;
         if (sayShown(STR.ringGroup(L[i].count), 3600)) markSeen('ringGroup');   // visto so depois de exibir
         addPulse(L[i].x, L[i].y); return;
       }
@@ -4798,10 +5471,13 @@
       for (k in w.nodes) if (w.nodes.hasOwnProperty(k) && w.nodes[k] && (w.nodes[k].stress || 0) >= RING_EVER_AT) { ringEver = true; return; }
     }
     // primeiro gasto da partida: diz o que aconteceu com os pontos (uma vez, guardado nas dicas vistas)
-    var spendDay = -1, spendBudget = -1;
+    var spendDay = -1, spendBudget = -1, spendDie = '';
     function firstSpendTick(s) {
       if (s.phase !== 'plan') { spendDay = -1; return; }
-      if (spendDay !== s.day) { spendDay = s.day; spendBudget = s.budget | 0; return; }
+      // integracao v2b: o custo de uma face do dado usada (Quiet, Patient) e a manutencao paga por ela nao sao 'gasto':
+      // a escolha do dado so atualiza a base (antes a faixa dizia 'You spent 2 build points' por cima do letreiro)
+      var dk = String(s.dieState) + '|' + (s.kept ? s.kept.id : '');
+      if (spendDay !== s.day || dk !== spendDie || roll.open) { spendDay = s.day; spendDie = dk; spendBudget = s.budget | 0; return; }
       var b = s.budget | 0;
       // com um balao do tutorial na tela o aviso espera (nunca dois baloes): fica para o proximo gasto
       var tu = CRZ.app && CRZ.app.tutorial, tutOn = tutBalloonOn() || tutorScript();
@@ -4845,7 +5521,8 @@
       var i, t;
       for (i = 0; i < s.tools.length; i++) {
         t = s.tools[i];
-        if (t.unlocked && CFG.tools[t.id] && CFG.tools[t.id].unlockDay === s.day && !seen('tool:' + t.id)) {
+        // v2: a Roundabout chega pela carta do dia 19 (choiceDay), nao por dia: a apresentacao sai no primeiro plano liberada
+        if (t.unlocked && CFG.tools[t.id] && (CFG.tools[t.id].unlockDay === s.day || (CFG.tools[t.id].choiceDay && s.day > CFG.tools[t.id].choiceDay)) && !seen('tool:' + t.id)) {
           markSeen('tool:' + t.id);
           // sem o roteiro (Skip): o nome da ferramenta e uma frase, numa faixa curta que nao bloqueia
           if (s.day > 1 && !tutorScript() && tutorSkipped()) firstUse('tool:' + t.id, toolIntro(t.id), now);
@@ -4893,6 +5570,11 @@
       rollScreenTick(s, now);
       growTick(s);
       day4RuleTick(s);
+      chapterTick(s);
+      archTick(s);
+      shiftTick(s);
+      upkeepTick(s);
+      crewTick(s);
       invisTick(s, now);
       // nv8 6: com aviso preto na tela o selo PAUSED (menu.js) desce para baixo dele
       var sOn = sayEl.classList.contains('show') && !!s.paused;
@@ -5063,6 +5745,7 @@
       syncTray(s);
       boostHintTick(s, now);
       boostChipTick(s, now);
+      timeScaleTick(s, dt);
       newJPlanTick(s, now);
       fbkTick(s, now);
       prunePulses(now);
@@ -5186,14 +5869,7 @@
       var r = fbkRect(fbkEl), bw = r ? r.w : 210, bh = r ? r.h : 44, R = 22, A = 9, G = 10;
       var nodeBox = { x: p.x - R, y: p.y - R, w: 2 * R, h: 2 * R };
       var hud = [nodeBox, fbkRect(bchipEl), fbkRect(bchip2El), sayEl.classList.contains('show') ? fbkRect(sayEl) : null];
-      // outros nos: os com anel (tracejado de ontem, ou ambar/vermelho agora) nunca ficam embaixo; os demais, se der
-      var rings = [], dots = [], s0 = game.state, hm = (s0 && s0.hot) || {}, k, o, q, r2 = 16;
-      for (k in game.world.nodes) if (game.world.nodes.hasOwnProperty(k)) {
-        o = game.world.nodes[k]; if (!o || o.id === n.id) continue;
-        q = render.toScreen(o.x, o.y);
-        var bx = { x: q.x - r2, y: q.y - r2, w: 2 * r2, h: 2 * r2 };
-        if ((+hm[o.id] || 0) >= HOT_TAP || (o.stress || 0) >= RING_BUSY || o.locked) rings.push(bx); else dots.push(bx);
-      }
+      var nb = nodeBoxes(n.id), rings = nb.rings, dots = nb.dots;
       var cx = Math.max(G, Math.min(W - G - bw, p.x - bw / 2));
       var cand = [[cx, p.y - R - A - bh, 'above'], [cx, p.y + R + A, 'below'], [p.x + R + A, p.y - bh / 2, 'side'], [p.x - R - A - bw, p.y - bh / 2, 'side']];
       var pick = null, i, c, tier, tiers = [hud.concat(rings, dots), hud.concat(rings), [nodeBox].concat(rings), [nodeBox]];
@@ -5209,19 +5885,32 @@
       fbkArrow.style.left = Math.round(Math.max(14, Math.min(bw - 14, p.x - pick[0]))) + 'px';
       return true;
     }
+    // outros nos na tela: os com anel (tracejado de ontem, ou ambar/vermelho agora) nunca ficam embaixo de um balao
+    // ou do chip do Boost; os demais, se der. Mesma regra para os dois (fbkPlace e chipSpot)
+    function nodeBoxes(exceptId) {
+      var rings = [], dots = [], s0 = game.state, hm = (s0 && s0.hot) || {}, k, o, q, r2 = 16;
+      for (k in game.world.nodes) if (game.world.nodes.hasOwnProperty(k)) {
+        o = game.world.nodes[k]; if (!o || o.id === exceptId) continue;
+        q = render.toScreen(o.x, o.y);
+        var bx = { x: q.x - r2, y: q.y - r2, w: 2 * r2, h: 2 * r2 };
+        if ((+hm[o.id] || 0) >= HOT_TAP || (o.stress || 0) >= RING_BUSY || o.locked) rings.push(bx); else dots.push(bx);
+      }
+      return { rings: rings, dots: dots };
+    }
     function fbkShow(n, text, kind) {
       fbkTxt.textContent = text;
       fbkEl.classList.add('on');
       if (!fbkPlace(n)) { fbkEl.classList.remove('on'); return false; }
-      fbkCur = { id: n.id, until: nowMs() + FBK.balloonMs, kind: kind };
+      // ancora fora do mapa de nos (marca de evento no meio de uma rua): o balao segue a propria ancora
+      fbkCur = { id: n.id, until: nowMs() + FBK.balloonMs, kind: kind, anchor: game.world && game.world.nodes && game.world.nodes[n.id] === n ? null : n };
       emitUI('fbkBalloon', { id: n.id, kind: kind, text: text });
       return true;
     }
     function fbkHide() { if (!fbkCur && !fbkEl.classList.contains('on')) return; fbkCur = null; fbkEl.classList.remove('on'); }
     function fbkBalloonTick(now) {
       if (!fbkCur) return;
-      var n = game.world && game.world.nodes ? game.world.nodes[fbkCur.id] : null;
-      if (now >= fbkCur.until || !n || (fbkCur.kind !== 'fixed' && game.state.ff)) { fbkHide(); return; }
+      var n = fbkCur.anchor || (game.world && game.world.nodes ? game.world.nodes[fbkCur.id] : null);
+      if (now >= fbkCur.until || !n || (fbkCur.kind !== 'fixed' && fbkCur.kind !== 'event' && game.state.ff)) { fbkHide(); return; }
       if (!fbkPlace(n)) fbkHide();   // a camera andou: segue o no; saiu da tela, some
     }
     // ferramenta posta (ou Two lanes) com sucesso: o no foi tocado; vigiado novo na partida: a faixa diz uma vez
@@ -5239,7 +5928,7 @@
     // de ontem). Durante o 8x a decisao acontece em silencio (nenhum balao); o resumo diz o resultado igual
     function fbkRunTick(s, now) {
       var L = s.watch && s.watch.day === s.day ? s.watch.list : null;
-      if (s.phase !== 'run') { fbkRun.key = -1; if (fbkCur && fbkCur.kind !== 'fixed') fbkHide(); return; }
+      if (s.phase !== 'run') { fbkRun.key = -1; if (fbkCur && fbkCur.kind !== 'fixed' && !(fbkCur.kind === 'event' && s.phase === 'plan')) fbkHide(); return; }
       if (fbkRun.key !== s.day) { fbkRun = { key: s.day, done: {}, hist: {}, queue: [] }; }
       if (!L || !L.length) return;
       var t = +s.dayTime || 0, i, w = game.world;
@@ -5268,7 +5957,10 @@
       fbkRun.queue.shift();
       if (!qn) return;
       var boostOk = !!(s.clear && s.clear.unlocked) && (((s.boost && s.boost.charges) || (s.clear && s.clear.charges)) | 0) > 0;
-      fbkShow(qn, q.v === 'good' ? STR.fbk.good(fbkToolName(q.tool)) : (boostOk ? STR.fbk.bad : STR.fbk.badNoBoost), q.v);
+      // v2y: 'Tap the bolt' so quando o chip pode sair agora (tempo e cruzamento valem); o chip vai para ESTE no
+      var chipOk = boostOk && q.v === 'bad' && boostable(qn) && chipTimeOk(s) && (bchip.id === null || bchip.id === qn.id);
+      if (chipOk) bchip.want = { id: qn.id, until: now + 4000 };
+      fbkShow(qn, q.v === 'good' ? STR.fbk.good(fbkToolName(q.tool)) : (chipOk ? STR.fbk.bad : STR.fbk.badNoBoost), q.v);
     }
 
     // manha: (1) 'Fixed.' no cruzamento vigiado ontem que ficou sem anel; (2) o problema do dia: o anel tracejado mais
@@ -5318,9 +6010,89 @@
       fbkBalloonTick(now);
       fbkRunTick(s, now);
       fbkMorningTick(s, now);
+      evPlanTick(s, now);
       if (fbkWatchPend && s.phase === 'plan' && !sayUntil && !swapUndoUntil && !fbkBusy()) { fbkWatchPend = 0; say(STR.fbk.watchFirst, 3000); }
       else if (fbkWatchPend && (s.phase !== 'plan' || now - fbkWatchPend > 8000)) fbkWatchPend = 0;
     }
+    // ---- eventos de lugar (events.js, v2e) ----
+    // Vespera e dia do evento, no plano: a faixa diz UMA linha (uma vez por dia e marca, nesta partida); o primeiro
+    // evento da partida ganha mais uma linha de ensino (guardada no save: Events.markFirst). Toque na marca: o balao
+    // do retorno (o mesmo, ancorado na marca) diz o que vai acontecer e o que ajuda, e o cruzamento que ajuda pulsa.
+    // Na corrida, quando a leva sai: um balao curto na ponta. Nada disso fala com outro texto na tela.
+    var evAm = { day: -1, done: {}, at: 0, readyAt: 0, firstPend: false };
+    function EVS() { return CRZ.Events && CRZ.Events.v === 1 ? CRZ.Events : null; }
+    function evMarksNow() { try { return EVS() ? CRZ.Events.marks(game) || [] : []; } catch (e) { warnOnce('Events.marks', e); return []; } }
+    function evText(k) { var T = (CFG.events && CFG.events.text) || {}; return T[k] || ''; }
+    function evPlanTick(s, now) {
+      if (s.phase !== 'plan' || !EVS()) { evAm.day = -1; return; }
+      if (evAm.day !== s.day) evAm = { day: s.day, done: {}, at: now, readyAt: 0, firstPend: false };
+      var ready = !growPend && bootFrames < 0 && !fbkBusy() && !tutorScript() && !sayUntil && !fbkCur;
+      if (!ready) { evAm.readyAt = 0; return; }
+      if (!evAm.readyAt) evAm.readyAt = now;
+      if (now - evAm.readyAt < FBK.quietMs) return;
+      evAm.readyAt = 0;
+      if (evAm.firstPend) {
+        evAm.firstPend = false;
+        say(evText('first'), 4000);
+        emitUI('eventFirst', { day: s.day });
+        return;
+      }
+      var M = evMarksNow(), i;
+      for (i = 0; i < M.length; i++) {
+        var m = M[i], key = 'ev.' + m.key + '.' + m.when;
+        if (m.kind !== 'event' || evAm.done[key] || fbkSeen(key)) continue;
+        evAm.done[key] = true; fbkMark(key);
+        var line = CRZ.Events.stripLine(game, m);
+        if (!line) continue;
+        say(line, 4000);
+        addPulse(m.x, m.y);
+        // primeira vez na partida: a linha de ensino vem logo depois (e fica gravada no save)
+        if (m.when === 'tomorrow' && !CRZ.Events.firstSeen(game)) { CRZ.Events.markFirst(game); evAm.firstPend = true; }
+        emitUI('eventWarn', { key: m.key, when: m.when, type: m.type, text: line });
+        return;
+      }
+    }
+    function evTap(sx, sy) {
+      if (!EVS() || !render || typeof render.eventMarkAt !== 'function') return false;
+      var hit = render.eventMarkAt(sx, sy);
+      if (!hit) return false;
+      var M = evMarksNow(), m = null, i;
+      for (i = 0; i < M.length; i++) if (M[i].key === hit.key) m = M[i];
+      if (!m) return false;
+      var text = CRZ.Events.explain(game, m);
+      if (!text) return false;
+      snd('select');
+      var wn = game.world.nodes[m.nodeId];
+      var anchor = (m.edgeId === null || m.edgeId === undefined) && wn ? wn : { id: 'ev:' + m.key, x: m.x, y: m.y };
+      if (sayUntil) { sayUntil = 0; sayEl.classList.remove('show'); }
+      fbkHide();
+      fbkShow(anchor, text, 'event');
+      // o pulso mostra o que a dica pede: a segunda rua (a ponta e onde ela chega), as ruas do desvio (obra) ou o
+      // cruzamento seguinte (Boost)
+      var W = game.world, pts = [], sw = typeof CRZ.Events.secondWay === 'function' ? CRZ.Events.secondWay(game, m) : null;
+      if (sw && W.nodes[sw.from] && W.nodes[sw.to]) pts = [W.nodes[sw.from], W.nodes[sw.to]];
+      else if (m.edgeId !== null && m.edgeId !== undefined && W.edges[m.edgeId] && typeof CRZ.Events.detourEdges === 'function') {
+        CRZ.Events.detourEdges(W, W.edges[m.edgeId]).slice(0, 3).forEach(function (id) {
+          var e = W.edges[id], a = e && W.nodes[e.a], b = e && W.nodes[e.b];
+          if (a && b) pts.push({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 });
+        });
+      }
+      if (!pts.length) { var hn = CRZ.Events.helpNode(game, m); if (hn) pts = [hn]; }
+      pts.forEach(function (p) { addPulse(p.x, p.y); later(function () { addPulse(p.x, p.y); }, 900); });
+      emitUI('eventTap', { key: m.key, type: m.type, text: text });
+      return true;
+    }
+    function evOpen(ev) {
+      var s = game.state, n = game.world && game.world.nodes ? game.world.nodes[ev.nodeId] : null;
+      if (!n || s.ff || s.paused || fbkBusy() || fbkCur) return;
+      // o balao fica no cruzamento que a leva enche (o Boost ali ajuda, medido em web/dev/events/prep.js)
+      var hn = CRZ.Events.helpNode ? CRZ.Events.helpNode(game, { nodeId: ev.nodeId, edgeId: null }) : null;
+      fbkShow(hn || n, evText('now'), 'eventNow');
+      if (hn) addPulse(hn.x, hn.y);
+      // v2y: o balao da leva pede o Boost no cruzamento seguinte: o chip vai para la quando a fila chegar (ambar)
+      if (hn && boostable(hn)) bchip.want = { id: hn.id, until: nowMs() + 8000 };
+    }
+
     // resumo: uma linha por vigiado com numero honesto (a espera mais longa, em s de jogo) e a linha do porque
     function fbkSummary(s) {
       var L = s.watch && s.watch.day === s.day ? s.watch.list || [] : [], i, n = 0;
@@ -5359,7 +6131,7 @@
       if (ok) { sayUntil = 0; say(STR.boosted, 1800); later(function () { addPulse(n.x, n.y); }, 500); }
       return !!ok;
     }
-    return { update: update, destroy: destroy, getSelectedTool: getSelectedTool, isSheetOpen: isSheetOpen, isHolding: isHolding, boostChip: boostChip, boostNode: boostNode,
+    return { update: update, destroy: destroy, getSelectedTool: getSelectedTool, isSheetOpen: isSheetOpen, isHolding: isHolding, boostChip: boostChip, boostNode: boostNode, timeScale: timeScale,
              openGuide: openGuide, closeGuide: closeGuide, isGuideOpen: function () { return !!guideEl; },
              isRollOpen: function () { return roll.open; },
              beginLeave: beginLeave, flushSave: onHide,
@@ -5373,11 +6145,11 @@
     // recomendador unico por no (o tutorial usa para o balao do anel): advise(node, day, cfg, world, heat)
     // -> {key, tool, text, dir}. Mesmo estado do no, mesma recomendacao
     advise: advise,
-    _test: { ringText: ringText, ringLevel: ringLevel, advise: advise, adviseVary: adviseVary, roundBeats: roundBeats, mainRoad: mainRoad, busiestRoad: busiestRoad, pillPlace: pillPlace, dieFreeLight: dieFreeLight, freeGrant: freeGrant, cardFits: cardFits, createGesture: createGesture, nextOneway: nextOneway, pipLayout: pipLayout, nextSpeed: nextSpeed, speedList: speedList,
+    _test: { strikeRule: function () { return STR.strikesFrom(CRZ.CFG.ironMode ? 1 : CRZ.CFG.maxStrikes | 0); }, lockedFirst: function () { return STR.lockedFirst(CRZ.CFG.maxStrikes | 0); }, ringText: ringText, ringLevel: ringLevel, advise: advise, adviseVary: adviseVary, roundBeats: roundBeats, mainRoad: mainRoad, busiestRoad: busiestRoad, pillPlace: pillPlace, dieFreeLight: dieFreeLight, freeGrant: freeGrant, cardFits: cardFits, createGesture: createGesture, nextOneway: nextOneway, pipLayout: pipLayout, nextSpeed: nextSpeed, speedList: speedList,
              chipPick: chipPick, chipRank: chipRank, chipPlace: chipPlace, CHIP: { on: CHIP_ON, off: CHIP_OFF, px: CHIP_PX, px2: CHIP2_PX, every: CHIP_EVERY, day: ASSIST_DAY },
-             jamAdvice: jamAdvice, jamPick: jamPick, jamOptions: jamOptions, busiestLane: busiestLane, denyText: denyText, suggestCard: suggestCard, worstNode: worstNode,
+             jamBar: jamBar, jamAdvice: jamAdvice, jamPick: jamPick, jamOptions: jamOptions, busiestLane: busiestLane, denyText: denyText, suggestCard: suggestCard, worstNode: worstNode,
              fbk: { FBK: FBK, traceAt: fbkTraceAt, trigger: fbkTrigger, verdict: fbkVerdict, result: fbkResult, whyCause: whyCause, toolName: fbkToolName },
              isEnd: isEnd, isDeadEnd: isDeadEnd, queueJunction: queueJunction, loseText: loseText, lockedNodeOf: lockedNodeOf,
-             toolIcon: toolIcon, cardIcon: cardIcon, eventSvg: eventSvg, dieSvg: dieSvg, miniDieSvg: miniDieSvg, describeDie: describeDie, dieName: dieName, ICONS: ICONS, CARD_ICONS: CARD_ICONS }
+             toolIcon: toolIcon, cardIcon: cardIcon, eventSvg: eventSvg, dieSvg: dieSvg, miniDieSvg: miniDieSvg, describeDie: describeDie, dieName: dieName, dieSides: dieSides, ICONS: ICONS, CARD_ICONS: CARD_ICONS }
   };
 })(typeof window !== 'undefined' ? window : globalThis);

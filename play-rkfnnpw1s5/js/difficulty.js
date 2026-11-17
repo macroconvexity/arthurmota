@@ -15,6 +15,7 @@
     // e o no travava em 8 s. Easy: lock 1.7 (13,6 s com o anel cheio ate travar) e dias 7 a 10 a 0.9. Normal: o
     // jogador medio vencia 79% (alvo 45 a 60%), dias 10 a 12 voltam a 1.0, 1.0, 0.95. Robos headless, 60 sementes:
     // Easy preguicoso 42 -> 62%, curioso 83 -> 93%, cuidadoso 95 -> 98%; Normal curioso 58 -> 47%, cuidadoso 70 -> 58%.
+    // strikes: por capitulo de CFG.chapterDays dias (v2, D9): Easy 4, Normal 3, repostos nos dias 11 e 21.
     // lock (opcional): fator sobre CFG.lockSeconds. patienceDay (opcional): fator de paciencia por dia.
     // assist (opcional, lido por ui.js): chipAt/chipOff = estresse que liga/desliga o chip do Boost ao lado do Play;
     // playConfirm = "Start anyway?" no Play com anel sem sinal; newJunctionTip = dica "New junction" no plano;
@@ -23,10 +24,14 @@
     // 48 partidas por celula): no Normal a confirmacao do Play sobe o medio 67 -> 88% (chip 0,45) e o chip entre
     // 0,35 e 0,65 nao move nada fora do ruido; o Normal fica sem confirmacao.
     easy:   { label: 'Easy',   spawn: 0.8,  patience: 1.25, strikes: 4, lock: 1.7,
-              spawnDay: [1, 1, 0.85, 1, 1, 1, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9],
+              spawnDay: [1, 1, 0.85],   // v2: so o dia 3 (comboio do tutorial); a forma dos 30 dias vem de CFG.spawnRate
+              // v2x (playtest cego 5: 0 strikes em 30 dias no Easy): o risco cresce por capitulo. Capitulo 1 igual; no 2 os
+              // motoristas esperam menos (o descuidado ve strikes, os dias 11 a 14 nao mandam de volta); no 3 mais carros.
+              // Medido em web/dev/review/v2x/f3_measure.js, 40 sementes; tabela antes e depois no commit 3b
+              chapter: { 2: { spawn: 1.05, patience: 0.8 }, 3: { spawn: 1.12, patience: 0.97 } },
               assist: { chipAt: 0.45, chipOff: 0.3, playConfirm: true, newJunctionTip: true, newMark: true, jamBalloonAt: 0.3 } },
     normal: { label: 'Normal', spawn: 0.85, patience: 1.1,  strikes: 3,
-              spawnDay: [1, 1, 0.9, 1, 1, 1, 1, 1, 0.95, 1.0, 1.15, 1.15],
+              spawnDay: [1, 1, 0.9],    // v2 (v2/economia.md 6.2: spawnDay sai); dia ausente vale 1
               assist: { chipAt: 0.45, chipOff: 0.3, playConfirm: false, newJunctionTip: false, newMark: true, jamBalloonAt: 0.3 } }
   };
   var DEFAULT = 'easy';        // o jogo e apresentado a quem nunca viu: comeca no facil
@@ -43,6 +48,21 @@
   } catch (e) {}
 
   var p = PROFILES[name];
+  // chapter (opcional): fator de carros (spawn) e de paciencia por capitulo de CFG.chapterDays dias, por cima do resto.
+  // Medidas: node web/dev/review/v2x/f3_measure.js (CRZ_TUNE no node troca o bloco so em memoria, para varrer)
+  var tune = root.CRZ_TUNE && root.CRZ_TUNE[name];
+  if (tune && tune.chapter) p.chapter = tune.chapter;
+  if (p.chapter) {
+    var CD = CFG.chapterDays || 10, sd = (p.spawnDay || []).slice(), pd = (p.patienceDay || []).slice();
+    for (var dd = 1; dd <= CFG.maxDays; dd++) {
+      var cx = p.chapter[Math.ceil(dd / CD)];
+      if (!cx) continue;
+      if (cx.spawn > 0) sd[dd - 1] = (sd[dd - 1] || 1) * cx.spawn;
+      if (cx.patience > 0) pd[dd - 1] = (pd[dd - 1] || 1) * cx.patience;
+    }
+    for (dd = 0; dd < CFG.maxDays; dd++) { if (!(sd[dd] > 0)) sd[dd] = 1; if (!(pd[dd] > 0)) pd[dd] = 1; }
+    p.spawnDay = sd; p.patienceDay = pd;
+  }
   var baseSpawn = CFG.spawnRate;
   // spawnDay (opcional): forma da curva por dia, por cima de `spawn` (o menu mostra so `spawn`)
   CFG.spawnRate = function (day) { return baseSpawn(day) * p.spawn * ((p.spawnDay && p.spawnDay[day - 1]) || 1); };

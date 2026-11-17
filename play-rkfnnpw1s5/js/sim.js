@@ -75,7 +75,7 @@
     var distCache = {};        // id destino -> {stamp, arr}
     var events = [];
     var rng = CRZ.rng(w.seed);
-    var stepNo = 0;
+    var stepNo = 0, STEP_DT = 1 / 30;
     var pairSpeedMul = -1;
     var pairs = [];            // pares ativos (ordem por id do lider)
     var pairFlow = {};         // "L-F" -> [carros/s L->F, F->L], media movel; zera no resetDay
@@ -90,6 +90,20 @@
     var cand = [];             // candidatos reutilizados {ls, l, car, wait}
     var candN = 0;
     var heapI = [], heapK = [];
+    // eventos de lugar (events.js, v2e): params.portalMul = { portalId: mult } multiplica a chegada de carros so naquele
+    // portal (sem rng a mais: o mesmo sorteio por portal e passo, com a taxa multiplicada). params.closed = [ids] ou
+    // { id: true }: estrada fechada nos dois sentidos (obra). Rota, distancia e pareamento a ignoram; o carro que ja
+    // esta nela termina o trecho. Sem os campos (ou vazios) o mundo e exatamente o de antes.
+    var CL = null, clRef;
+    function syncClosed() {
+      var c = w.params.closed, k, any = false;
+      clRef = c; CL = {};
+      if (Array.isArray(c)) { for (k = 0; k < c.length; k++) if (w.edges[c[k]]) { CL[c[k]] = true; any = true; } }
+      else if (c && typeof c === 'object') { for (k in c) if (c[k] && w.edges[k]) { CL[k] = true; any = true; } }
+      if (!any) CL = null;
+      distCache = {};
+    }
+    function closedE(e) { return CL !== null && CL[e.id] === true; }
 
     function zeroStats() {
       // lost: carros que desistiram num portal sem rota (cada carro conta uma vez); dropped: chegaram com a
@@ -101,7 +115,7 @@
     // ---------- estrutura interna ----------
     function newLS(e, dir) {
       return { e: e, dir: dir, node: dir === 1 ? e.b : e.a, gi: 0,
-        cars: [[], []], last: [-1e9, -1e9], next: [0, 0] };
+        cars: [[], []], last: [-1e9, -1e9], next: [0, 0], inCnt: 0 };
     }
     function newNS() {
       return { t0: 0, phase: 0, ap: [], groups: 1, busy: 0, rr: 0, slots: [], pedOn: false,
@@ -179,6 +193,7 @@
 
     // ---------- pareamento (onda verde) ----------
     function pathLen(fromId, toId) { // Dijkstra so por comprimento, respeita mao unica
+      if (w.params.closed !== clRef) syncClosed();
       var N = nodeList.length, dist = [], prevE = [], i;
       for (i = 0; i < N; i++) { dist.push(INF); prevE.push(-1); }
       dist[nIdx[fromId]] = 0;
@@ -193,7 +208,7 @@
         for (var k = 0; k < n.edges.length; k++) {
           var e = w.edges[n.edges[k]];
           var dir = e.a === n.id ? 1 : -1;
-          if ((dir === 1 && e.oneway === -1) || (dir === -1 && e.oneway === 1)) continue;
+          if ((dir === 1 && e.oneway === -1) || (dir === -1 && e.oneway === 1) || closedE(e)) continue;
           var o = nIdx[dir === 1 ? e.b : e.a];
           if (bd + e.len < dist[o]) { dist[o] = bd + e.len; prevE[o] = e.id; }
         }
@@ -414,7 +429,9 @@
     function arcCost(e, dir) {
       var ls = Q[e.id].d[dir === 1 ? 0 : 1];
       var cnt = ls.cars[0].length + (e.lanes > 1 ? ls.cars[1].length : 0);
-      return e.len / CFG.speedFree + cnt / e.lanes * NS[ls.node].serveCost;
+      // v2m: Two lanes guarda mais carros, mas o cruzamento solta um por vez por entrada (J.twoLanes 'storage'):
+      // a fila de duas faixas anda no mesmo ritmo que a de uma
+      return e.len / CFG.speedFree + (J.twoLanes === 'storage' ? cnt : cnt / e.lanes) * NS[ls.node].serveCost;
     }
     function heapPush(i, k) {
       var p = heapI.length;
@@ -446,6 +463,7 @@
       return top;
     }
     function distTo(destId) {
+      if (w.params.closed !== clRef) syncClosed();
       var c = distCache[destId];
       if (c && c.stamp === stepNo) return c.arr;
       var N = nodeList.length;
@@ -464,7 +482,7 @@
           var e = w.edges[v.edges[k]];
           var u = e.a === v.id ? e.b : e.a;
           var dir = e.a === u ? 1 : -1;
-          if ((dir === 1 && e.oneway === -1) || (dir === -1 && e.oneway === 1)) continue;
+          if ((dir === 1 && e.oneway === -1) || (dir === -1 && e.oneway === 1) || closedE(e)) continue;
           var nd = kd + arcCost(e, dir), ui = nIdx[u];
           if (nd < arr[ui]) { arr[ui] = nd; heapPush(ui, nd); }
         }
@@ -482,7 +500,7 @@
           var e = w.edges[n.edges[k]];
           if ((pass === 0) === (e.id === fromEdge)) continue;
           var dir = e.a === nodeId ? 1 : -1;
-          if ((dir === 1 && e.oneway === -1) || (dir === -1 && e.oneway === 1)) continue;
+          if ((dir === 1 && e.oneway === -1) || (dir === -1 && e.oneway === 1) || closedE(e)) continue;
           var dv = dist[nIdx[dir === 1 ? e.b : e.a]];
           if (dv === INF) continue;
           var c = arcCost(e, dir) + dv;
@@ -511,7 +529,7 @@
       if (!e) return false;
       var dir = (code & 1) ? -1 : 1;
       if ((dir === 1 && (e.a !== nodeId || e.oneway === -1)) || (dir === -1 && (e.b !== nodeId || e.oneway === 1))) return false;
-      return true;
+      return !closedE(e);
     }
     // coloca o carro no arco code, faixa l, e decide o proximo arco
     function enter(car, code, l, fromNode) {
@@ -520,6 +538,7 @@
       car._we = 0; car._from = fromNode; car._lineAt = -1; car._wave = 0;
       ls.cars[l].push(car);
       ls.last[l] = w.time;
+      ls.inCnt++;   // v2m: carros que entraram nesta aproximacao hoje (w.nodeTraffic)
       var far = ls.node;
       if (far === car.dest) { car._next = -1; return true; }
       car._next = route(far, e.id, car.dest);
@@ -602,6 +621,21 @@
       }
       return false;
     }
+    // v2m (J.twoLanes 'storage'): numa entrada de duas faixas so a cabeca que espera ha mais tempo pode cruzar neste
+    // passo; a outra espera a vez (as duas faixas viram uma na linha). Marca as outras como feitas.
+    function oneHeadPerApproach() {
+      if (J.twoLanes !== 'storage') return;
+      for (var i = 0; i < candN; i++) {
+        var c = cand[i];
+        if (c.done || c.ls.e.lanes < 2) continue;
+        for (var j = 0; j < candN; j++) {
+          var d = cand[j];
+          if (j === i || d.done || d.ls !== c.ls) continue;
+          if (d.wait > c.wait + 1e-9 || (Math.abs(d.wait - c.wait) <= 1e-9 && d.l < c.l)) { c.done = true; break; }
+        }
+      }
+    }
+    function laneGo(ls, l, at) { if (J.twoLanes === 'storage') { ls.next[0] = ls.next[1] = at; } else ls.next[l] = at; }
     function occupiedApproaches() {
       var cnt = 0;
       for (var i = 0; i < candN; i++) {
@@ -717,6 +751,7 @@
         // acabava de entrar no cruzamento nao contava e as duas cruzavam no mesmo passo.
         if (t < ns.busy) return;
         var Y = J.yield, gm = mainGroup(ns), forced = false, fg = -1, fw = -1;
+        oneHeadPerApproach();
         for (i = 0; i < candN; i++) {
           var cf = cand[i];
           if (cf.ls.gi !== gm && cf.wait >= Y.minorMaxWait && cf.wait > fw) { forced = true; fg = cf.ls.gi; fw = cf.wait; }
@@ -726,7 +761,8 @@
           for (i = 0; i < candN; i++) {
             var cm = cand[i];
             if (cm.ls.gi !== gm || t < cm.ls.next[cm.l]) continue;
-            if (tryRelease(n, ns, cm, true)) { mainWent = true; cm.ls.next[cm.l] = t + (bf ? Y.serve / ns.bmul : Y.serve); }
+            if (cm.done) continue;
+            if (tryRelease(n, ns, cm, true)) { mainWent = true; laneGo(cm.ls, cm.l, t + (bf ? Y.serve / ns.bmul : Y.serve)); }
           }
         }
         if (!gap || mainWent) return;
@@ -743,16 +779,21 @@
       if (tool === 'light') {
         var ph = ns.phase;
         if (ph < 0) return;
+        // v2m: verde gasto numa rua vazia enquanto outra espera no vermelho (o que a dica da manha mostra)
+        var greenHas = false, redHas = false;
+        for (i = 0; i < candN; i++) { if (cand[i].ls.gi === ph) greenHas = true; else redHas = true; }
+        if (!greenHas && redHas && !groupDemand(ns, ph, CFG.speedFree * 1.5)) ns.waste = (ns.waste || 0) + STEP_DT;
         var bonus = J.light.pairGreenBonus * w.params.waveMul;
+        oneHeadPerApproach();
         for (i = 0; i < candN; i++) {
           var c = cand[i];
-          if (c.ls.gi !== ph || t < c.ls.next[c.l]) continue;
+          if (c.done || c.ls.gi !== ph || t < c.ls.next[c.l]) continue;
           var wv = c.car._wave;
           if (tryRelease(n, ns, c, true)) {
             // pelotao: quem segue para o par sai em sequencia rapida, como a onda
             var pl = wv || (ns.pOut >= 0 && relCode === ns.pOut);
             var hl = Math.max(0, J.light.serve - (pl ? bonus : 0));
-            c.ls.next[c.l] = t + (bf ? hl / ns.bmul : hl);
+            laneGo(c.ls, c.l, t + (bf ? hl / ns.bmul : hl));
           }
         }
         return;
@@ -875,11 +916,13 @@
       var cityN = 0, ref = (w.portalNorm && CFG.portalRef) ? CFG.portalRef(w.day) : Infinity;
       for (var j = 0; j < portalList.length; j++) if (!(portalList[j].rate > 0 && portalList[j].rate < 1)) cityN++;
       var cityMul = cityN > ref ? ref / cityN : 1;
+      var PM = w.params.portalMul && typeof w.params.portalMul === 'object' ? w.params.portalMul : null;
       for (var i = 0; i < portalList.length; i++) {
         var p = portalList[i], ns = NS[p.id];
+        var pm = PM !== null && PM[p.id] > 0 && isFinite(PM[p.id]) ? PM[p.id] : 1;
         // fila do portal (CFG.portalQueueCap): ns.pq guarda a hora de chegada de cada carro (pend = pq.length).
         // O sorteio de chegada consome 1 rng por portal e passo, com ou sem vaga (consumo igual ao de antes).
-        if (rng() < rate * (p.rate > 0 && p.rate < 1 ? p.rate : cityMul)) {
+        if (rng() < rate * pm * (p.rate > 0 && p.rate < 1 ? p.rate : cityMul)) {
           if (!(CFG.portalQueueCap > 0) || ns.pend < CFG.portalQueueCap) { ns.pend++; ns.pq.push(w.time); }
           else if (ns.pendLost) { w.stats.unroutable++; w.stats.lost++; events.push({ type: 'lost', nodeId: p.id, lost: w.stats.lost }); }
           else w.stats.dropped++;
@@ -963,6 +1006,8 @@
 
     function stepOnce(dt) {
       stepNo++;
+      if (w.params.closed !== clRef) syncClosed();
+      STEP_DT = dt;
       if (w.params.speedMul !== pairSpeedMul) recalcPairs();
       pairTick(dt);
       phases();
@@ -1004,6 +1049,28 @@
       events.push({ type: 'boost', nodeId: n.id, seconds: n.boost });
       return true;
     };
+    // v2c (cena do dia 2): teto de estresse num no sem evento nem efeito na fila: o anel fica no maximo em cap e a
+    // contagem de travamento zera. O game usa so no T da rajada roteirizada (o engarrafamento de ensino nunca trava)
+    w.capStress = function (nodeId, cap) {
+      var n = w.nodes[nodeId], ns = n && NS[n.id];
+      if (!ns || n.locked || !(cap >= 0)) return false;
+      if (ns.sraw > cap) ns.sraw = cap;
+      if (n.stress > cap) n.stress = cap;
+      ns.lockT = 0;
+      return true;
+    };
+    // v2m: o trafego de hoje num no, por aproximacao: { secs, waste, ap: [{ edge, from, axis, cars, lanes }] }.
+    // waste = segundos de verde de semaforo numa rua vazia com carro esperando no vermelho. Puro (nao consome rng).
+    w.nodeTraffic = function (nodeId) {
+      var n = w.nodes[nodeId], ns = NS[nodeId];
+      if (!n || !ns) return null;
+      var out = { secs: w.time, waste: ns.waste || 0, ap: [] };
+      for (var a = 0; a < ns.ap.length; a++) {
+        var ls = ns.ap[a], e = ls.e;
+        out.ap.push({ edge: e.id, from: e.a === nodeId ? e.b : e.a, axis: ls._key, cars: ls.inCnt || 0, lanes: e.lanes });
+      }
+      return out;
+    };
     w.drainEvents = function () { var e = events; events = []; return e; };
     // espera mais longa AGORA (s de jogo) de um carro parado na fila de um no: a mesma medida que enche o anel
     // (estresse = espera / paciencia, suavizado). Leitura pura, para o registro por cruzamento do game.js
@@ -1016,7 +1083,7 @@
         for (var d = 0; d < 2; d++) {
           var ls = q.d[d];
           ls.cars[0].length = 0; ls.cars[1].length = 0;
-          ls.last[0] = ls.last[1] = -1e9; ls.next[0] = ls.next[1] = 0;
+          ls.last[0] = ls.last[1] = -1e9; ls.next[0] = ls.next[1] = 0; ls.inCnt = 0;
         }
       }
       w.cars.length = 0;
@@ -1026,6 +1093,7 @@
       for (i = 0; i < nodeList.length; i++) {
         var n = nodeList[i], ns = NS[n.id];
         resetServer(ns);
+        ns.waste = 0;
         ns.lockT = 0; ns.sraw = 0; ns.ev5 = ns.ev8 = false; ns.pend = 0; ns.pendDest = -1; ns.maxW = 0; ns.pq.length = 0; ns.pendLost = false;
         n.stress = 0; n.locked = false; n.lightPhase = 0; n.boost = 0; ns.bmul = 1;
       }
@@ -1500,7 +1568,10 @@
         cand.push({ dest: q.id, code: cd });
       }
       if (!cand.length) return false;
-      var pick = cand[Math.floor(rng() * cand.length)], l = laneFor(pick.code);
+      // opts.dest (v2c, rajada do dia 2): destino pedido, se tiver rota; o rng e consumido do mesmo jeito
+      var pick = cand[Math.floor(rng() * cand.length)];
+      if (opts && opts.dest !== undefined && opts.dest !== null) for (i = 0; i < cand.length; i++) if (cand[i].dest === opts.dest) pick = cand[i];
+      var l = laneFor(pick.code);
       var car = { id: nextCar++, edgeId: 0, dir: 1, s: 0, lane: 0, speed: CFG.speedSlow,
         dest: pick.dest, waited: 0, x: p.x, y: p.y, ang: 0,
         _i: w.cars.length, _we: 0, _next: -1, _from: p.id, _lineAt: -1, _wave: 0, _wh: 0 };
@@ -1566,5 +1637,6 @@
     return w;
   }
 
-  CRZ.Sim = { create: create };
+  // features: o que este Sim sabe fazer (quem chama detecta antes de usar). portalMul e closed: eventos de lugar (v2e)
+  CRZ.Sim = { create: create, features: { portalMul: true, closed: true } };
 })(typeof window !== 'undefined' ? window : globalThis);

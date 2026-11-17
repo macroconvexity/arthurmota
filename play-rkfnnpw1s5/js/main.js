@@ -7,6 +7,8 @@
   var DIFF_KEY = 'gridlet.difficulty';                 // o mesmo de difficulty.js
   var DIFF_SWITCH_KEY = 'gridlet.saveDiffSwitch';      // sessionStorage: ja recarregou para a dificuldade do save
   var OLD_SAVE_NOTICE = 'Your saved game was from an older version. Starting fresh.';
+  // v2: save do jogo de 12 dias que segue na partida de 30 dias (game.migrated)
+  var MIGRATED_NOTICE = 'Your saved game goes on: now 30 days, in 3 chapters.';
 
   var BAD_KEY = 'cruzamento.save.bad';                 // copia do ultimo save recusado (nunca apagado em silencio)
   function param(name) {
@@ -56,6 +58,7 @@
     if (saved && seedParam === null) {
       var parsed = null;
       try { parsed = JSON.parse(saved); game = CRZ.Game.load(parsed); } catch (e) { game = null; }
+      if (game && game.migrated) { notice = MIGRATED_NOTICE; }
       var flag = null;
       try { flag = sessionStorage.getItem(DIFF_SWITCH_KEY); sessionStorage.removeItem(DIFF_SWITCH_KEY); } catch (e) {}
       if (!game) {
@@ -85,7 +88,10 @@
       if (!(seed > 0)) { seed = (Date.now() % 2147483647) + 1; }
       var played = false;
       try { played = localStorage.getItem(PLAYED_KEY) === '1'; } catch (e) {}
-      game = CRZ.Game.create(seed, { teach: !played });   // o comboio do dia 3 e so do primeiro jogo
+      // v2: a primeira partida e sempre a Classica (v2/nivel.md 3.2: aprende o jogo antes da forma); depois, a semente
+      // escolhe (game.js archetypeOf). ?arch=river|park|classic (testes) escolhe direto
+      var archP = param('arch');
+      game = CRZ.Game.create(seed, { teach: !played, archetype: archP || (played ? 'seed' : 'classic') });   // a cena do dia 2 e so do primeiro jogo
     }
 
     var audio = CRZ.Audio.create();
@@ -132,6 +138,19 @@
     CRZ.app = {
       game: game, render: render, ui: ui, audio: audio, tutorial: tutorial, menu: menu,
       notice: CRZ.app.notice, takeNotice: takeNotice,
+      // v2 (D9): Retry chapter. O save da manha do primeiro dia do capitulo (game.retrySave) vira o save do jogo e a
+      // pagina recarrega, como no restart; o pagehide do reload nao regrava por cima. false: nada a voltar
+      retry: function () {
+        var d = game.retrySave ? game.retrySave() : null;
+        if (!d) { return false; }
+        var j = JSON.stringify(d), okW = false;
+        try { localStorage.setItem(SAVE_KEY, j); okW = localStorage.getItem(SAVE_KEY) === j; } catch (e) {}
+        if (!okW) { return false; }
+        CRZ.app.leaving = true;
+        try { localStorage.removeItem('gridlet.plan'); localStorage.removeItem('cruzamento.midday'); } catch (e) {}
+        root.location.reload();
+        return true;
+      },
       restart: function () {
         // B1 (revisao 2026-11-09): o pagehide/visibilitychange do reload chamava ui.saveNow e regravava o save
         CRZ.app.leaving = true;
@@ -145,10 +164,12 @@
     root.addEventListener('resize', onResize);
     root.addEventListener('orientationchange', function () { setTimeout(onResize, 120); });
 
+    // v2y: com o chip do Boost na tela o dia corre a 1x de parede (ui.timeScale, rampa suave); a regra nao muda
+    function tScale() { var k = ui && ui.timeScale ? +ui.timeScale() : 1; return k > 0 && k <= 1 ? k : 1; }
     var manualNow = 0;
     CRZ.app.step = function (dt) {            // usado so pelo playtest automatico (?manual)
       manualNow += dt * 1000;
-      game.update(dt);
+      game.update(dt * tScale());
       ui.update(dt);
       if (tutorial && tutorial.update) { tutorial.update(dt); }
       if (menu && menu.update) { menu.update(dt); }
@@ -165,7 +186,7 @@
       if (dt > 0.1) { dt = 0.1; }             // aba em segundo plano nao dispara o mundo
       if (!failed) {
         try {
-          game.update(dt);
+          game.update(dt * tScale());
           ui.update(dt);
           if (tutorial && tutorial.update) { tutorial.update(dt); }
           if (menu && menu.update) { menu.update(dt); }

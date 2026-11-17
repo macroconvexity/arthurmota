@@ -20,39 +20,40 @@
     bestMore: function (b) { return b.games + (b.games === 1 ? ' game' : ' games') + ' \u00b7 ' + b.wins + (b.wins === 1 ? ' win' : ' wins') + ' \u00b7 up to day ' + b.bestDays; },
     menu: 'Menu', close: 'Close', resume: 'Back to game', pause: 'Pause', unpause: 'Resume', paused: 'Paused',
     sound: 'Sound', on: 'on', off: 'off', replay: 'Replay tutorial', newGame: 'New game', newConfirm: 'Tap again to start a new game',
-    stats: function (d, max, del, s, ms) { return 'Day ' + d + ' of ' + max + ' \u00b7 ' + del + ' cars \u00b7 ' + s + ' of ' + ms + ' strikes'; },
+    stats: function (d, max, del, s, ms) { return 'Day ' + d + ' of ' + max + ' \u00b7 ' + del + ' cars \u00b7 ' + s + ' of ' + ms + ' strikes this chapter'; },
     helpTitle: 'How to play',
     goalH: 'Goal',
-    goal: 'Guide the cars through the city without letting any crossing jam. Survive {d} days with fewer than {n} strikes.',
+    goal: 'Guide the cars through the city for {d} days, in {chapters} chapters of {chapterLen}. Keep crossings from jamming: {n} strikes in one chapter ({diff}) and you replay that chapter.',
     gestH: 'Gestures',
     gest: [
       ['Tap', 'a tool to pick it, then tap a crossing to place it.'],
       ['Drag from a road end', 'builds a road when Road is selected.'],
       ['Pinch', 'zooms the map in and out.'],
       ['Two fingers', 'move the map.'],
-      ['Hold a crossing', 'shows how far it reaches.'],
-      ['Two lights', 'tap one, tap Pair lights, then tap the other.']
+      ['Hold a crossing', 'shows how far it reaches.']
     ],
     toolsH: 'Tools', unlocksDay: function (d) { return 'Unlocks on day ' + d; }, fromDay: function (d) { return 'Day ' + d; },
+    choiceDay: function (d) { return 'A choice on day ' + d; },
     tools: {
       road: ['Road', 'Connects two spots with a new road.'],
       stop: ['Stop', 'Cheap. Cars take turns. Good where three or four quiet roads meet.'],
       yield: ['Yield', 'Main road never stops. Best where a busy road meets a side road.'],
-      light: ['Traffic light', 'Handles the heaviest four-way traffic. Skips empty sides. Pair two lights (tap one, tap Pair lights, then the other).'],
+      light: ['Traffic light', 'For crossings busy from every side; quiet streets wait on red. Two lights on one road pair up by themselves. Your city powers only a few lights, more as it grows; removing one is free.'],
       upgrade: ['Two lanes', 'Adds a second lane to a road. Works best with a traffic light.'],
       cross: ['Crosswalk', 'Drivers wait longer here before the ring turns red. Goes where 2 or more roads meet and replaces the sign there.'],
-      round: ['Roundabout', 'For four or more roads with steady traffic. Weak with only three roads.'],
+      round: ['Roundabout', 'For four or more roads with steady traffic. Weak with only three roads. You can pick it on day {roundDay}.'],
       oneway: ['One-way', 'Cars drive away from the half of the road you tap. Tap again to flip, a third time for two-way. A car with no route waits, then counts as lost.']
     },
     pts: function (c) { return c + (c === 1 ? ' build point' : ' build points'); },
     moreH: 'Daily rules',
     more: [
-      // nv10 5 (2026-11-15): quem rola e a jogadora (nunca sozinho) e o dado muda no dia 6 (game.js diceTable)
-      ['Daily dice', 'from day 2, tap the dice each morning to roll it. Good rolls give build points or a free build. Bad rolls bring more or slower cars. From day 6 the dice go from 1 to 20. You can reroll once a day for {rr}; the new roll replaces today\'s.'],
-      ['Strikes', 'a jammed crossing ends the day and adds 1 strike. At {n}, the game is over.'],
+      // dado v2 (2026-11-16, v2/sistemas.md 3): quem rola e a jogadora; do dia 7 a face e uma oferta (Use ou Pass), do
+      // dia 15 da para guardar uma (Keep). Sem relance e sem previsao do dado
+      ['Daily dice', 'from day {diceDay}, tap the dice each morning to roll it. Early rolls only help. From day {offerDay} a roll is an offer with a good side and a cost: use it, or pass for a normal day. Passing is always free. From day {keepDay} you can keep one roll and use it on a later morning instead of rolling.'],
+      ['Strikes', 'days 1 to {graceEnd}, a jam costs nothing. From day {strikeDay}, a jammed crossing ends the day and adds 1 strike. {n} in one chapter ({diff}): you go back to that chapter\'s first morning, city as it was. Strikes refill each chapter. In chapter 1 and before day {restartDay}, the last one is forgiven.'],
       ['Ring colors', 'Amber ring: busy crossing. Red ring: about to jam.'],
       ['Rewards', 'at the end of each day, pick 1 of the cards shown (2 or 3). Each one says what it changes, and it lasts one day.'],
-      ['Speed', 'during the day, tap the play button to change speed. Faster = more bonus points, but drivers wait less.'],
+      ['Speed', 'during the day, tap the play button to change speed. Faster = more bonus score, but drivers wait less.'],
       ['Boost (\u26a1\ufe0e)', '3 per day (they recharge in the first days). During the day, tap a road end to send a car now, or a crossing with a ring to clear it.'],
       ['Undo', 'before the day starts, undo gives the build points back.']
     ],
@@ -66,13 +67,14 @@
     diffFeelImpatient: 'less patient drivers', diffFeelPatient: 'more patient drivers',
     diffLock: function (pc) { return 'crossings take ' + pc + '% longer to jam'; },
     diffWait: function (pc) { return 'drivers wait ' + pc + '% longer'; },
-    diffEnds: function (n) { return 'the game ends at ' + n + ' strikes'; },
+    diffEnds: function (n) { return n + ' strikes per chapter'; },
     diffJamSlow: 'crossings jam more slowly',
     diffStrike: 'A strike is a crossing that jams.',
     diffNew: 'Switching starts a new game.',
     // paisagem curta (altura <= 500): o jogo e de iPhone em pe
     landTitle: 'Best in portrait', landText: 'Turn your phone upright for the best view.', landGo: 'Play anyway'
   };
+  if (CRZ.dayText) CRZ.dayText(STR);   // integracao v2: dias de regra nos textos ({strikeDay}, {offerDay}...) saem do CFG
   // frase de um perfil de dificuldade (le os numeros do perfil, nunca fixos aqui)
   // ref (opcional) = o outro perfil, para comparar: {label, spawn, patience, strikes, words}.
   // ref.words = true: diz em palavras (o Normal contra o Easy); senao, os numeros contra ref ("than Normal").
@@ -139,6 +141,9 @@
     var C = CRZ.CFG || {}, D = CRZ.difficulty, P = D && C.difficulties ? C.difficulties[D.name] : null;
     return (P && P.strikes) || C.maxStrikes || 3;
   }
+  // v2x: o nome da dificuldade ao lado do numero (playtest cego 5: leu '3' no How to play com o Normal ja marcado,
+  // depois de jogar o Easy de 4)
+  function diffLabel() { var D = CRZ.difficulty; return (D && D.label && D.label()) || 'Easy'; }
   function hasContinue() {
     if (saveDay() > 1) { return true; }
     try {
@@ -519,23 +524,27 @@
       var day = num(st().day) || 1;
       var CFG = CRZ.CFG || {};
       sc.appendChild(el('h3', null, STR.goalH));
-      sc.appendChild(el('p', null, STR.goal.replace('{n}', String(strikesNow())).replace('{d}', String((CRZ.CFG && CRZ.CFG.maxDays) || 12))));
+      sc.appendChild(el('p', null, STR.goal.replace('{n}', String(strikesNow())).replace('{diff}', diffLabel()).replace('{d}', String((CRZ.CFG && CRZ.CFG.maxDays) || 12))));
       sc.appendChild(el('h3', null, STR.gestH));
       STR.gest.forEach(function (g) { sc.appendChild(liText(g[0], g[1])); });
       sc.appendChild(el('h3', null, STR.toolsH));
       var order = CFG.toolOrder || Object.keys(STR.tools);
+      // v2: so as ferramentas desta partida (state.tools; One-way so no arquetipo que pede, Crosswalk saiu)
+      var inM = st().tools ? st().tools.map(function (t) { return t.id; }) : null;
       order.forEach(function (id) {
+        if (inM && inM.indexOf(id) < 0) return;
         var def = (CFG.tools && CFG.tools[id]) || { cost: 0, unlockDay: 1 };
         var info = STR.tools[id] || [id, ''];
-        var locked = day < def.unlockDay;
+        var stT = (st().tools || []).filter(function (t) { return t.id === id; })[0];
+        var locked = stT ? !stT.unlocked : day < def.unlockDay;
         var li = el('div', 'crzm-li' + (locked ? ' lock' : ''));
         var ic = el('div', 'ic'); ic.innerHTML = toolSvg(id);
         var tx = el('div');
         var b = el('b', null, info[0]);
         tx.appendChild(b);
         tx.appendChild(el('div', null, info[1]));
-        var meta = el('div', 'meta', STR.pts(def.cost) + ' · ' + (locked ? '' : STR.fromDay(def.unlockDay)));
-        if (locked) { meta.appendChild(el('span', 'tag', STR.unlocksDay(def.unlockDay))); }
+        var meta = el('div', 'meta', STR.pts(def.cost) + ' · ' + (locked ? '' : (def.choiceDay ? '' : STR.fromDay(def.unlockDay))));
+        if (locked) { meta.appendChild(el('span', 'tag', def.choiceDay ? STR.choiceDay(def.choiceDay) : STR.unlocksDay(def.unlockDay))); }
         tx.appendChild(meta);
         li.appendChild(ic); li.appendChild(tx);
         sc.appendChild(li);
@@ -543,7 +552,7 @@
       sc.appendChild(el('h3', null, STR.moreH));
       var ms = String(strikesNow());
       var rrN = CRZ.CFG && CRZ.CFG.dice && CRZ.CFG.dice.rerollCost, rrTxt = typeof rrN === 'number' ? rrN + (rrN === 1 ? ' build point' : ' build points') : '1 build point';
-      STR.more.forEach(function (g) { sc.appendChild(liText(g[0], g[1].replace('{n}', ms).replace('{rr}', rrTxt))); });
+      STR.more.forEach(function (g) { sc.appendChild(liText(g[0], g[1].replace('{n}', ms).replace('{diff}', diffLabel()).replace('{rr}', rrTxt))); });
     }
     function liText(head, text) {
       var li = el('div', 'crzm-li');
@@ -844,7 +853,8 @@
       var off = game.onEvent(function (ev) {
         if (!ev) { return; }
         if (ev.type === 'over') {
-          if (!recorded) { recorded = true; recordOver(st(), !!ev.win); }
+          // v2: derrota com volta ao capitulo nao e fim de partida (o recorde conta quando ela termina de verdade)
+          if (!recorded && !ev.retry) { recorded = true; recordOver(st(), !!ev.win); }
           if (menuOpen) { closeMenu(); }
         } else if (ev.type === 'day' || ev.type === 'phase') {
           if (ev.type === 'phase' && ev.phase === 'run') { recorded = false; }

@@ -24,7 +24,13 @@
   // formas alem da cor (daltonismo): anel de estresse medio, fantasma invalido (picotado curto), flash ruim
   var DASH_STRESS = [5, 3.5], DASH_BAD = [2, 3.5];
   // marca NEW (cruzamento novo sem sinal): pontos redondos (traco 0,1 com ponta redonda), azul-acinzentado
-  var DASH_NEWJ = [0.1, 4.2], NEWJ_COLOR = '#7a6aa8', NEWJ_FONT = '800 8px -apple-system, system-ui, sans-serif', NEWJ_TEXT = 'NEW';
+  var DASH_NEWJ = [0.1, 4.2], NEWJ_COLOR = '#7a6aa8', NEWJ_FONT = '800 10px -apple-system, system-ui, sans-serif', NEWJ_TEXT = 'NEW';
+  // rotulo das marcas de evento (v2e): uma frase ('Road closed tomorrow') pede mais que os 8 px do NEW. Integracao: o
+  // tamanho dos rotulos do fantasma (13 px, 600), o maior que o mapa ja usa; medido em 375x667 (dev/review/v2int)
+  // Sem lugar livre em 13 px: o tamanho do contador de aneis (9 px, 700); so entao o rotulo pode encostar num icone
+  // v2y (playtest cego 5, shots 045 e 243): NEW e o rotulo pequeno de evento no limite da leitura a 375 px: 10 px, com
+  // contorno da cor do fundo como os rotulos de evento (nao somem sobre as linhas)
+  var EV_FONT = '600 13px -apple-system, system-ui, sans-serif', EV_TH = 13, EV_FONT_S = '700 10px -apple-system, system-ui, sans-serif', EV_TH_S = 10;
   var NEWJ_DX = Math.SQRT1_2;   // ponto pulsante no anel, embaixo a direita (o X do travado fica em cima a direita)
   // Rotulo NEW de uma marca: lado 0 em cima (padrao), 1 embaixo, 2 esquerda, 3 direita do anel (raio R, baseline 'bottom').
   // Preenche o retangulo r = [x0, y0, x1, y1] e o ponto de texto t = [x, y, alinhamento]. Sem alocar.
@@ -318,6 +324,14 @@
     }
 
     var njBox = [];   // ids com a marca NEW desenhada no ultimo quadro (r.newJMarks, testes)
+    // marcas de evento de lugar (events.js, v2e): o MESMO desenho da marca NEW (anel pontilhado, ponto que pulsa, letra
+    // e cor dela) com o rotulo do evento. evBox: o que saiu no ultimo quadro (toque da UI e testes)
+    var evBox = [], evMarks = [], DASH_CLOSED = [5, 5];
+    function eventMarks() {
+      if (!CRZ.Events || typeof CRZ.Events.marks !== 'function' || !game || !game.state) return evMarks;
+      try { evMarks = CRZ.Events.marks(game) || []; } catch (e) { evMarks = []; }
+      return evMarks;
+    }
     var flashes = [];
     for (var fi = 0; fi < 16; fi++) flashes.push({ on: false, x: 0, y: 0, kind: '', t0: 0 });
     var flashNext = 0;
@@ -1120,7 +1134,42 @@
       ctx.lineTo(x + t, y + a); ctx.lineTo(x - t, y + a); ctx.lineTo(x - a, y + t); ctx.lineTo(x - a, y - t); ctx.closePath();
     }
     function circle(x, y, rad) { if (!(rad > 0)) rad = 0; ctx.moveTo(x + rad, y); ctx.arc(x, y, rad, 0, TAU); }
+    // rotulo NEW com contorno da cor do fundo (v2y): legivel sobre linhas e carros; preserva o traco atual
+    function newjText(x, y) {
+      if (ctx.strokeText) {
+        var ss = ctx.strokeStyle, lw = ctx.lineWidth, lj = ctx.lineJoin;
+        ctx.strokeStyle = C.bg; ctx.lineWidth = 3; ctx.lineJoin = 'round';
+        ctx.strokeText(NEWJ_TEXT, x, y);
+        ctx.strokeStyle = ss; ctx.lineWidth = lw; ctx.lineJoin = lj;
+      }
+      ctx.fillText(NEWJ_TEXT, x, y);
+    }
 
+    function drawTerrain(z, ox, oy) {
+      var A = game && game.state && CFG.archetypes && CFG.archetypes[game.state.archetype];
+      if (!A || (!A.river && !A.park)) return;
+      var L = (CFG.growth && CFG.growth.lot) || { rx: 500, ry: 800 }, ext = Math.max(L.rx, L.ry) + 600;
+      ctx.save();
+      if (A.river) {
+        var R = A.river, y0 = -R.half * z + oy, y1 = R.half * z + oy;
+        ctx.fillStyle = C.grid; ctx.globalAlpha = 1;
+        ctx.fillRect(-ext * z + ox, y0, 2 * ext * z, y1 - y0);
+        // lugar da segunda ponte (e das outras alem da rua do dia 1): duas linhas tracejadas curtas sobre a agua
+        ctx.strokeStyle = C.inkSoft; ctx.lineWidth = 1.2; ctx.setLineDash([3, 3]);
+        for (var bi = 1; bi < R.bridges.length; bi++) {
+          var bx = R.bridges[bi] * z + ox, bw = Math.max(4, 6 * z);
+          ctx.beginPath(); ctx.moveTo(bx - bw, y0 - 3); ctx.lineTo(bx - bw, y1 + 3); ctx.moveTo(bx + bw, y0 - 3); ctx.lineTo(bx + bw, y1 + 3); ctx.stroke();
+        }
+      }
+      if (A.park) {
+        var K = A.park, x0 = -K.half * z + ox, x1 = K.half * z + ox, gy = K.gapY * z, far = (L.ry + 200) * z;
+        ctx.strokeStyle = C.inkSoft; ctx.lineWidth = 1.4; ctx.setLineDash([9, 6]);
+        ctx.beginPath(); ctx.rect(x0, oy - far, x1 - x0, far - gy); ctx.stroke();
+        ctx.beginPath(); ctx.rect(x0, oy + gy, x1 - x0, far - gy); ctx.stroke();
+      }
+      ctx.setLineDash(DASH_NONE || []);
+      ctx.restore();
+    }
     function drawPicto(tool, x, y, s, phase) {
       var h = s * 0.5;
       if (tool === 'stop') {
@@ -1260,6 +1309,11 @@
       var fresh = ringFresh;   // primeiro quadro deste mundo: aneis e marcas ja no estado final, sem fade
       ringFresh = false;
 
+      // v2: terreno do arquetipo (CFG.archetypes, game.state.archetype), por baixo de tudo e sem cor nova (R8):
+      // rio = faixa em C.grid sem contorno, com o lugar da segunda ponte em tracejado curto C.inkSoft;
+      // parque = contorno tracejado longo C.inkSoft sem preenchimento (o vazio e o parque)
+      drawTerrain(z, ox, oy);
+
       // influencia
       if (ov.showInfluence !== infId) { infId = ov.showInfluence; infT0 = now; }
       if (infId !== null && infId !== undefined && nodes[infId]) {
@@ -1371,6 +1425,17 @@
         ctx.closePath(); any = true;
       }
       if (any) { ctx.fillStyle = C.ink; ctx.fill(); }
+
+      // obra de hoje (evento de lugar): a rua fechada fica tracejada (o creme do fundo picota o traco da rua)
+      var evm = eventMarks();
+      for (i = 0; i < evm.length; i++) {
+        if (evm[i].edgeId === null || evm[i].edgeId === undefined || evm[i].when !== 'today') continue;
+        e = edges[evm[i].edgeId]; if (!e) continue;
+        a = nodes[e.a]; b = nodes[e.b]; if (!a || !b) continue;
+        ctx.beginPath(); ctx.moveTo(a.x * z + ox, a.y * z + oy); ctx.lineTo(b.x * z + ox, b.y * z + oy);
+        ctx.setLineDash(DASH_CLOSED); ctx.lineCap = 'butt'; ctx.strokeStyle = C.bg; ctx.lineWidth = roadW + 2; ctx.stroke();
+        ctx.setLineDash(DASH_NONE); ctx.lineCap = 'round';
+      }
 
       // onda verde: linha fina verde tracejada entre os dois semaforos pareados, POR CIMA das ruas
       // (antes ficava sob elas, a 55%, e a jogadora nao via que o par deu certo). Par novo: brilha.
@@ -1765,7 +1830,7 @@
       // lado do rotulo de cada marca: em cima do proprio anel; se o retangulo bater no rotulo ou no anel de outra marca
       // (ou sair da area livre), vai para o proximo lado livre (embaixo, esquerda, direita), nessa ordem fixa, com as
       // marcas em ordem de id: deterministico, sem tremer entre quadros. Sem lado livre, fica em cima. Nada some.
-      var njN = 0, njTW = 0, njTH = 8, njP2, njSd, njOk, njJ, njC;
+      var njN = 0, njTW = 0, njTH = 10, njP2, njSd, njOk, njJ, njC;
       if (nj && nj.length && (phase === 'plan' || phase === null || phase === undefined)) {
         for (i = 0; i < nj.length; i++) { // ids desta lista (ainda sem filtro de tela): a marca vizinha conta mesmo se acabou de entrar
           n = nodes[nj[i]];
@@ -1827,7 +1892,7 @@
           ctx.beginPath(); circle(nsx + NEWJ_DX * njR, nsy + NEWJ_DX * njR, 2.6 + 0.9 * njP);
           ctx.fillStyle = NEWJ_COLOR; ctx.globalAlpha = (reduceMotion ? 1 : 0.75 + 0.25 * njP) * njA; ctx.fill();
           ctx.globalAlpha = njA; njRect(nsx, nsy, njR, njTW, njTH, njSide[k] || 0, njTmpR, njTmpT);
-          ctx.textAlign = njTmpT[2]; ctx.fillText(NEWJ_TEXT, njTmpT[0], njTmpT[1]); ctx.textAlign = 'center';
+          ctx.textAlign = njTmpT[2]; newjText(njTmpT[0], njTmpT[1]); ctx.textAlign = 'center';
         }
         ctx.globalAlpha = 1;
       } else if (njAny) {
@@ -1850,10 +1915,65 @@
         for (i = 0; i < njBox.length; i++) {
           n = nodes[njBox[i]];
           njRect(n.x * z + ox, n.y * z + oy, njR, njTW, njTH, njSide[n.id] || 0, njTmpR, njTmpT);
-          ctx.textAlign = njTmpT[2]; ctx.fillText(NEWJ_TEXT, njTmpT[0], njTmpT[1]);
+          ctx.textAlign = njTmpT[2]; newjText(njTmpT[0], njTmpT[1]);
         }
         ctx.textAlign = 'center';
         if (!reduceMotion) frameAnim = true;
+      }
+
+      // marcas de evento (vespera: '<evento> tomorrow'; dia: '<evento> today'; Festival do dado: a rua marcada).
+      // Rotulo: o lado livre do proprio anel (em cima, embaixo, esquerda, direita), sem bater nos rotulos e aneis NEW,
+      // nas outras marcas nem sair da area util (HUD); a mesma regra deterministica da marca NEW
+      evBox.length = 0;
+      if (evm.length && (phase === 'plan' || phase === 'run' || phase === 'summary')) {
+        ctx.font = EV_FONT;
+        // obstaculos: o pictograma de cada no com sinal e todo cruzamento (o rotulo nao passa por cima de um icone)
+        var evObs = [], eoK = Object.keys(nodes), eoR = ps * 0.5 + 2;
+        for (eJ = 0; eJ < eoK.length; eJ++) { var eon = nodes[eoK[eJ]]; if (eon && (eon.tool || (eon.edges && eon.edges.length >= 3))) evObs.push(eon.x * z + ox, eon.y * z + oy, eon.tool ? eoR : 5); }
+        var euz = usable(), eux0 = euz.l, eux1 = W - euz.r, euy0 = euz.t, euy1 = H - euz.b, evR = ps * 0.5 + 6, eP, eSd, eOk, eJ, eTw;
+        for (i = 0; i < evm.length; i++) {
+          var em = evm[i], ecx = em.x * z + ox, ecy = em.y * z + oy;
+          if (ecx < eux0 - 4 || ecx > eux1 + 4 || ecy < euy0 - 4 || ecy > euy1 + 4) continue;   // fora da area util: a seta de borda leva la
+          // passes: 0 = 13 px longe de icones; 1 = 9 px longe de icones; 2 = 9 px; 3 = 9 px em qualquer lugar
+          ctx.font = EV_FONT; var eTwB = ctx.measureText(em.text).width; ctx.font = EV_FONT_S; var eTwS = ctx.measureText(em.text).width;
+          var eCh = 0, eTh = EV_TH;
+          for (eP = 0; eP < 4; eP++) {
+            eTw = eP === 0 ? eTwB : eTwS; eTh = eP === 0 ? EV_TH : EV_TH_S;
+            for (eSd = 0, eOk = false; eSd < 4 && !eOk; eSd++) {
+              njRect(ecx, ecy, evR, eTw, eTh, eSd, njTmpR, njTmpT);
+              if (eP < 3 && (njTmpR[0] < eux0 || njTmpR[2] > eux1 || njTmpR[1] < euy0 || njTmpR[3] > euy1)) continue;
+              eOk = true;
+              for (eJ = 0; eJ < njN && eOk; eJ++) {
+                var nr = njRects[eJ];
+                if (!(njTmpR[2] < nr[0] || njTmpR[0] > nr[2] || njTmpR[3] < nr[1] || njTmpR[1] > nr[3])) eOk = false;
+                else { var nn2 = nodes[njIds[eJ]]; if (nn2 && njHitRing(njTmpR, nn2.x * z + ox, nn2.y * z + oy, njR)) eOk = false; }
+              }
+              for (eJ = 0; eJ < evBox.length && eOk; eJ++) {
+                var ob = evBox[eJ];
+                if (!(njTmpR[2] < ob.x0 || njTmpR[0] > ob.x1 || njTmpR[3] < ob.y0 || njTmpR[1] > ob.y1) || njHitRing(njTmpR, ob.cx, ob.cy, ob.r)) eOk = false;
+              }
+              for (eJ = i + 1; eJ < evm.length && eOk; eJ++) if (njHitRing(njTmpR, evm[eJ].x * z + ox, evm[eJ].y * z + oy, evR)) eOk = false;
+              for (eJ = 0; eJ < evObs.length && eOk && eP < 2; eJ += 3) if (njHitRing(njTmpR, evObs[eJ], evObs[eJ + 1], evObs[eJ + 2])) eOk = false;
+              if (eOk) eCh = eSd;
+            }
+            if (eOk) break;
+          }
+          if (!eOk) { eCh = 0; eTw = eTwS; eTh = EV_TH_S; }
+          njRect(ecx, ecy, evR, eTw, eTh, eCh, njTmpR, njTmpT);
+          evBox.push({ key: em.key, type: em.type, kind: em.kind, when: em.when, nodeId: em.nodeId, edgeId: em.edgeId, text: em.text, font: eTh === EV_TH ? EV_FONT : EV_FONT_S,
+                       cx: ecx, cy: ecy, r: evR, x0: njTmpR[0], y0: njTmpR[1], x1: njTmpR[2], y1: njTmpR[3], tx: njTmpT[0], ty: njTmpT[1], al: njTmpT[2] });
+        }
+        if (evBox.length) {
+          ctx.beginPath();
+          for (i = 0; i < evBox.length; i++) { ctx.moveTo(evBox[i].cx + evR, evBox[i].cy); ctx.arc(evBox[i].cx, evBox[i].cy, evR, 0, TAU); }
+          ctx.setLineDash(DASH_NEWJ); ctx.lineCap = 'round'; ctx.strokeStyle = NEWJ_COLOR; ctx.lineWidth = 2;
+          ctx.globalAlpha = 0.9; ctx.stroke(); ctx.setLineDash(DASH_NONE); ctx.globalAlpha = 1;
+          ctx.beginPath();
+          for (i = 0; i < evBox.length; i++) circle(evBox[i].cx + NEWJ_DX * evR, evBox[i].cy + NEWJ_DX * evR, 2.6 + 0.9 * njP);
+          ctx.fillStyle = NEWJ_COLOR; ctx.globalAlpha = reduceMotion ? 1 : 0.75 + 0.25 * njP; ctx.fill(); ctx.globalAlpha = 1;
+          // o rotulo sai depois dos pictogramas (evLabels), por cima de tudo do mapa
+          if (!reduceMotion) frameAnim = true;
+        }
       }
 
       // aneis de estresse
@@ -2092,8 +2212,12 @@
       }
 
       // pictogramas: por cima de todo anel e marca de aviso (o sinal novo no no travado fica a vista)
+      // v2 (manutencao): semaforo apagado hoje por falta de ponto (game.state.upkeep.dark) = o mesmo icone esmaecido
+      var upk = game && game.state && game.state.upkeep, darkS = null;
+      if (upk && upk.dark && upk.dark.length && upk.day === game.state.day) { darkS = {}; for (var dq = 0; dq < upk.dark.length; dq++) darkS[upk.dark[dq]] = 1; }
       for (k in nodes) {
-        n = nodes[k]; if (!n || !n.tool) continue;
+        n = nodes[k]; var dk = !!(darkS && darkS[k]);
+        if (!n || (!n.tool && !dk) || (dk && n.tool && n.tool !== 'light')) continue;
         var tx2 = n.x * z + ox, ty2 = n.y * z + oy;
         if (tx2 < sx0 || tx2 > sx1 || ty2 < sy0 || ty2 > sy1) continue;
         var pk = toolPop[k], sc = 1;
@@ -2102,9 +2226,20 @@
           if (pt < 1) { sc = easeBack(clamp(pt, 0, 1)); frameAnim = true; } else delete toolPop[k];
         }
         if (sc <= 0.02) continue;
-        drawPicto(n.tool, tx2, ty2, ps * sc, n.lightPhase);
+        if (dk) { ctx.save(); ctx.globalAlpha = 0.3; drawPicto('light', tx2, ty2, ps * sc, 0); ctx.restore(); }
+        else drawPicto(n.tool, tx2, ty2, ps * sc, n.lightPhase);
       }
 
+      // rotulos das marcas de evento: depois dos pictogramas (um Stop nao cobre a frase), com contorno da cor do fundo
+      if (evBox.length) {
+        ctx.textBaseline = 'bottom'; ctx.fillStyle = NEWJ_COLOR; ctx.strokeStyle = C.bg; ctx.lineWidth = 4; ctx.lineJoin = 'round';
+        for (i = 0; i < evBox.length; i++) {
+          ctx.font = evBox[i].font; ctx.textAlign = evBox[i].al;
+          if (ctx.strokeText) ctx.strokeText(evBox[i].text, evBox[i].tx, evBox[i].ty);
+          ctx.fillText(evBox[i].text, evBox[i].tx, evBox[i].ty);
+        }
+        ctx.lineJoin = 'miter'; ctx.textAlign = 'center';
+      }
       // selecao
       var sel = ov.selectedNode;
       if (sel !== null && sel !== undefined && nodes[sel]) {
@@ -2613,6 +2748,18 @@
     r.hotRings = hotRingsT;
     // ids com a marca NEW no ultimo quadro desenhado (UI: ov.newJ; so no plano, sem ferramenta, 3+ ruas, na tela)
     r.newJMarks = function () { return njBox.slice(); };
+    // marcas de evento desenhadas no ultimo quadro: { key, type, kind, when, nodeId, edgeId, text, cx, cy, r, x0..y1 }
+    r.eventMarks = function () { return evBox.map(function (m) { var o = {}, q; for (q in m) o[q] = m[q]; return o; }); };
+    // marca de evento sob o dedo (anel ou rotulo, com folga de toque), ou null
+    r.eventMarkAt = function (sx, sy) {
+      var best = null, bd = Infinity, pr = Math.max(PICK_MIN, 22);
+      for (var i = 0; i < evBox.length; i++) {
+        var m = evBox[i], dx = sx - m.cx, dy = sy - m.cy, d = Math.sqrt(dx * dx + dy * dy);
+        var inLab = sx >= m.x0 - 6 && sx <= m.x1 + 6 && sy >= m.y0 - 8 && sy <= m.y1 + 8;
+        if ((d <= Math.max(m.r + 6, pr) || inLab) && d < bd) { bd = d; best = m; }
+      }
+      return best ? { key: best.key, type: best.type, kind: best.kind, when: best.when, nodeId: best.nodeId, edgeId: best.edgeId, text: best.text, cx: best.cx, cy: best.cy } : null;
+    };
     r._hotRecalc = function () { return hotRecalc; }; // so para testes: quantas vezes o agrupamento rodou
     r._roadHints = roadHintsT;
     r._laneSolid = function (id) { for (var i = 0; i < stubN; i++) if (stubId[i] === +id) return stubPx[i]; return 0; }; // so para testes
