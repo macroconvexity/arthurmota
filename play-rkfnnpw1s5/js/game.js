@@ -113,6 +113,12 @@
     var hot = {};               // nodeId -> estresse maximo do ultimo dia
     var acc = 0, stepCount = 0, dayFailed = false;
     var runHot = {};            // estresse maximo visto no dia (nao vai para o Sim)
+    // retorno da escolha (v2, 2026-11-16): so contabilidade, nada disto muda regra, custo ou rng.
+    // runAt = segundo do dia (st.dayTime) do pico de runHot; runWait = espera mais longa (s de jogo) de um carro
+    // parado na fila do no; runPass = carros que cruzaram o no no dia (evento 'pass' do Sim)
+    // runTrace = estresse do no a cada TRACE_DT s de jogo (inteiro 0 a 100): o balao do vigiado compara hoje com ontem
+    // no MESMO segundo do dia
+    var runAt = {}, runWait = {}, runPass = {}, runTrace = {};
     var basePatience = 1;       // patienceMul do dia so de dado x cartas (a velocidade multiplica por cima)
 
     var st = {
@@ -138,6 +144,12 @@
       ff: false,
       // primeira viagem: day3Convoy = o comboio do dia 3 vai rodar/rodou neste dia; seen = ja rodou neste jogo
       teach: { day3Convoy: false, seen: false, target: null, sent: 0 },
+      // retorno da escolha (v2). trouble = registro do ultimo dia jogado, por cruzamento com anel (pico >= HOT_MIN) ou
+      // vigiado: { day, len, nodes: { id: { p: pico, t: segundo do pico, w: espera mais longa em s, n: carros que
+      // cruzaram } } }. watch = cruzamentos vigiados HOJE (anel de ontem + ferramenta posta hoje, no maximo 2):
+      // { day, list: [{ id, tool, p, t, w, n (de ontem), now: { p, w, n } (de hoje, no fim do dia) }] }.
+      // watchPrev = o watch de ontem (a manha seguinte confere se o anel sumiu). Tudo vai no save.
+      trouble: null, watch: { day: 1, list: [] }, watchPrev: null,
       final: null,
       speedDial: { levels: CFG.speedDial.levels.map(function (l) { return l.speed; }), tips: 0,
                    perPoint: CFG.speedDial.tipsPerPoint, carry: 0, applied: 0 }
@@ -200,6 +212,92 @@
     }
     var HOT_MIN = 0.35;
     var PORTAL_CAP = 10;        // teto de portais criados por ruas do jogador
+    var RECORD = { minCars: 5, rateMul: 1.25 };   // 'New record' (finishDay)
+    var WATCH_MAX = 2;          // cruzamentos vigiados por dia (os dois primeiros)
+    var TRACE_DT = 2, TRACE_EVERY = Math.round(TRACE_DT / STEP);   // amostra do estresse por no (s de jogo, passos)
+    var WATCH_TOOLS = { stop: 1, yield: 1, light: 1, round: 1, cross: 1, upgrade: 1 };
+
+    // ----- retorno da escolha (v2): registro por cruzamento e cruzamentos vigiados -----
+    function junctionCount() {
+      var c = 0, ids = sortedIds(world.nodes);
+      for (var i = 0; i < ids.length; i++) if (degree(world.nodes[ids[i]]) >= 3) c++;
+      return c;
+    }
+    // espera mais longa agora no no (s de jogo). Sim sem waitOf (stub dos testes): estresse x paciencia do dia
+    function waitNow(id, n) {
+      if (typeof world.waitOf === 'function') { var v = +world.waitOf(id); return v > 0 && isFinite(v) ? v : 0; }
+      var p = world.params || {}, pd = CFG.patienceDay && CFG.patienceDay[st.day - 1];
+      return (n.stress || 0) * CFG.patience * (pd > 0 ? pd : 1) * (p.patienceMul > 0 ? p.patienceMul : 1);
+    }
+    // fim do dia: o registro de hoje (cruzamentos com anel e os vigiados) e o resultado de cada vigiado
+    function recordDay() {
+      var rec = {}, wid = {}, L = st.watch && st.watch.day === st.day ? st.watch.list : [], ids = sortedIds(world.nodes), i;
+      for (i = 0; i < L.length; i++) wid[L[i].id] = 1;
+      for (i = 0; i < ids.length; i++) {
+        var id = ids[i], n = world.nodes[id], pk = Math.min(1, Math.max(n.stress || 0, runHot[id] || 0));
+        var wt = Math.max(runWait[id] || 0, waitNow(id, n));
+        if (pk >= HOT_MIN || wid[id]) rec[id] = { p: Math.round(pk * 100) / 100, t: r1(runAt[id] || 0), w: r1(wt), n: runPass[id] | 0, s: (runTrace[id] || []).slice() };
+      }
+      st.trouble = { day: st.day, len: st.dayLen, nodes: rec };
+      for (i = 0; i < L.length; i++) {
+        var r = rec[L[i].id] || { p: 0, w: 0, n: 0 };
+        L[i].now = { p: r.p, w: r.w, n: r.n };
+      }
+    }
+    // ferramenta posta ou trocada num cruzamento com o anel de ontem: passa a ser vigiado hoje (os 2 primeiros).
+    // Devolve 'new' (vigiado agora), 'same' (ja era; a ferramenta e atualizada) ou null
+    function watchOn(id, tool) {
+      if (!WATCH_TOOLS[tool] || !(+st.hot[id] >= HOT_MIN)) return null;
+      if (!st.watch || st.watch.day !== st.day) st.watch = { day: st.day, list: [] };
+      var L = st.watch.list, i;
+      for (i = 0; i < L.length; i++) if (L[i].id === id) { if (tool !== 'upgrade' || L[i].tool === 'upgrade') L[i].tool = tool; return 'same'; }
+      if (L.length >= WATCH_MAX) return null;
+      var tr = st.trouble && st.trouble.day === st.day - 1 && st.trouble.nodes ? st.trouble.nodes[id] : null;
+      // save de antes do registro (so o mapa de anel): pico do mapa, sem hora nem espera (o resumo nao inventa numero)
+      L.push({ id: id, tool: tool, p: tr && fin(tr.p) ? tr.p : Math.min(1, +st.hot[id]), t: tr && fin(tr.t) ? tr.t : null,
+               w: tr && fin(tr.w) ? tr.w : null, n: tr && fin(tr.n) ? tr.n : null, s: tr && Array.isArray(tr.s) ? tr.s.slice() : null, dt: TRACE_DT });
+      return 'new';
+    }
+    // sem a ferramenta (removida, desfeita): o cruzamento deixa de ser vigiado. Two lanes vale enquanto a rua tem 2 faixas
+    function syncWatch() {
+      if (!st.watch || !Array.isArray(st.watch.list)) return;
+      st.watch.list = st.watch.list.filter(function (e) {
+        var n = world.nodes[e.id];
+        if (!n) return false;
+        if (e.tool !== 'upgrade') return n.tool === e.tool;
+        for (var j = 0; j < n.edges.length; j++) { var ed = world.edges[idOf(n.edges[j])]; if (ed && ed.lanes === 2) return true; }
+        return false;
+      });
+    }
+    function normWatch(v) {
+      if (!isObjL(v) || !fin(v.day) || !Array.isArray(v.list)) return null;
+      var out = { day: v.day | 0, list: [] };
+      for (var i = 0; i < v.list.length && out.list.length < WATCH_MAX; i++) {
+        var e = v.list[i];
+        if (!isObjL(e) || !fin(e.id) || typeof e.tool !== 'string' || !WATCH_TOOLS[e.tool]) continue;
+        var o = { id: e.id, tool: e.tool, p: fin(e.p) ? Math.max(0, Math.min(1, e.p)) : 0, t: fin(e.t) && e.t >= 0 ? e.t : null,
+                  w: fin(e.w) && e.w >= 0 ? e.w : null, n: fin(e.n) && e.n >= 0 ? e.n : null, s: traceOk(e.s), dt: fin(e.dt) && e.dt > 0 ? e.dt : TRACE_DT };
+        if (isObjL(e.now)) o.now = { p: fin(e.now.p) ? Math.max(0, Math.min(1, e.now.p)) : 0, w: fin(e.now.w) && e.now.w >= 0 ? e.now.w : 0, n: fin(e.now.n) && e.now.n >= 0 ? e.now.n : 0 };
+        out.list.push(o);
+      }
+      return out;
+    }
+    function traceOk(a) {
+      if (!Array.isArray(a) || a.length > 400) return null;
+      for (var i = 0; i < a.length; i++) if (!nat(a[i]) || a[i] > 100) return null;
+      return a.slice();
+    }
+    function normTrouble(v) {
+      if (!isObjL(v) || !fin(v.day) || !isObjL(v.nodes)) return null;
+      var out = { day: v.day | 0, len: fin(v.len) ? v.len : 0, nodes: {} }, k, e;
+      for (k in v.nodes) {
+        if (!own(v.nodes, k) || !/^\d+$/.test(k)) continue;
+        e = v.nodes[k];
+        if (!isObjL(e) || !fin(e.p)) continue;
+        out.nodes[k] = { p: Math.max(0, Math.min(1, e.p)), t: fin(e.t) && e.t >= 0 ? e.t : 0, w: fin(e.w) && e.w >= 0 ? e.w : 0, n: fin(e.n) && e.n >= 0 ? e.n : 0, s: traceOk(e.s) || [] };
+      }
+      return out;
+    }
 
     function emit(ev) {
       for (var i = 0; i < listeners.length; i++) { try { listeners[i](ev); } catch (e) { /* ignora */ } }
@@ -291,6 +389,9 @@
       applyDie(st.die);
       undoStack = [];
       placed = {};
+      // vigiados de ontem viram watchPrev (a manha confere o anel); hoje comeca sem nenhum
+      st.watchPrev = st.watch && st.watch.day === day - 1 && st.watch.list.length ? st.watch : null;
+      st.watch = { day: day, list: [] };
       refresh();
       emit({ type: 'day', day: day });
       emit({ type: 'die', die: clone(st.die), next: st.nextDie ? clone(st.nextDie) : null });
@@ -391,11 +492,20 @@
       syncDial();
       var peak = 0, pids = sortedIds(world.nodes);
       for (var pi = 0; pi < pids.length; pi++) peak = Math.max(peak, world.nodes[pids[pi]].stress || 0, runHot[pids[pi]] || 0);
-      var prevBest = 0, prevSum = 0, hn = st.history.length;
-      for (pi = 0; pi < hn; pi++) { prevBest = Math.max(prevBest, st.history[pi].delivered); prevSum += st.history[pi].delivered; }
+      var prevBest = 0, prevSum = 0, hn = st.history.length, prevRate = 0;
+      for (pi = 0; pi < hn; pi++) {
+        var hh = st.history[pi], hl0 = fin(hh.len) && hh.len > 0 ? hh.len : CFG.dayLen[(hh.day | 0) - 1];
+        prevBest = Math.max(prevBest, hh.delivered); prevSum += hh.delivered;
+        if (hl0 > 0) prevRate = Math.max(prevRate, hh.delivered / hl0);
+      }
+      // 'New record' (v2): recorde da partida inteira E por margem real. A cidade cresce sozinha, entao "mais carros que
+      // qualquer dia" saia em 77% das trocas de dia (headless smart, 20 sementes). Agora: mais carros que qualquer dia,
+      // +5 no minimo, e carros por segundo de dia 25% acima do melhor ritmo (um dia mais longo sozinho nao e recorde)
+      var recordNow = hn > 0 && delivered > prevBest && delivered - prevBest >= RECORD.minCars &&
+        st.dayLen > 0 && delivered / st.dayLen >= prevRate * RECORD.rateMul;
       var headline = failed ? 'Locked!'
         : peak >= 0.7 ? 'Close call'
-        : (hn > 0 && delivered > prevBest) ? 'New record'
+        : recordNow ? 'New record'
         : (hn > 0 && delivered > 1.1 * prevSum / hn) ? 'Busy day'
         : 'Smooth day';
       if (convoy) { teachSeen = true; convoy = null; }
@@ -412,7 +522,10 @@
       st.clear.charges = 0; regenT = []; syncBoost();
       st.totalDelivered += delivered;
       st.totalScore += score;
-      st.history.push({ day: st.day, delivered: delivered, failed: !!failed, lost: s.lost || 0, peak: Math.round(Math.min(1, peak) * 100) / 100 });
+      // die, len e jn (v2): a linha do porque do resumo compara hoje com ontem (face do dado, duracao do dia, cruzamentos)
+      st.history.push({ day: st.day, delivered: delivered, failed: !!failed, lost: s.lost || 0, peak: Math.round(Math.min(1, peak) * 100) / 100,
+                        die: st.die && typeof st.die.id === 'string' ? st.die.id : null, len: st.dayLen, jn: junctionCount() });
+      recordDay();
       if (failed) st.strikes++;
       // snapshot do estresse para o crescimento "perto do trafego"
       hot = {};
@@ -968,7 +1081,8 @@
     function capture() {
       return { layout: world.cloneLayout(), budget: st.budget, placed: clone(placed),
                free: { road: st.free.road, light: st.free.light },
-               die: st.die ? clone(st.die) : null, rerolled: st.rerolled };
+               die: st.die ? clone(st.die) : null, rerolled: st.rerolled,
+               watch: st.watch && st.watch.day === st.day ? clone(st.watch.list) : [] };
     }
     function fail(reason) { return { ok: false, reason: reason }; }
     // id vindo de fora: so numero (ou string numerica) que seja chave propria; barra '__proto__', 'constructor', etc.
@@ -1016,7 +1130,9 @@
       undoStack.push(entry);
       refresh();
       emit({ type: 'built', x: n.x, y: n.y, kind: tool });
-      return { ok: true, id: nodeId };
+      var pres = { ok: true, id: nodeId }, pw = watchOn(nodeId, tool);
+      if (pw) pres.watched = pw;   // 'new': o cruzamento do anel de ontem passa a ser vigiado hoje
+      return pres;
     };
 
     g.removeTool = function (nodeId) {
@@ -1031,6 +1147,7 @@
       st.budget += placed[nodeId] || 0;
       delete placed[nodeId];
       undoStack.push(entry);
+      syncWatch();
       refresh();
       return { ok: true, id: nodeId };
     };
@@ -1051,7 +1168,11 @@
       refresh();
       var a = world.nodes[e.a], b = world.nodes[e.b];
       emit({ type: 'built', x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, kind: 'upgrade' });
-      return { ok: true, id: edgeId };
+      // Two lanes numa rua que chega a um cruzamento com o anel de ontem: vigia a ponta mais quente
+      var wa = +st.hot[a.id] || 0, wb = +st.hot[b.id] || 0, wn = wa >= wb ? a : b, ures = { ok: true, id: edgeId };
+      if (degree(wn) >= 3) { var uw = watchOn(wn.id, 'upgrade'); if (uw) { ures.watched = uw; ures.watchId = wn.id; } }
+      if (!ures.watched && degree(wn === a ? b : a) >= 3) { var uo = watchOn((wn === a ? b : a).id, 'upgrade'); if (uo) { ures.watched = uo; ures.watchId = (wn === a ? b : a).id; } }
+      return ures;
     };
 
     g.setOneway = function (edgeId, dir) {
@@ -1172,6 +1293,9 @@
       var dieBack = JSON.stringify(st.die) !== JSON.stringify(e.die);
       st.die = e.die;
       st.rerolled = e.rerolled;
+      // vigiados como estavam antes da acao desfeita (entrada de save antigo sem o campo: so tira o que perdeu a peca)
+      if (Array.isArray(e.watch)) { var nw = normWatch({ day: st.day, list: e.watch }); st.watch = nw || { day: st.day, list: [] }; }
+      syncWatch();
       refresh();
       if (dieBack) emit({ type: 'die', die: clone(st.die), next: st.nextDie ? clone(st.nextDie) : null });
       return { ok: true };
@@ -1222,6 +1346,7 @@
       syncModes(CFG.clear.charges);                // cargas renovadas a cada dia
       undoStack = [];
       acc = 0; stepCount = 0; dayFailed = false; runHot = {}; st.hot = {};
+      runAt = {}; runWait = {}; runPass = {}; runTrace = {};
       refresh();
       emit({ type: 'phase', phase: 'run' });
       return { ok: true };
@@ -1333,12 +1458,16 @@
           emit(evs[i]);
           if (evs[i].type === 'gridlock') { dayFailed = true; lockInfo(evs[i].nodeId); }
           else if (evs[i].type === 'arrive' && !evs[i].noTip) st.tips += rewardNow();
+          else if (evs[i].type === 'pass') runPass[evs[i].nodeId] = (runPass[evs[i].nodeId] | 0) + 1;
         }
         if (stepCount % 10 === 0) {
           var ids = sortedIds(world.nodes);
           for (var j = 0; j < ids.length; j++) {
             var n = world.nodes[ids[j]];
-            if ((n.stress || 0) > (runHot[ids[j]] || 0)) runHot[ids[j]] = n.stress;
+            if ((n.stress || 0) > (runHot[ids[j]] || 0)) { runHot[ids[j]] = n.stress; runAt[ids[j]] = st.dayTime; }
+            var wq = waitNow(ids[j], n);
+            if (wq > (runWait[ids[j]] || 0)) runWait[ids[j]] = wq;
+            if (stepCount % TRACE_EVERY === 0) (runTrace[ids[j]] || (runTrace[ids[j]] = [])).push(Math.round(Math.min(1, n.stress || 0) * 100));
             if ((runHot[ids[j]] || 0) >= HOT_MIN) st.hot[ids[j]] = Math.min(1, runHot[ids[j]]);
           }
         }
@@ -1378,6 +1507,14 @@
       }
       return list.length ? { day: st.day, list: list } : undefined;
     }
+    // mapa de anel no save: no meio do dia o st.hot e o de hoje pela metade (o load volta a manha); a manha precisa
+    // dos aneis de ontem, que o registro (st.trouble) guarda
+    function hotForSave() {
+      if (st.phase !== 'run' || !st.trouble || st.trouble.day !== st.day - 1) return st.hot;
+      var out = {}, k, nd = st.trouble.nodes || {};
+      for (k in nd) if (own(nd, k) && nd[k].p >= HOT_MIN) out[k] = Math.min(1, nd[k].p);
+      return out;
+    }
     g.save = function () {
       return clone({
         v: 1, diff: CFG.difficultyName, seed: seed, rngCalls: rngCalls, world: world.snapshot(),
@@ -1389,9 +1526,11 @@
           history: st.history, dayTime: st.phase === 'run' ? 0 : st.dayTime,
           clearSeen: clearSeen, teachOn: teachOn, teachSeen: teachSeen,
           teach: st.phase === 'run' ? { day3Convoy: false, seen: teachSeen, target: null, sent: 0 } : st.teach, tipCarry: st.tipCarry, speedBonus: st.speedBonus,
-          speedApplied: st.speedDial.applied, lastLock: lastLock
+          speedApplied: st.speedDial.applied, lastLock: lastLock,
+          // retorno da escolha (v2): registro do ultimo dia e vigiados (o reload no meio do dia volta a manha com eles)
+          trouble: st.trouble, watch: st.watch, watchPrev: st.watchPrev
         },
-        cards: activeCards, placed: placed, hot: hot, hotMap: st.hot, undo: undoForSave()
+        cards: activeCards, placed: placed, hot: hot, hotMap: hotForSave(), undo: undoForSave()
       });
     };
 
@@ -1417,9 +1556,15 @@
       // Undo do plano de hoje (Game.load ja conferiu ou tirou d.undo): mesmas fotos, mesma ordem, mesmos reembolsos
       undoStack = (saved.undo && st.phase === 'plan') ? saved.undo.list.map(function (e) {
         return { layout: e.layout, budget: e.budget, placed: e.placed, free: { road: e.free.road, light: e.free.light },
-                 die: normDie(e.die, st.day), rerolled: e.rerolled };
+                 die: normDie(e.die, st.day), rerolled: e.rerolled, watch: Array.isArray(e.watch) ? e.watch : undefined };
       }) : [];
       st.hot = saved.hotMap || {};
+      // retorno da escolha (v2): save antigo sem os campos (ou campo estragado) carrega sem eles
+      st.trouble = normTrouble(s.trouble);
+      st.watch = normWatch(s.watch);
+      if (!st.watch || st.watch.day !== st.day) st.watch = { day: st.day, list: [] };
+      st.watchPrev = normWatch(s.watchPrev);
+      if (st.watchPrev && (st.watchPrev.day !== st.day - 1 || !st.watchPrev.list.length)) st.watchPrev = null;
       syncModes(st.phase === 'plan' ? CFG.clear.charges : 0);
       // save antigo sem a marca: se o dia ja passou da liberacao, o aviso ja foi visto
       clearSeen = s.clearSeen === true || st.day >= CFG.clear.unlockDay;

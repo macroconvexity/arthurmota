@@ -397,6 +397,23 @@ body.crz-modal #stage, body.crz-modal #hud, body.crz-modal #hud * { pointer-even
   .crz-ctx .crz-cgood { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { .crz-say { transition: none; } }
+/* ---- retorno da escolha (v2, 2026-11-16): o balao ancorado num cruzamento e as linhas do resumo ----
+   Mesma peca do balao do tutorial (.crz-tut-box: fundo branco, borda preta, canto --r-md, seta de 12 px), menor e
+   sem botao; nao recebe toque (o mapa continua tocavel por baixo) e nao pausa nada */
+.crz-fbk {
+  position: absolute; left: 0; top: 0; z-index: 3; box-sizing: border-box; width: max-content; max-width: min(300px, calc(100vw - 24px));
+  background: var(--white); color: var(--ink); border: var(--bw) solid var(--ink); border-radius: var(--r-md);
+  padding: 8px 12px; font-size: var(--fs-md); line-height: 1.3; font-weight: var(--fw-normal); letter-spacing: -.1px;
+  pointer-events: none; display: none;
+}
+.crz-fbk.on { display: block; animation: crz-in-pop var(--t-base) var(--ease) 1; }
+.crz-fbkarrow { position: absolute; width: 12px; height: 12px; margin-left: -7px; background: var(--white); border: var(--bw) solid var(--ink); transform: rotate(45deg); display: none; }
+.crz-fbk.below .crz-fbkarrow { display: block; top: -7px; border-right: 0; border-bottom: 0; }
+.crz-fbk.above .crz-fbkarrow { display: block; bottom: -7px; border-left: 0; border-top: 0; }
+.crz-swatch { width: 100%; font-size: var(--fs-sm); font-weight: var(--fw-semi); color: var(--ink); line-height: 1.35; text-align: center; font-variant-numeric: tabular-nums; }
+.crz-swhy { width: 100%; font-size: var(--fs-sm); color: var(--ink-2); line-height: 1.35; text-align: center; }
+@media (prefers-reduced-motion: reduce) { .crz-fbk.on { animation: crz-in-fade var(--t-fast) linear 1; } }
+
 
 /* ---- auditoria novice2: telas (2026-11-08) ---- */
 /* resumo: a carta principal e o botao cheio; "Skip reward" e secundario, transparente e menor */
@@ -1071,3 +1088,4 @@ html body #hud .crz-ui[data-phase="over"] .crz-bottom, html body #hud .crz-ui[da
   .crz-say, .crz-say.show { translate: none; }
   .crz-guide.crz-leaving, .crz-guide.crz-leaving .crz-gbox { animation: none; display: none; }
 }
+

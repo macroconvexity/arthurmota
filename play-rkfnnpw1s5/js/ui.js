@@ -398,6 +398,32 @@
              cross: 'Crosswalk', round: 'Roundabout', oneway: 'One-way' },
     events: { calm: 'Calm', plain: 'Normal', busy: 'Busy', rush: 'Rush', rain: 'Rain', festival: 'Festival' },
     // dado do dia: nome e descricao de reserva (a descricao e gerada do effect quando ele existe)
+    // retorno da escolha (v2, 2026-11-16, v2/jogador.md secoes 2, 3 e 7): balao da corrida ate 6 palavras, faixa ate 8
+    fbk: {
+      watchFirst: 'Watch this crossing today.',
+      // nome curto da ferramenta no balao e na linha do resumo ('Traffic light' estourava as 6 palavras)
+      tool: { stop: 'Stop', yield: 'Yield', light: 'Light', round: 'Roundabout', cross: 'Crosswalk', upgrade: 'Two lanes' },
+      good: function (t) { return /\s/.test(t) ? 'Calm today. Your ' + t + ' work.' : 'Calm here today. Your ' + t + ' works.'; },
+      bad: 'Busy again. Tap ⚡︎ to help.',
+      // sem carga de Boost (ou Boost ainda bloqueado): o balao nao manda tocar no que nao funciona
+      badNoBoost: 'Busy again here today.',
+      // resumo: a espera mais longa de um carro parado na fila desse cruzamento, ontem e hoje (s de jogo)
+      line: function (t, a, b) { return 'Your ' + t + ': wait ' + a + ' s → ' + b + ' s.'; },
+      fixed: 'Fixed. No ring here today.',
+      trouble: 'Trouble here yesterday. Tap it.',
+      // linha do porque: UMA causa do numero de hoje contra ontem, por prioridade (whyCause)
+      why: {
+        strike: 'A jam ended the day early.',
+        fixedMore: 'More cars got through your fixed crossing.',
+        fixedCalm: 'Your fixed crossing kept its line short.',
+        dieMore: function (name) { return name + ' today: more cars came.'; },
+        dieCalm: 'Calm day: fewer cars came.',
+        dieRain: 'Rain today: cars drove slower.',
+        shorter: 'Shorter day today: fewer cars.',
+        longer: 'Longer day today: more cars.',
+        grew: 'The city grew: more cars came.'
+      }
+    },
     dieLabel: 'Daily dice',
     today: 'Today',
     tomorrow: 'Tomorrow',
@@ -1249,6 +1275,81 @@
 
   /* ---------- UI ---------- */
 
+  // ---------- retorno da escolha (v2): regras puras, testadas sem DOM ----------
+  // goodGap: hoje tem de estar 0,15 abaixo de ontem no mesmo segundo do dia, e abaixo do anel ambar (0,3), para
+  // 'Calm here'; badGap: 'Busy again' so com anel ambar agora e ate 0,05 abaixo de ontem. Entre os dois: nenhum balao
+  // (ruido nao vira veredito). win: janela (s de jogo) do maximo recente de hoje. lead: o veredito sai pelo menos
+  // lead s de parede antes do fim do dia (o balao de 3 s cabe inteiro na corrida). balloonMs: vida do balao (parede).
+  var FBK = { goodGap: 0.15, badGap: 0.05, calm: 0.3, passGap: 0.02, win: 2, lead: 4, balloonMs: 3000, waitMs: 3000,
+              morningMax: 20000, pulseMs: 12000, quietMs: 600 };
+  // estresse de ontem no segundo t do dia (amostra a cada dt s; maximo da amostra e das vizinhas, contra ruido)
+  function fbkTraceAt(w, t) {
+    var a = w && w.s, dt = (w && w.dt) || 2;
+    if (!a || !a.length) return w && typeof w.p === 'number' ? w.p : null;
+    var i = Math.round(t / dt) - 1;
+    if (i < 0) i = 0;
+    if (i > a.length - 1) i = a.length - 1;
+    var m = 0, k;
+    for (k = Math.max(0, i - 1); k <= Math.min(a.length - 1, i + 1); k++) if (a[k] > m) m = a[k];
+    return m / 100;
+  }
+  // segundo do dia em que o balao decide: o pico de ontem, mas com folga para o balao caber antes do fim do dia
+  function fbkTrigger(w, dayLen, speed) {
+    var lead = Math.max(FBK.lead, FBK.lead * (speed > 0 ? speed : 1));
+    var t = w && typeof w.t === 'number' ? w.t : dayLen * 0.5;
+    return Math.max(2, Math.min(t, dayLen - lead));
+  }
+  // veredito no instante: yest = ontem no mesmo segundo; now = agora; recent = maximo de hoje na janela recente
+  function fbkVerdict(yest, now, recent) {
+    if (yest == null) return null;
+    var r = Math.max(recent || 0, now || 0);
+    if (r < FBK.calm && r <= yest - FBK.goodGap) return 'good';
+    if (now >= FBK.calm && now >= yest - FBK.badGap) return 'bad';
+    return null;
+  }
+  // resultado do vigiado no resumo, pela espera mais longa (s inteiros): melhor, pior ou igual (margem de 2 s ou 20%)
+  function fbkResult(e) {
+    if (!e || !e.now || typeof e.w !== 'number') return null;
+    var a = Math.round(e.w), b = Math.round(e.now.w), gap = Math.max(2, a * 0.2);
+    return b <= a - gap ? 'better' : (b >= a + gap ? 'worse' : 'same');
+  }
+  function fbkToolName(t) { return STR.fbk.tool[t] || STR.tools[t] || t; }
+  function dieFx(id, day, cfg) {
+    var D = cfg && cfg.dice; if (!D || typeof id !== 'string') return {};
+    var tab = day <= 5 ? D.early : D.late, i;
+    for (i = 0; tab && i < tab.outcomes.length; i++) if (tab.outcomes[i].id === id) return tab.outcomes[i];
+    return {};
+  }
+  // linha do porque: a causa principal do numero de hoje contra ontem, uma so, por prioridade:
+  // strike > vigiado que melhorou > dado > duracao do dia > cidade maior. Cada frase so sai quando o sentido bate com o
+  // numero (dia mais curto E menos carros); sem causa honesta, nenhuma linha. Devolve { key, text } ou null
+  function whyCause(s, cfg) {
+    var sm = s && s.summary, hs = (s && s.history) || [], W = STR.fbk.why;
+    if (!sm) return null;
+    var t = hs[hs.length - 1], y = hs[hs.length - 2];
+    if (!t || t.day !== s.day) return null;
+    if (sm.failed) return { key: 'strike', text: W.strike };
+    var L = s.watch && s.watch.day === s.day ? s.watch.list || [] : [], i;
+    for (i = 0; i < L.length; i++) {
+      if (fbkResult(L[i]) !== 'better') continue;
+      var more = typeof L[i].n === 'number' && L[i].now && L[i].now.n > L[i].n;
+      return more ? { key: 'fixedMore', text: W.fixedMore } : { key: 'fixedCalm', text: W.fixedCalm };
+    }
+    if (!y || typeof y.delivered !== 'number') return null;
+    var dd = (t.delivered | 0) - (y.delivered | 0);
+    var ft = dieFx(t.die, t.day, cfg), fy = dieFx(y.die, y.day, cfg);
+    var sT = ft.spawnMul || 1, sY = fy.spawnMul || 1, vT = ft.speedMul || 1, vY = fy.speedMul || 1;
+    if (sT > 1.05 && !(sY > 1.05) && dd > 0) return { key: 'dieMore', text: W.dieMore((STR.dice[t.die] && STR.dice[t.die].name) || 'Busy day') };
+    if (sT < 0.95 && !(sY < 0.95) && dd < 0) return { key: 'dieCalm', text: W.dieCalm };
+    // Rush do d20 tambem deixa os carros 10% mais lentos: 'Rain' so para a face que so muda a velocidade
+    if (vT < 0.95 && !(sT > 1.05) && !(vY < 0.95 && !(sY > 1.05)) && dd < 0) return { key: 'dieRain', text: W.dieRain };
+    var lt = t.len > 0 ? t.len : cfg.dayLen[t.day - 1], ly = y.len > 0 ? y.len : cfg.dayLen[y.day - 1];
+    if (lt > 0 && ly > 0 && lt <= ly * 0.9 && dd < 0) return { key: 'shorter', text: W.shorter };
+    if (lt > 0 && ly > 0 && lt >= ly * 1.1 && dd > 0) return { key: 'longer', text: W.longer };
+    if (typeof t.jn === 'number' && typeof y.jn === 'number' && t.jn > y.jn && dd > 0) return { key: 'grew', text: W.grew };
+    return null;
+  }
+
   function create(opts) {
     var CFG = CRZ.CFG, C = CFG.colors;
     var rootEl = opts.root, game = opts.game, render = opts.render, audio = opts.audio;
@@ -1525,7 +1626,11 @@
     var prevEl = el('div', 'crz-prev gone');
     // ultimo dia: linha de fechamento (dias e carros da partida) logo abaixo da comparacao com ontem
     var closeEl = tut(el('div', 'crz-sclose gone'), 'summary-closing');
-    panel.appendChild(headEl); panel.appendChild(bigEl); panel.appendChild(capEl); panel.appendChild(prevEl); panel.appendChild(closeEl); panel.appendChild(queueRow);
+    // retorno da escolha (v2): uma linha por cruzamento vigiado ('Your Stop: wait 12 s -> 4 s.') e a linha do porque,
+    // logo abaixo da comparacao com ontem (o numero e o porque juntos)
+    var watchLineEl = tut(el('div', 'crz-swatch gone'), 'summary-watch');
+    var whyEl = tut(el('div', 'crz-swhy gone'), 'summary-why');
+    panel.appendChild(headEl); panel.appendChild(bigEl); panel.appendChild(capEl); panel.appendChild(prevEl); panel.appendChild(watchLineEl); panel.appendChild(whyEl); panel.appendChild(closeEl); panel.appendChild(queueRow);
     // pontos que passam ao dia seguinte (ate CFG.carryCap): 'Saved for tomorrow: N'
     var carryEl = el('div', 'crz-bonus crz-carry gone');
     // dia 6: ponto natural de parada (hipercasual), uma linha cinza, uma vez por partida
@@ -2989,6 +3094,7 @@
           addPulse(n.x, n.y); say(STR.placed(STR.tools[sel] || TL[sel] || sel), 1800);
         }
         if (tr && tr.ok && sel === 'yield') yieldBusyHint(s, n);
+        if (tr && tr.ok) fbkPlaced(tr, n, !was && sel !== 'yield');
         // ponta de rua: a fila espera no cruzamento a frente; pulsa ele (o lugar certo do sinal).
         // Sem cruzamento a frente, a frase muda (nada de "pulsing crossing" sem pulso)
         if (tr && !tr.ok && tr.reason === 'portal') {
@@ -3017,7 +3123,9 @@
       if (sel === 'upgrade') {
         pk = render.pickEdge(sx, sy); if (!pk) return;
         p = edgePoint(pk);
-        toolResult(game.upgradeRoad(pk.edge.id), p.x, p.y, 'build', 'upgrade');
+        var ur = game.upgradeRoad(pk.edge.id);
+        toolResult(ur, p.x, p.y, 'build', 'upgrade');
+        if (ur && ur.ok) fbkPlaced(ur, ur.watchId != null && game.world.nodes ? game.world.nodes[ur.watchId] : null, false);
         return;
       }
       if (sel === 'oneway') {
@@ -3044,6 +3152,7 @@
       // Parear so depois do chip "Pair lights" (pairArm). Toque normal num semaforo so da a dica e mostra o chip
       if (armed && n.id !== armed.from) { pairTapArmed(armed, n); return; }
       if (armed && n.id === armed.from) { pairArm = null; pairRep = null; say(STR.pairCancel); syncSelectedNode(); }
+      fbkTap(n.id);
       if (heatOf(s, n) >= HOT_TAP) say(tapAdvice(s, n));   // anel: diz o que ajuda ali (e qual rua)
       else if (isDeadEnd(n)) say(STR.deadEndTap);
       if (n.tool === 'light') {
@@ -4154,6 +4263,7 @@
       prevEl.classList.toggle('struck', struck);
       prevEl.classList.toggle('up', !struck && prevD !== null && (sm.delivered | 0) > prevD);
       prevEl.classList.toggle('down', !struck && prevD !== null && (sm.delivered | 0) < prevD);
+      fbkSummary(s);
       // "Worst queue": o pico de estresse do dia (o anel mais cheio), nao a espera media
       var ratio = clamp(+sm.peak || 0, 0, 1);
       waitFill.style.width = Math.round(ratio * 100) + '%';
@@ -4954,6 +5064,7 @@
       boostHintTick(s, now);
       boostChipTick(s, now);
       newJPlanTick(s, now);
+      fbkTick(s, now);
       prunePulses(now);
       syncLayout(s);
       planOpenFitTick(s);
@@ -5040,6 +5151,193 @@
       if (ui.parentNode) ui.parentNode.removeChild(ui);
     }
 
+    // ---------- retorno da escolha (v2, v2/jogador.md secoes 2 e 3) ----------
+    // Tres sinais no mesmo lugar, em tres tempos: o balao na corrida (cruzamento vigiado), a linha do resumo e, na manha
+    // seguinte, 'Fixed.' no cruzamento sem anel; e o problema do dia (o anel mais forte pulsa e a faixa diz uma linha).
+    // Nunca dois textos juntos: o balao e a faixa esperam o tutorial, outra faixa, folha ou menu; esperou demais, sai.
+    // O balao e a mesma peca do balao do tutorial ancorado num no (borda preta, fundo branco, seta), sem botao e sem
+    // toque (pointer-events: none): nao pausa nem segura o dedo
+    var fbkEl = tut(el('div', 'crz-fbk'), 'fbk-balloon'), fbkTxt = el('span', 'crz-fbktxt'), fbkArrow = el('i', 'crz-fbkarrow');
+    fbkEl.setAttribute('role', 'status'); fbkEl.setAttribute('aria-live', 'polite');
+    fbkEl.appendChild(fbkTxt); fbkEl.appendChild(fbkArrow);
+    ui.appendChild(fbkEl);
+    var fbkCur = null;                                     // { id, until, kind } do balao na tela
+    var fbkRun = { key: -1, done: {}, hist: {}, queue: [] };
+    var fbkAm = { day: -1 }, fbkWatchPend = 0;
+    function fbkKey(k) { return 'fbk.' + k + runTag; }   // vale so nesta partida (pruneRunHints limpa as outras)
+    function fbkSeen(k) { return !!hints[fbkKey(k)]; }
+    function fbkMark(k) { hints[fbkKey(k)] = 1; lsSet(HINT_KEY, JSON.stringify(hints)); }
+    // algo do tutorial, do menu ou do HUD fala ou cobre a tela: o retorno espera
+    function fbkBusy() { return modal() || tutBalloonOn() || tutorTalking() || sheetOpen || confirmOpen() || !!holdUntil || roll.open || !!guideEl; }
+    function fbkRect(e) {
+      try { if (!e || (e.classList && e.classList.contains('gone')) || !e.getBoundingClientRect) return null; var r = e.getBoundingClientRect(); return r && r.width > 0 && r.height > 0 ? { x: r.left, y: r.top, w: r.width, h: r.height } : null; } catch (er) { return null; }
+    }
+    function fbkHit(x, y, w, h, L) {
+      for (var i = 0; i < L.length; i++) { var r = L[i]; if (r && x < r.x + r.w && x + w > r.x && y < r.y + r.h && y + h > r.y) return true; }
+      return false;
+    }
+    // acima, abaixo, a direita ou a esquerda do no, dentro da faixa entre os HUDs, sem cobrir o no, o chip do Boost,
+    // a faixa preta nem o balao do tutorial. Devolve false se o no saiu da tela (o balao nao aponta para fora)
+    function fbkPlace(n) {
+      if (!n || !render || typeof render.toScreen !== 'function') return false;
+      var p = render.toScreen(n.x, n.y), W = render.width || root.innerWidth || 390, H = render.height || root.innerHeight || 844;
+      var m = render.margins || {}, y0 = Math.max(8, m.top || 0), y1 = H - Math.max(8, m.bottom || 0);
+      if (!(p.x >= 0 && p.x <= W && p.y >= y0 - 10 && p.y <= y1 + 10)) return false;
+      var r = fbkRect(fbkEl), bw = r ? r.w : 210, bh = r ? r.h : 44, R = 22, A = 9, G = 10;
+      var nodeBox = { x: p.x - R, y: p.y - R, w: 2 * R, h: 2 * R };
+      var hud = [nodeBox, fbkRect(bchipEl), fbkRect(bchip2El), sayEl.classList.contains('show') ? fbkRect(sayEl) : null];
+      // outros nos: os com anel (tracejado de ontem, ou ambar/vermelho agora) nunca ficam embaixo; os demais, se der
+      var rings = [], dots = [], s0 = game.state, hm = (s0 && s0.hot) || {}, k, o, q, r2 = 16;
+      for (k in game.world.nodes) if (game.world.nodes.hasOwnProperty(k)) {
+        o = game.world.nodes[k]; if (!o || o.id === n.id) continue;
+        q = render.toScreen(o.x, o.y);
+        var bx = { x: q.x - r2, y: q.y - r2, w: 2 * r2, h: 2 * r2 };
+        if ((+hm[o.id] || 0) >= HOT_TAP || (o.stress || 0) >= RING_BUSY || o.locked) rings.push(bx); else dots.push(bx);
+      }
+      var cx = Math.max(G, Math.min(W - G - bw, p.x - bw / 2));
+      var cand = [[cx, p.y - R - A - bh, 'above'], [cx, p.y + R + A, 'below'], [p.x + R + A, p.y - bh / 2, 'side'], [p.x - R - A - bw, p.y - bh / 2, 'side']];
+      var pick = null, i, c, tier, tiers = [hud.concat(rings, dots), hud.concat(rings), [nodeBox].concat(rings), [nodeBox]];
+      // do mais exigente ao minimo (so nao cobrir o proprio no)
+      for (tier = 0; tier < tiers.length && !pick; tier++) for (i = 0; i < cand.length && !pick; i++) {
+        c = cand[i];
+        if (c[0] < G - 0.5 || c[0] + bw > W - G + 0.5 || c[1] < y0 || c[1] + bh > y1) continue;
+        if (!fbkHit(c[0], c[1], bw, bh, tiers[tier])) pick = c;
+      }
+      if (!pick) return false;
+      fbkEl.style.left = Math.round(pick[0]) + 'px'; fbkEl.style.top = Math.round(pick[1]) + 'px';
+      fbkEl.classList.toggle('above', pick[2] === 'above'); fbkEl.classList.toggle('below', pick[2] === 'below');
+      fbkArrow.style.left = Math.round(Math.max(14, Math.min(bw - 14, p.x - pick[0]))) + 'px';
+      return true;
+    }
+    function fbkShow(n, text, kind) {
+      fbkTxt.textContent = text;
+      fbkEl.classList.add('on');
+      if (!fbkPlace(n)) { fbkEl.classList.remove('on'); return false; }
+      fbkCur = { id: n.id, until: nowMs() + FBK.balloonMs, kind: kind };
+      emitUI('fbkBalloon', { id: n.id, kind: kind, text: text });
+      return true;
+    }
+    function fbkHide() { if (!fbkCur && !fbkEl.classList.contains('on')) return; fbkCur = null; fbkEl.classList.remove('on'); }
+    function fbkBalloonTick(now) {
+      if (!fbkCur) return;
+      var n = game.world && game.world.nodes ? game.world.nodes[fbkCur.id] : null;
+      if (now >= fbkCur.until || !n || (fbkCur.kind !== 'fixed' && game.state.ff)) { fbkHide(); return; }
+      if (!fbkPlace(n)) fbkHide();   // a camera andou: segue o no; saiu da tela, some
+    }
+    // ferramenta posta (ou Two lanes) com sucesso: o no foi tocado; vigiado novo na partida: a faixa diz uma vez
+    function fbkPlaced(tr, n, plain) {
+      if (n) fbkTap(n.id);
+      if (!tr || tr.watched !== 'new' || fbkSeen('watchFirst')) return;
+      fbkMark('watchFirst');
+      // colocacao simples: a faixa troca 'Stop placed here.' por esta; troca de sinal ou dica do Yield: espera a faixa
+      if (plain && !fbkBusy()) { sayUntil = 0; say(STR.fbk.watchFirst, 3000); }
+      else fbkWatchPend = nowMs();
+    }
+    function fbkTap(id) { if (fbkAm.day >= 0 && fbkAm.hotId === id) { fbkAm.pulseUntil = 0; if (fbkAm.stage < 2) fbkAm.skip = true; } }
+
+    // corrida: o veredito de cada vigiado sai uma vez, no segundo do pico de ontem (ou antes, se hoje passar do pico
+    // de ontem). Durante o 8x a decisao acontece em silencio (nenhum balao); o resumo diz o resultado igual
+    function fbkRunTick(s, now) {
+      var L = s.watch && s.watch.day === s.day ? s.watch.list : null;
+      if (s.phase !== 'run') { fbkRun.key = -1; if (fbkCur && fbkCur.kind !== 'fixed') fbkHide(); return; }
+      if (fbkRun.key !== s.day) { fbkRun = { key: s.day, done: {}, hist: {}, queue: [] }; }
+      if (!L || !L.length) return;
+      var t = +s.dayTime || 0, i, w = game.world;
+      for (i = 0; i < L.length; i++) {
+        var e = L[i], id = e.id;
+        if (fbkRun.done[id]) continue;
+        var n = w && w.nodes ? w.nodes[id] : null;
+        if (!n) { fbkRun.done[id] = 'gone'; continue; }
+        var cur = n.stress || 0, h = fbkRun.hist[id] || (fbkRun.hist[id] = []), k, recent = 0;
+        if (!h.length || h[h.length - 1][0] !== t) h.push([t, cur]);
+        while (h.length && h[0][0] < t - FBK.win) h.shift();
+        for (k = 0; k < h.length; k++) if (h[k][1] > recent) recent = h[k][1];
+        var v = null;
+        if (cur >= FBK.calm && cur >= (e.p || 0) + FBK.passGap) v = 'bad';
+        else if (t >= fbkTrigger(e, s.dayLen, s.speed)) { v = fbkVerdict(fbkTraceAt(e, t), cur, recent) || 'none'; }
+        if (!v) continue;
+        fbkRun.done[id] = v;
+        if (v === 'none' || s.ff) continue;
+        fbkRun.queue.push({ id: id, v: v, tool: e.tool, at: now });
+      }
+      if (fbkCur || !fbkRun.queue.length) return;
+      var q = fbkRun.queue[0];
+      if (s.ff || now - q.at > FBK.waitMs) { fbkRun.queue.shift(); return; }   // passou a hora: nao fala atrasado
+      if (fbkBusy() || s.paused) return;
+      var qn = w.nodes[q.id];
+      fbkRun.queue.shift();
+      if (!qn) return;
+      var boostOk = !!(s.clear && s.clear.unlocked) && (((s.boost && s.boost.charges) || (s.clear && s.clear.charges)) | 0) > 0;
+      fbkShow(qn, q.v === 'good' ? STR.fbk.good(fbkToolName(q.tool)) : (boostOk ? STR.fbk.bad : STR.fbk.badNoBoost), q.v);
+    }
+
+    // manha: (1) 'Fixed.' no cruzamento vigiado ontem que ficou sem anel; (2) o problema do dia: o anel tracejado mais
+    // forte pulsa (o mesmo pulso do proximo passo) e a faixa diz uma linha. Sem anel: nada. Uma vez por dia (o reload
+    // nao repete). Espera o dado, o crescimento, o tutorial e outra faixa; depois de FBK.morningMax sem vez, desiste
+    function fbkMorningTick(s, now) {
+      if (s.phase !== 'plan') { fbkAm = { day: -1 }; if (fbkCur && fbkCur.kind === 'fixed') fbkHide(); return; }
+      var w = game.world, hot = s.hot || {}, k;
+      if (fbkAm.day !== s.day) {
+        var fx = null, best = null, bv = 0;
+        var P = s.watchPrev && s.watchPrev.day === s.day - 1 ? s.watchPrev.list || [] : [];
+        for (k = 0; k < P.length && !fx; k++) { var pn = w.nodes[P[k].id]; if (pn && !(+hot[P[k].id] >= HOT_TAP)) fx = pn.id; }
+        for (k in hot) if (hot.hasOwnProperty(k) && w.nodes[k] && +hot[k] >= HOT_TAP && +hot[k] > bv) { bv = +hot[k]; best = w.nodes[k].id; }
+        fbkAm = { day: s.day, at: now, readyAt: 0, stage: 0, fixedId: fx, hotId: best, pulseUntil: 0, nextPulse: 0, skip: false };
+        if (fx === null || fbkSeen('fixed.' + s.day)) fbkAm.stage = 1;
+        if (best === null || fbkSeen('trouble.' + s.day)) fbkAm.skip = true;
+      }
+      // o tutorial apresenta os aneis tracejados hoje (tip:hot): ele ja aponta o anel mais forte; a faixa nao repete
+      if (tutorStep() === 'tip:hot' && !fbkAm.skip) { fbkAm.skip = true; fbkMark('trouble.' + s.day); }
+      // pulso do problema do dia: ate tocar no anel (ou por uma ferramenta nele), ate FBK.pulseMs
+      if (fbkAm.pulseUntil && now < fbkAm.pulseUntil && now >= fbkAm.nextPulse) {
+        var hn = w.nodes[fbkAm.hotId];
+        if (hn && (hn.tool || null) === fbkAm.tool0) { addPulse(hn.x, hn.y); fbkAm.nextPulse = now + PULSE_LIFE; } else fbkAm.pulseUntil = 0;
+      }
+      if (fbkAm.stage >= 2 || (fbkAm.stage === 1 && fbkAm.skip)) return;
+      // o roteiro do tutorial ainda em curso (dias de ensino): a manha e dele
+      var ready = !growPend && bootFrames < 0 && !fbkBusy() && !tutorScript() && !sayUntil && !fbkCur;
+      if (!ready) { fbkAm.readyAt = 0; if (now - fbkAm.at > FBK.morningMax) fbkAm.stage = 2; return; }
+      if (!fbkAm.readyAt) fbkAm.readyAt = now;
+      if (now - fbkAm.readyAt < FBK.quietMs) return;   // uma pausa curta depois do texto anterior
+      fbkAm.readyAt = 0;
+      if (fbkAm.stage === 0) {
+        fbkAm.stage = 1; fbkMark('fixed.' + s.day);
+        var fn = w.nodes[fbkAm.fixedId];
+        if (fn && fbkShow(fn, STR.fbk.fixed, 'fixed')) return;
+      }
+      if (fbkAm.stage === 1 && !fbkAm.skip) {
+        fbkAm.stage = 2; fbkMark('trouble.' + s.day);
+        var tn = w.nodes[fbkAm.hotId];
+        if (!tn) return;
+        say(STR.fbk.trouble, 4000);
+        // pulsa ate a jogadora tocar no anel ou mexer na ferramenta dele (tool0 = a de agora)
+        fbkAm.tool0 = tn.tool || null; fbkAm.pulseUntil = now + FBK.pulseMs; fbkAm.nextPulse = now;
+      }
+    }
+    function fbkTick(s, now) {
+      fbkBalloonTick(now);
+      fbkRunTick(s, now);
+      fbkMorningTick(s, now);
+      if (fbkWatchPend && s.phase === 'plan' && !sayUntil && !swapUndoUntil && !fbkBusy()) { fbkWatchPend = 0; say(STR.fbk.watchFirst, 3000); }
+      else if (fbkWatchPend && (s.phase !== 'plan' || now - fbkWatchPend > 8000)) fbkWatchPend = 0;
+    }
+    // resumo: uma linha por vigiado com numero honesto (a espera mais longa, em s de jogo) e a linha do porque
+    function fbkSummary(s) {
+      var L = s.watch && s.watch.day === s.day ? s.watch.list || [] : [], i, n = 0;
+      watchLineEl.innerHTML = '';
+      for (i = 0; i < L.length; i++) {
+        var e = L[i];
+        if (!e.now || typeof e.w !== 'number') continue;   // save antigo sem a espera de ontem: sem numero inventado
+        var d = el('div');
+        d.textContent = STR.fbk.line(fbkToolName(e.tool), Math.round(e.w), Math.round(e.now.w));
+        watchLineEl.appendChild(d); n++;
+      }
+      watchLineEl.classList.toggle('gone', !n);
+      var why = whyCause(s, CFG);
+      whyEl.textContent = why ? why.text : '';
+      whyEl.classList.toggle('gone', !why);
+    }
+
     // CONGELADO (tutorial.js): ferramenta na mao ou null
     function getSelectedTool() { return sel || null; }
 
@@ -5078,6 +5376,7 @@
     _test: { ringText: ringText, ringLevel: ringLevel, advise: advise, adviseVary: adviseVary, roundBeats: roundBeats, mainRoad: mainRoad, busiestRoad: busiestRoad, pillPlace: pillPlace, dieFreeLight: dieFreeLight, freeGrant: freeGrant, cardFits: cardFits, createGesture: createGesture, nextOneway: nextOneway, pipLayout: pipLayout, nextSpeed: nextSpeed, speedList: speedList,
              chipPick: chipPick, chipRank: chipRank, chipPlace: chipPlace, CHIP: { on: CHIP_ON, off: CHIP_OFF, px: CHIP_PX, px2: CHIP2_PX, every: CHIP_EVERY, day: ASSIST_DAY },
              jamAdvice: jamAdvice, jamPick: jamPick, jamOptions: jamOptions, busiestLane: busiestLane, denyText: denyText, suggestCard: suggestCard, worstNode: worstNode,
+             fbk: { FBK: FBK, traceAt: fbkTraceAt, trigger: fbkTrigger, verdict: fbkVerdict, result: fbkResult, whyCause: whyCause, toolName: fbkToolName },
              isEnd: isEnd, isDeadEnd: isDeadEnd, queueJunction: queueJunction, loseText: loseText, lockedNodeOf: lockedNodeOf,
              toolIcon: toolIcon, cardIcon: cardIcon, eventSvg: eventSvg, dieSvg: dieSvg, miniDieSvg: miniDieSvg, describeDie: describeDie, dieName: dieName, ICONS: ICONS, CARD_ICONS: CARD_ICONS }
   };

@@ -1005,6 +1005,9 @@
       return true;
     };
     w.drainEvents = function () { var e = events; events = []; return e; };
+    // espera mais longa AGORA (s de jogo) de um carro parado na fila de um no: a mesma medida que enche o anel
+    // (estresse = espera / paciencia, suavizado). Leitura pura, para o registro por cruzamento do game.js
+    w.waitOf = function (nodeId) { var ns = NS[nodeId]; return ns && ns.maxW > 0 ? ns.maxW : 0; };
 
     w.resetDay = function () {
       var i;
