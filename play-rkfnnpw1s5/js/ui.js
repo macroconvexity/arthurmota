@@ -182,6 +182,8 @@
     boostFirst: 'Boost: tap a road end to send an extra car.',
     panLocked: 'Use two fingers to move the map.',
     nextDone: function (d) { return 'Done building? Tap \u25b6\ufe0e to start Day ' + d + '.'; },
+    // dia 2 com pontos para outra rua: as duas saidas (ritmo, 2026-11-16)
+    nextMore: function (d) { return 'Build another road, or tap \u25b6\ufe0e to start Day ' + d + '.'; },
     // arrasto que comecou perto de um ponto mas fora dele (o mapa so andava, sem aviso)
     roadFromDot: 'Start the drag right on a road end or crossing.',
     // rua que passa rente a uma ponta sem ligar nela
@@ -4458,9 +4460,14 @@
       // NEW sem sinal (e pontos para ele): o passo e sinalizar antes do Play
       if (morningList(s).length && signAffordable(s)) return STR.nextNew;
       if ((s.day | 0) === 1 && !nextBuilt) return STR.nextFirst;
+      // ritmo (2026-11-16): dia 2 (o primeiro com pontos para duas ruas), rua feita e outra ainda cabe: a faixa diz as
+      // duas saidas, sem obrigar a segunda rua. Um anel so (o Play pulsa, como no dia 1: dono, 2026-11-09)
+      if ((s.day | 0) === MORE_DAY && nextBuilt && roadLeft(s)) return STR.nextMore(s.day | 0);
       if ((s.day | 0) === 1) return STR.nextPlay;
       return STR.nextDone(s.day | 0);
     }
+    var MORE_DAY = 2;
+    function roadLeft(s) { return !!(s.free && s.free.road) || !!(game.canAfford && game.canAfford('road')); }
     function freeLeft(s) { var f = s.free; return !!(f && (f.road || f.light)); }
     var nextShownAt = 0, nextBumpAt = 0, NEXT_AGAIN = 10000, nextBuilt = false, nextFirstOn = false, planOpenAt = 0;
     // ferramenta nova do dia que nao foi usada em 8 s de plano: os lugares pulsam e uma frase diz como usar

@@ -38,12 +38,22 @@
     // s a 1x (o dia roda a 4x por padrao; o jogador troca a velocidade). Dias 1 e 2 eram 22 e 32 (~5 s e 8 s
     // reais a 4x: o balao do dia 1 saia antes de ser lido); 48 e 64 dao 12 s e 16 s a 4x. Medido 2026-11-08:
     // nenhum strike nos dias 1 a 3 e vitorias dentro de 5 pontos (dev/balance/profiles.js, dev/novice2)
-    dayLen:   [48, 64, 45, 60, 75, 90, 100, 110, 115, 120, 125, 130],
+    // 2026-11-16 (ritmo, RITMO_PARA_APROVAR.md): 48 e 64 -> 44 e 32 (22 s e 16 s reais a 2x). O dia 1 e quase todo
+    // roteiro: tres faixas de 6 s em fila (cars, run, speed1), a ultima sai ate 43,5 s de jogo com o robo humano que nao
+    // toca nas faixas (dev/e2e/results_humans/ritmo, timeline); menos que 44 corta a licao da velocidade. Dia 2: a faixa
+    // 'progress' sai ate 21,6 s de jogo; 32 deixa 5 a 7 s reais de corrida livre, contra 20 s antes.
+    dayLen:   [44, 32, 45, 60, 75, 90, 100, 110, 115, 120, 125, 130],
     speeds:   [1, 2, 4],  // multiplicadores de velocidade permitidos
-    budget:   [2, 2, 3, 4, 5, 6, 7, 8, 8, 9, 9, 10],                   // pontos por dia
+    // pontos por dia. 2026-11-16 (ritmo): dia 2 de 2 para 4 (duas ruas: a da ponta nova e uma escolha). O dia 1 fica 2:
+    // a cidade do dia 1 e a mesma em toda semente e a segunda rua nao muda o placar do dia (24 contra 22 a 24 carros)
+    budget:   [2, 4, 3, 4, 5, 6, 7, 8, 8, 9, 9, 10],
     carryCap: 3,          // pontos que sobram e passam ao dia seguinte
     // carros novos por segundo, por portal, antes do multiplicador do dado
-    spawnRate: function (day) { return day === 1 ? 0.234 : 0.1326 + 0.01872 * day; },
+    // 2026-11-16 (ritmo): o dia 2 tem metade do tempo (64 -> 32 s) e o dobro de carros por segundo (day2Mul): os
+    // mesmos ~21 carros do dia 2 de antes, sem o placar do dia 2 cair para metade do dia 1 ('Yesterday 17' sob '9 cars').
+    // Medido em node (40 sementes, Easy): anel >= 0,3 no dia 2 em 1 de 40 (igual ao dia de 64 s), media 3,4 carros no mapa.
+    day2Mul: 2,
+    spawnRate: function (day) { return day === 1 ? 0.234 : (0.1326 + 0.01872 * day) * (day === 2 ? CRZ.CFG.day2Mul : 1); },
 
     // ferramentas: custo e dia em que liberam
     tools: {
