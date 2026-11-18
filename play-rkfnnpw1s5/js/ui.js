@@ -4226,7 +4226,7 @@
       roll.stage = 'land'; roll.last = s.die ? s.die.value : 0;
       rollPaint(s, roll.last, true);
       if (!reducedMotion()) rollStage.classList.add('crz-rollpop');
-      snd('dice');
+      snd('dieHit3'); snd('dice');   // 3o impacto (o mais leve) junto do estalo da parada
     }
     // abertura: o cartao vai ao layout do resultado (texto ja no lugar, invisivel) e o FLIP anima do compacto ate ele
     function rollGrowStart() {
@@ -4296,7 +4296,7 @@
         if (st === 'anim') {
           var el = now - roll.t0, chg = false;
           if (el >= ROLL_LAND_MS) { rollLand(); return; }
-          while (roll.imp < ROLL_IMPACTS.length - 1 && el >= ROLL_IMPACTS[roll.imp]) { roll.imp++; snd('tick'); }
+          while (roll.imp < ROLL_IMPACTS.length - 1 && el >= ROLL_IMPACTS[roll.imp]) { snd('dieHit' + (++roll.imp)); }
           while (roll.spinI < ROLL_SPIN.length && el >= ROLL_SPIN[roll.spinI]) { roll.spinI++; chg = true; }
           if (chg) rollSpinPaint(s);
         } else if (st === 'land') {

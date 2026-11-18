@@ -23,6 +23,13 @@
   var STRESS_MIN = 0.8, STRESS_GAP = 0.4, STRESS_VOL = 0.12, STRESS_FREQ = 880;
   var GRIDLOCK_F0 = 220, GRIDLOCK_F1 = 98, GRIDLOCK_DUR = 0.9, GRIDLOCK_VOL = 0.4;
   var PED_VOL = 0.18;
+  // dado batendo no cartao: 3 impactos (forte e grave, medio, leve); batida surda = ruido filtrado + baque grave, sem tom
+  // {f: baque (Hz) de, f2: ate, d: duracao (s), v: volume do baque, nv: volume do ruido, lp: corte do ruido (Hz)}
+  var HITS = [
+    { f: 110, f2: 55, d: 0.13, v: 0.12, nv: 0.28, lp: 520 },
+    { f: 135, f2: 70, d: 0.105, v: 0.085, nv: 0.2, lp: 640 },
+    { f: 165, f2: 90, d: 0.095, v: 0.055, nv: 0.13, lp: 780 }
+  ];
   var SAME_SOUND_GAP = 0.03;            // s minimo entre dois play() do mesmo nome
 
   // eco / reverb simples
@@ -244,6 +251,28 @@
         src.start(t + k[0]); src.stop(t + k[0] + 0.06);
       });
     }
+    // impacto do dado (i = 0, 1, 2): baque grave + estalo curto de ruido passa-baixa. Nada de tom que soe.
+    var hitBufs = [];
+    function hitBuf(i) {
+      if (hitBufs[i]) return hitBufs[i];
+      var h = HITS[i], n = Math.floor(ctx.sampleRate * h.d), b = ctx.createBuffer(1, n, ctx.sampleRate), d = b.getChannelData(0);
+      var seed = 12345 + i * 777;   // ruido fixo: o mesmo som a cada rolagem
+      for (var k = 0; k < n; k++) {
+        seed = (seed * 1664525 + 1013904223) >>> 0;
+        d[k] = ((seed / 4294967296) * 2 - 1) * Math.pow(1 - k / n, 3);
+      }
+      return (hitBufs[i] = b);
+    }
+    function playHit(t, i, vm) {
+      var h = HITS[i];
+      if (!h) return;
+      tone(h.f, t, h.d, h.v * vm, { slideTo: h.f2, dry: true });
+      var src = ctx.createBufferSource(); src.buffer = hitBuf(i);
+      var lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = h.lp; lp.Q.value = 0.5;
+      var g = ctx.createGain(); g.gain.value = h.nv * vm;
+      src.connect(lp); lp.connect(g); g.connect(master);
+      src.start(t); src.stop(t + h.d + 0.01);
+    }
     function playList(list, volMul) {
       var t = now();
       for (var i = 0; i < list.length; i++) {
@@ -262,6 +291,7 @@
         if (gap && t - (lastByName[name] === undefined ? -10 : lastByName[name]) < gap) { return; }
         if (name === 'arrive') { lastByName[name] = t; playArrive(opts && opts.x); return; }
         if (name === 'dice') { lastByName[name] = t; playDice(t, vm); return; }
+        if (name === 'dieHit1' || name === 'dieHit2' || name === 'dieHit3') { lastByName[name] = t; playHit(t, +name.charAt(6) - 1, vm); return; }
         if (name === 'gridlock') {
           lastByName[name] = t;
           tone(GRIDLOCK_F0, t, GRIDLOCK_DUR, GRIDLOCK_VOL * vm, { slideTo: GRIDLOCK_F1 });

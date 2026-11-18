@@ -34,19 +34,26 @@
   var NEWJ_DX = Math.SQRT1_2;   // ponto pulsante no anel, embaixo a direita (o X do travado fica em cima a direita)
   // Rotulo NEW de uma marca: lado 0 em cima (padrao), 1 embaixo, 2 esquerda, 3 direita do anel (raio R, baseline 'bottom').
   // Preenche o retangulo r = [x0, y0, x1, y1] e o ponto de texto t = [x, y, alinhamento]. Sem alocar.
+  // v2z (playtest cego 5): o rotulo tem contorno de 3 px (1,5 de cada lado); dois rotulos ficam a 4 px um do outro
+  // contando o contorno (NJ_CLR entre os retangulos de texto) e o rotulo sai do anel com o contorno de folga
+  var NEWJ_OUT = 1.5, NJ_GAP = 4, NJ_CLR = 2 * NEWJ_OUT + NJ_GAP, NJ_OFF = 2 + NEWJ_OUT;
   function njRect(cx, cy, R, tw, th, side, r, t) {
     var tx = cx, ty, al = 'center';
-    if (side === 1) ty = cy + R + 2 + th;
-    else if (side === 2) { tx = cx - R - 2; ty = cy + th / 2; al = 'right'; }
-    else if (side === 3) { tx = cx + R + 2; ty = cy + th / 2; al = 'left'; }
-    else ty = cy - R - 2;
+    if (side === 1) ty = cy + R + NJ_OFF + th;
+    else if (side === 2) { tx = cx - R - NJ_OFF; ty = cy + th / 2; al = 'right'; }
+    else if (side === 3) { tx = cx + R + NJ_OFF; ty = cy + th / 2; al = 'left'; }
+    else ty = cy - R - NJ_OFF;
     r[0] = al === 'center' ? tx - tw / 2 : al === 'right' ? tx - tw : tx; r[2] = r[0] + tw; r[3] = ty; r[1] = ty - th;
     t[0] = tx; t[1] = ty; t[2] = al;
   }
   // retangulo r (com 1 px de folga) contra o anel de centro (cx, cy) e raio R (+1 de traco)
   function njHitRing(r, cx, cy, R) {
     var nx = cx < r[0] - 1 ? r[0] - 1 : cx > r[2] + 1 ? r[2] + 1 : cx, ny = cy < r[1] - 1 ? r[1] - 1 : cy > r[3] + 1 ? r[3] + 1 : cy;
-    return (nx - cx) * (nx - cx) + (ny - cy) * (ny - cy) < (R + 1) * (R + 1);
+    return (nx - cx) * (nx - cx) + (ny - cy) * (ny - cy) < (R + 1 + NEWJ_OUT) * (R + 1 + NEWJ_OUT);
+  }
+  // dois retangulos de texto a menos de NJ_CLR um do outro (a distancia conta o contorno dos dois)
+  function njHit(r, x0, y0, x1, y1) {
+    return !(r[2] + NJ_CLR <= x0 || r[0] >= x1 + NJ_CLR || r[3] + NJ_CLR <= y0 || r[1] >= y1 + NJ_CLR);
   }
   var njIds = [], njRects = [], njTexts = [], njTmpR = [0, 0, 0, 0], njTmpT = [0, 0, '', 0], njSide = {};
   var JUNCTION_TOOLS = { stop: 1, yield: 1, light: 1, round: 1, cross: 1 };
@@ -258,7 +265,7 @@
     // (mundo, zoom, valores do mapa, posicao e sinal de cada no quente); recalcular nao aloca.
     var HOT_CLUSTER = 36, HOT_MAX = 128, HOT_MIN = 0.35;
     var hotNode = new Array(HOT_MAX), hotHr = new Float64Array(HOT_MAX), hotPar = new Int32Array(HOT_MAX), hotN = 0;
-    var hotSolo = new Uint8Array(HOT_MAX), hotCl = new Int32Array(HOT_MAX);
+    var hotSolo = new Uint8Array(HOT_MAX), hotCl = new Int32Array(HOT_MAX), hotEff = new Float64Array(HOT_MAX);
     var clX = new Float64Array(64), clY = new Float64Array(64), clR = new Float64Array(64), clN = new Int32Array(64), clCount = 0;
     var hotW = null, hotHm = null, hotZ = NaN, hotKey = NaN, hotPs = NaN, hotRecalc = 0;
     var COUNT_TXT = [];
@@ -285,7 +292,7 @@
       for (k in hm) {
         n = nodes[k]; hv = hm[k];
         if (!n || !(hv >= HOT_MIN) || hotN >= HOT_MAX) continue;
-        hotNode[hotN] = n; hotHv[hotN] = hv; hotHr[hotN] = hotRadius(n, hv, ps, dotR); hotPar[hotN] = hotN; hotN++;
+        hotNode[hotN] = n; hotHv[hotN] = hv; hotHr[hotN] = hotRadius(n, hv, ps, dotR); hotEff[hotN] = hotHr[hotN]; hotPar[hotN] = hotN; hotN++;
       }
       for (i = 0; i < hotN; i++) for (j = i + 1; j < hotN; j++) {
         dx = hotNode[i].x - hotNode[j].x; dy = hotNode[i].y - hotNode[j].y;
@@ -1145,6 +1152,61 @@
       ctx.fillText(NEWJ_TEXT, x, y);
     }
 
+    // v2z: aneis de tipos diferentes que se cruzam. Prioridade fixa (menor = por cima): 1 engarrafo (anel de estresse),
+    // 2 problema de ontem (tracejado cinza), 4 marca de evento, 5 marca NEW (o anel vigiado/selecionado vem depois
+    // de tudo e nao entra aqui). O anel de baixo ganha um vao onde cruza a faixa do de cima (arcos, sem cor nova); no
+    // mesmo centro, sobe para fora da faixa do de cima. Registro do quadro: ocX/ocY/ocR (centro e raio), ocH (meia
+    // faixa do traco + vao), ocP (prioridade). Sem alocar.
+    var OC_MAX = 192, ocX = new Float64Array(OC_MAX), ocY = new Float64Array(OC_MAX), ocR = new Float64Array(OC_MAX),
+        ocH = new Float64Array(OC_MAX), ocP = new Int8Array(OC_MAX), ocN = 0;
+    var OC_GAP = 3, RG_MAX = 64, rgA = new Float64Array(RG_MAX), rgB = new Float64Array(RG_MAX);
+    var njRI = new Float64Array(64), njRM = {}, evRE = [];
+    function ocAdd(x, y, rad, half, prio) {
+      if (ocN >= OC_MAX || !(rad > 0)) return;
+      ocX[ocN] = x; ocY[ocN] = y; ocR[ocN] = rad; ocH[ocN] = half + OC_GAP + 1; ocP[ocN] = prio; ocN++;
+    }
+    // raio de um anel de prioridade prio no centro (x, y): sobe para fora da faixa de um anel de cima no mesmo centro
+    function ringRad(x, y, rad, prio) {
+      var i, dx, dy;
+      for (i = 0; i < ocN; i++) {
+        if (ocP[i] >= prio || ocP[i] > 2) continue;
+        dx = ocX[i] - x; dy = ocY[i] - y;
+        if (dx * dx + dy * dy < 0.5625 && Math.abs(rad - ocR[i]) < ocH[i]) rad = ocR[i] + ocH[i];
+      }
+      return rad;
+    }
+    // soma ao caminho atual o anel (x, y, rad) menos as faixas dos aneis de prioridade menor que prio
+    function ringArcs(x, y, rad, prio) {
+      var i, n = 0, dx, dy, D, c1, c2, a1, a2, ph, lo, hi, j, s0, e0, t, cur, rh, tt;
+      for (i = 0; i < ocN; i++) {
+        if (ocP[i] >= prio) continue;
+        dx = ocX[i] - x; dy = ocY[i] - y; D = Math.sqrt(dx * dx + dy * dy);
+        if (D < 0.75) continue;
+        rh = ocR[i]; hi = rh + ocH[i]; lo = rh - ocH[i]; if (lo < 0) lo = 0;
+        c1 = (rad * rad + D * D - hi * hi) / (2 * rad * D); c2 = (rad * rad + D * D - lo * lo) / (2 * rad * D);
+        if (c1 > 1 || c2 < -1) continue;
+        a1 = Math.acos(c2 > 1 ? 1 : c2); a2 = Math.acos(c1 < -1 ? -1 : c1); ph = Math.atan2(dy, dx);
+        for (j = 0; j < 2; j++) {
+          s0 = j ? ph + a1 : ph - a2; e0 = s0 + (a2 - a1);
+          s0 = ((s0 % TAU) + TAU) % TAU; e0 = s0 + (a2 - a1);
+          if (n + 2 > RG_MAX) break;
+          if (e0 > TAU) { rgA[n] = s0; rgB[n++] = TAU; rgA[n] = 0; rgB[n++] = e0 - TAU; } else { rgA[n] = s0; rgB[n++] = e0; }
+        }
+      }
+      if (!n) { ctx.moveTo(x + rad, y); ctx.arc(x, y, rad, 0, TAU); return; }
+      for (i = 1; i < n; i++) {   // ordena por inicio (poucos intervalos)
+        s0 = rgA[i]; e0 = rgB[i];
+        for (j = i - 1; j >= 0 && rgA[j] > s0; j--) { rgA[j + 1] = rgA[j]; rgB[j + 1] = rgB[j]; }
+        rgA[j + 1] = s0; rgB[j + 1] = e0;
+      }
+      cur = 0;
+      for (i = 0; i <= n; i++) {
+        tt = i < n ? rgA[i] : TAU;
+        if (tt - cur > 0.03) { ctx.moveTo(x + Math.cos(cur) * rad, y + Math.sin(cur) * rad); ctx.arc(x, y, rad, cur, tt); }
+        if (i < n && rgB[i] > cur) cur = rgB[i];
+      }
+    }
+
     function drawTerrain(z, ox, oy) {
       var A = game && game.state && CFG.archetypes && CFG.archetypes[game.state.archetype];
       if (!A || (!A.river && !A.park)) return;
@@ -1812,6 +1874,38 @@
         if (any) { ctx.globalAlpha = 0.7; ctx.strokeStyle = C.inkSoft; ctx.lineWidth = 1; ctx.stroke(); ctx.globalAlpha = 1; }
       }
 
+      // v2z: registro dos aneis do quadro por prioridade (ver ringArcs). Engarrafo: o anel de estresse do quadro anterior
+      // (ringSt guarda raio e traco); problema de ontem: recalculado aqui (antes ficava mais abaixo); evento: aqui
+      ocN = 0;
+      for (k in ringSt) {
+        rs = ringSt[k]; n = nodes[k];
+        if (!n || !rs || !(rs.a > 0.15) || !(rs.r > 0)) continue;
+        ocAdd(n.x * z + ox, n.y * z + oy, rs.r, rs.w / 2, 1);
+      }
+      var hm = st && st.hot, hotOn = !!(hm && (phase === 'plan' || phase === 'summary'));
+      if (hotOn) {
+        var hkey = hotKeyOf(hm, nodes);
+        if (w !== hotW || hm !== hotHm || z !== hotZ || ps !== hotPs || hkey !== hotKey) {
+          hotW = w; hotHm = hm; hotZ = z; hotPs = ps; hotKey = hkey;
+          computeHot(hm, nodes, z, ps, dotR);
+        }
+        for (i = 0; i < hotN; i++) {
+          if (!hotSolo[i]) continue;
+          n = hotNode[i];
+          hotEff[i] = ringRad(n.x * z + ox, n.y * z + oy, hotHr[i], 2);
+          ocAdd(n.x * z + ox, n.y * z + oy, hotEff[i], HOT_W / 2, 2);
+        }
+        for (i = 0; i < clCount; i++) ocAdd(clX[i] * z + ox, clY[i] * z + oy, clR[i], HOT_W / 2, 2);
+      }
+      var evR0 = ps * 0.5 + 6;
+      evRE.length = evm.length;
+      for (i = 0; i < evm.length; i++) {
+        evRE[i] = evR0;
+        if (phase === 'plan' || phase === 'run' || phase === 'summary') {
+          var evx0 = evm[i].x * z + ox, evy0 = evm[i].y * z + oy;
+          evRE[i] = ringRad(evx0, evy0, evR0, 4); ocAdd(evx0, evy0, evRE[i], 1, 4);
+        }
+      }
       // marca NEW: cruzamento novo sem sinal (a UI escreve ov.newJ = [ids] so no plano). Anel PONTILHADO
       // azul-acinzentado (o vermelho e tracejado ou continuo), ponto pequeno embaixo a direita que pulsa,
       // "NEW" em cima. Some com ferramenta no no (mesmo que a UI ainda nao tenha limpado a lista)
@@ -1845,20 +1939,21 @@
         var nuz = usable(), nux0 = nuz.l, nux1 = W - nuz.r, nuy0 = nuz.t, nuy1 = H - nuz.b;
         for (i = 0; i < njN; i++) {
           if (!njRects[i]) njRects[i] = [0, 0, 0, 0];
-          njRect(nodes[njIds[i]].x * z + ox, nodes[njIds[i]].y * z + oy, njR, njTW, njTH, 0, njRects[i], njTmpT);   // padrao de todos
+          njRI[i] = njRM[njIds[i]] = ringRad(nodes[njIds[i]].x * z + ox, nodes[njIds[i]].y * z + oy, njR, 5);
+          njRect(nodes[njIds[i]].x * z + ox, nodes[njIds[i]].y * z + oy, njRI[i], njTW, njTH, 0, njRects[i], njTmpT);   // padrao de todos
         }
         for (i = 0; i < njN; i++) {
           n = nodes[njIds[i]]; var pcx = n.x * z + ox, pcy = n.y * z + oy, chosen = 0;
           for (njP2 = 0; njP2 < 2; njP2++) {
             for (njSd = 0, njOk = false; njSd < 4 && !njOk; njSd++) {
-              njRect(pcx, pcy, njR, njTW, njTH, njSd, njTmpR, njTmpT);
-              if (njP2 === 0 && (njTmpR[0] < nux0 || njTmpR[2] > nux1 || njTmpR[1] < nuy0 || njTmpR[3] > nuy1)) continue;
+              njRect(pcx, pcy, njRI[i], njTW, njTH, njSd, njTmpR, njTmpT);
+              if (njP2 === 0 && (njTmpR[0] - NEWJ_OUT < nux0 || njTmpR[2] + NEWJ_OUT > nux1 || njTmpR[1] - NEWJ_OUT < nuy0 || njTmpR[3] + NEWJ_OUT > nuy1)) continue;
               njOk = true;
               for (njJ = 0; njJ < njN && njOk; njJ++) {
                 if (njJ === i) continue;
                 njC = njRects[njJ];
-                if (!(njTmpR[2] < njC[0] || njTmpR[0] > njC[2] || njTmpR[3] < njC[1] || njTmpR[1] > njC[3])) njOk = false;
-                else { var on = nodes[njIds[njJ]]; if (njHitRing(njTmpR, on.x * z + ox, on.y * z + oy, njR)) njOk = false; }
+                if (njHit(njTmpR, njC[0], njC[1], njC[2], njC[3])) njOk = false;
+                else { var on = nodes[njIds[njJ]]; if (njHitRing(njTmpR, on.x * z + ox, on.y * z + oy, njRI[njJ])) njOk = false; }
               }
               if (njOk) chosen = njSd;
             }
@@ -1866,7 +1961,7 @@
           }
           if (!njOk) chosen = 0;
           njSide[njIds[i]] = chosen;
-          njRect(pcx, pcy, njR, njTW, njTH, chosen, njRects[i], njTmpT);
+          njRect(pcx, pcy, njRI[i], njTW, njTH, chosen, njRects[i], njTmpT);
         }
       }
       // envelope por marca: entra e sai em RING_FADE_MS (a que ganhou sinal ou saiu da lista some sozinha)
@@ -1886,12 +1981,12 @@
           n = nodes[k]; njA = njSt[k];
           var nsx = n.x * z + ox, nsy = n.y * z + oy;
           if (nsx < sx0 || nsx > sx1 || nsy < sy0 || nsy > sy1) continue;
-          ctx.beginPath(); ctx.moveTo(nsx + njR, nsy); ctx.arc(nsx, nsy, njR, 0, TAU);
+          ctx.beginPath(); var nsr = njRM[k] || njR; ringArcs(nsx, nsy, nsr, 5);
           ctx.setLineDash(DASH_NEWJ); ctx.lineCap = 'round'; ctx.strokeStyle = NEWJ_COLOR; ctx.lineWidth = 2;
           ctx.globalAlpha = 0.9 * njA; ctx.stroke(); ctx.setLineDash(DASH_NONE);
-          ctx.beginPath(); circle(nsx + NEWJ_DX * njR, nsy + NEWJ_DX * njR, 2.6 + 0.9 * njP);
+          ctx.beginPath(); circle(nsx + NEWJ_DX * nsr, nsy + NEWJ_DX * nsr, 2.6 + 0.9 * njP);
           ctx.fillStyle = NEWJ_COLOR; ctx.globalAlpha = (reduceMotion ? 1 : 0.75 + 0.25 * njP) * njA; ctx.fill();
-          ctx.globalAlpha = njA; njRect(nsx, nsy, njR, njTW, njTH, njSide[k] || 0, njTmpR, njTmpT);
+          ctx.globalAlpha = njA; njRect(nsx, nsy, nsr, njTW, njTH, njSide[k] || 0, njTmpR, njTmpT);
           ctx.textAlign = njTmpT[2]; newjText(njTmpT[0], njTmpT[1]); ctx.textAlign = 'center';
         }
         ctx.globalAlpha = 1;
@@ -1900,21 +1995,21 @@
         for (i = 0; i < njBox.length; i++) {
           n = nodes[njBox[i]];
           var njx2 = n.x * z + ox, njy2 = n.y * z + oy;
-          ctx.moveTo(njx2 + njR, njy2); ctx.arc(njx2, njy2, njR, 0, TAU);
+          ringArcs(njx2, njy2, njRM[njBox[i]] || njR, 5);
         }
         ctx.setLineDash(DASH_NEWJ); ctx.lineCap = 'round'; ctx.strokeStyle = NEWJ_COLOR; ctx.lineWidth = 2;
         ctx.globalAlpha = 0.9; ctx.stroke(); ctx.setLineDash(DASH_NONE); ctx.globalAlpha = 1;
         ctx.beginPath();
         for (i = 0; i < njBox.length; i++) {
           n = nodes[njBox[i]];
-          var njdx = n.x * z + ox + NEWJ_DX * njR, njdy = n.y * z + oy + NEWJ_DX * njR;
+          var njrr = njRM[n.id] || njR, njdx = n.x * z + ox + NEWJ_DX * njrr, njdy = n.y * z + oy + NEWJ_DX * njrr;
           circle(njdx, njdy, 2.6 + 0.9 * njP);
         }
         ctx.fillStyle = NEWJ_COLOR; ctx.globalAlpha = reduceMotion ? 1 : 0.75 + 0.25 * njP; ctx.fill(); ctx.globalAlpha = 1;
         ctx.font = NEWJ_FONT; ctx.textAlign = 'center'; ctx.textBaseline = 'bottom'; ctx.fillStyle = NEWJ_COLOR;
         for (i = 0; i < njBox.length; i++) {
           n = nodes[njBox[i]];
-          njRect(n.x * z + ox, n.y * z + oy, njR, njTW, njTH, njSide[n.id] || 0, njTmpR, njTmpT);
+          njRect(n.x * z + ox, n.y * z + oy, njRM[n.id] || njR, njTW, njTH, njSide[n.id] || 0, njTmpR, njTmpT);
           ctx.textAlign = njTmpT[2]; newjText(njTmpT[0], njTmpT[1]);
         }
         ctx.textAlign = 'center';
@@ -1940,36 +2035,36 @@
           for (eP = 0; eP < 4; eP++) {
             eTw = eP === 0 ? eTwB : eTwS; eTh = eP === 0 ? EV_TH : EV_TH_S;
             for (eSd = 0, eOk = false; eSd < 4 && !eOk; eSd++) {
-              njRect(ecx, ecy, evR, eTw, eTh, eSd, njTmpR, njTmpT);
+              njRect(ecx, ecy, evRE[i], eTw, eTh, eSd, njTmpR, njTmpT);
               if (eP < 3 && (njTmpR[0] < eux0 || njTmpR[2] > eux1 || njTmpR[1] < euy0 || njTmpR[3] > euy1)) continue;
               eOk = true;
               for (eJ = 0; eJ < njN && eOk; eJ++) {
                 var nr = njRects[eJ];
-                if (!(njTmpR[2] < nr[0] || njTmpR[0] > nr[2] || njTmpR[3] < nr[1] || njTmpR[1] > nr[3])) eOk = false;
-                else { var nn2 = nodes[njIds[eJ]]; if (nn2 && njHitRing(njTmpR, nn2.x * z + ox, nn2.y * z + oy, njR)) eOk = false; }
+                if (njHit(njTmpR, nr[0], nr[1], nr[2], nr[3])) eOk = false;
+                else { var nn2 = nodes[njIds[eJ]]; if (nn2 && njHitRing(njTmpR, nn2.x * z + ox, nn2.y * z + oy, njRI[eJ])) eOk = false; }
               }
               for (eJ = 0; eJ < evBox.length && eOk; eJ++) {
                 var ob = evBox[eJ];
-                if (!(njTmpR[2] < ob.x0 || njTmpR[0] > ob.x1 || njTmpR[3] < ob.y0 || njTmpR[1] > ob.y1) || njHitRing(njTmpR, ob.cx, ob.cy, ob.r)) eOk = false;
+                if (njHit(njTmpR, ob.x0, ob.y0, ob.x1, ob.y1) || njHitRing(njTmpR, ob.cx, ob.cy, ob.r)) eOk = false;
               }
-              for (eJ = i + 1; eJ < evm.length && eOk; eJ++) if (njHitRing(njTmpR, evm[eJ].x * z + ox, evm[eJ].y * z + oy, evR)) eOk = false;
+              for (eJ = i + 1; eJ < evm.length && eOk; eJ++) if (njHitRing(njTmpR, evm[eJ].x * z + ox, evm[eJ].y * z + oy, evRE[eJ])) eOk = false;
               for (eJ = 0; eJ < evObs.length && eOk && eP < 2; eJ += 3) if (njHitRing(njTmpR, evObs[eJ], evObs[eJ + 1], evObs[eJ + 2])) eOk = false;
               if (eOk) eCh = eSd;
             }
             if (eOk) break;
           }
           if (!eOk) { eCh = 0; eTw = eTwS; eTh = EV_TH_S; }
-          njRect(ecx, ecy, evR, eTw, eTh, eCh, njTmpR, njTmpT);
+          njRect(ecx, ecy, evRE[i], eTw, eTh, eCh, njTmpR, njTmpT);
           evBox.push({ key: em.key, type: em.type, kind: em.kind, when: em.when, nodeId: em.nodeId, edgeId: em.edgeId, text: em.text, font: eTh === EV_TH ? EV_FONT : EV_FONT_S,
-                       cx: ecx, cy: ecy, r: evR, x0: njTmpR[0], y0: njTmpR[1], x1: njTmpR[2], y1: njTmpR[3], tx: njTmpT[0], ty: njTmpT[1], al: njTmpT[2] });
+                       cx: ecx, cy: ecy, r: evRE[i], x0: njTmpR[0], y0: njTmpR[1], x1: njTmpR[2], y1: njTmpR[3], tx: njTmpT[0], ty: njTmpT[1], al: njTmpT[2] });
         }
         if (evBox.length) {
           ctx.beginPath();
-          for (i = 0; i < evBox.length; i++) { ctx.moveTo(evBox[i].cx + evR, evBox[i].cy); ctx.arc(evBox[i].cx, evBox[i].cy, evR, 0, TAU); }
+          for (i = 0; i < evBox.length; i++) ringArcs(evBox[i].cx, evBox[i].cy, evBox[i].r, 4);
           ctx.setLineDash(DASH_NEWJ); ctx.lineCap = 'round'; ctx.strokeStyle = NEWJ_COLOR; ctx.lineWidth = 2;
           ctx.globalAlpha = 0.9; ctx.stroke(); ctx.setLineDash(DASH_NONE); ctx.globalAlpha = 1;
           ctx.beginPath();
-          for (i = 0; i < evBox.length; i++) circle(evBox[i].cx + NEWJ_DX * evR, evBox[i].cy + NEWJ_DX * evR, 2.6 + 0.9 * njP);
+          for (i = 0; i < evBox.length; i++) circle(evBox[i].cx + NEWJ_DX * evBox[i].r, evBox[i].cy + NEWJ_DX * evBox[i].r, 2.6 + 0.9 * njP);
           ctx.fillStyle = NEWJ_COLOR; ctx.globalAlpha = reduceMotion ? 1 : 0.75 + 0.25 * njP; ctx.fill(); ctx.globalAlpha = 1;
           // o rotulo sai depois dos pictogramas (evLabels), por cima de tudo do mapa
           if (!reduceMotion) frameAnim = true;
@@ -2117,14 +2212,7 @@
 
       // mapa de problemas de ontem: anel fino tracejado (plan/summary), sem animacao. Nos a menos de
       // HOT_CLUSTER px um do outro dividem um anel envolvente com contador (sem aneis sobrepostos)
-      var hm = st && st.hot, hotOn = !!(hm && (phase === 'plan' || phase === 'summary'));
-      if (hotOn) {
-        var hkey = hotKeyOf(hm, nodes);
-        if (w !== hotW || hm !== hotHm || z !== hotZ || ps !== hotPs || hkey !== hotKey) {
-          hotW = w; hotHm = hm; hotZ = z; hotPs = ps; hotKey = hkey;
-          computeHot(hm, nodes, z, ps, dotR);
-        }
-      }
+      // (hm, hotOn e o recalculo do agrupamento ficam antes das marcas NEW: o registro de aneis precisa deles)
       // a camada entra e sai em RING_FADE_MS; na saida (comeco da corrida) desenha o ultimo agrupamento calculado
       var hotT = hotOn && hotN > 0 ? 1 : 0;
       if (reduceMotion || fresh) hotA = hotT;
@@ -2139,12 +2227,12 @@
           if (!hotSolo[i]) continue;
           var hx2 = n.x * z + ox, hy2 = n.y * z + oy;
           if (hx2 < sx0 || hx2 > sx1 || hy2 < sy0 || hy2 > sy1) continue;
-          circle(hx2, hy2, hotHr[i]); hany = true;
+          ringArcs(hx2, hy2, hotEff[i], 2); hany = true;
         }
         for (i = 0; i < clCount; i++) {
           var cqx = clX[i] * z + ox, cqy = clY[i] * z + oy;
           if (cqx < sx0 - clR[i] || cqx > sx1 + clR[i] || cqy < sy0 - clR[i] || cqy > sy1 + clR[i]) continue;
-          circle(cqx, cqy, clR[i]); hany = true;
+          ringArcs(cqx, cqy, clR[i], 2); hany = true;
         }
         if (hany) {
           ctx.strokeStyle = HOT_COLOR; ctx.lineWidth = HOT_W; ctx.globalAlpha = hal;
