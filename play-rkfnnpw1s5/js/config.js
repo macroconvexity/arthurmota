@@ -390,13 +390,19 @@
     events: {
       on: true, test: false, perDayMax: 2, testPerDayMax: 1,
       testWindows: { 2: [6, 8], 3: [9, 12] },
+      // w_evt (web/dev/review/w_evt/out): a obra saiu do calendario e do chapeu. Fechar uma rua quase nao muda o dia (a
+      // rota dos carros contorna sozinha) e nenhum preparo mediu efeito confiavel no dia dela (Two lanes no desvio:
+      // strike no dia, ignora contra se prepara, Classica 8% e 2%, Rio 9% e 8%, Parque 9% e 11%; com a rua mais usada e
+      // desvio curto, Classica 0% e 9%, Parque 18% e 4%). Aviso que nao se pode atender nao existe: no lugar dela, uma
+      // segunda saida da escola (a mais leve das duas que funcionam). O tipo roadwork continua definido (save antigo).
       calendar: [
-        { ch: 2, rel: 3, type: 'roadwork' }, { ch: 2, rel: 5, type: 'school' }, { ch: 2, rel: 8, type: 'game' },
-        { ch: 3, rel: 2, type: 'school' }, { ch: 3, rel: 3, type: 'hat' }, { ch: 3, rel: 4, type: 'roadwork' },
+        { ch: 2, rel: 3, type: 'school' }, { ch: 2, rel: 5, type: 'school' }, { ch: 2, rel: 8, type: 'game' },
+        { ch: 3, rel: 2, type: 'school' }, { ch: 3, rel: 3, type: 'hat' }, { ch: 3, rel: 4, type: 'school' },
         { ch: 3, rel: 5, type: 'hat' }, { ch: 3, rel: 7, type: 'game' }, { ch: 3, rel: 7, type: 'school' },
         { ch: 3, rel: 9, type: 'hat' }, { ch: 3, rel: 10, type: 'game' }
       ],
-      hat: ['school', 'game', 'roadwork'],
+      hat: ['school', 'game'],
+      mapMul: { river: 0.75 },   // w_evt: Rio com 3/4 da parte extra (80 sementes, Normal: ignora 66, prepara 74, sem eventos 76)
       types: {
         game:     { kind: 'surge', place: 'far', mul: 14, win: [0.4, 0.5], label: 'Big game at the stadium', mark: 'Big game' },
         school:   { kind: 'surge', place: 'tee', mul: 12, win: [0.45, 0.55], label: 'School out at noon', mark: 'School out' },

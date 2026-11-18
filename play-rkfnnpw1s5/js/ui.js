@@ -468,6 +468,8 @@
     swapUndo: 'Undo',
     // toque num no com a Rua na mao: a rua sai por arrasto
     roadTapHint: 'Drag from a road end or crossing to build.',
+    // toque com lupa: cidade longe e dois alvos sob o dedo; o toque so aproxima (frase uma vez por partida)
+    magZoom: 'Zoomed in. Tap again to pick.',
     swapUndoAria: 'Undo the swap',
     yieldBusy: function (a, b) { return 'Busy crossing: a ' + a + (b ? ' or a ' + b : '') + ' may clear more cars.'; },
     lostRow: function (n) { return 'Lost cars: ' + n; },
@@ -1273,8 +1275,11 @@
     var holdMs = opt.holdMs || 400;
     var ptr = {};
     var count = 0;
-    var st = 'idle'; // idle | pending | road | pan | held | pinch | dead
+    var st = 'idle'; // idle | pending | road | pan | held | pinch | dead | mag
     var node = null, t0 = 0, last = null;
+    // lupa: o dedo desceu num ponto ambiguo (cidade longe, dois alvos sob o dedo). Um arrasto que comecaria uma
+    // rua dali so aproxima, ao soltar (h.magTap); nenhuma rua comeca
+    var mag = false, mx = 0, my = 0;
 
     function pts() { var a = [], k; for (k in ptr) { if (ptr.hasOwnProperty(k)) a.push(ptr[k]); } return a; }
     function pinchOf(a, b) { return { cx: (a.x + b.x) / 2, cy: (a.y + b.y) / 2, d: dist(a.x, a.y, b.x, b.y) }; }
@@ -1286,7 +1291,7 @@
     // esquece todos os ponteiros (ponteiro orfao, app em segundo plano)
     function reset() {
       abort();
-      ptr = {}; count = 0; st = 'idle'; node = null; last = null;
+      ptr = {}; count = 0; st = 'idle'; node = null; last = null; mag = false;
     }
     // primary = e.isPrimary: no iOS o primeiro dedo de um toque novo e sempre primario.
     // Se ainda ha ponteiros registrados, um pointerup se perdeu: recomeca do zero.
@@ -1297,6 +1302,7 @@
       count++;
       if (count === 1) {
         st = 'pending'; t0 = t; node = h.hitNode(x, y);
+        mag = !!(h.magAt && h.magAt(x, y)); mx = x; my = y;
       } else if (count === 2) {
         abort(); st = 'pinch';
         var p = pts(); last = pinchOf(p[0], p[1]);
@@ -1311,7 +1317,8 @@
           // Rua na mao: arrasto que comeca perto de um ponto (fora do raio de toque, mas ao lado dele)
           // sai desse ponto. Arrasto que comeca em ponta/no com a Rua ativa nunca vira pan.
           if (!node && h.nearNode) { var nn = h.nearNode(p.sx, p.sy); if (nn && h.canRoad(nn)) node = nn; }
-          if (node && h.canRoad(node)) { st = 'road'; h.roadStart(node, p.sx, p.sy); h.roadMove(x, y); }
+          if (mag && node && h.canRoad(node) && h.magTap) { st = 'mag'; }
+          else if (node && h.canRoad(node)) { st = 'road'; h.roadStart(node, p.sx, p.sy); h.roadMove(x, y); }
           // Rua na mao fora do planejamento: o mapa anda e a faixa diz por que nada se constroi
           else if (node && h.roadDenied && h.roadDenied()) { st = 'pan'; h.pan(x - p.sx, y - p.sy); }
           // Rua na mao e arrasto fora de no: o mapa anda, mas a UI diz de onde a rua comeca (uma vez por gesto)
@@ -1347,14 +1354,15 @@
         if (st === 'pending') h.tap(x, y);
         else if (st === 'road') h.roadEnd(x, y);
         else if (st === 'held') h.holdEnd();
-        st = 'idle'; node = null; last = null;
+        else if (st === 'mag') h.magTap(mx, my);
+        st = 'idle'; node = null; last = null; mag = false;
       } else if (st === 'pinch') { st = 'dead'; }
     }
     function cancel(id) {
       if (!ptr[id]) return;
       delete ptr[id]; count--;
       abort();
-      if (count === 0) { st = 'idle'; node = null; last = null; } else st = 'dead';
+      if (count === 0) { st = 'idle'; node = null; last = null; mag = false; } else st = 'dead';
     }
     function tick(t) {
       // canHold: com ferramenta ativa, segurar nao rouba o toque (toque lento ainda coloca, arrasto lento ainda constroi)
@@ -1719,7 +1727,7 @@
     if (!hints || typeof hints !== 'object' || Array.isArray(hints)) hints = {};
     // M4: dicas 'uma vez por PARTIDA' levam a semente na chave; as de outras partidas saem ao carregar
     var PER_RUN = { boostOut: 1, bigDie: 1, sumInfo: 1, firstSpend: 1, ringGroup: 1, day4rule: 1, boostJ1: 1, runHint: 1, half6: 1, boosts4: 1, resumed: 1,
-                    strikes6: 1, chapter11: 1, chapter21: 1 };
+                    strikes6: 1, chapter11: 1, chapter21: 1, mag: 1 };
     var runTag = '@' + ((game.world && game.world.seed) != null ? game.world.seed : 0);
     (function pruneRunHints() {
       var k, ch = false;
@@ -2486,6 +2494,7 @@
       // (se a rua cabe no orcamento), em todos os dias
       canRoad: function (node) {
         if (game.state.phase !== 'plan') return false;
+        if (tapInCamAnim) return false;   // lupa: o dedo desceu com a camera da lupa andando; nenhuma rua sai dali
         if (sel === 'road') return true;
         return !sel && !!node && isEnd(node) && !!(game.canAfford && game.canAfford('road'));
       },
@@ -2520,6 +2529,9 @@
       },
       zoom: function (f, cx, cy) { userMoved = true; camFreeze = false; render.zoomAt(f, cx, cy); },
       tap: onTap,
+      // lupa: arrasto de rua a partir de um ponto ambiguo so aproxima, ao soltar (ver magPlan)
+      magAt: function (x, y) { return !tapInCamAnim && !!magPlan(x, y, true); },
+      magTap: function (x, y) { var mp = magPlan(x, y, true); if (mp) magZoom(x, y, mp); },
       roadStart: function (node) {
         roadFrom = node.id; ghost = null; snd('select');
         // unico reenquadramento da Rua: a origem do arrasto esta fora da area util (sob o HUD ou rente a borda).
@@ -2764,7 +2776,8 @@
       }
       // dica unica: a cidade nao cabe e a jogadora ainda nao arrastou o mapa
       if (userMoved && !seen('pan')) markSeen('pan');
-      if (seen('pan') || s.phase !== 'plan' || !cut || modal() || gesture.state() !== 'idle' || (render.animating && render.animating())) { panHintAt = 0; return; }
+      // lupa: a frase 'Tap again to pick' fica na faixa o tempo dela; a dica do enquadrar espera
+      if (seen('pan') || s.phase !== 'plan' || !cut || modal() || gesture.state() !== 'idle' || (render.animating && render.animating()) || now < magSayUntil) { panHintAt = 0; return; }
       var tutor = CRZ.app && CRZ.app.tutorial;
       if (tutor && tutor.isActive && tutor.isActive()) { panHintAt = 0; return; }
       if (!panHintAt) { panHintAt = now + 1500; return; }
@@ -3524,14 +3537,94 @@
       g.id = null;
       return n || null;
     }
-    var tapInCamAnim = false;   // pointerdown caiu na animacao de camera do inicio da corrida
+    var tapInCamAnim = false;   // pointerdown caiu na animacao de camera do inicio da corrida (ou da lupa, no plano)
+
+    // ---- toque com lupa (plano) ----
+    // Dias 20 a 30: a cidade inteira na tela deixa os cruzamentos a 29-33 px uns dos outros em 390x844 e a 18-20 px
+    // em 375x667; um dedo pede ~44 px. No plano, com a camera abaixo do zoom confortavel, um toque (ou o comeco de
+    // um arrasto de rua) com DOIS OU MAIS alvos a ate MAG_FINGER px do dedo nao age: a camera aproxima ate o
+    // confortavel, com o ponto tocado no centro da area livre, e o proximo toque escolhe. Se no confortavel os alvos
+    // ainda ficam a menos de 2 x MAG_FINGER px um do outro, aproxima mais, ate MAG_STEP x o confortavel.
+    // Alvos: com a Rua (toque ou arrasto), os pontos; com sinal, os nos onde o sinal entra (3+ ruas; a faixa, 2+);
+    // com Two lanes ou One-way, as ruas; sem ferramenta, os pontos que respondem ao toque (magTarget: a curva de
+    // 2 ruas e a ponta de rua fria nao fazem nada sozinhas e nao contam). So e ambiguo quando o dedo nao esta claramente
+    // mais perto de um dos dois alvos mais perto: d2^2 - d1^2 < MAG_GAP2 (px^2). Com o erro do dedo normal (desvio
+    // ~8 px), d2^2 - d1^2 e o termo que separa as duas hipoteses (log da razao de verossimilhanca), sem depender da
+    // direcao. 300 px^2 medido (web/dev/review/w_lupa/medida.md): acerto >= 97% em toda celula com o menor toque
+    // extra; 200 cai a 96%; um corte por razao (d2 <= 1,6 d1 e d1 >= 8 px) caia a 89%. Exemplos: d1 = 4 px e outro a
+    // menos de 17,8 px, ou d1 = 12 px e outro a menos de 20,9 px: aproxima. Alvos a 40 px um do outro: o dedo a ate
+    // ~16 px de um deles escolhe esse. Toque com um alvo so, zoom confortavel ou acima,
+    // corrida, cartas e folhas (modal) e tutorial falando: iguais a antes.
+    var MAG_FINGER = 22, MAG_STEP = 2, MAG_MS = 900, MAG_SAY_MS = 2600, MAG_GAP2 = 300;
+    var magUntil = 0, magSayUntil = 0;
+    // toque sem ferramenta (onTap): em qualquer ponto mostra o disco de influencia; so responde de verdade no
+    // cruzamento (3+ ruas: onde o sinal entra), no no com sinal (semaforo: par), no no com anel (heatOf >= HOT_TAP:
+    // diz o que ajuda) e no beco (diz que nenhum carro vem). Curva comum (2 ruas) e ponta de rua fria so mostram o
+    // disco: nao contam para a lupa e perdem o toque para um ponto que responde ao lado (tapPref)
+    function magTarget(s, n) {
+      var d = n.edges ? n.edges.length : 0;
+      return !!(d >= 3 || n.tool || heatOf(s, n) >= HOT_TAP || isDeadEnd(n));
+    }
+    // os dois mais perto a distancias parecidas (D: distancias dos alvos dentro do raio do dedo)
+    function magSimilar(D) {
+      if (D.length < 2) return false;
+      D.sort(function (a, b) { return a - b; });
+      return D[1] * D[1] - D[0] * D[0] < MAG_GAP2;
+    }
+    function magPlan(sx, sy, drag) {
+      var s = game.state, c = render && render.camera, zl = render && render.zoomLimits;
+      if (!s || s.phase !== 'plan' || modal() || tutorTalking() || !c || !zl || !(zl.comfort > 0) || !render.toScreen) return null;
+      var comf = zl.comfort, w = game.world;
+      if (!(c.zoom < comf - 1e-6) || !w || !w.nodes) return null;
+      if (!drag && askNear(sx, sy)) return null;   // segundo toque de uma troca pedida: e dela
+      var R = MAG_FINGER, zmax = Math.min(zl.max || comf * MAG_STEP, comf * MAG_STEP), k, n, p, a, b, d, D = [];
+      if (!drag && (sel === 'upgrade' || sel === 'oneway')) {
+        for (k in w.edges) if (w.edges.hasOwnProperty(k)) {
+          var e = w.edges[k]; if (!e) continue;
+          a = w.nodes[e.a]; b = w.nodes[e.b]; if (!a || !b) continue;
+          var pa = render.toScreen(a.x, a.y), pb = render.toScreen(b.x, b.y);
+          d = segDist(sx, sy, pa.x, pa.y, pb.x, pb.y);
+          if (d <= R) D.push(d);
+        }
+        return magSimilar(D) ? { z: comf } : null;
+      }
+      var need = sel === 'cross' ? 2 : 3, only = null, L = [];
+      if (!drag && sel && NODE_TOOLS[sel]) only = function (m) { return (m.edges ? m.edges.length : 0) >= need; };
+      else if (!drag && !sel) only = function (m) { return magTarget(s, m); };
+      for (k in w.nodes) if (w.nodes.hasOwnProperty(k)) {
+        n = w.nodes[k]; if (!n || (only && !only(n))) continue;
+        p = render.toScreen(n.x, n.y); d = dist(sx, sy, p.x, p.y);
+        if (d <= R) { L.push(n); D.push(d); }
+      }
+      if (!magSimilar(D)) return null;
+      var dmin = Infinity, i, j;
+      for (i = 0; i < L.length; i++) for (j = i + 1; j < L.length; j++) dmin = Math.min(dmin, dist(L[i].x, L[i].y, L[j].x, L[j].y));
+      var z = comf;
+      if (dmin * comf < 2 * R) z = clamp(2 * R / Math.max(dmin, 1e-3), comf, Math.max(comf, zmax));
+      return { z: z };
+    }
+    // aproxima ate mp.z com o ponto tocado no centro da area livre. Pedido explicito da jogadora: vale mesmo com a
+    // camera parada depois de construir (camFreeze), como o pan e a pinca
+    function magZoom(sx, sy, mp) {
+      var wp = render.toWorld(sx, sy);
+      camFreeze = false;
+      try { camFree(function () { render.focus(wp.x, wp.y, mp.z, !reducedMotion()); }); } catch (e) { warnOnce('render.focus', e); }
+      magUntil = nowMs() + MAG_MS;
+      snd('select');
+      emitUI('magZoom', { zoom: mp.z });
+      if (!seen('mag')) { markSeen('mag'); say(STR.magZoom, MAG_SAY_MS); magSayUntil = nowMs() + MAG_SAY_MS; }
+    }
     function onTap(sx, sy) {
       var s = game.state;
       // camera deslizando para o enquadre do inicio da corrida (CAM_MS = 450 ms no render) quando o dedo desceu:
       // o toque seria resolvido contra um mapa em movimento e podia pegar o no errado. Ignora sem acao, aviso,
       // som nem carga. Botoes do HUD (inclusive o chip do Boost) sao DOM e nao passam por aqui.
       if (tapInCamAnim) { tapInCamAnim = false; return; }
-      var hitN = render.pickNode(sx, sy);
+      if (s.phase === 'plan') { var mp = magPlan(sx, sy, false); if (mp) { magZoom(sx, sy, mp); return; } }
+      // plano, mao vazia: a curva comum (2 ruas, sem sinal nem anel) nao responde ao toque; um ponto que responde
+      // ao lado dela (ate 14 px mais longe, regra do pickNode) ganha
+      var tapPref = s.phase === 'plan' && !sel ? function (m) { return magTarget(s, m); } : undefined;
+      var hitN = render.pickNode(sx, sy, tapPref);
       // o pedido de troca vale para o proximo toque no mesmo no (ou ao lado) com a mesma ferramenta
       var askN = s.phase === 'plan' ? askNear(sx, sy) : null;
       if (askN) hitN = askN;
@@ -3640,7 +3733,7 @@
       // sem ferramenta
       // marca de evento de lugar (anel pontilhado com rotulo): o balao diz o que vai acontecer e o que ajuda
       if (!(pairArm && nowMs() < pairArm.until) && evTap(sx, sy)) return;
-      n = render.pickNode(sx, sy);
+      n = render.pickNode(sx, sy, tapPref);
       var armed = pairArm && nowMs() < pairArm.until ? pairArm : null;
       if (!n) {
         if (armed) say(STR.pairCancel);
@@ -3792,7 +3885,8 @@
       // do toque ser lido (fitRoom ao pegar a Rua, reveal do tutorial); nada a move ate soltar
       // Corrida com a camera ainda animando (render.animating): o toque deste gesto sera ignorado (onTap) e a
       // camera NAO e congelada, para a animacao terminar no enquadre (hold pararia no meio do caminho).
-      if (gesture.count() === 0) tapInCamAnim = game.state.phase === 'run' && !!(render && render.animating && render.animating());
+      // Lupa: no plano, o mesmo durante a aproximacao da lupa (MAG_MS)
+      if (gesture.count() === 0) tapInCamAnim = (game.state.phase === 'run' || (game.state.phase === 'plan' && nowMs() < magUntil)) && !!(render && render.animating && render.animating());
       if (!tapInCamAnim) camHold(true);
       if (game.state.phase === 'plan') mapTouched = true;
       var p = localXY(e); gesture.down(e.pointerId, p.x, p.y, nowMs(), !!e.isPrimary);

@@ -303,7 +303,13 @@
   }
   // estado da corrida (janelas do dia): fora do JSON do estado (nao vai no save; o load volta ao plano)
   function setRun(s, r) { Object.defineProperty(s, '_run', { value: r, writable: true, configurable: true, enumerable: false }); }
-  function effMul(td, ev) { return 1 + Math.max(0, (td.mul || 1) - 1) * (ev.size > 0 ? ev.size : 1); }
+  // CFG.events.mapMul[forma]: a parte extra da leva por forma de cidade (Rio: toda leva que atravessa a agua passa pela
+  // unica ponte, a mesma leva pesa mais ali; medido em web/dev/review/w_evt/out)
+  function mapK(g) {
+    var E = EC(), a = g && g.state ? g.state.archetype : null, k = E && E.mapMul && a && own(E.mapMul, a) ? E.mapMul[a] : 1;
+    return fin(k) && k > 0 ? k : 1;
+  }
+  function effMul(td, ev, g) { return 1 + Math.max(0, (td.mul || 1) - 1) * (ev.size > 0 ? ev.size : 1) * mapK(g); }
   // inicio do dia: rua fechada e janelas de carros a mais. A base do portalMul (Festival do dado) e mantida
   function applyDay(g) {
     var s = S(g), w = g.world, p = w.params, day = g.state.day;
@@ -332,7 +338,7 @@
         }
       } else {
         var W = td.win || [0.4, 0.6];
-        wins.push({ id: ev.node, mul: effMul(td, ev), t0: W[0] * len, t1: W[1] * len, type: ev.type, open: false });
+        wins.push({ id: ev.node, mul: effMul(td, ev, g), t0: W[0] * len, t1: W[1] * len, type: ev.type, open: false });
       }
       ev.ran = true;
     });
@@ -631,6 +637,6 @@
     secondWay: secondWay, detourEdges: detourEdges, prepared: prepared, adviceKey: adviceKey, enabled: enabled,
     whyOf: whyOf, hotSpots: hotSpots,
     forSave: forSave, normalize: normalize, load: load,
-    _test: { detour: detour, firstJunction: firstJunction, followPortal: followPortal, allReach: allReach, routeUse: routeUse, place: place, resolve: resolve }
+    _test: { detour: detour, firstJunction: firstJunction, followPortal: followPortal, allReach: allReach, routeUse: routeUse, place: place, resolve: resolve, mapK: mapK }
   };
 })(typeof window !== 'undefined' ? window : globalThis);
