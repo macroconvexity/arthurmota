@@ -99,7 +99,7 @@
     ok: 'Got it',
     skip: 'Skip tutorial',
     skipConfirm: 'Tap again to skip',
-    seal: 'Basics done. New tools arrive each day.'
+    seal: 'Basics done. New tools arrive as you play.'
   };
 
   // custo no cartao da ferramenta, lido do CFG (sem CFG: tira o custo e fica so o nome)
@@ -121,7 +121,8 @@
     var C = CRZ.CFG || {}, D = C.dice || {}, rr = D.rerollCost, k;
     var rrTxt = typeof rr === 'number' ? rr + (rr === 1 ? ' build point' : ' build points') : '1 build point';
     var map = {
-      '{days}': String(C.maxDays || 12),
+      '{days}': String(C.maxDays || 30),
+      '{charges}': String((C.clear && C.clear.charges) || 3),
       '{big}': String(D.late && D.late.faces || 20),
       '{small}': String(D.early && D.early.faces || 6),
       '{rr}': rrTxt

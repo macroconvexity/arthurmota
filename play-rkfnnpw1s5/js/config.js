@@ -12,6 +12,7 @@
     // maximo no primeiro dia de cada capitulo (11 e 21). Gastou os strikes do capitulo: a partida volta a manha do
     // primeiro dia daquele capitulo (checkpoint gravado no save), sem zerar a partida.
     chapterDays: 10,
+    panLockDays: 3,       // dias 1 a 3: um dedo no vazio nao move o mapa (so dois dedos); do dia 4 um dedo move (ui.js, textos de ajuda)
     maxStrikes: 3,        // strikes por capitulo (difficulty.js troca: Easy 4, Normal 3)
     strikeGraceUntil: 5,  // dias 1 a 5: o cruzamento trava e aparece como sempre, mas nao conta strike nem encerra o dia
     graceUnlockSeconds: 4, // dias livres: o cruzamento travado destrava sozinho depois disso (s de jogo); o Boost tambem destrava
@@ -488,6 +489,12 @@
   // oferta do dado, {keepDay} Keep, {upkeepDay} manutencao do semaforo, {roundDay} escolha da Roundabout,
   // {restartDay} primeiro dia em que a volta ao capitulo vale, {newjDay} cruzamento sem sinal mais lento,
   // {chapterLen} dias por capitulo, {chapters} capitulos.
+  // primeiro dia com evento de lugar: calendario (capitulo, dia dentro do capitulo) em dia da partida
+  function firstEventDay(C, L) {
+    var cal = C.events && C.events.calendar, best = 0, i, d;
+    for (i = 0; cal && i < cal.length; i++) { d = (cal[i].ch - 1) * L + cal[i].rel; if (!best || d < best) best = d; }
+    return best || 13;
+  }
   CRZ.dayText = function (x) {
     var C = CRZ.CFG || {}, D = C.dice || {}, L = C.chapterDays > 0 ? C.chapterDays : (C.chapterLen > 0 ? C.chapterLen : 10);
     var J = C.junction && C.junction.none && C.junction.none.late;
@@ -496,7 +503,13 @@
       '{diceDay}': D.fromDay || 2, '{offerDay}': D.firstOffer || 7, '{keepDay}': D.keepFrom || 15,
       '{upkeepDay}': (C.upkeep && C.upkeep.fromDay) || 11, '{roundDay}': (C.choiceCard && C.choiceCard.day) || (C.tools && C.tools.round && C.tools.round.choiceDay) || 19,
       '{restartDay}': C.noRestartBeforeDay | 0, '{newjDay}': (J && J.fromDay) || 4,
-      '{chapterLen}': L, '{chapters}': Math.ceil((C.maxDays || 30) / L), '{days}': C.maxDays || 30
+      '{chapterLen}': L, '{chapters}': Math.ceil((C.maxDays || 30) / L), '{days}': C.maxDays || 30,
+      // textos de ajuda: pan com um dedo, pontos que passam ao dia seguinte, cargas do Boost, Road crew, primeiro evento
+      '{panLast}': C.panLockDays != null ? C.panLockDays : 3, '{carry}': C.carryCap != null ? C.carryCap : 3,
+      '{charges}': (C.clear && C.clear.charges) || 3, '{earlyDays}': (C.earlyBoost && C.earlyBoost.days) || 0,
+      '{crewFrom}': (C.crew && C.crew.fromDay) || 16, '{crewTo}': (C.crew && C.crew.toDay) || 26, '{crewCost}': (C.crew && C.crew.cost) || 4,
+      '{crewPer}': (C.crew && C.crew.perDay) || 1, '{crewDays}': (C.crew && C.crew.days) || 10,
+      '{eventDay}': firstEventDay(C, L), '{patientPct}': Math.round((((C.cardEffects || {}).patient || {}).patienceMul || 1.3) * 100 - 100)
     };
     function one(t) { for (var k in map) if (t.indexOf(k) >= 0) t = t.split(k).join(String(map[k])); return t; }
     if (typeof x === 'string') return one(x);

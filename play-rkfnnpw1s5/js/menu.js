@@ -27,9 +27,9 @@
     gestH: 'Gestures',
     gest: [
       ['Tap', 'a tool to pick it, then tap a crossing to place it.'],
-      ['Drag from a road end', 'builds a road when Road is selected.'],
+      ['Drag from a road end or crossing', 'builds a road when Road is selected.'],
       ['Pinch', 'zooms the map in and out.'],
-      ['Two fingers', 'move the map.'],
+      ['Drag on empty ground', 'moves the map. Days 1 to {panLast}: use two fingers.'],
       ['Hold a crossing', 'shows how far it reaches.']
     ],
     toolsH: 'Tools', unlocksDay: function (d) { return 'Unlocks on day ' + d; }, fromDay: function (d) { return 'Day ' + d; },
@@ -39,8 +39,7 @@
       stop: ['Stop', 'Cheap. Cars take turns. Good where three or four quiet roads meet.'],
       yield: ['Yield', 'Main road never stops. Best where a busy road meets a side road.'],
       light: ['Traffic light', 'For crossings busy from every side; quiet streets wait on red. Two lights on one road pair up by themselves. Your city powers only a few lights, more as it grows; removing one is free.'],
-      upgrade: ['Two lanes', 'Adds a second lane to a road. Works best with a traffic light.'],
-      cross: ['Crosswalk', 'Drivers wait longer here before the ring turns red. Goes where 2 or more roads meet and replaces the sign there.'],
+      upgrade: ['Two lanes', 'Adds a second lane: a longer line fits. The crossing itself is no faster.'],
       round: ['Roundabout', 'For four or more roads with steady traffic. Weak with only three roads. You can pick it on day {roundDay}.'],
       oneway: ['One-way', 'Cars drive away from the half of the road you tap. Tap again to flip, a third time for two-way. A car with no route waits, then counts as lost.']
     },
@@ -50,12 +49,14 @@
       // dado v2 (2026-11-16, v2/sistemas.md 3): quem rola e a jogadora; do dia 7 a face e uma oferta (Use ou Pass), do
       // dia 15 da para guardar uma (Keep). Sem relance e sem previsao do dado
       ['Daily dice', 'from day {diceDay}, tap the dice each morning to roll it. Early rolls only help. From day {offerDay} a roll is an offer with a good side and a cost: use it, or pass for a normal day. Passing is always free. From day {keepDay} you can keep one roll and use it on a later morning instead of rolling.'],
-      ['Strikes', 'days 1 to {graceEnd}, a jam costs nothing. From day {strikeDay}, a jammed crossing ends the day and adds 1 strike. {n} in one chapter ({diff}): you go back to that chapter\'s first morning, city as it was. Strikes refill each chapter. In chapter 1 and before day {restartDay}, the last one is forgiven.'],
+      ['Strikes', 'days 1 to {graceEnd}, a jam costs nothing. From day {strikeDay}, a jammed crossing ends the day and adds 1 strike. {n} in one chapter ({diff}): you go back to that chapter\'s first morning, city as it was. Strikes refill each chapter. Before day {restartDay} (and in all of chapter 1), the last one is forgiven.'],
       ['Ring colors', 'Amber ring: busy crossing. Red ring: about to jam.'],
-      ['Rewards', 'at the end of each day, pick 1 of the cards shown (2 or 3). Each one says what it changes, and it lasts one day.'],
+      ['Rewards', 'at the end of each day, pick 1 of the cards shown (2 or 3). Each one says what it changes, and it lasts one day (day {roundDay}: the rest of the game).'],
       ['Speed', 'during the day, tap the play button to change speed. Faster = more bonus score, but drivers wait less.'],
-      ['Boost (\u26a1\ufe0e)', '3 per day (they recharge in the first days). During the day, tap a road end to send a car now, or a crossing with a ring to clear it.'],
-      ['Undo', 'before the day starts, undo gives the build points back.']
+      ['Boost (\u26a1\ufe0e)', '{charges} per day (they recharge in the first {earlyDays} days). During the day, tap a road end to send a car now, or a crossing with a ring to clear it. A Boost chip appears by a rising amber ring and slows the day.'],
+      ['Undo', 'before the day starts, undo gives the build points back.'],
+      ['Road crew', 'days {crewFrom} to {crewTo}, pay {crewCost} build points now and get +{crewPer} every morning for {crewDays} days.'],
+      ['Events', 'from day {eventDay}, a big game, school or roadwork hits one spot. A note the day before says where.']
     ],
     // seletor de dificuldade: uma frase por modo, em palavras simples. Os dois modos se comparam entre si:
     // o Easy diz os numeros contra o Normal; o Normal diz em palavras o que a jogadora sente a mais
@@ -524,7 +525,7 @@
       var day = num(st().day) || 1;
       var CFG = CRZ.CFG || {};
       sc.appendChild(el('h3', null, STR.goalH));
-      sc.appendChild(el('p', null, STR.goal.replace('{n}', String(strikesNow())).replace('{diff}', diffLabel()).replace('{d}', String((CRZ.CFG && CRZ.CFG.maxDays) || 12))));
+      sc.appendChild(el('p', null, STR.goal.replace('{n}', String(strikesNow())).replace('{diff}', diffLabel()).replace('{d}', String((CRZ.CFG && CRZ.CFG.maxDays) || 30))));
       sc.appendChild(el('h3', null, STR.gestH));
       STR.gest.forEach(function (g) { sc.appendChild(liText(g[0], g[1])); });
       sc.appendChild(el('h3', null, STR.toolsH));

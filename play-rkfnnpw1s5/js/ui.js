@@ -34,7 +34,7 @@
     info: {
       strikes: function (s, m) { return CRZ.dayText('Strikes this chapter: ' + s + ' of ' + m + '. From day {strikeDay}, a jam adds one.'); },
       days: function (d, m) { var L = (CRZ.CFG && CRZ.CFG.chapterDays) || m; return d >= m ? STR.lastDay(d, m) : 'Day ' + d + ' of ' + m + ', chapter ' + Math.ceil(d / L) + ' of ' + Math.ceil(m / L) + '.'; },
-      budget: function (n) { return n + (n === 1 ? ' build point' : ' build points') + '. New every day; 3 unused can stay for tomorrow.'; },
+      budget: function (n) { return CRZ.dayText(n + (n === 1 ? ' build point' : ' build points') + '. New every day; {carry} unused can stay for tomorrow.'); },
       tipsLast: function (n, per) { return STR.tipsLast(n, per); },
       // a barra mede carros entregues (1 por carro a 1x, mais a 2x e 4x), somados de um dia para o outro
       tips: function (n, per) { return 'Delivery bonus: ' + n + ' of ' + per + '. Full bar: +' + BONUS_SCORE() + ' score.'; },
@@ -77,7 +77,7 @@
     // dado v2 (2026-11-16): o topo depois da escolha. Passou ou guardou: dado neutro, dia normal
     lblPassed: 'Today: normal day', lblKept: function (name) { return 'Kept: ' + name; },
     // primeiro gasto da partida (uma vez): o que aconteceu com os pontos
-    firstSpend: function (n) { return 'You spent ' + n + (n === 1 ? ' build point' : ' build points') + '. You get new build points every day. Up to 3 unused ones stay for tomorrow.'; },
+    firstSpend: function (n) { return CRZ.dayText('You spent ' + n + (n === 1 ? ' build point' : ' build points') + '. You get new build points every day. Up to {carry} unused ones stay for tomorrow.'); },
     lblPts: function (n) { return n + (n === 1 ? ' build point' : ' build points'); },
     // dia 1: proximo passo fixo depois da primeira rua (sem pontos ou 6 s parada); some so com o Play
     nextPlay: 'Good. Now tap \u25b6\ufe0e to send the cars.',
@@ -154,13 +154,13 @@
       ['cross', 'Dot where roads meet', 'A crossing. Signs go here.'],
       ['boost', 'Green ring', 'A boost is working here right now.']
     ],
-    toolWorksLightEarly: 'Goes on a crossing with 3 or more roads. Replaces the sign there.', guideMore: 'More tools arrive each day.', guideButtons: 'Buttons', guideMarks: 'Colors and marks', guideCards: 'Reward cards',
+    toolWorksLightEarly: 'Goes on a crossing with 3 or more roads. Replaces the sign there.', guideMore: 'More tools arrive as you play.', guideButtons: 'Buttons', guideMarks: 'Colors and marks', guideCards: 'Reward cards',
     guideBtnRows: [
       ['@play', 'Play / speed', 'Starts the day. While it runs, tap for 1\u00d7, 2\u00d7 or 4\u00d7. Faster = more bonus score, but drivers wait less.'],
       ['\u275a\u275a', 'Pause', 'Stops the day for a moment. Tap again to go on.'],
       ['\u21b6', 'Undo', 'Takes back your last build and gives the points back.'],
       ['@fit', 'Whole map', 'Shows the whole city.'],
-      ['@bolt', 'Boost', 'Recharges in the first days; 3 a day after that. Sends an extra car from a road end, or clears a busy crossing.'],
+      ['@bolt', 'Boost', 'Recharges in the first days; {charges} a day after that. Sends an extra car from a road end, or clears a busy crossing. A chip appears by a rising amber ring.'],
       ['\u2680', 'Dice', 'Today\'s roll. From day {offerDay} you choose: use it, or pass for a normal day.'],
       ['\u2630\ufe0e', 'Menu', 'How to play, sound, this guide and a new game.']
     ],
@@ -170,8 +170,8 @@
       ['hot', 'Gray dashed ring', 'Yesterday\'s trouble spot.'],
       ['new', 'NEW', 'Roads just met here. Give it a sign.'],
       ['days', 'Day dots', 'The red dot is today. {chapterLen} days a chapter, {days} in all.'],
-      ['strikes', 'Strike circles', 'From day {strikeDay} a jam fills one. All full: you replay the chapter.'],
-      ['points', 'Build points', 'Spend them on roads and signs. Up to 3 unused ones stay for tomorrow.']
+      ['strikes', 'Strike circles', 'From day {strikeDay} a jam fills one. All full: you replay the chapter. They refill each chapter.'],
+      ['points', 'Build points', 'Spend them on roads and signs. Up to {carry} unused ones stay for tomorrow.']
     ],
     // resumo enxuto (testadora 2026-11-09)
     infoQueue: 'How close a crossing came to jamming today. A full bar is a jam.',
@@ -189,7 +189,7 @@
     newJFirst: 'NEW: roads just met here. Give this crossing a sign before you start.',
     newJRule: 'From day {newjDay}, a crossing without a sign gets much slower.',
     day4Rule: 'From today, a crossing with no sign gets slow. Give each NEW crossing a sign.',
-    boostsFixed: 'From today: 3 boosts a day.',
+    boostsFixed: 'From today: {charges} boosts a day.',
     // v2: cidade no teto (CFG.growth.afterCap): uma ponta passa a mandar e receber mais carros
     shiftUp: 'The city changed: more cars use this road end now.',
     // v2: arquetipo (CFG.archetypes), uma linha no primeiro plano da partida
@@ -203,7 +203,7 @@
     crewOffer: function (cost, per, days) { return 'Road crew: pay ' + cost + ' build points now, get +' + per + ' every morning for ' + days + ' days.'; },
     crewFirst: 'New: spend today, earn later.',
     crewHire: 'Hire', crewNo: 'Not now',
-    crewHired: function (days) { return 'Crew hired: +1 every morning, starting tomorrow, for ' + days + ' days.'; },
+    crewHired: function (days) { return CRZ.dayText('Crew hired: +{crewPer} every morning, starting tomorrow, for ' + days + ' days.'); },
     crewLine: function (n) { return 'Crew: +' + n + ' today.'; },
     crewChip: function (n, left) { return (n === 1 ? 'Crew' : n + ' crews') + ': ' + left + (left === 1 ? ' day left' : ' days left'); },
     // v2m: a vaga de semaforos (CFG.lightCap): no guia, no ladrilho ('1 of 2') e na recusa
@@ -246,7 +246,7 @@
     sumBonus: 'Delivery bonus',
     sumStrikes: 'Strikes',
     // folha do dado: o icone tracejado ao lado do dado
-    dieNextWhat: "Dashed dice at the top: tomorrow's roll, shown in advance.",
+    dieNextWhat: '',
     // v2x (playtest cego 5): 'no cars use it' contradizia 'Cars enter at road ends'. Carros nascem so nas pontas da cidade
     deadEnd: "Dead end: only the city's road ends send cars. Link it to a road.",
     deadEndTap: "Dead end: only the city's road ends send cars. Link it to a road.",
@@ -304,7 +304,7 @@
       plus2: 'Start tomorrow with 2 extra build points.',
       freeRoad: 'Your first new road tomorrow costs nothing.',
       freeLight: 'Your first traffic light tomorrow costs nothing.',
-      patient: 'Drivers wait 30% longer before the ring turns red.',
+      patient: 'Drivers wait {patientPct}% longer before the ring turns red.',
       waveBonus: 'Green waves are worth double tomorrow.',
       smooth: 'All cars drive 10% faster tomorrow.',
       round: 'Unlocks the Roundabout tool. No stopping, until it gets packed.',
@@ -336,11 +336,11 @@
       budget: 'Not enough build points. Tap \u25b6\ufe0e to start the day: you get more every day.',
       budgetCost: function (c, have) { return 'Not enough build points. This costs ' + c + ', you have ' + have + '. Tap \u25b6\ufe0e to start the day.'; },
       locked: function (d) { return 'Unlocks on day ' + d + '.'; },
-      phase: 'Build before the day starts, not during it.',
-      same: 'This spot already has that tool.',
-      sameTool: function (name) { return 'Already a ' + name + ' here.'; },
-      sameLanes: 'This road already has two lanes.',
-      cap: function (n) { return 'Your city powers ' + n + (n === 1 ? ' light' : ' lights') + '. Remove one (free) to move it here.'; },
+      phase: 'Build before the day starts. Wait for the next morning.',
+      same: 'This spot already has that tool. Pick another crossing.',
+      sameTool: function (name) { return 'Already a ' + name + ' here. Pick another crossing.'; },
+      sameLanes: 'This road already has two lanes. Tap another road.',
+      cap: function (n) { return (n === 1 ? 'Your 1 light is' : 'All ' + n + ' lights are') + ' in use. Remove one (free) to move it.'; },
       notJunction: 'Tap a crossing, where roads meet.',
       // sem cruzamento a frente para pulsar (antes pulsava o no do meio da rua, que nao e ponta nem cruzamento)
       portalNone: 'Road ends can\'t take a Stop, Yield or light. Pick a crossing with three or more roads.',
@@ -348,22 +348,38 @@
       notjunction: 'Stops, yields and lights need a crossing: three or more roads meeting.',
       notjunctionCross: 'A crosswalk needs a road passing through this crossing.',
       edge: 'Tap right on a road.',
-      notlight: 'Tap a traffic light, tap Pair lights, then tap another light.',
+      notlight: 'Tap a traffic light.',
       // Boost numa ponta cuja rua esta na fila do cruzamento a frente
       portalQueue: 'The line is at the pulsing crossing. Boost that crossing.',
       // Boost recusado pelo game: sem fila no no, dia pausado, ainda bloqueado
-      boostCalm: 'Nothing to boost here yet.',
-      boostPhase: 'Boost works while cars are moving.',
+      boostCalm: 'Nothing to boost here yet. Try a crossing with a red ring.',
+      boostPhase: 'Boost works while cars are moving. Tap \u25b6\ufe0e first.',
       boostLocked: function (d) { return 'Boost unlocks on day ' + d + '.'; },
       other: 'Can\'t build there: this spot doesn\'t take that tool.',
-      boostNone: 'No Boosts left today.',
+      boostNone: 'No Boosts left today. You get more tomorrow.',
       // ponta sem lugar para mais um carro agora (game.useClear 'space')
       boostSpace: 'No room right now. Try another road end.',
       boostWhere: 'Boost works on a road end or a busy crossing.',
       // cruzamento sem fila (estresse < BOOST_MIN): a UI recusa antes do game e a carga fica
       boostCalmJ: 'This crossing is fine now. Save your boost.',
       // cruzamento com Boost ainda correndo: o segundo nao soma (sim: o restante e max, nao soma)
-      boostRunning: 'Boost is already working here.'
+      boostRunning: 'Boost is already working here. Try another crossing.',
+      // v2 recusa: toda recusa diz o motivo e o que serve (REFUSALS.md)
+      tileRun: 'Tools work before the day starts. Wait for the next morning.',
+      tileLocked: function (d) { return 'Unlocks on day ' + d + '. Use what you have for now.'; },
+      emptyTap: 'Tap a crossing, where roads meet.',
+      emptyRoad: 'Tap right on a road.',
+      undoNone: 'Nothing to undo yet. Undo reverses your last build today.',
+      undoRun: 'Undo works before the day starts.',
+      rerollRun: 'Reroll only before the day starts. Tap the dice next morning.',
+      rerollPoints: function (c, h) { return 'Rerolling costs ' + c + (c === 1 ? ' build point' : ' build points') + '. You have ' + h + '. Finish a day to earn more.'; },
+      rerollOther: 'No reroll right now. Use the roll, or pass for a normal day.',
+      dieChoice: 'That choice is not open now. Tap Use, or Pass for a normal day.',
+      cardFail: 'That card is not available. Pick another one.',
+      ffNo: 'Speed-up works while the day runs. Tap \u25b6\ufe0e first.',
+      crewShort: function (c, h) { return 'Road crew costs ' + c + ' build points. You have ' + h + '. Earn more, then hire.'; },
+      crewOther: 'The road crew is not on offer now. Build with your points.',
+      generic: 'Can\'t do that now. Try a crossing or road end.'
     },
     jam: {
       endLane: 'Red ring at a road end: give its road a second lane.',
@@ -415,7 +431,7 @@
     pairChipAria: 'Pair this traffic light with another one',
     pairPick: 'Now tap another traffic light to pair with.',
     pairReplace: 'Replace pair? Tap again.',
-    pairSame: 'These two lights are already paired.',
+    pairSame: 'These two lights are already paired. Pick a different light.',
     pairNotLight: 'Pick another traffic light to pair with.',
     pairCancel: 'Pairing canceled.',
     // troca de sinal: pedido expirou (nada mudou) e troca feita com o sinal gratis
@@ -520,14 +536,14 @@
     roadSay: {
       short: 'Too short: drag a bit farther from the road end or crossing.',
       long: 'Too far for one road: it reaches only to the red mark. Build it as two roads.',
-      range: 'Out of range: roads stay inside the build area.',
-      near: 'Too close to a crossing: start from the crossing or end before it.',
+      range: 'Out of range. Drag toward the city, inside the build area.',
+      near: 'Too close to a crossing. Start from the crossing itself.',
       stub: 'That would leave a tiny leftover piece of road. End on the road or drag farther.',
       blocked: 'A road is in the way: cross it straight on, or go around.',
-      angle: 'Too close to another road: roads must meet at a wider angle.',
-      linked: 'Already linked.',
+      angle: 'Too close to another road. Drag at a wider angle.',
+      linked: 'Already linked. Drag to a road end that is not linked yet.',
       // v2 (arquetipos): agua so na ponte marcada; parque nunca
-      terrain: 'Roads cross the river only at a bridge mark, and never the park.',
+      terrain: 'Roads cross the river only at a bridge mark, never the park. Drag another way.',
       other: "Can't build here: try another direction."
     },
     // folha do dado: o que o dado faz e a regra do relance, em uma linha cada
@@ -1627,9 +1643,9 @@
     }
     // sndDenyAt: a faixa dita logo depois do som de recusa e uma recusa; um som de acao bem sucedida
     // (build/place) tira essa faixa da tela (antes ela ficava 3-4 s depois da jogadora acertar)
-    var sndDenyAt = -1e9, sayDeny = false;
+    var sndDenyAt = -1e9, sayDeny = false, denyPend = false;
     function snd(name) {
-      if (name === 'deny') sndDenyAt = nowMs();
+      if (name === 'deny') { sndDenyAt = nowMs(); denyPend = true; }
       else if ((name === 'build' || name === 'place') && sayDeny) clearDenySay();
       try { if (audio && audio.play) audio.play(name); } catch (e) { warnOnce('audio.play', e); }
     }
@@ -1969,6 +1985,7 @@
     var sayValid = null;
     function say(text, ms, valid) {
       if (!text) return;
+      denyPend = false;
       sayValid = typeof valid === 'function' ? valid : null;
       // nv7: com balao do tutorial aberto o aviso preto espera (o balao pulava quando o aviso sumia)
       // A4: recusa (som de erro agora) e pergunta com botao passam mesmo com balao: o balao nao pula mais
@@ -2117,6 +2134,10 @@
       if (result(r, x, y, okKind, tool)) return true;
       var c; try { c = typeof game.cost === 'function' ? game.cost(tool) : undefined; } catch (e) { warnOnce('game.cost', e); }
       say(denyText(r, tool, game.state, CFG, c));
+      if (r && NODE_TOOLS[tool]) {
+        if (r.reason === 'cap') pulseValid('lightOwn', x, y);
+        else if (r.reason === 'notjunction' || r.reason === 'same') pulseValid(tool, x, y);
+      }
       return false;
     }
     // calor de um no: pico do dia (state.hot, o anel tracejado) ou estresse agora
@@ -2423,6 +2444,7 @@
         if (!g) { snd('deny'); say(STR.roadSay.other); emitUI('roadMiss', { why: 'other' }); return; }   // nunca falha calado
         if (!g.ok) {
           snd('deny'); flash(g.x, g.y, 'bad'); roadNote(g.x, g.y, g.why);
+          if (g.why === 'near') pulseValid('stop', g.x, g.y);
           if (g.why === 'budget') shake(tiles.road && tiles.road.el);
           say(roadSayText(g.why));
           emitUI('roadMiss', { why: g.why || null });
@@ -3430,7 +3452,7 @@
         // dedo caiu na rua ao lado do cruzamento (curva, reta ou nada sob o dedo): ate 1,7x o raio de toque
         // de um no de 3+ ruas, o toque e nele (antes respondia 'Stops, yields and lights need a crossing')
         if (!askN && (!n || (!n.portal && (n.edges ? n.edges.length : 0) < (sel === 'cross' ? 2 : 3)))) n = nearJunction(sx, sy) || n;
-        if (!n) { if (render.pickEdge(sx, sy)) { snd('deny'); say(STR.deny.notJunction); } return; }
+        if (!n) { if (render.pickEdge(sx, sy)) snd('deny'); say(STR.deny.notJunction); var wp0 = render.toWorld ? render.toWorld(sx, sy) : { x: sx, y: sy }; pulseValid(sel, wp0.x, wp0.y); return; }
         // troca de sinal: o comprado em dia anterior nao volta; pede um segundo toque (3 s).
         // O colocado hoje e reembolsado pelo game: troca direto
         // Troca de sinal (2026-11-09): para cima (mesmo custo ou mais caro) troca direto; para baixo (perde
@@ -3499,7 +3521,7 @@
         }
       }
       if (sel === 'upgrade') {
-        pk = render.pickEdge(sx, sy); if (!pk) return;
+        pk = render.pickEdge(sx, sy); if (!pk) { say(STR.deny.emptyRoad); return; }
         p = edgePoint(pk);
         var ur = game.upgradeRoad(pk.edge.id);
         toolResult(ur, p.x, p.y, 'build', 'upgrade');
@@ -3507,7 +3529,7 @@
         return;
       }
       if (sel === 'oneway') {
-        pk = render.pickEdge(sx, sy); if (!pk) return;
+        pk = render.pickEdge(sx, sy); if (!pk) { say(STR.deny.emptyRoad); return; }
         p = edgePoint(pk);
         toolResult(game.setOneway(pk.edge.id, nextOneway(pk.edge.oneway || 0, pk.t)), p.x, p.y, 'place', 'oneway');
         return;
@@ -3772,7 +3794,7 @@
       if (modal()) return;
       var okU = game.state.phase === 'plan' && game.canUndo();
       hideSwapUndo(); sayUntil = 0; sayEl.classList.remove('show');
-      if (okU) { game.undo(); snd('undo'); } else snd('deny');
+      if (okU) { game.undo(); snd('undo'); } else { snd('deny'); say(STR.deny.undoNone); }
       emitUI('undoPressed', { ok: okU });
     });
     // o que o Undo desfez, por comparacao antes/depois (o game nao guarda o nome da acao)
@@ -3807,7 +3829,7 @@
         if (sayUntil && /^You spent /.test(sayEl.textContent)) { sayUntil = 0; sayEl.classList.remove('show'); if (hints.firstSpend) { delete hints.firstSpend; lsSet(HINT_KEY, JSON.stringify(hints)); } }
         spendBudget = game.state.budget | 0;
       }
-      else { snd('deny'); shake(undoBtn); }
+      else { snd('deny'); shake(undoBtn); say(game.state.phase === 'plan' ? STR.deny.undoNone : STR.deny.undoRun); }
       emitUI('undoPressed', { ok: okU });
     });
     on(fitBtn, 'click', onFit);
@@ -3899,6 +3921,14 @@
         if (ui.style && ui.style.setProperty) ui.style.setProperty('--sheetb', Math.round(clamp(h, 0, 260) + 8) + 'px');
       } catch (e) {}
     }
+    // por que o relance nao vale e o que serve (a nota do botao e o rotulo; aqui a frase)
+    function rerollSay(s) {
+      var ri = rerollInfo(s);
+      if (s.phase !== 'plan') return STR.deny.rerollRun;
+      if (ri.reason === STR.reasonDone) return STR.dieOnce;
+      if (ri.reason === STR.reasonPoints) return STR.deny.rerollPoints(ri.cost, s.budget | 0);
+      return STR.deny.rerollOther;
+    }
     function rerollInfo(s) {
       // dado v2: sem relance (sistemas.md 3.2); o botao nao aparece
       var cost = (CFG.dice && CFG.dice.rerollCost) || 1, avail = !(CFG.dice && CFG.dice.pools) && typeof game.rerollDie === 'function' && typeof game.canReroll === 'function';
@@ -3979,10 +4009,10 @@
         // Rush sem pontos: a nota ja diz a conta; sem tremida nem som de erro
         var g0 = game.state;
         if (rushShort(g0, rerollInfo(g0))) { emitUI('dieReroll', { ok: false, reason: 'points' }); return; }
-        snd('deny'); shake(rerollBtn); emitUI('dieReroll', { ok: false }); return;
+        snd('deny'); shake(rerollBtn); say(rerollSay(g0)); emitUI('dieReroll', { ok: false }); return;
       }
       var r = game.rerollDie(), okR = !!(r && r.ok);
-      if (okR) snd('place'); else { snd('deny'); shake(rerollBtn); }
+      if (okR) snd('place'); else { snd('deny'); shake(rerollBtn); say(rerollSay(game.state)); }
       sheetKey = ''; refreshSheet(game.state);
       emitUI('dieReroll', { ok: okR });
     });
@@ -4342,7 +4372,7 @@
     function rollChoose(fn, sound, kind) {
       if (roll.stage !== 'result' || !rollChoosing()) return false;
       var r = null; try { r = fn(); } catch (x) { r = null; }
-      if (!r || !r.ok) { snd('deny'); return false; }
+      if (!r || !r.ok) { snd('deny'); say(STR.deny.dieChoice); return false; }
       if (roll.hint) markSeen(roll.hint);
       snd(sound); emitUI('dieChoice', { choice: kind, id: game.state.die ? game.state.die.id : '' });
       rollClose();
@@ -4360,7 +4390,7 @@
       if (e && e.stopPropagation) e.stopPropagation();
       if (roll.stage !== 'ready') return;
       var r = null; try { r = game.playKept(); } catch (x) { r = null; }
-      if (!r || !r.ok) { snd('deny'); return; }
+      if (!r || !r.ok) { snd('deny'); say(STR.deny.dieChoice); return; }
       markSeen('rollAny'); rollMark(game.state.day | 0);
       emitUI('dieChoice', { choice: 'kept', id: game.state.die ? game.state.die.id : '' });
       rollResultNow(true);
@@ -4486,18 +4516,23 @@
       picked = true;
       snd('card');
       var r = game.pickCard(idx);
-      if (r && r.ok === false) { picked = false; snd('deny'); shake(b); }
+      if (r && r.ok === false) { picked = false; snd('deny'); shake(b); say(STR.deny.cardFail); }
       else emitUI('cardPicked', { index: idx });
     });
     function onTile(id) {
       if (modal()) return;
       var s = game.state;
-      if (s.phase !== 'plan') return;
+      if (s.phase !== 'plan') { if (s.phase === 'run') { snd('deny'); say(STR.deny.tileRun); } return; }
       if (sel === id) { setSel(null); snd('select'); return; }
       var info = null, i;
       for (i = 0; i < s.tools.length; i++) if (s.tools[i].id === id) info = s.tools[i];
       if (info && !info.afford) {
         snd('deny'); shake(tiles[id].el);
+        if (info.unlocked === false && CFG.tools[id]) { say(STR.deny.tileLocked(CFG.tools[id].unlockDay)); return; }
+        if (info.cap != null && (info.used | 0) >= info.cap && (s.budget | 0) >= (typeof info.cost === 'number' ? info.cost : 0)) {
+          say(denyText({ reason: 'cap' }, id, s, CFG)); var pw = game.world.nodes, pk0; for (pk0 in pw) if (pw.hasOwnProperty(pk0) && pw[pk0].tool === 'light') addPulse(pw[pk0].x, pw[pk0].y);
+          return;
+        }
         say(denyText({ reason: 'budget' }, id, s, CFG, typeof info.cost === 'number' ? info.cost : undefined));
         return;
       }
@@ -5259,7 +5294,7 @@
       var r; try { r = game.setFastForward(true); } catch (er) { r = null; }
       ffShowChip(false); ffCalmSince = 0;
       if (r && r.ok) { snd('select'); emitUI('ffStart', {}); }
-      else { snd('deny'); if (r && r.reason === 'ring') ffSlowedNote(); }
+      else { snd('deny'); if (r && r.reason === 'ring') ffSlowedNote(); else say(STR.deny.ffNo); }
     });
     function ffSlowedNote() {
       stripSay(STR.ffSlowed, 4000);
@@ -5434,7 +5469,7 @@
       if (e && e.stopPropagation) e.stopPropagation(); crewClose();
       var r = game.hireCrew ? game.hireCrew() : null;
       if (r && r.ok) { snd('place'); sayUntil = 0; say(STR.crewHired((CFG.crew && CFG.crew.days) || 10), 4000); }
-      else { snd('deny'); say(denyText(r, 'road', game.state, CFG, CFG.crew && CFG.crew.cost)); }
+      else { snd('deny'); say(r && r.reason === 'budget' ? STR.deny.crewShort(CFG.crew.cost, game.state.budget | 0) : r && r.reason === 'phase' ? STR.deny.phase : STR.deny.crewOther); }
       emitUI('crew', { hire: !!(r && r.ok) });
     });
     function crewTick(s) {
@@ -5489,7 +5524,7 @@
     // fuzz 2 (2026-11-15): toda folha marcada rola (menu, tutorial, resumo, guia, dado, confirmacao, fim): uma regra so
     var SCROLL_OK = '[data-scroll]';
     var CHIP_LINGER = 2000, MIN_ROAD_PX = 20;
-    var PAN_LOCK_DAYS = 3, panLockSaid = false;
+    var PAN_LOCK_DAYS = (CFG.panLockDays != null ? CFG.panLockDays : 3), panLockSaid = false;
     // dias 1 e 2 (dias de tutorial) comecam a 1x; no dia 3 volta o padrao do CFG (4x), a menos que a jogadora
     // ja tenha escolhido a velocidade no botao (o equilibrio dos dias 3+ foi medido com o padrao)
     // dias 1 e 2 (dias de tutorial) SEMPRE comecam a 1x, mesmo se a jogadora trocou no dia 1. Do dia 3 em diante
@@ -5637,6 +5672,17 @@
       o.pulse.push({ x: x, y: y, t0: nowMs() });
       while (o.pulse.length > 8) o.pulse.shift();
     }
+    // mostra o lugar valido em vez de so descrever: pulsa os nos que aceitam a ferramenta, os mais perto de (x, y) primeiro
+    function pulseValid(tool, x, y) {
+      var w = game.world, L = [], k, n, deg;
+      for (k in w.nodes) if (w.nodes.hasOwnProperty(k)) {
+        n = w.nodes[k]; deg = n.edges ? n.edges.length : 0;
+        if (tool === 'lightOwn') { if (n.tool === 'light') L.push(n); continue; }   // teto: os semaforos que se pode tirar
+        if (deg >= (tool === 'cross' ? 2 : 3) && n.tool !== tool && !n.locked) L.push(n);
+      }
+      L.sort(function (a, b) { return dist(a.x, a.y, x, y) - dist(b.x, b.y, x, y); });
+      for (k = 0; k < L.length && k < 3; k++) addPulse(L[k].x, L[k].y);
+    }
     function prunePulses(now) {
       var o = ov(), i;
       if (!o || !o.pulse || !o.pulse.length) return;
@@ -5685,6 +5731,8 @@
     function update(dt) {
       if (destroyed) return;
       var s = game.state, now = nowMs();
+      // rede de seguranca (REFUSALS.md): recusa com som e sem frase no mesmo quadro ganha a frase generica
+      if (denyPend) { denyPend = false; if (!tutBalloonOn()) say(STR.deny.generic); }
       if (s.phase !== lastPhase || (s.phase === 'summary' && lastDay !== s.day)) {
         lastPhase = s.phase; lastDay = s.day;
         onPhase(s);
