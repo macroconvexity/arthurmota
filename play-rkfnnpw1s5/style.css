@@ -1117,3 +1117,26 @@ html body #hud .crz-ui[data-phase="over"] .crz-bottom, html body #hud .crz-ui[da
 /* v2 capitulos: a linha 'Chapter 2' sob o letreiro do dia (mesmo letreiro, texto menor) */
 .crz-daybanner .crz-daysub { display: block; font-size: var(--fs-lg); letter-spacing: 0; margin-top: 2px; color: var(--inkText); }
 .crz-dot.gone { display: none; }
+
+/* ---- w_medals: marcas do fim (chips da carta do dia: cheio = feito, vazio = ainda nao), recorde e o porque ---- */
+.crz-omarks { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; max-width: 343px; padding: 0 16px; }
+.crz-omarks.gone { display: none; }
+.crz-omark { min-height: 28px; padding: 2px 10px 2px 4px; gap: 4px; font-size: var(--fs-sm); white-space: nowrap; }
+.crz-omark svg { width: 18px; height: 18px; }
+.crz-omark:not(.on) { border-color: var(--gray); color: var(--inkText); font-weight: var(--fw-semi); }
+.crz-omark:not(.on) .s-ink { stroke: var(--gray); }
+.crz-owhy, .crz-orec { font-size: var(--fs-md); text-align: center; font-variant-numeric: tabular-nums; padding: 0 24px; }
+.crz-owhy { color: var(--ink); }
+.crz-orec { color: var(--green-text); font-weight: var(--fw-semi); }
+.crz-owhy.gone, .crz-orec.gone { display: none; }
+.crz-chmark { padding: 0; flex: none; }
+/* no painel do resumo (coluna flex que rola) uma linha com overflow encolhia a zero na tela baixa: altura propria */
+.crz-panel > .crz-half { flex: none; }
+.crz-chnext { white-space: normal; }
+.crz-omarks { width: 100%; max-width: none; padding: 0 12px; box-sizing: border-box; }
+/* telas baixas (iPhone SE, 667): o fim inteiro cabe sem rolar */
+@media (max-height: 700px) and (orientation: portrait) {
+  .crz-over { gap: 8px; }
+  .crz-over .crz-mark svg { width: 44px; height: 44px; }
+  .crz-over .crz-stats { margin: 0; }
+}

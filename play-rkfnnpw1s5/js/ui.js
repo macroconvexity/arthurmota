@@ -479,6 +479,32 @@
     newJChipAria: function (n) { return n + (n === 1 ? ' new crossing' : ' new crossings') + ' without a sign. Tap to show it.'; },
     newJTip: 'New crossing. Give it a sign before the day starts.',
     daysLegend: 'Each square is a day: red = a strike day',
+    // w_medals: marcas do fim (uma frase do que o jogador fez, que o jogo confere), recordes no aparelho e o porque da vitoria
+    marks: {
+      days: function (n) { return 'All ' + n + ' days'; }, noRetry: 'No chapter replayed', clean: 'A chapter with no strike',
+      events: 'Every event prepared', kept: 'Kept a roll for later',
+      chEvents: function (p, n) { return 'Prepared ' + p + ' of ' + n + (n === 1 ? ' event' : ' events'); }, chClean: 'No strike this chapter'
+    },
+    markOn: 'Done: ', markOff: 'Not yet: ',
+    nextCh: {
+      lead: 'Next: ',
+      evStart: function (n) { return 'Events begin, ' + n + ' in all.'; },
+      evMore: function (n) { return 'More events, ' + n + ' in all.'; },
+      keep: function (d) { return 'Day ' + d + ': keep a roll for later.'; },
+      lights: function (d, n) { return 'Day ' + d + ': the city powers ' + n + ' lights.'; },
+      crew: function (d) { return 'Day ' + d + ': hire road crews.'; }
+    },
+    winWhy: function (t, signs) {
+      var p = [];
+      if (t.fixed > 0) p.push('fixed ' + t.fixed + (t.fixed === 1 ? ' trouble spot' : ' trouble spots'));
+      if (t.prepared > 0) p.push('prepared for ' + t.prepared + (t.prepared === 1 ? ' event' : ' events'));
+      if (p.length) return 'You ' + p.join(' and ') + '.';
+      return signs > 0 ? 'Your ' + signs + (signs === 1 ? ' sign kept' : ' signs kept') + ' the cars moving.' : '';
+    },
+    recLead: 'New best: ',
+    recCars: function (n, b) { return n + ' cars (was ' + b + ')'; },
+    recRetries: function (n, b) { return n + (n === 1 ? ' retry' : ' retries') + ' (was ' + b + ')'; },
+    recDay: function (b) { return ' \u00b7 New best (was ' + b + ')'; },
     daysAria: function (n, b) { return n + (n === 1 ? ' day played, ' : ' days played, ') + b + (b === 1 ? ' with a strike.' : ' with a strike.'); },
     more: 'more',
     playAsk: function (n) { return (n === 1 ? '1 new crossing has no sign.' : n + ' new crossings have no sign.') + ' Tap \u25b6\ufe0e again to start.'; },
@@ -1885,10 +1911,12 @@
     var carryEl = el('div', 'crz-bonus crz-carry gone');
     // dia 6: ponto natural de parada (hipercasual), uma linha cinza, uma vez por partida
     var halfEl = tut(el('div', 'crz-half gone'), 'summary-half');
+    // w_medals: fim de capitulo: a marca do capitulo (chip) e o que o proximo traz, numa linha
+    var chMarkEl = tut(el('div', 'crz-omarks crz-chmark gone'), 'summary-chmark'), chNextEl = tut(el('div', 'crz-half crz-chnext gone'), 'summary-chnext');
     panel.appendChild(queueInfo);
     panel.appendChild(bonusRow); panel.appendChild(bonusInfo); panel.appendChild(strikeRow); panel.appendChild(bonusEl); panel.appendChild(carryEl); panel.appendChild(jamEl); panel.appendChild(lostEl); panel.appendChild(newJEl);
     panel.appendChild(todoEl);
-    panel.appendChild(halfEl);
+    panel.appendChild(halfEl); panel.appendChild(chMarkEl); panel.appendChild(chNextEl);
     panel.appendChild(cardsHead); panel.appendChild(cardsEl); panel.appendChild(skipBtn);
     // rodada 3: sobra conteudo abaixo da dobra (iPhone SE): sombra e seta "more" presas ao pe do painel
     var moreEl = el('div', 'crz-smore'), moreTxt = el('span');
@@ -1923,10 +1951,13 @@
     // desenho do 'Try Normal'); a vitoria conta as voltas numa linha cinza como a do melhor dia
     var newGameBtn = tut(el('button', 'crz-trynormal crz-newgame gone'), 'over-new'); newGameBtn.textContent = STR.newGame;
     var overRetries = el('div', 'crz-oextra gone');
+    // w_medals: o porque da vitoria (uma frase da partida), recorde batido e as marcas
+    var overWhy = tut(el('div', 'crz-owhy gone'), 'over-why'), overRec = tut(el('div', 'crz-orec gone'), 'over-record');
+    var overMarks = tut(el('div', 'crz-omarks gone'), 'over-marks');
     var overRetry = null;   // { chapter, day } quando a derrota oferece a volta
     // vitoria no ultimo dia: a linha de fechamento do dia 12 (o game vai do dia 12 direto ao fim, sem resumo)
     var overClose = tut(el('div', 'crz-sclose gone'), 'over-closing');
-    overEl.appendChild(markEl); overEl.appendChild(overTitle); overEl.appendChild(overSub); overEl.appendChild(overClose); overEl.appendChild(statsEl);
+    overEl.appendChild(markEl); overEl.appendChild(overTitle); overEl.appendChild(overSub); overEl.appendChild(overWhy); overEl.appendChild(overClose); overEl.appendChild(statsEl); overEl.appendChild(overRec); overEl.appendChild(overMarks);
     // rodada 3: a rua com carrinhos parecia uma barra de dias (quadrados preto e vermelho). Agora e de verdade:
     // um quadrado por dia jogado, vermelho = dia com strike, com a legenda embaixo
     var overDays = tut(el('div', 'crz-odays gone'), 'over-days'), overDaysCap = el('div', 'crz-odayscap gone');
@@ -2162,7 +2193,7 @@
       var room = lt && lt.cap != null ? (lt.used - (n && n.tool === 'light' ? 1 : 0)) < lt.cap : true;
       // v2x: o 'e se' do dia que acabou (resumo: calcula; manha seguinte: le o que o resumo guardou)
       var wi = null;
-      if (n && typeof game.adviceFor === 'function' && (tomorrow || s.phase === 'plan')) { try { wi = game.adviceFor(n.id); } catch (e) { warnOnce('game.adviceFor', e); } }
+      if (n && typeof game.adviceFor === 'function' && (tomorrow || s.phase === 'plan')) { try { wi = game.adviceFor(n.id, true); } catch (e) { warnOnce('game.adviceFor', e); } }
       return { budget: s.budget | 0, fresh: fresh, boost: boost, kind: (s.kinds && n && s.kinds[n.id]) || null, lightRoom: room, lightCap: lt && lt.cap != null ? lt.cap : 0, wi: wi };
     }
     function nodeAdvice(s, n, day) {
@@ -2170,11 +2201,76 @@
       return adviseVary(adviceMemo, n, advise(n, d, CFG, game.world, h, adviceCtx(s, n, day != null && day > (s.day | 0))), d, CFG, game.world, h);
     }
     var WI_NODES = 2;
-    function wiPrime(s) {
+    // v2int (candidato a publicacao): o 'e se' do resumo em fatias (game.whatIfJob), fora do quadro do jogo. Antes o resumo
+    // jogava ate 16 dias de novo num quadro so (583 ms a 4x de CPU freada no dia 20). Agora: comeca no fim do dia
+    // (onPhase), anda WI_SLICE ms por tarefa com MessageChannel entre elas (o Safari nao tem requestIdleCallback), so na
+    // fase do resumo (a conta do adviceFor le o mapa do dia que acabou). Saiu do resumo ou passou de WI_CAP ms de
+    // relogio: o cruzamento que falta
+    // fica com o conselho pelo tipo (o mesmo de sem 'e se'). Reload no meio: a manha de ontem nao esta mais na memoria,
+    // o job nao existe e vale o conselho pelo tipo; nada fica esperando.
+    var WI_SLICE = 12, WI_CAP = 2000, wiQ = null, wiPort = null;
+    function wiIds(s) {
       var w = game.world, h = s.hot || {}, L = [], k;
       for (k in h) if (h.hasOwnProperty(k) && w.nodes[k] && !w.nodes[k].portal && degOf(w.nodes[k]) >= 3 && +h[k] >= HOT_TAP) L.push(+k);
       L.sort(function (a, b) { return (+h[b] - +h[a]) || (a - b); });
-      for (var i = 0; i < L.length && i < WI_NODES; i++) { try { game.adviceFor(L[i]); } catch (e) { warnOnce('game.adviceFor', e); } }
+      L = L.slice(0, WI_NODES);
+      var wn = worstNode(s, w);
+      if (wn && !wn.portal && degOf(wn) >= 3 && L.indexOf(wn.id) < 0) L.push(wn.id);
+      return L;
+    }
+    function wiStart(s) {
+      wiQ = null;
+      if (typeof game.whatIfJob !== 'function' || lastDayOf(s)) return;
+      var ids = wiIds(s), jobs = [], i, j;
+      for (i = 0; i < ids.length; i++) { j = null; try { j = game.whatIfJob(ids[i]); } catch (e) { warnOnce('game.whatIfJob', e); } if (j) jobs.push(j); }
+      wiQ = { day: s.day | 0, jobs: jobs, i: 0, t0: nowMs(), t1: 0, done: false, stop: null, kicked: false, slices: 0, maxSlice: 0, fresh: false };
+      wiAdvance();
+      if (!wiQ.done) wiKick();
+    }
+    function wiPending(id) {
+      if (!wiQ || wiQ.done) return false;
+      for (var i = wiQ.i; i < wiQ.jobs.length; i++) if (wiQ.jobs[i].id === id) return true;
+      return false;
+    }
+    function wiAdvance() {
+      var q = wiQ;
+      while (q.i < q.jobs.length && q.jobs[q.i].done) {
+        var jb = q.jobs[q.i++];
+        if (jb.branches) q.fresh = true;
+        // a memoria do conselho (state.adv) sai agora, como no resumo de antes
+        try { if (jb.r) game.adviceFor(jb.id, true); } catch (e) { warnOnce('game.adviceFor', e); }
+      }
+      if (q.i >= q.jobs.length) wiEnd(null);
+    }
+    function wiEnd(why) {
+      var q = wiQ; if (!q || q.done) return;
+      q.done = true; q.stop = why; q.t1 = nowMs();
+      var s = game.state;
+      if (jamWait && s.phase === 'summary') paintJam(s);
+      jamWait = false;
+      if (q.fresh && s.phase === 'summary') saveNow();
+    }
+    function wiKick() {
+      var q = wiQ; if (!q || q.done || q.kicked) return;
+      q.kicked = true;
+      if (!wiPort && typeof MessageChannel === 'function') {
+        try { var mc = new MessageChannel(); mc.port1.onmessage = wiRun; if (mc.port1.unref) mc.port1.unref(); if (mc.port2.unref) mc.port2.unref(); wiPort = mc.port2; } catch (e) { wiPort = null; }
+      }
+      if (wiPort) { try { wiPort.postMessage(0); return; } catch (e) { wiPort = null; } }
+      root.setTimeout(wiRun, 0);
+    }
+    function wiRun() {
+      var q = wiQ; if (!q) return;
+      q.kicked = false;
+      if (destroyed || q.done) return;
+      var s = game.state;
+      if (s.phase !== 'summary' || (s.day | 0) !== q.day) { wiEnd('phase'); return; }
+      if (nowMs() - q.t0 > WI_CAP) { wiEnd('cap'); return; }
+      var job = q.jobs[q.i], t = nowMs();
+      try { job.run(WI_SLICE, nowMs); } catch (e) { warnOnce('game.whatIfJob', e); job.done = true; job.r = null; }
+      var dt = nowMs() - t; q.slices++; if (dt > q.maxSlice) q.maxSlice = dt;
+      wiAdvance();
+      if (!q.done) wiKick();
     }
     function tapAdvice(s, n) { var a = nodeAdvice(s, n); if (a) showAdviceRoad(a); return a ? a.text : ''; }
     // conselho de segunda faixa: destaca no mapa a rua mais ocupada do no (o texto nao diz ponto cardeal).
@@ -4783,6 +4879,17 @@
     }
 
     // ---- resumo e fim ----
+    var jamWait = false;
+    function paintJam(s) {
+      var worst = worstNode(s, game.world), wh = worst ? heatOf(s, worst) : 0;
+      var jTxt = '';
+      if (worst && wh >= JAM_SUMMARY && !lastDayOf(s)) {
+        var jp = jamPick(worst, (s.day | 0) + 1, CFG, game.world, null, function (o) { return heatOf(s, o); }, true, adviceCtx(s, worst, true), adviceMemo);
+        // nivel ambar (sem vermelho): o pior ponto ganha anel tracejado amanha; 'Red ring' so se ficou vermelho
+        if (jp) jTxt = STR.jam.summary + (wh > RING_RED ? '' : STR.jam.dashed) + jp.text;
+      }
+      jamEl.textContent = jTxt; jamEl.classList.toggle('gone', !jTxt);
+    }
     function buildSummary(s) {
       var sm = s.summary || {}, i;
       picked = false;
@@ -4843,6 +4950,7 @@
       // v2: o ponto natural de parada e o fim de capitulo (antes: 'Halfway!' no dia 6 de 12)
       var half = !!chapterDoneOf(sm);
       halfEl.textContent = half ? STR.chapterStop : ''; halfEl.classList.toggle('gone', !half);
+      chapterMoment(s, chapterDoneOf(sm));
       // (A3) explicacoes: abertas no primeiro resumo da partida, depois atras do (i)
       var firstSum = !seen('sumInfo'); if (firstSum) markSeen('sumInfo');
       for (i = 0; i < infoRows.length; i++) setInfo(infoRows[i], firstSum);
@@ -4850,18 +4958,11 @@
       carryEl.textContent = carryN > 0 ? STR.carryOver(carryN) : '';
       carryEl.classList.toggle('gone', !(carryN > 0));
       bonusEl.classList.toggle('lost', !(sm.speedBonus > 0));
-      // v2x: o 'e se' dos cruzamentos de anel de hoje (os WI_NODES mais quentes) sai agora, enquanto a manha de hoje
-      // esta na memoria do game; o toque no anel amanha le o resultado guardado
-      if (typeof game.adviceFor === 'function' && !lastDayOf(s)) wiPrime(s);
-      // pior ponto do dia (o anel tracejado no mapa) e o que ajuda ali amanha
+      // v2int: o 'e se' ja anda em fatias desde o fim do dia (wiStart em onPhase). A linha do pior ponto (escondida no
+      // painel enxuto, lida pelo tutorial) sai quando o 'e se' dele termina: sem 'e se', o conselho pelo tipo
       var worst = worstNode(s, game.world), wh = worst ? heatOf(s, worst) : 0;
-      var jTxt = '';
-      if (worst && wh >= JAM_SUMMARY && !lastDayOf(s)) {
-        var jp = jamPick(worst, (s.day | 0) + 1, CFG, game.world, null, function (o) { return heatOf(s, o); }, true, adviceCtx(s, worst, true), adviceMemo);
-        // nivel ambar (sem vermelho): o pior ponto ganha anel tracejado amanha; 'Red ring' so se ficou vermelho
-        if (jp) jTxt = STR.jam.summary + (wh > RING_RED ? '' : STR.jam.dashed) + jp.text;
-      }
-      jamEl.textContent = jTxt; jamEl.classList.toggle('gone', !jTxt);
+      jamWait = !!(worst && wh >= JAM_SUMMARY && !lastDayOf(s) && wiPending(worst.id));
+      if (jamWait) { jamEl.textContent = ''; jamEl.classList.add('gone'); } else paintJam(s);
       // resumo do ultimo dia (antes da vitoria): uma linha de fechamento no lugar da dica de amanha
       // (o game hoje vai do dia 12 direto ao fim, sem resumo: a linha de fechamento sai tambem na vitoria;
       // no resumo do dia 11 a linha avisa que amanha e o ultimo dia)
@@ -4944,6 +5045,66 @@
     function forgivenText(f) {
       return f === 'chapter1' ? STR.forgiven.chapter1 : (f === 'early' ? STR.forgiven.early(CFG.noRestartBeforeDay | 0) : '');
     }
+    // w_medals: um chip de marca, cheio (feito) ou vazio (ainda nao), no desenho do chip da carta do dia
+    function markText(m) {
+      var M = STR.marks, t = M[m.id];
+      if (m.id === 'days') return t(m.n | 0);
+      if (m.id === 'chEvents') return t(m.prep | 0, m.n | 0);
+      return typeof t === 'string' ? t : '';
+    }
+    function markChip(m) {
+      var tx = markText(m);
+      if (!tx) return null;
+      var c = el('span', 'crz-chip crz-omark' + (m.on ? ' on' : ''),
+        m.on ? svg('<circle cx="11" cy="11" r="9" class="f-ink"/><path d="M6.5 11.5L9.5 14.5L15.5 8" fill="none" stroke-width="2.2" stroke="#fff" stroke-linecap="round" stroke-linejoin="round"/>', '0 0 22 22')
+             : svg('<circle cx="11" cy="11" r="8.2" fill="none" stroke-width="1.5" class="s-ink"/>', '0 0 22 22'));
+      var sp = el('span'); sp.textContent = tx; c.appendChild(sp);
+      c.setAttribute('aria-label', (m.on ? STR.markOn : STR.markOff) + tx);
+      c.setAttribute('data-mark', m.id);
+      return c;
+    }
+    function fillMarks(box, list) {
+      box.innerHTML = '';
+      var n = 0;
+      for (var i = 0; i < list.length; i++) { var c = markChip(list[i]); if (c) { box.appendChild(c); n++; } }
+      box.classList.toggle('gone', !n);
+    }
+    function nextChText(parts) {
+      if (!parts || !parts.length) return '';
+      var N = STR.nextCh, out = [];
+      parts.forEach(function (p) {
+        var f = N[p.id]; if (typeof f !== 'function') return;
+        out.push(p.id === 'lights' ? f(p.day | 0, p.n | 0) : (p.id === 'keep' || p.id === 'crew') ? f(p.day | 0) : f(p.n | 0));
+      });
+      return out.length ? N.lead + out.join(' ') : '';
+    }
+    // fim de capitulo: a marca mais ligada ao capitulo e uma linha do proximo (CRZ.Game.chapterMark / nextChapter)
+    function chapterMoment(s, cd) {
+      var G = CRZ.Game, mk = cd && G && G.chapterMark ? G.chapterMark(s, cd.chapter) : null;
+      fillMarks(chMarkEl, mk ? [mk] : []);
+      var nt = cd && G && G.nextChapter ? nextChText(G.nextChapter(s, cd.chapter)) : '';
+      chNextEl.textContent = nt; chNextEl.classList.toggle('gone', !nt);
+    }
+    // recordes no aparelho, por dificuldade, forma da cidade e modo (se a partida tiver um)
+    var REC_KEY = 'gridlet.records';
+    function recordKey(s) {
+      var dName = (CRZ.difficulty && CRZ.difficulty.name) || CFG.difficultyName || 'easy';
+      return dName + '.' + (s.archetype || 'classic') + (typeof s.mode === 'string' && s.mode ? '.' + s.mode : '');
+    }
+    function recordOver(s, win, days, deliv, bestN, retries) {
+      var G = CRZ.Game; if (!G || !G.recordsApply) return {};
+      var raw = lsGet(REC_KEY), store = null;
+      try { store = raw ? JSON.parse(raw) : null; } catch (e) { store = null; }
+      var id = runTag + '|' + (days | 0) + '|' + (deliv | 0) + '|' + (win ? 1 : 0) + '|' + retries;
+      var r = G.recordsApply(store, recordKey(s), id, { win: !!win, cars: deliv | 0, day: Math.max(0, bestN | 0), retries: retries });
+      try { lsSet(REC_KEY, JSON.stringify(r.store)); } catch (e) {}
+      return r.news || {};
+    }
+    function signCount(w) {
+      var n = 0, k, N = (w && w.nodes) || {};
+      for (k in N) if (N.hasOwnProperty(k) && N[k] && N[k].tool && !N[k].portal) n++;
+      return n;
+    }
     function chapterDoneOf(sm) {
       var c = sm && sm.chapterDone;
       return c && typeof c === 'object' && c.chapter > 0 ? { chapter: c.chapter | 0, cars: Math.max(0, c.cars | 0), strikesLeft: Math.max(0, c.strikesLeft | 0) } : null;
@@ -4981,6 +5142,16 @@
       if (f.lock && f.lock.day) tD = f.lock.day;
       overBest.textContent = bN > 0 ? STR.bestDay(bN, bD) : '';
       overBest.classList.toggle('gone', !(bN > 0));
+      // w_medals: recordes (so 'New best' quando bateu um que existia, com o de antes), marcas e o porque da vitoria
+      var news = recordOver(s, win, days, deliv, bN, f.chapterRetries != null ? f.chapterRetries | 0 : s.chapterRetries | 0);
+      if (bN > 0 && news.day > 0) overBest.textContent += STR.recDay(news.day);
+      var rl = [];
+      if (news.cars > 0) rl.push(STR.recCars(deliv | 0, news.cars));
+      if (news.retries > 0) rl.push(STR.recRetries(nr, news.retries));
+      overRec.textContent = rl.length ? STR.recLead + rl.join(', ') : ''; overRec.classList.toggle('gone', !rl.length);
+      fillMarks(overMarks, CRZ.Game && CRZ.Game.marks ? CRZ.Game.marks(s) : []);
+      var wy = win && CRZ.Game && CRZ.Game.tally ? STR.winWhy(CRZ.Game.tally(s), signCount(game.world)) : '';
+      overWhy.textContent = wy; overWhy.classList.toggle('gone', !wy);
       overHard.textContent = (stk > 0 && tD > 0) ? STR.toughDay(tD) : '';
       overHard.classList.toggle('gone', !(stk > 0 && tD > 0));
       overDays.innerHTML = '';
@@ -5031,7 +5202,7 @@
       if (s.phase === 'summary') {
         // o aviso do primeiro gasto (do plano) nao entra no painel do resumo
         if (sayUntil && /^You spent /.test(sayEl.textContent)) { sayUntil = 0; sayEl.classList.remove('show'); }
-        buildSummary(s); moreClock = 0; later(syncMore, 80);
+        wiStart(s); buildSummary(s); moreClock = 0; later(syncMore, 80);
       }
       if (s.phase === 'over') buildOver(s);
       if (s.phase === 'plan') { hint = null; layoutDirty = true; showDayBanner(s); planWarn(s); }
@@ -6179,7 +6350,13 @@
       if (ok) { sayUntil = 0; say(STR.boosted, 1800); later(function () { addPulse(n.x, n.y); }, 500); }
       return !!ok;
     }
-    return { update: update, destroy: destroy, getSelectedTool: getSelectedTool, isSheetOpen: isSheetOpen, isHolding: isHolding, boostChip: boostChip, boostNode: boostNode, timeScale: timeScale,
+    // medida (perf_summary.mjs) e testes: o estado do 'e se' em fatias do ultimo resumo
+    function wiState() {
+      var q = wiQ; if (!q) return { done: true, n: 0 };
+      var b = 0; for (var i = 0; i < q.jobs.length; i++) b += q.jobs[i].branches | 0;
+      return { done: q.done, stop: q.stop, n: q.jobs.length, slices: q.slices, maxSlice: Math.round(q.maxSlice * 10) / 10, branches: b, ms: q.done ? Math.round(q.t1 - q.t0) : null };
+    }
+    return { update: update, destroy: destroy, _wiState: wiState, getSelectedTool: getSelectedTool, isSheetOpen: isSheetOpen, isHolding: isHolding, boostChip: boostChip, boostNode: boostNode, timeScale: timeScale,
              openGuide: openGuide, closeGuide: closeGuide, isGuideOpen: function () { return !!guideEl; },
              isRollOpen: function () { return roll.open; },
              beginLeave: beginLeave, flushSave: onHide,

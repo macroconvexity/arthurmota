@@ -25,6 +25,36 @@
   // (um objeto literal com a chave '__proto__' nao a guarda como propriedade: a lista e comparada uma a uma)
   function safeKey(k) { return k !== '__proto__' && k !== 'constructor' && k !== 'prototype'; }
 
+  // Recuperacao unica (2026-11-17): o resumo do dia 2 da primeira partida (dia esticado pela cena) era recusado e ia
+  // para BAD_KEY. Uma vez por aparelho (RECOVER_KEY): se a copia agora carrega, e da primeira partida (PLAYED_KEY ainda
+  // nao marcado: nenhuma partida chegou ao dia 4 depois dela) e nao ha save mais novo com jogo (sem save, ou so a manha
+  // intocada do dia 1 que o recomeco gravou), ela volta a ser o save e sai de BAD_KEY. Qualquer outro caso: nada muda.
+  var RECOVER_KEY = 'cruzamento.save.recovered';
+  function freshDay1(j) {
+    try {
+      var o = JSON.parse(j), s = o && o.st;
+      return !!s && s.day === 1 && s.phase === 'plan' && (!s.history || !s.history.length) &&
+        !(o.undo && o.undo.list && o.undo.list.length);
+    } catch (e) { return false; }
+  }
+  function recoverBad() {
+    var bad = null, cur = null, done = null, played = null;
+    try {
+      done = localStorage.getItem(RECOVER_KEY); bad = localStorage.getItem(BAD_KEY);
+      cur = localStorage.getItem(SAVE_KEY); played = localStorage.getItem(PLAYED_KEY);
+    } catch (e) { return; }
+    if (done || !bad) { return; }
+    try { localStorage.setItem(RECOVER_KEY, '1'); if (localStorage.getItem(RECOVER_KEY) !== '1') { return; } } catch (e) { return; }
+    if (played === '1' || (cur && !freshDay1(cur))) { return; }
+    var g = null;
+    try { g = CRZ.Game.load(JSON.parse(bad)); } catch (e) { g = null; }
+    if (!g || g.migrated || g.state.day < 2) { return; }
+    var okW = false;
+    try { localStorage.setItem(SAVE_KEY, bad); okW = localStorage.getItem(SAVE_KEY) === bad; } catch (e) {}
+    if (okW) { try { localStorage.removeItem(BAD_KEY); } catch (e) {} }
+    else if (cur) { try { localStorage.setItem(SAVE_KEY, cur); } catch (e) {} }
+  }
+
   function boot() {
     var canvas = document.getElementById('stage');
     var hud = document.getElementById('hud');
@@ -51,6 +81,7 @@
     } catch (e) { if (root.console) { root.console.error('cfg invalido', e); } }
     var game = null;
     var saved = null, notice = null;
+    if (param('reset') === null && param('seed') === null) { recoverBad(); }
     try { saved = localStorage.getItem(SAVE_KEY); } catch (e) {}
     // ?seed= so troca a partida salva numa maquina de desenvolvimento; em producao o link nao apaga o save
     var seedParam = param('seed');

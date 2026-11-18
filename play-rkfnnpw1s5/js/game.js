@@ -184,6 +184,12 @@
                 // fundo volta ao de antes (spawnMul / day2Mul) e, se o anel do T ainda esta aceso no fim do dia, o dia
                 // espera a fila sumir (anel abaixo de holdBelow) por no maximo holdMax s de jogo: o 'Nice' cabe no dia
                 holdMax: 14, holdBelow: 0.3, holdQuiet: 2.5 };
+  // tamanho maximo de um dia: o do config, mais a espera da cena (jamHold: st.dayLen += STEP ate holdMax s) no dia
+  // TEACH.day. O save e a validacao usam este teto (o resumo do dia 2 esticado era recusado no reload)
+  function dayLenMax(day) {
+    var base = CFG.dayLen[day - 1];
+    return day === TEACH.day && TEACH.holdMax > 0 ? base + TEACH.holdMax + 2 * STEP : base;
+  }
 
   function build(seed, saved, opts) {
     opts = opts || {};
@@ -276,6 +282,10 @@
       // v2: Road crew (CFG.crew). active = dias que faltam de cada equipe; income = pontos que entraram hoje;
       // offer = a oferta esta aberta nesta manha; hired = equipes contratadas na partida. Vai no save.
       crew: { active: [], income: 0, offer: false, hired: 0, day: 0 },
+      // marcas do fim (w_medals): fixed = cruzamentos vigiados (anel de ontem + peca de hoje) que terminaram o dia
+      // melhores (a mesma regra do resumo: espera mais longa -max(2 s, 20%), ou sem anel); kept = faces guardadas e
+      // usadas depois. So contagem, nada muda regra. Vai no save; o checkpoint leva o valor da manha do capitulo
+      tally: { fixed: 0, kept: 0 },
       final: null,
       speedDial: { levels: CFG.speedDial.levels.map(function (l) { return l.speed; }), tips: 0,
                    perPoint: CFG.speedDial.tipsPerPoint, carry: 0, applied: 0 }
@@ -371,8 +381,11 @@
       for (i = 0; i < L.length; i++) {
         var r = rec[L[i].id] || { p: 0, w: 0, n: 0 };
         L[i].now = { p: r.p, w: r.w, n: r.n };
+        if (watchFixed(L[i])) st.tally.fixed++;
       }
     }
+    // vigiado que melhorou hoje (ui.js fbkResult 'better'; sem a espera de ontem: o anel sumiu)
+    function watchFixed(e) { return watchFixedOf(e, HOT_MIN); }
     // ferramenta posta ou trocada num cruzamento com o anel de ontem: passa a ser vigiado hoje (os 2 primeiros).
     // Devolve 'new' (vigiado agora), 'same' (ja era; a ferramenta e atualizada) ou null
     function watchOn(id, tool) {
@@ -1644,48 +1657,107 @@
       if (tool === 'round' && st.perks && st.perks.round) return true;
       return day >= CFG.tools[tool].unlockDay;
     }
-    function branchDay(id, tool, mul) {
-      var lc = CFG.lightCap, out = null;
+    // v2int (candidato a publicacao): o 'e se' em fatias. Um ramo e um dia inteiro jogado de novo (~20 ms no node; num
+    // celular 4x mais lento, ~80 ms de uma vez so, e o resumo pedia ate 16 ramos no mesmo quadro). Agora cada ramo anda
+    // em passos (branchOpen, branchStep) e a UI chama job.run(ms, agora) entre quadros. Os ramos sao os mesmos, na mesma
+    // ordem, de saves iguais, sem nada compartilhado entre eles: o resultado nao depende de como as fatias caem.
+    // g.whatIf (sincrono, robos e testes) roda o mesmo trabalho de uma vez.
+    function branchOpen(save, id, tool, mul) {
+      var lc = CFG.lightCap, br = null;
       BRANCHING = true;
       try {
-        var b = CRZ.Game.load(morning.save); if (!b) return null;
+        var b = CRZ.Game.load(save); if (!b) return null;
         var bw = b.world, nd = bw.nodes[id]; if (!nd) return null;
         CFG.lightCap = null;
         if ((nd.tool || null) !== tool) bw.setTool(id, tool);
         b.startDay();
         CFG.lightCap = lc;
         if (mul > 0 && mul !== 1 && bw.params) bw.params.spawnMul = (bw.params.spawnMul > 0 ? bw.params.spawnMul : 1) * mul;
-        var lock = false, steps = 0, max = Math.ceil(b.state.dayLen / STEP) * 3 + 200;
-        while (b.state.phase === 'run' && steps++ < max) { b.update(STEP); if (bw.nodes[id] && bw.nodes[id].locked) lock = true; }
+        br = { b: b, bw: bw, id: id, lock: false, steps: 0, max: Math.ceil(b.state.dayLen / STEP) * 3 + 200, out: null };
+      } catch (e) { br = null; } finally { CFG.lightCap = lc; BRANCHING = false; }
+      return br;
+    }
+    // ate n passos do ramo; true quando o dia do ramo acabou (br.out: {w, p, lock, cut}, ou null se o ramo quebrou)
+    function branchStep(br, n) {
+      BRANCHING = true;
+      try {
+        var b = br.b, bw = br.bw, id = br.id, k = 0;
+        while (k++ < n && b.state.phase === 'run' && br.steps < br.max) { br.steps++; b.update(STEP); if (bw.nodes[id] && bw.nodes[id].locked) br.lock = true; }
+        if (b.state.phase === 'run' && br.steps < br.max) return false;
         var sm = b.state.summary || {}, tr = b.state.trouble && b.state.trouble.nodes && b.state.trouble.nodes[id];
-        if (sm.lock && sm.lock.nodeId === id) lock = true;
-        out = { w: tr ? tr.w : 0, p: tr ? tr.p : 0, lock: lock, cut: !!sm.failed && !lock };
-      } catch (e) { out = null; } finally { CFG.lightCap = lc; BRANCHING = false; }
-      return out;
+        if (sm.lock && sm.lock.nodeId === id) br.lock = true;
+        br.out = { w: tr ? tr.w : 0, p: tr ? tr.p : 0, lock: br.lock, cut: !!sm.failed && !br.lock };
+      } catch (e) { br.out = null; } finally { BRANCHING = false; }
+      br.b = br.bw = null;
+      return true;
     }
     var WI_TOOLS = ['stop', 'yield', 'light', 'round'];
-    // g.whatIf(id): { day, tool (o de hoje), cur {w,p,lock}, alt { peca: {w,p,lock} } } para um cruzamento do dia que
-    // acabou (fase summary). Guardado em st.whatIf (vai no save): a manha seguinte le dali. null sem a manha na memoria.
-    g.whatIf = function (id) {
-      id = +id;
-      var C = st.whatIf && st.whatIf.nodes ? st.whatIf.nodes[id] : null;
-      if (C && st.whatIf.day === (st.phase === 'summary' || st.phase === 'over' ? st.day : st.day - 1)) return C;
-      if (st.phase !== 'summary' || !morning || morning.day !== st.day || BRANCHING) return null;
+    // o trabalho do 'e se' de um cruzamento: fila de ramos na ordem do codigo de antes (hoje, hoje com hi vezes os carros,
+    // e para cada peca a medida normal e a de hi vezes os carros). So o agendamento mudou: a regra do que ganha e a do
+    // adviceFor. job.run(ms, now): anda ate ms de relogio (now() em ms); sem now, ate o fim.
+    // Fim: job.done, job.r (o resultado, guardado em st.whatIf; null se o ramo de hoje quebrou)
+    function wiJob(id) {
       var n = world.nodes[id]; if (!n || n.portal || degree(n) < 3) return null;
-      if (!st.whatIf || st.whatIf.day !== st.day) st.whatIf = { day: st.day, nodes: {} };
       var cur = n.tool || null, d1 = st.day + 1, room = cur === 'light' || lightsUsed() < capAt(d1);
       // duas medidas por peca: o dia de ontem como foi e o mesmo dia com hi vezes os carros (a cidade cresce: a peca
       // mandada precisa ganhar nos dois, senao o numero de amanha desmente o conselho)
       var hi = (CFG.advice && CFG.advice.hi) || 1.2;
-      var r = { day: st.day, tool: cur, cur: branchDay(id, cur), curHi: branchDay(id, cur, hi), alt: {}, altHi: {} };
-      if (!r.cur || !r.curHi) return null;
+      var save = morning.save, day = st.day, r = { day: day, tool: cur, cur: null, curHi: null, alt: {}, altHi: {} }, base = {};
+      var q = [{ k: 'cur', t: cur, mul: 1 }, { k: 'curHi', t: cur, mul: hi }];
       for (var i = 0; i < WI_TOOLS.length; i++) {
         var t = WI_TOOLS[i];
         if (t === cur || !openAt(t, d1) || (t === 'light' && !room)) continue;
-        var b = branchDay(id, t), bh = b ? branchDay(id, t, hi) : null; if (b && bh) { r.alt[t] = b; r.altHi[t] = bh; }
+        q.push({ k: 'alt', t: t, mul: 1 });
       }
-      st.whatIf.nodes[id] = r;
-      return r;
+      var job = { id: id, day: day, done: false, r: null, br: null, i: 0, branches: 0 };
+      function settle(task, out) {
+        job.i++;
+        if (task.k === 'cur' || task.k === 'curHi') { r[task.k] = out; if (!out) { job.done = true; job.r = null; } return; }
+        if (task.k === 'alt') { if (out) { base[task.t] = out; q.splice(job.i, 0, { k: 'altHi', t: task.t, mul: hi }); } return; }
+        if (out) { r.alt[task.t] = base[task.t]; r.altHi[task.t] = out; }
+      }
+      job.run = function (ms, now) {
+        var t0 = now ? now() : 0;
+        while (!job.done) {
+          var task = q[job.i];
+          if (!task) {
+            job.done = true; job.r = r;
+            if (!st.whatIf || st.whatIf.day < day) st.whatIf = { day: day, nodes: {} };
+            if (st.whatIf.day === day) st.whatIf.nodes[id] = r;
+            break;
+          }
+          if (!job.br) { job.br = branchOpen(save, id, task.t, task.mul); job.branches++; if (!job.br) { settle(task, null); continue; } }
+          else if (branchStep(job.br, now ? 45 : Infinity)) { settle(task, job.br.out); job.br = null; }
+          if (now && now() - t0 >= ms) break;
+        }
+        return job.done;
+      };
+      return job;
+    }
+    function wiCached(id) {
+      var C = st.whatIf && st.whatIf.nodes ? st.whatIf.nodes[id] : null;
+      return C && st.whatIf.day === (st.phase === 'summary' || st.phase === 'over' ? st.day : st.day - 1) ? C : null;
+    }
+    // g.whatIf(id): { day, tool (o de hoje), cur {w,p,lock}, alt { peca: {w,p,lock} } } para um cruzamento do dia que
+    // acabou (fase summary). Guardado em st.whatIf (vai no save): a manha seguinte le dali. null sem a manha na memoria.
+    // lazy: so o que ja esta guardado (a UI nunca joga um dia inteiro dentro de um quadro)
+    g.whatIf = function (id, lazy) {
+      id = +id;
+      var C = wiCached(id);
+      if (C || lazy) return C;
+      var job = g.whatIfJob(id);
+      if (!job) return null;
+      job.run();
+      return job.r;
+    };
+    // g.whatIfJob(id): o mesmo 'e se' em fatias (job.run(ms, now) ate job.done; job.r). Ja guardado: job pronto.
+    // null fora do resumo, sem a manha de hoje na memoria (um reload no resumo) ou num cruzamento sem 'e se'
+    g.whatIfJob = function (id) {
+      id = +id;
+      var C = wiCached(id);
+      if (C) return { id: id, day: C.day, done: true, r: C, branches: 0, run: function () { return true; } };
+      if (st.phase !== 'summary' || !morning || morning.day !== st.day || BRANCHING) return null;
+      return wiJob(id);
     };
     // g.adviceFor(id): a peca que o conselho manda para o cruzamento amanha, decidida pelo 'e se':
     //  { tool: 'stop'|'yield'|'light'|'round', from, w0, w1 } (a peca nova ganha no numero do resumo) ou
@@ -1694,9 +1766,9 @@
     // espera mais longa em gain (fracao) e minS segundos. Estavel: depois de seguida, so outra peca com mudanca
     // material do trafego (tipo mudou, ou carros/min mudaram mais que material) e ganho maior (gainChanged); nunca
     // volta a uma peca que ja saiu dali pelo conselho (sem vai e volta).
-    g.adviceFor = function (id) {
+    g.adviceFor = function (id, lazy) {
       id = +id;
-      var r = g.whatIf(id); if (!r) return null;
+      var r = g.whatIf(id, lazy); if (!r) return null;
       var A = CFG.advice || {}, n = world.nodes[id], kd = st.kinds && st.kinds[id];
       if (!st.adv) st.adv = {};
       var m = st.adv[id], dayK = r.day;
@@ -1978,6 +2050,7 @@
       if (!tierOf(st.day) || st.dieState !== 'none' || !st.kept) return fail('state');
       st.die = makeFace(st.kept.id, st.kept.value, st.day);
       st.kept = null; st.dieState = 'used'; st.dieFromKept = true;
+      st.tally.kept++;
       useFace(st.die);
       dieEvent();
       return { ok: true, die: clone(st.die) };
@@ -2276,12 +2349,15 @@
           free: st.free, summary: st.summary,
           draft: st.draft, totalDelivered: st.totalDelivered, totalScore: st.totalScore,
           history: st.history, dayTime: st.phase === 'run' ? 0 : st.dayTime,
+          // dia esticado pela cena do dia 2 (jamHold): o tamanho real do dia vai junto (resumo volta igual)
+          dayLen: st.phase !== 'run' && st.dayLen !== CFG.dayLen[st.day - 1] ? st.dayLen : undefined,
           clearSeen: clearSeen, teachOn: teachOn, teachSeen: teachSeen,
           teach: st.phase === 'run' ? { day3Convoy: false, jam: false, seen: teachSeen, target: null, sent: 0 } : st.teach, tipCarry: st.tipCarry, speedBonus: st.speedBonus,
           speedApplied: st.speedDial.applied, lastLock: lastLock,
           // retorno da escolha (v2): registro do ultimo dia e vigiados (o reload no meio do dia volta a manha com eles)
           trouble: st.trouble, watch: st.watch, watchPrev: st.watchPrev,
           chapterCars0: st.chapterCars0, chapterRetries: st.chapterRetries, freeJamSeen: st.freeJamSeen,
+          tally: { fixed: st.tally.fixed, kept: st.tally.kept },
           // eventos de lugar (v2e): calendario, lugares, tamanho (face Big game) e o que ja foi visto
           events: EVM() && st.events ? EVM().forSave(g) : undefined
         },
@@ -2315,6 +2391,10 @@
       st.totalScore = s.totalScore || 0; st.history = s.history || [];
       st.history.forEach(function (h) { if (h && typeof h === 'object') { if (h.lost !== undefined) h.lost = (fin(h.lost) && h.lost > 0) ? Math.floor(h.lost) : 0; if (h.peak !== undefined && !fin(h.peak)) delete h.peak; } });
       st.dayTime = s.dayTime || 0; st.dayLen = CFG.dayLen[st.day - 1];
+      // dia esticado (jamHold): o campo dayLen (validSave ja conferiu o teto) ou, save sem o campo, o proprio dayTime
+      if (fin(s.dayLen) && s.dayLen > st.dayLen) st.dayLen = s.dayLen;
+      // (so alem da folga de 1 s que a validacao antiga ja aceitava: abaixo dela o save volta como sempre voltou)
+      else if (st.phase !== 'plan' && st.dayTime > st.dayLen + 1) st.dayLen = st.dayTime;
       st.chapter = chapterOf(st.day);
       // save sem o campo (formato antigo): soma do historico antes do primeiro dia do capitulo
       if (nat(s.chapterCars0)) st.chapterCars0 = s.chapterCars0;
@@ -2354,6 +2434,9 @@
       lastLock = (ll && typeof ll === 'object' && fin(ll.nodeId)) ? { nodeId: ll.nodeId, tool: typeof ll.tool === 'string' ? ll.tool : null, degree: fin(ll.degree) ? ll.degree : 0, portal: !!ll.portal, x: fin(ll.x) ? ll.x : 0, y: fin(ll.y) ? ll.y : 0, day: fin(ll.day) ? ll.day : 0 } : null;
       st.chapterRetries = nat(s.chapterRetries) ? s.chapterRetries : 0;
       st.freeJamSeen = s.freeJamSeen === true;
+      // marcas do fim: save antigo (sem o campo) ou campo estragado comeca do zero
+      var ty = isObjL(s.tally) ? s.tally : {};
+      st.tally = { fixed: nat(ty.fixed) && ty.fixed < 1e5 ? ty.fixed : 0, kept: nat(ty.kept) && ty.kept < 1e5 ? ty.kept : 0 };
       // checkpoint (Game.load ja conferiu ou tirou): sem ele, a manha de hoje (plano) ou a proxima vira o checkpoint
       checkpoint = isObjL(saved.checkpoint) && !CFG.ironMode ? clone(saved.checkpoint) : null;
       st.checkpointDay = checkpoint ? checkpoint.st.day : null;
@@ -2505,7 +2588,10 @@
       for (i = 0; i < CFG.speedDial.levels.length; i++) if (CFG.speedDial.levels[i].speed === s.speed) spOk = true;
       if (!spOk) return false;
     }
-    if (s.dayTime !== undefined && (!fin(s.dayTime) || s.dayTime < 0 || s.dayTime > CFG.dayLen[s.day - 1] + 1)) return false;
+    // dayLen (opcional): dia esticado pela cena, entre o config e dayLenMax; dayTime ate o dia salvo (ou ate o teto do
+    // dia, save sem o campo) mais 1 s de folga
+    if (s.dayLen !== undefined && (!fin(s.dayLen) || s.dayLen < CFG.dayLen[s.day - 1] || s.dayLen > dayLenMax(s.day))) return false;
+    if (s.dayTime !== undefined && (!fin(s.dayTime) || s.dayTime < 0 || s.dayTime > (s.dayLen !== undefined ? s.dayLen : dayLenMax(s.day)) + 1)) return false;
     if (s.phase === 'plan') {
       if (!dieOk(s.die, s.day, s.dieState === 'none')) return false;
       if (s.dieState !== undefined && !DIE_STATES[s.dieState]) return false;
@@ -2702,7 +2788,8 @@
       if (isObj(h) && h.failed === true && nat(h.day) && !graceDay(h.day) && chapterOf(h.day) === ch) k++;
     }
     s.strikes = Math.min(k, strikeCap() - 1);
-    if (fin(s.dayTime)) s.dayTime = Math.max(0, Math.min(s.dayTime, CFG.dayLen[s.day - 1]));
+    if (fin(s.dayTime)) s.dayTime = Math.max(0, Math.min(s.dayTime, dayLenMax(s.day)));
+    delete s.dayLen;
     var cards = Array.isArray(d.cards) ? d.cards : [];
     var tab = diceTable(s.day);
     if (s.phase === 'plan' && !dieOk(s.die, s.day)) {
@@ -2739,8 +2826,100 @@
     return validSave(c);
   }
 
+  function watchFixedOf(e, hotMin) {
+    if (!e || !e.now) return false;
+    if (!fin(e.w)) return fin(e.now.p) && e.now.p < hotMin;
+    var a = Math.round(e.w), b = Math.round(e.now.w || 0);
+    return b <= a - Math.max(2, a * 0.2);
+  }
+  // ----- marcas e recordes do fim (w_medals). Puras: leem o estado (game.state) e a CFG, nao mudam nada -----
+  function evRan(s, from, to) {
+    var L = s && s.events && Array.isArray(s.events.list) ? s.events.list : [], out = [];
+    for (var i = 0; i < L.length; i++) if (L[i] && L[i].ran && (from == null || (L[i].day >= from && L[i].day <= to))) out.push(L[i]);
+    return out;
+  }
+  function evAll(s, from, to) {
+    var L = s && s.events && Array.isArray(s.events.list) ? s.events.list : [], n = 0;
+    for (var i = 0; i < L.length; i++) if (L[i] && L[i].day >= from && L[i].day <= to) n++;
+    return n;
+  }
+  function chapRange(c) { var a = chapterFirst(c); return [a, Math.min(CFG.maxDays, a + chapLen() - 1)]; }
+  // capitulo c inteiro no historico e sem dia com strike
+  function chapClean(s, c, needAll) {
+    var r = chapRange(c), hs = (s && s.history) || [], seen = 0, i;
+    for (i = 0; i < hs.length; i++) {
+      var h = hs[i]; if (!h || h.day < r[0] || h.day > r[1]) continue;
+      if (h.failed) return false;
+      seen++;
+    }
+    return needAll ? seen >= r[1] - r[0] + 1 : seen > 0;
+  }
+  function tallyOf(s) {
+    var t = (s && s.tally) || {}, ran = evRan(s), prep = 0;
+    for (var i = 0; i < ran.length; i++) if (ran[i].prep) prep++;
+    return { fixed: t.fixed | 0, kept: t.kept | 0, events: ran.length, prepared: prep };
+  }
+  // marcas da partida, na ordem da tela. Cada uma so existe se o jogador viu a coisa na partida (eventos que
+  // aconteceram, o Keep que ja chegou). { id, on, n? }
+  function marksOf(s) {
+    if (!s) return [];
+    var f = s.final || {}, win = f.win === true, t = tallyOf(s), out = [], c, chs = Math.ceil(CFG.maxDays / chapLen()), clean = false;
+    out.push({ id: 'days', on: win && (s.day | 0) >= CFG.maxDays, n: CFG.maxDays });
+    out.push({ id: 'noRetry', on: win && (s.chapterRetries | 0) === 0 });
+    for (c = 1; c <= chs; c++) if (chapClean(s, c, true)) clean = true;
+    out.push({ id: 'clean', on: clean });
+    if (t.events > 0) out.push({ id: 'events', on: t.prepared === t.events, n: t.events });
+    var kf = CFG.dice && CFG.dice.keepFrom;
+    if (kf > 0 && (s.day | 0) >= kf) out.push({ id: 'kept', on: t.kept > 0 });
+    return out;
+  }
+  // a marca do capitulo c (fim de capitulo): com evento no capitulo, o preparo; senao, nenhum strike nele
+  function chapterMarkOf(s, c) {
+    var r = chapRange(c), ran = evRan(s, r[0], r[1]), prep = 0, i;
+    for (i = 0; i < ran.length; i++) if (ran[i].prep) prep++;
+    if (ran.length) return { id: 'chEvents', on: prep === ran.length, n: ran.length, prep: prep };
+    return { id: 'chClean', on: chapClean(s, c, false) };
+  }
+  // o que o capitulo depois de c traz (no maximo 2 coisas, da CFG e do calendario real desta partida). null no ultimo
+  function nextChapterOf(s, c) {
+    var chs = Math.ceil(CFG.maxDays / chapLen());
+    if (!(c >= 1) || c >= chs) return null;
+    var r = chapRange(c + 1), r0 = chapRange(c), out = [], i;
+    var en = evAll(s, r[0], r[1]), ep = evAll(s, r0[0], r0[1]);
+    if (en > 0 && ep === 0) out.push({ id: 'evStart', n: en });
+    else if (en > ep) out.push({ id: 'evMore', n: en });
+    var kf = CFG.dice && CFG.dice.keepFrom;
+    if (kf >= r[0] && kf <= r[1]) out.push({ id: 'keep', day: kf });
+    var lc = CFG.lightCap && Array.isArray(CFG.lightCap.byDay) ? CFG.lightCap.byDay : [];
+    for (i = 0; i < lc.length; i++) if (lc[i][0] >= r[0] && lc[i][0] <= r[1]) { out.push({ id: 'lights', day: lc[i][0], n: lc[i][1] }); break; }
+    var cr = CFG.crew;
+    if (cr && cr.fromDay >= r[0] && cr.fromDay <= r[1]) out.push({ id: 'crew', day: cr.fromDay });
+    return out.length ? out.slice(0, 2) : null;
+  }
+  // recordes no aparelho. store = { v: 1, by: { chave: { cars, day, retries } }, last: { id, key, news } }. m = { win,
+  // cars, day, retries }. Mesmo id de partida: devolve o que ja foi dito (a tela do fim e refeita no reload). news so
+  // traz o que bateu um recorde que existia: { cars: antes, day: antes, retries: antes }
+  function recordsApply(store, key, id, m) {
+    var S0 = store && typeof store === 'object' && !Array.isArray(store) && store.v === 1 ? store : { v: 1, by: {} };
+    var st0 = clone(S0); if (!st0.by || typeof st0.by !== 'object' || Array.isArray(st0.by)) st0.by = {};
+    if (st0.last && st0.last.id === id && st0.last.key === key) return { store: st0, news: st0.last.news || {}, rec: st0.by[key] || {} };
+    var p = st0.by[key] && typeof st0.by[key] === 'object' ? st0.by[key] : {}, nx = {}, news = {};
+    if (nat(p.cars)) nx.cars = p.cars; if (nat(p.day)) nx.day = p.day; if (nat(p.retries)) nx.retries = p.retries;
+    if (m && nat(m.day) && m.day > 0) {
+      if (nat(nx.day) && nx.day > 0 && m.day > nx.day) news.day = nx.day;
+      if (!(nx.day >= m.day)) nx.day = m.day;
+    }
+    if (m && m.win) {
+      if (nat(m.cars)) { if (nat(nx.cars) && nx.cars > 0 && m.cars > nx.cars) news.cars = nx.cars; if (!(nx.cars >= m.cars)) nx.cars = m.cars; }
+      if (nat(m.retries)) { if (nat(nx.retries) && m.retries < nx.retries) news.retries = nx.retries; if (!nat(nx.retries) || m.retries < nx.retries) nx.retries = m.retries; }
+    }
+    st0.by[key] = nx; st0.last = { id: id, key: key, news: news };
+    return { store: st0, news: news, rec: nx };
+  }
+
   CRZ.Game = {
     kindOf: kindOf,
+    marks: marksOf, chapterMark: chapterMarkOf, nextChapter: nextChapterOf, tally: tallyOf, recordsApply: recordsApply, _watchFixed: watchFixedOf,
     // v2: capitulos (lidos pela UI e pelas ferramentas; um so lugar decide a conta)
     chapterOf: chapterOf, chapterFirst: chapterFirst, chapterStart: chapterStart, forgiveWhy: forgiveWhy, graceDay: graceDay,
     _teach: TEACH,   // ajuste fino (testes/simulacao); valores finais propostos em NOTES_GAME.md
