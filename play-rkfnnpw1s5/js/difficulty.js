@@ -28,7 +28,13 @@
               // v2x (playtest cego 5: 0 strikes em 30 dias no Easy): o risco cresce por capitulo. Capitulo 1 igual; no 2 os
               // motoristas esperam menos (o descuidado ve strikes, os dias 11 a 14 nao mandam de volta); no 3 mais carros.
               // Medido em web/dev/review/v2x/f3_measure.js, 40 sementes; tabela antes e depois no commit 3b
-              chapter: { 2: { spawn: 1.05, patience: 0.8 }, 3: { spawn: 1.12, patience: 0.97 } },
+              // w_easy (80 sementes, web/dev/review/w_easy/sweep.js e results.jsonl): um multiplicador por capitulo pesava
+              // igual em todos (preguicoso repetia o 2 em 35%). Alavanca: no Easy o ultimo strike do capitulo 2 so avisa
+              // (restartFrom 21), entao o capitulo 2 pode apertar (strikes que ensinam, sem volta) e o 3 alivia um pouco.
+              // Curioso: 1,88 strikes no cap. 2, repete o 3 em 24%; cuidadoso 4%; preguicoso 0% no 2 e 48% no 3; ingenuo
+              // 1,04 strikes no 2. Picos (um dia em tres com 30% mais carros; spawnDays) mediram pior que o plano.
+              chapter: { 2: { spawn: 1.2, patience: 0.75 }, 3: { spawn: 1.05 } },
+              restartFrom: 21,
               assist: { chipAt: 0.45, chipOff: 0.3, playConfirm: true, newJunctionTip: true, newMark: true, jamBalloonAt: 0.3 } },
     normal: { label: 'Normal', spawn: 0.85, patience: 1.1,  strikes: 3,
               spawnDay: [1, 1, 0.9],    // v2 (v2/economia.md 6.2: spawnDay sai); dia ausente vale 1
@@ -59,6 +65,9 @@
       if (!cx) continue;
       if (cx.spawn > 0) sd[dd - 1] = (sd[dd - 1] || 1) * cx.spawn;
       if (cx.patience > 0) pd[dd - 1] = (pd[dd - 1] || 1) * cx.patience;
+      // spawnDays (opcional): fator de carros por dia dentro do capitulo (indice 0 = primeiro dia dele): dias de pico
+      var kx = (dd - 1) % CD;
+      if (cx.spawnDays && cx.spawnDays[kx] > 0) sd[dd - 1] = (sd[dd - 1] || 1) * cx.spawnDays[kx];
     }
     for (dd = 0; dd < CFG.maxDays; dd++) { if (!(sd[dd] > 0)) sd[dd] = 1; if (!(pd[dd] > 0)) pd[dd] = 1; }
     p.spawnDay = sd; p.patienceDay = pd;
@@ -70,6 +79,9 @@
   if (p.lock > 0) CFG.lockSeconds = CFG.lockSeconds * p.lock;
   if (p.patienceDay) CFG.patienceDay = p.patienceDay;   // lido por sim.js (stress)
   CFG.maxStrikes = p.strikes;
+  // restartFrom (opcional): primeiro dia em que gastar os strikes manda de volta (CFG.noRestartBeforeDay; antes dele o
+  // ultimo strike so avisa, como no capitulo 1). Os textos leem {restartDay}
+  if (p.restartFrom > 0) CFG.noRestartBeforeDay = p.restartFrom;
   CFG.difficultyName = name;
   CFG.difficulties = PROFILES;
 
