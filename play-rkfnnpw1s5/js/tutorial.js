@@ -57,7 +57,8 @@
       stop: 'Stop, {c}: cheap. Cars take turns at quiet crossings.',
       yield: 'Yield, {c}: the main road never stops. Best with three roads.',
       // v2m: a manutencao saiu (CFG.upkeep.perLight 0); o custo do semaforo e a vaga (CFG.lightCap, '1 of 2' no ladrilho)
-      light: 'Traffic light, {c}: for crossings busy from every side. Few allowed.',
+      // w_light: o cartao sai no dia do semaforo e diz a vaga desse dia ({lc}, de CFG.lightCap) na primeira vez
+      light: 'Traffic light, {c}: busy every side. Your city powers {lc} for now.',
       upgrade: 'Two lanes, {c}: holds a longer line. The crossing is no faster.',
       // o motivo do "pouco": a faixa para carros por pedestres (o cartao passa de 10 palavras por isso)
       cross: 'Crosswalk, {c}: cars stay calm longer, so rings show up later.',
@@ -103,6 +104,13 @@
     seal: 'Basics done. New tools arrive as you play.'
   };
 
+  // w_light: vagas de semaforo no dia em que ele libera (CFG.lightCap.byDay, o ultimo degrau que ja chegou); 0 sem a regra
+  function lightCapOn() {
+    var C = CRZ.CFG || {}, L = C.tools && C.tools.light, B = C.lightCap && C.lightCap.byDay, c = 0, i;
+    if (!L || !Array.isArray(B)) return 0;
+    for (i = 0; i < B.length; i++) if (L.unlockDay >= B[i][0]) c = B[i][1];
+    return c;
+  }
   // custo no cartao da ferramenta, lido do CFG (sem CFG: tira o custo e fica so o nome)
   (function fillCosts() {
     var T = CRZ.CFG && CRZ.CFG.tools, id, c;
@@ -111,6 +119,7 @@
       c = T && T[id] ? T[id].cost : null;
       var U = CRZ.CFG && CRZ.CFG.upkeep;
       STR.tool[id] = STR.tool[id].replace('{u}', U && U.fromDay ? String(U.fromDay) : '11');
+      STR.tool[id] = STR.tool[id].replace(' Your city powers {lc} for now.', lightCapOn() ? ' Your city powers ' + lightCapOn() + ' for now.' : '');
       STR.tool[id] = typeof c === 'number'
         ? STR.tool[id].replace('{c}', c + (c === 1 ? ' build point' : ' build points'))
         : STR.tool[id].replace(', {c}', '');

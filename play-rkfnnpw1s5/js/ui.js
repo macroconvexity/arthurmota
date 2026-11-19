@@ -97,6 +97,7 @@
       var n = STR.tools[id] || id;
       if (id === 'upgrade' || id === 'oneway') return 'Pick ' + n + ', then tap a road.';
       if (id === 'cross') return 'Pick ' + n + ', then tap a crossing.';
+      if (id === 'light') return 'Pick ' + n + ', then tap the busiest crossing.';   // w_light: o pulso marca o mais cheio de ontem
       return 'Pick ' + n + ', then tap a crossing that has no sign.';
     },
     nextFirst: 'Pick Road, drag from a road end, then tap \u25b6\ufe0e.',
@@ -216,7 +217,7 @@
     crewLine: function (n) { return 'Crew: +' + n + ' today.'; },
     crewChip: function (n, left) { return (n === 1 ? 'Crew' : n + ' crews') + ': ' + left + (left === 1 ? ' day left' : ' days left'); },
     // v2m: a vaga de semaforos (CFG.lightCap): no guia, no ladrilho ('1 of 2') e na recusa
-    guideCap: function (n) { return 'Your city powers ' + n + (n === 1 ? ' light' : ' lights') + ' now, more later. Removing one is free.'; },
+    guideCap: function (n, more) { return 'Your city powers ' + n + (n === 1 ? ' light' : ' lights') + (more === false ? ' now.' : ' now, more later.') + ' Removing one is free.'; },
     capTile: function (used, cap) { return used + ' of ' + cap; },
     guideUpkeep: function (d, per) { return 'From day ' + d + ': ' + per + (per === 1 ? ' build point' : ' build points') + ' every morning. Removing it is free.'; },
     upkeepFirst: function (per, notToday) { return (notToday ? 'Each light costs ' : 'From today, each light costs ') + per + (per === 1 ? ' build point' : ' build points') + ' every morning. Removing one is free.'; },
@@ -2311,6 +2312,22 @@
     function pulseCandidates(id, dry) {
       if (!NODE_TOOLS[id] || game.state.phase !== 'plan') return 0;
       var w = game.world, k, n, c = 0, need = id === 'cross' ? 2 : 3;
+      // w_light: o semaforo chega cedo (dia 5) e um cruzamento calmo com semaforo faz carro esperar no vermelho. O pulso
+      // vai aos cruzamentos que acenderam ontem (os mais quentes, ate 2); sem anel, ao de mais carros ontem (state.kinds v).
+      // Medido (v2/_scripts/w_light/diag_busy.js): o novato que segue o pulso vence 53% no Normal contra 35% ao acaso
+      if (id === 'light') {
+        var h = game.state.hot || {}, kd = game.state.kinds || {}, L = [], best = null;
+        for (k in w.nodes) if (w.nodes.hasOwnProperty(k)) {
+          n = w.nodes[k];
+          if (!n || n.portal || n.tool === 'light' || degOf(n) < 3) continue;
+          if (+h[k] >= RING_EVER_AT) L.push(n);
+          else if (kd[k] && kd[k].v > 0 && (!best || kd[k].v > kd[best.id].v)) best = n;
+        }
+        L.sort(function (a, b) { return (+h[b.id] - +h[a.id]) || (a.id - b.id); });
+        if (!L.length && best) L.push(best);
+        for (c = 0; c < L.length && c < 2; c++) if (!dry) addPulse(L[c].x, L[c].y);
+        return c;
+      }
       for (k in w.nodes) if (w.nodes.hasOwnProperty(k) && c < 6) {
         n = w.nodes[k];
         if (!n || n.portal || n.tool || degOf(n) < need) continue;
@@ -2363,7 +2380,7 @@
         if (t.id === 'light' && !toolOpen(CFG, 'upgrade', s.day | 0)) wk = STR.toolWorksLightEarly;
         var gl = [STR.toolUseLine[t.id], wk];
         if (t.id === 'light' && CFG.upkeep && CFG.upkeep.perLight > 0) gl.push(STR.guideUpkeep(CFG.upkeep.fromDay, CFG.upkeep.perLight));   // v2
-        if (t.id === 'light' && t.cap != null && isFinite(t.cap)) gl.push(STR.guideCap(t.cap));   // v2m
+        if (t.id === 'light' && t.cap != null && isFinite(t.cap)) gl.push(STR.guideCap(t.cap, ((CFG.lightCap && CFG.lightCap.byDay) || []).some(function (x) { return x[0] > (s.day | 0); })));   // v2m; w_light: 'more later' so com degrau a frente
         body.appendChild(gRow(toolIcon(t.id), (STR.tools[t.id] || t.id) + ' \u00b7 ' + c + (c === 1 ? ' point' : ' points'), gl));
       }
       var more = el('div', 'crz-gmore'); more.textContent = STR.guideMore; body.appendChild(more);
@@ -5488,7 +5505,9 @@
     // ferramenta nova do dia que nao foi usada em 8 s de plano: os lugares pulsam e uma frase diz como usar
     var toolHintDay = -1, TOOL_HINT_MS = 8000;
     function newToolTick(s, now) {
-      if (toolHintDay === s.day || now - planOpenAt < TOOL_HINT_MS || tutBalloonOn() || modal() || sayUntil) return;
+      // w_light: no dia do semaforo o pulso sai logo (2,5 s): o primeiro semaforo vai ao anel de ontem, nao a um calmo
+      var waitMs = CFG.tools.light && CFG.tools.light.unlockDay === (s.day | 0) ? 2500 : TOOL_HINT_MS;
+      if (toolHintDay === s.day || now - planOpenAt < waitMs || tutBalloonOn() || modal() || sayUntil) return;
       var i, t, id = null;
       for (i = 0; s.tools && i < s.tools.length; i++) { t = s.tools[i]; if (t.unlocked && CFG.tools[t.id] && CFG.tools[t.id].unlockDay === (s.day | 0) && (s.day | 0) > 1) id = t.id; }
       toolHintDay = s.day;

@@ -470,10 +470,16 @@
       for (var i = 0; i < k.length; i++) if (k[i] !== skip && world.nodes[k[i]].tool === 'light') c++;
       return c;
     }
+    function onMap(tool) {
+      for (var k in world.nodes) if (own(world.nodes, k) && world.nodes[k] && world.nodes[k].tool === tool) return true;
+      return false;
+    }
     function isUnlocked(tool) {
       if (!own(CFG.tools, tool) || CFG.tools[tool].removed) return false;
       if (tool === 'round' && st.perks && st.perks.round) return true;                 // v2: carta do dia 19
       if (tool === 'oneway' && !archHas('oneway')) return false;                      // v2: so no arquetipo que pede
+      // w_light: save de um calendario antigo (Yield liberava no dia 5) com a peca ja no mapa: ela segue liberada
+      if (st.day < CFG.tools[tool].unlockDay && tool !== 'road' && onMap(tool)) return true;
       return st.day >= CFG.tools[tool].unlockDay;
     }
     // ferramenta existe nesta partida (a bandeja e o guia so mostram estas; o ladrilho bloqueado nao aparece)

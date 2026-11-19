@@ -95,8 +95,8 @@
     tools: {
       road:    { cost: 2, unlockDay: 1 },
       stop:    { cost: 1, unlockDay: 3 },
-      yield:   { cost: 1, unlockDay: 5 },
-      light:   { cost: 4, unlockDay: 8 },
+      yield:   { cost: 1, unlockDay: 8 },
+      light:   { cost: 4, unlockDay: 5 },
       upgrade: { cost: 3, unlockDay: 9 },
       cross:   { cost: 1, unlockDay: 999, removed: true },
       round:   { cost: 3, unlockDay: 99, choiceDay: 19 },
@@ -357,7 +357,7 @@
     upkeep: { fromDay: 11, perLight: 0 },
     // v2m: quantos semaforos a cidade liga ("2 of 3" no cartao). byDay: [dia, N] em ordem (o ultimo que ja chegou vale).
     // perkPlus: cada escolha da carta Free power soma +1 vaga. Tirar um semaforo e gratis (sem reembolso) e libera a vaga.
-    lightCap: { byDay: [[8, 1], [15, 2], [22, 3]], perkPlus: 1 },
+    lightCap: { byDay: [[5, 1], [10, 2], [16, 3], [24, 4]], perkPlus: 1 },   // w_light: medido em v2/_scripts/w_light (SEMAFORO_PARA_DECIDIR.md)
     // v2x (playtest cego 5): o conselho da manha joga o dia de ontem de novo com cada peca (game.whatIf) e so manda a peca
     // que baixa a espera mais longa do resumo em gain (fracao) e minS s, sem travar e sem subir o anel mais que pTol.
     // Depois de seguido, outra peca so com mudanca material (tipo mudou ou carros/min mais que material) e gainChanged
