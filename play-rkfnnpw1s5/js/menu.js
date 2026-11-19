@@ -55,7 +55,7 @@
       ['Speed', 'during the day, tap the play button to change speed. Faster = more bonus score, but drivers wait less.'],
       ['Boost (\u26a1\ufe0e)', '{charges} per day (they recharge in the first {earlyDays} days). During the day, tap a road end to send a car now, or a crossing with a ring to clear it. A Boost chip appears by a rising amber ring and slows the day.'],
       ['Undo', 'before the day starts, undo gives the build points back.'],
-      ['Road crew', 'days {crewFrom} to {crewTo}, pay {crewCost} build points now and get +{crewPer} every morning for {crewDays} days.'],
+      ['Road crew', 'from day {crewFrom}, a morning may offer a crew: pay {crewCost} build points now, get +{crewPer} every morning for {crewDays} days (up to day {days}). One crew at a time. After Hire or Not now, the next offer comes {crewGap} or more days later, until day {crewTo}.'],
       ['Events', 'from day {eventDay}, a big game, school or roadwork hits one spot. A note the day before says where.']
     ],
     // seletor de dificuldade: uma frase por modo, em palavras simples. Os dois modos se comparam entre si:
@@ -215,9 +215,21 @@
     var v = getItem(ls(), from);
     try { if (ls()) { if (v != null && v !== '') { ls().setItem(to, v); } else { ls().removeItem(to); } ls().removeItem(from); } } catch (e) {}
   }
+  // G007 (fuzz v4): jogo novo intocado (dia 1, plano, sem historico nem obra): nao vale nada guardar
+  function freshDay1(j) {
+    var s = j && j.st;
+    return !!s && num(s.day) === 1 && s.phase === 'plan' && !(s.history && s.history.length) && !(j.undo && j.undo.list && j.undo.list.length);
+  }
   function park() {
     var m = activeMode();
-    if (m) { moveKey(KEY_SAVE, KEY_SLOT + m); moveKey(KEY_PLAN, KEY_SLOT + m + '.plan'); }
+    if (m) {
+      // ultima defesa: um jogo novo intocado nunca toma o lugar de um jogo guardado mais adiante (o guardado fica, e o
+      // novo sai); e um guardado que seria trocado por outro jogo de verdade fica antes em '.bak'
+      var a = activeSave(), old = parseJ(getItem(ls(), KEY_SLOT + m));
+      if (old && old.st && freshDay1(a) && !freshDay1(old)) { dropActive(); return m; }
+      if (old && old.st && !freshDay1(old)) { setItem(ls(), KEY_SLOT + m + '.bak', getItem(ls(), KEY_SLOT + m)); }
+      moveKey(KEY_SAVE, KEY_SLOT + m); moveKey(KEY_PLAN, KEY_SLOT + m + '.plan');
+    }
     try { if (ls()) { ls().removeItem(KEY_SAVE); ls().removeItem(KEY_MIDDAY); } } catch (e) {}
     return m;
   }
@@ -227,6 +239,21 @@
     if (ok) { moveKey(KEY_SLOT + mode, KEY_SAVE); moveKey(KEY_SLOT + mode + '.plan', KEY_PLAN); }
     else { try { if (ls()) { ls().removeItem(KEY_SLOT + mode); ls().removeItem(KEY_SLOT + mode + '.plan'); } } catch (e) {} }
     return !!ok;
+  }
+  // G007: o jogo de sempre estacionado volta a ser o ativo quando nao ha partida ativa (o fim de um modo apagou o save
+  // dele) ou quando a ativa e um jogo de sempre novo e intocado (quem ja perdeu o jogo para o dia 1 recupera). A escrita
+  // e conferida antes de o slot sair; sem espaco, nada muda. true: o jogo de sempre voltou
+  function restoreFree() {
+    var a = activeSave(), j = parseJ(getItem(ls(), KEY_SLOT + 'free'));
+    if (!(j && j.st && modeOf(j) === 'free' && num(j.st.day) >= 1)) { return false; }
+    if (a && !(modeOf(a) === 'free' && freshDay1(a) && !freshDay1(j))) { return false; }
+    var v = getItem(ls(), KEY_SLOT + 'free'), pv = getItem(ls(), KEY_SLOT + 'free.plan');
+    if (!setItem(ls(), KEY_SAVE, v) || getItem(ls(), KEY_SAVE) !== v) {
+      if (a) { setItem(ls(), KEY_SAVE, JSON.stringify(a)); }
+      return false;
+    }
+    try { if (ls()) { ls().removeItem(KEY_SLOT + 'free'); ls().removeItem(KEY_MIDDAY); if (pv != null && pv !== '') { ls().setItem(KEY_PLAN, pv); } else { ls().removeItem(KEY_PLAN); } ls().removeItem(KEY_SLOT + 'free.plan'); } } catch (e) {}
+    return true;
   }
   function dropActive() { try { if (ls()) { ls().removeItem(KEY_SAVE); ls().removeItem(KEY_PLAN); ls().removeItem(KEY_MIDDAY); } } catch (e) {} }
   // One strike: liberado depois de vencer os 30 dias uma vez (marca propria; quem ja venceu antes dela tambem)
@@ -270,7 +297,8 @@
     var app = CRZ.app || {}, g = app.game, s = g && g.state;
     if (g && g.save && s && s.phase !== 'over' && !opts.drop) { try { setItem(ls(), KEY_SAVE, JSON.stringify(g.save())); } catch (e) {} }
     if (opts.drop) {
-      dropActive();
+      // G007: o fim do modo ja pode ter trazido o jogo de sempre para o save ativo: so sai o save do proprio modo
+      if (!(s && activeMode() && activeMode() !== (s.mode || 'free'))) { dropActive(); }
       // recomecar do zero no mesmo modo: nenhuma partida guardada desse modo volta
       if (s && s.mode === mode) { try { if (ls()) { ls().removeItem(KEY_SLOT + mode); ls().removeItem(KEY_SLOT + mode + '.plan'); } } catch (e) {} }
     }
@@ -285,7 +313,7 @@
   }
   CRZ.Modes = {
     todayStr: todayStr, dateSeed: dateSeed, dateLabel: dateLabel, modeOf: modeOf, activeMode: activeMode, modeSave: modeSave,
-    park: park, unpark: unpark, dropActive: dropActive, ironUnlocked: ironUnlocked, unlockIron: unlockIron,
+    park: park, unpark: unpark, dropActive: dropActive, restoreFree: restoreFree, freshDay1: freshDay1, ironUnlocked: ironUnlocked, unlockIron: unlockIron,
     readIron: readIron, recordIron: recordIron, readDaily: readDaily, recordDaily: recordDaily, takeLaunch: takeLaunch, go: go,
     keys: { slot: KEY_SLOT, unlock: KEY_UNLOCK, iron: KEY_IRON, daily: KEY_DAILY, launch: KEY_LAUNCH }
   };

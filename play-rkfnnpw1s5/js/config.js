@@ -361,12 +361,22 @@
     // v2x (playtest cego 5): o conselho da manha joga o dia de ontem de novo com cada peca (game.whatIf) e so manda a peca
     // que baixa a espera mais longa do resumo em gain (fracao) e minS s, sem travar e sem subir o anel mais que pTol.
     // Depois de seguido, outra peca so com mudanca material (tipo mudou ou carros/min mais que material) e gainChanged
-    advice: { gain: 0.25, minS: 2, pTol: 0.05, material: 1 / 3, gainChanged: 0.4, hi: 1.2 },
+    // w_yield: peca ruidosa (noisy: o Yield, um carro da lateral pode esperar ~12 s e a espera mais longa depende da sorte
+    // de chegada) so com a vitoria em repWin das 2 x reps repeticoes do dia com outra sorte (a 1x e a hi x carros).
+    // Medido (v2/_scripts/v2x/yield_probe.js, 80 sementes): a 4 repeticoes, ganhar em 5 de 8 tira os Yields que pioram
+    advice: { gain: 0.25, minS: 2, pTol: 0.05, material: 1 / 3, gainChanged: 0.4, hi: 1.2, noisy: ['yield'], reps: 4, repWin: 0.625 },
     // v2 (v2/economia.md 3.2 e 6.2, v2/sistemas.md 4): Road crew, a troca entre hoje e depois. Nas manhas de fromDay a
     // toDay o plano oferece: pagar cost pontos hoje e receber perDay ponto toda manha pelos proximos days dias (a
     // partir de amanha). No maximo maxActive ao mesmo tempo. Paga-se no 4o dia (cost / perDay) e rende +6. days e a
     // alavanca: ate o fim da partida faz 'investir sempre' vencer; 6 dias faz perder (medido em economia.md 3.2).
-    crew: { fromDay: 16, toDay: 26, cost: 4, perDay: 1, days: 10, maxActive: 2 },
+    // w_crew (tester: "pagar 4 de uma vez toda manha nao faz sentido"): a oferta e rara. Aparece em fromDay; depois de
+    // uma resposta (Hire ou Not now) so volta gapDays dias depois, e nunca com uma equipe ativa (maxActive 1). Manha
+    // sem pontos para pagar nao conta como resposta: a oferta espera a proxima manha com pontos. A equipe rende ate o
+    // fim da partida no maximo (contratada no dia 26: 4 manhas). Medido em v2/_scripts/w_crew/out (crew30.js).
+    // Preco medido (30 sementes, Easy e Normal, aware e smart, budget 4 por dia nos dias 16 a 26): 3 por +1 em 8 manhas
+    // (+5 liquido, pago no 3o dia; no dia 26, 4 manhas: +1). Hire sempre contra Not now sempre, cidade a cidade: melhor em
+    // 13 a 20 de 30, pior em 9 a 17: nenhuma das duas domina. 4 por 10 perdia em 19 a 20 de 30 (aware).
+    crew: { fromDay: 16, toDay: 26, cost: 3, perDay: 1, days: 8, maxActive: 1, gapDays: 5 },
     // efeito de cada carta (game.js le daqui; a UI le por CRZ.Game cardInfo(id) para nao copiar numero)
     cardEffects: {
       plus2:     { budget: 2 },
@@ -551,7 +561,7 @@
       '{panLast}': C.panLockDays != null ? C.panLockDays : 3, '{carry}': C.carryCap != null ? C.carryCap : 3,
       '{charges}': (C.clear && C.clear.charges) || 3, '{earlyDays}': (C.earlyBoost && C.earlyBoost.days) || 0,
       '{crewFrom}': (C.crew && C.crew.fromDay) || 16, '{crewTo}': (C.crew && C.crew.toDay) || 26, '{crewCost}': (C.crew && C.crew.cost) || 4,
-      '{crewPer}': (C.crew && C.crew.perDay) || 1, '{crewDays}': (C.crew && C.crew.days) || 10,
+      '{crewPer}': (C.crew && C.crew.perDay) || 1, '{crewDays}': (C.crew && C.crew.days) || 10, '{crewGap}': (C.crew && C.crew.gapDays) || 1,
       '{eventDay}': firstEventDay(C, L), '{patientPct}': Math.round((((C.cardEffects || {}).patient || {}).patienceMul || 1.3) * 100 - 100)
     };
     function one(t) { for (var k in map) if (t.indexOf(k) >= 0) t = t.split(k).join(String(map[k])); return t; }

@@ -222,10 +222,14 @@
     // v2: manutencao do semaforo (CFG.upkeep). Linha da manha e, na primeira vez, a regra
     upkeepLine: function (paid, dark) { return 'Lights: -' + paid + ' today' + (dark > 0 ? '. ' + dark + (dark === 1 ? ' light is' : ' lights are') + ' off: not enough points.' : '.'); },
     // v2: Road crew (CFG.crew): a oferta da manha, o retorno e o chip das equipes
-    crewOffer: function (cost, per, days) { return 'Road crew: pay ' + cost + ' build points now, get +' + per + ' every morning for ' + days + ' days.'; },
+    // w_crew: o negocio inteiro numa linha, com o total (days ja vem cortado no fim da partida: game.crewInfo)
+    crewOffer: function (cost, per, days) { return 'Road crew: pay ' + cost + ' now, get +' + per + ' every morning for ' + days + (days === 1 ? ' day' : ' days') + ' (' + per * days + ' in all).'; },
+    // depois do Not now: quando a oferta pode voltar (dia do CFG.crew.gapDays) ou que foi a ultima
+    crewLater: function (d) { return 'OK. The road crew comes back on day ' + d + ' at the earliest.'; },
+    crewLast: 'OK. That was the last road crew offer.',
     crewFirst: 'New: spend today, earn later.',
     crewHire: 'Hire', crewNo: 'Not now',
-    crewHired: function (days) { return CRZ.dayText('Crew hired: +{crewPer} every morning, starting tomorrow, for ' + days + ' days.'); },
+    crewHired: function (days) { return CRZ.dayText('Crew hired: +{crewPer} every morning, starting tomorrow, for ' + days + (days === 1 ? ' day.' : ' days.')); },
     crewLine: function (n) { return 'Crew: +' + n + ' today.'; },
     crewChip: function (n, left) { return (n === 1 ? 'Crew' : n + ' crews') + ': ' + left + (left === 1 ? ' day left' : ' days left'); },
     // v2m: a vaga de semaforos (CFG.lightCap): no guia, no ladrilho ('1 of 2') e na recusa
@@ -415,7 +419,7 @@
       cardFail: 'That card is not available. Pick another one.',
       ffNo: 'Speed-up works while the day runs. Tap \u25b6\ufe0e first.',
       crewShort: function (c, h) { return 'Road crew costs ' + c + ' build points. You have ' + h + '. Earn more, then hire.'; },
-      crewOther: 'The road crew is not on offer now. Build with your points.',
+      crewOther: 'No road crew on offer this morning. Build with your points.',
       generic: 'Can\'t do that now. Try a crossing or road end.'
     },
     jam: {
@@ -540,7 +544,7 @@
       evMore: function (n) { return 'More events, ' + n + ' in all.'; },
       keep: function (d) { return 'Day ' + d + ': keep a roll for later.'; },
       lights: function (d, n) { return 'Day ' + d + ': the city powers ' + n + ' lights.'; },
-      crew: function (d) { return 'Day ' + d + ': hire road crews.'; }
+      crew: function (d) { return 'Day ' + d + ': a road crew offer.'; }
     },
     winWhy: function (t, signs) {
       var p = [];
@@ -4901,9 +4905,11 @@
         var ck = t.id === 'light' && t.hand > 0 ? 'hand|' + t.hand + '|' + c + '|' + t.used + '|' + t.cap : hasCap ? c + '|' + t.used + '|' + t.cap : c;   // semaforo na mao: custo 'free'
         if (ck !== tl.c) {
           tl.c = ck; tl.cost.innerHTML = '<span class="crz-tname">' + (STR.tileName[t.id] || STR.tools[t.id] || t.id) + '</span>' + toneCost(c);
-          if (tl.cap) { tl.cap.textContent = hasCap ? STR.capTile(t.used, t.cap) : ''; tl.el.classList.toggle('crz-capon', hasCap); }
+          // o semaforo na mao ainda e da jogadora: o teto conta mapa + mao ('3 of 3' com um na mao e o custo 'free')
+          var capUsed = (t.used | 0) + (t.id === 'light' ? (t.hand | 0) : 0);
+          if (tl.cap) { tl.cap.textContent = hasCap ? STR.capTile(capUsed, t.cap) : ''; tl.el.classList.toggle('crz-capon', hasCap); }
           tl.el.setAttribute('aria-label', (STR.tools[t.id] || t.id) + ', ' + (c <= 0 ? 'free' : c + (c === 1 ? ' build point' : ' build points')) +
-            (hasCap ? ', ' + STR.capTile(t.used, t.cap) + ' lights' : ''));
+            (hasCap ? ', ' + STR.capTile(capUsed, t.cap) + ' lights' : ''));
         }
         var poor = !t.afford;
         if (poor !== tl.poor) { tl.poor = poor; tl.el.classList.toggle('poor', poor); }
@@ -5532,7 +5538,12 @@
         if (ev.tool === 'clear') pend.clear = true;
       }
       // v2: derrota com volta ao capitulo: o save (com o checkpoint) fica, para o Retry sobreviver a um reload
-      else if (ev.type === 'over') { overWin = !!ev.win; if (ev.retry) saveNow(); else lsDel(SAVE_KEY); if (game.state.phase === 'over') buildOver(game.state); }
+      else if (ev.type === 'over') {
+        overWin = !!ev.win; if (ev.retry) saveNow(); else lsDel(SAVE_KEY);
+        // G007: partida de um modo acabou de vez: o jogo de sempre estacionado volta a ser o save, e um reload cai nele
+        if (!ev.retry && game.state.mode && game.state.mode !== 'free' && CRZ.Modes && CRZ.Modes.restoreFree) { try { CRZ.Modes.restoreFree(); } catch (e) { warnOnce('restoreFree', e); } }
+        if (game.state.phase === 'over') buildOver(game.state);
+      }
       else if (ev.type === 'freeJam' && ev.first) pendFreeJam = true;
     });
 
@@ -5982,11 +5993,19 @@
     // integracao (fuzz): a folha e uma camada dona de body.crz-modal, como a tela do dado; o balao do tutorial espera
     // (antes o holofote do tutorial abria por cima e o 'Hire'/'Not now' nao recebia o toque)
     function crewClose() { crewEl.classList.add('gone'); modalReg().set(doc.body, 'crew', false); }
-    on(crewNo, 'click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); crewClose(); snd('select'); if (game.declineCrew) game.declineCrew(); emitUI('crew', { hire: false }); });
+    on(crewNo, 'click', function (e) {
+      if (e && e.stopPropagation) e.stopPropagation(); crewClose(); snd('select');
+      var was = !!(game.state.crew && game.state.crew.offer);
+      if (game.declineCrew) game.declineCrew();
+      // w_crew: diz quando a oferta pode voltar (a regra rara), sem prometer o que nao vem
+      var ci = was && game.crewInfo ? game.crewInfo() : null;
+      if (ci) { sayUntil = 0; say(ci.next ? STR.crewLater(ci.next) : STR.crewLast, 3500); }
+      emitUI('crew', { hire: false });
+    });
     on(crewYes, 'click', function (e) {
       if (e && e.stopPropagation) e.stopPropagation(); crewClose();
       var r = game.hireCrew ? game.hireCrew() : null;
-      if (r && r.ok) { snd('place'); sayUntil = 0; say(STR.crewHired((CFG.crew && CFG.crew.days) || 10), 4000); }
+      if (r && r.ok) { snd('place'); sayUntil = 0; say(STR.crewHired(Math.max.apply(null, game.state.crew.active.concat([1]))), 4000); }
       else { snd('deny'); say(r && r.reason === 'budget' ? STR.deny.crewShort(CFG.crew.cost, game.state.budget | 0) : r && r.reason === 'phase' ? STR.deny.phase : STR.deny.crewOther); }
       emitUI('crew', { hire: !!(r && r.ok) });
     });
@@ -5998,7 +6017,8 @@
       if (roll.open || growPend || bootFrames >= 0 || modal() || tutBalloonOn() || sayUntil || confirmOpen()) return;
       crewAskDay = s.day;
       var first = !seen('crew'); if (first) markSeen('crew');
-      crewTxt.textContent = (first ? STR.crewFirst + ' ' : '') + STR.crewOffer(C.cost, C.perDay, C.days);
+      var ci = game.crewInfo ? game.crewInfo() : null;
+      crewTxt.textContent = (first ? STR.crewFirst + ' ' : '') + STR.crewOffer(C.cost, C.perDay, ci ? ci.days : C.days);
       crewEl.classList.remove('gone'); modalReg().set(doc.body, 'crew', true); snd('select');
       emitUI('crewOffer', {});
     }

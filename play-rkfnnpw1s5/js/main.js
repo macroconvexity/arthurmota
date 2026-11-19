@@ -91,6 +91,9 @@
     // w_modes: modo pedido pela tela inicial antes do reload (menu.js CRZ.Modes.go); o save carregado diz o seu
     var Modes = CRZ.Modes || null, launch = Modes ? Modes.takeLaunch() : null;
     // a recuperacao unica so devolve o save do jogo de sempre, e nunca a caminho de um modo (recoverBad confere o resto)
+    // G007: sem partida ativa (o fim de um modo apagou o save dele) ou com um jogo de sempre novo e intocado no lugar, o
+    // jogo de sempre estacionado volta antes de qualquer outra coisa (menu.js Modes.restoreFree)
+    if (Modes && Modes.restoreFree && param('reset') === null && param('seed') === null && !launch) { try { Modes.restoreFree(); } catch (e) {} }
     if (param('reset') === null && param('seed') === null && !launch) { recoverBad(); }
     try { saved = localStorage.getItem(SAVE_KEY); } catch (e) {}
     // ?seed= so troca a partida salva numa maquina de desenvolvimento; em producao o link nao apaga o save

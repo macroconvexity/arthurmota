@@ -289,8 +289,9 @@
       // v2: forma da cidade (CFG.archetypes, v2/nivel.md 3.2): 'classic' | 'river' | 'park'
       archetype: 'classic',
       // v2: Road crew (CFG.crew). active = dias que faltam de cada equipe; income = pontos que entraram hoje;
-      // offer = a oferta esta aberta nesta manha; hired = equipes contratadas na partida. Vai no save.
-      crew: { active: [], income: 0, offer: false, hired: 0, day: 0 },
+      // offer = a oferta esta aberta nesta manha; hired = equipes contratadas na partida; next = primeiro dia em que a
+      // oferta pode voltar (0 = CFG.crew.fromDay; Hire ou Not now poe hoje + gapDays). Vai no save.
+      crew: { active: [], income: 0, offer: false, hired: 0, day: 0, next: 0 },
       // marcas do fim (w_medals): fixed = cruzamentos vigiados (anel de ontem + peca de hoje) que terminaram o dia
       // melhores (a mesma regra do resumo: espera mais longa -max(2 s, 20%), ou sem anel); kept = faces guardadas e
       // usadas depois. So contagem, nada muda regra. Vai no save; o checkpoint leva o valor da manha do capitulo
@@ -670,7 +671,10 @@
       for (var i = 0; i < cr.active.length; i++) { if (cr.active[i] > 0) { inc += (C ? C.perDay : 1); if (cr.active[i] - 1 > 0) keep.push(cr.active[i] - 1); } }
       cr.active = keep; cr.income = inc; cr.day = st.day;
       st.budget += inc;
-      cr.offer = !!C && st.day >= C.fromDay && st.day <= C.toDay && st.day < CFG.maxDays && cr.active.length < C.maxActive;
+      // w_crew: rara. So a partir de cr.next (depois de uma resposta), sem equipe demais e com pontos para pagar (manha
+      // sem pontos nao e resposta: cr.next fica e a oferta espera a proxima manha que puder pagar)
+      cr.offer = !!C && st.day >= C.fromDay && st.day <= C.toDay && st.day < CFG.maxDays && cr.active.length < C.maxActive &&
+        st.day >= (cr.next | 0) && st.budget >= C.cost;
       if (inc > 0) emit({ type: 'crewPay', income: inc, active: cr.active.length });
     }
     // ----- manutencao do semaforo (v2, CFG.upkeep) -----
@@ -1015,7 +1019,8 @@
     // v2 (arquetipos): barreiras de terreno do arquetipo da partida (CFG.archetypes.<id>.terrain). Sem terreno: livre
     function crewNorm(c) {
       var A = Array.isArray(c && c.active) ? c.active.filter(function (x) { return nat(x) && x > 0 && x <= 60; }).slice(0, 10) : [];
-      return { active: A, income: nat(c && c.income) ? c.income : 0, offer: !!(c && c.offer === true), hired: nat(c && c.hired) ? c.hired : 0, day: nat(c && c.day) ? c.day : 0 };
+      return { active: A, income: nat(c && c.income) ? c.income : 0, offer: !!(c && c.offer === true), hired: nat(c && c.hired) ? c.hired : 0, day: nat(c && c.day) ? c.day : 0,
+               next: nat(c && c.next) && c.next <= 60 ? c.next : 0 };
     }
     function archCfg() { return (CFG.archetypes && CFG.archetypes[st.archetype]) || {}; }
     // ponto dentro do terreno (agua ou parque): ali nao nasce no
@@ -1679,7 +1684,7 @@
     // em passos (branchOpen, branchStep) e a UI chama job.run(ms, agora) entre quadros. Os ramos sao os mesmos, na mesma
     // ordem, de saves iguais, sem nada compartilhado entre eles: o resultado nao depende de como as fatias caem.
     // g.whatIf (sincrono, robos e testes) roda o mesmo trabalho de uma vez.
-    function branchOpen(save, id, tool, mul) {
+    function branchOpen(save, id, tool, mul, salt) {
       var lc = CFG.lightCap, br = null;
       BRANCHING = true;
       try {
@@ -1687,6 +1692,8 @@
         var bw = b.world, nd = bw.nodes[id]; if (!nd) return null;
         CFG.lightCap = null;
         if ((nd.tool || null) !== tool) bw.setTool(id, tool);
+        // salt: o mesmo dia com outra sorte de chegada (a semente do dia do Sim muda; cidade, pecas e carros/min iguais)
+        if (salt) bw.seed = (bw.seed ^ Math.imul(salt, 0x9E3779B1)) >>> 0;
         b.startDay();
         CFG.lightCap = lc;
         if (mul > 0 && mul !== 1 && bw.params) bw.params.spawnMul = (bw.params.spawnMul > 0 ? bw.params.spawnMul : 1) * mul;
@@ -1709,6 +1716,14 @@
       return true;
     }
     var WI_TOOLS = ['stop', 'yield', 'light', 'round'];
+    // a peca a ganha da peca c no numero do resumo (espera mais longa w): nao trava onde c nao travou, nao sobe o anel
+    // mais que pTol, baixa w em gain (fracao) e minS s (ou destrava)
+    function wiWins(a, c, gain) {
+      var A = CFG.advice || {};
+      if (!a || !c || a.cut || (a.lock && !c.lock)) return false;
+      if (a.p > c.p + (A.pTol || 0.05) && !(c.lock && !a.lock)) return false;
+      return c.lock && !a.lock ? a.w <= c.w : (a.w <= c.w * (1 - gain) && c.w - a.w >= (A.minS || 2));
+    }
     // o trabalho do 'e se' de um cruzamento: fila de ramos na ordem do codigo de antes (hoje, hoje com hi vezes os carros,
     // e para cada peca a medida normal e a de hi vezes os carros). So o agendamento mudou: a regra do que ganha e a do
     // adviceFor. job.run(ms, now): anda ate ms de relogio (now() em ms); sem now, ate o fim.
@@ -1726,10 +1741,34 @@
         if (t === cur || !openAt(t, d1) || (t === 'light' && !room)) continue;
         q.push({ k: 'alt', t: t, mul: 1 });
       }
+      // w_yield: peca de resultado ruidoso (CFG.advice.noisy: o Yield, onde um carro da rua lateral pode esperar ate
+      // ~12 s e a espera mais longa depende de quando os carros chegam): depois da fila de cima, o mesmo dia mais reps
+      // vezes com outra sorte de chegada (salt), peca nova e peca de hoje lado a lado, a 1x e a hi x carros. So para a
+      // peca ruidosa que ja ganha na repeticao exata. adviceFor conta as vitorias (repWin). Mesmos ramos, mesma ordem.
+      var A = CFG.advice || {}, R = A.reps | 0, NZ = A.noisy || [], repQ = false;
+      function queueReps() {
+        repQ = true;
+        for (var t2 in r.alt) {
+          if (!own(r.alt, t2) || NZ.indexOf(t2) < 0 || R <= 0) continue;
+          if (!wiWins(r.alt[t2], r.cur, A.gain || 0.25) || !wiWins(r.altHi[t2], r.curHi, A.gain || 0.25)) continue;
+          if (!r.rep) r.rep = {};
+          r.rep[t2] = [];
+          for (var s = 1; s <= R; s++) {
+            r.rep[t2].push({ a: null, c: null, ah: null, ch: null });
+            q.push({ k: 'rep', f: 'a', t: t2, mul: 1, s: s, rt: t2 }, { k: 'rep', f: 'c', t: cur, mul: 1, s: s, rt: t2 },
+                   { k: 'rep', f: 'ah', t: t2, mul: hi, s: s, rt: t2 }, { k: 'rep', f: 'ch', t: cur, mul: hi, s: s, rt: t2 });
+          }
+        }
+      }
+      function repTidy() {
+        if (!r.rep) return;
+        for (var t3 in r.rep) if (own(r.rep, t3)) r.rep[t3] = r.rep[t3].filter(function (e) { return e.a && e.c && e.ah && e.ch; });
+      }
       var job = { id: id, day: day, done: false, r: null, br: null, i: 0, branches: 0 };
       function settle(task, out) {
         job.i++;
         if (task.k === 'cur' || task.k === 'curHi') { r[task.k] = out; if (!out) { job.done = true; job.r = null; } return; }
+        if (task.k === 'rep') { r.rep[task.rt][task.s - 1][task.f] = out; return; }
         if (task.k === 'alt') { if (out) { base[task.t] = out; q.splice(job.i, 0, { k: 'altHi', t: task.t, mul: hi }); } return; }
         if (out) { r.alt[task.t] = base[task.t]; r.altHi[task.t] = out; }
       }
@@ -1737,13 +1776,15 @@
         var t0 = now ? now() : 0;
         while (!job.done) {
           var task = q[job.i];
+          if (!task && !repQ) { queueReps(); continue; }
           if (!task) {
+            repTidy();
             job.done = true; job.r = r;
             if (!st.whatIf || st.whatIf.day < day) st.whatIf = { day: day, nodes: {} };
             if (st.whatIf.day === day) st.whatIf.nodes[id] = r;
             break;
           }
-          if (!job.br) { job.br = branchOpen(save, id, task.t, task.mul); job.branches++; if (!job.br) { settle(task, null); continue; } }
+          if (!job.br) { job.br = branchOpen(save, id, task.t, task.mul, task.s); job.branches++; if (!job.br) { settle(task, null); continue; } }
           else if (branchStep(job.br, now ? 45 : Infinity)) { settle(task, job.br.out); job.br = null; }
           if (now && now() - t0 >= ms) break;
         }
@@ -1794,17 +1835,21 @@
       var material = !m || !kd || !m.k || kd.k !== m.k || (m.v > 0 && Math.abs(kd.v - m.v) > m.v * (A.material || 1 / 3));
       var gain = followed ? (A.gainChanged || 0.4) : (A.gain || 0.25), tried = (m && m.tried) || [];
       var c = r.cur, best = null, bw = Infinity;
-      function wins(a, c) {
-        if (!a || !c || a.cut || (a.lock && !c.lock)) return false;
-        if (a.p > c.p + (A.pTol || 0.05) && !(c.lock && !a.lock)) return false;
-        return c.lock && !a.lock ? a.w <= c.w : (a.w <= c.w * (1 - gain) && c.w - a.w >= (A.minS || 2));
+      function wins(a, c) { return wiWins(a, c, gain); }
+      // w_yield: peca ruidosa so com a vitoria nas repeticoes com outra sorte de chegada (repWin de 2 x reps: a 1x e a
+      // hi x carros); sem as repeticoes (save de antes) nao e mandada
+      function repOk(t) {
+        if ((A.noisy || []).indexOf(t) < 0 || !(A.reps > 0)) return true;
+        var L = r.rep && r.rep[t]; if (!L || !L.length) return false;
+        var k = 0; for (var i = 0; i < L.length; i++) k += (wins(L[i].a, L[i].c) ? 1 : 0) + (wins(L[i].ah, L[i].ch) ? 1 : 0);
+        return k >= Math.ceil((A.repWin || 0.625) * 2 * L.length - 1e-9);
       }
       if (!(followed && !material)) for (var t in r.alt) {
         if (!own(r.alt, t) || tried.indexOf(t) >= 0) continue;
         // conselho de ontem ainda nao seguido e o trafego igual: so ele pode voltar (nunca outra peca no dia seguinte)
         if (m && m.tool && !followed && !material && m.at !== dayK && t !== m.tool) continue;
         var a = r.alt[t];
-        var ok = wins(a, c) && (!r.altHi || !r.curHi || wins(r.altHi[t], r.curHi));
+        var ok = wins(a, c) && (!r.altHi || !r.curHi || wins(r.altHi[t], r.curHi)) && repOk(t);
         // peca que o conselho ja mandou ontem e segue valida: fica (o conselho nao troca por um ganho pequeno a mais)
         var w = a.w - (m && m.tool === t && !followed ? 1e6 : 0);
         if (ok && w < bw) { bw = w; best = t; }
@@ -2147,13 +2192,28 @@
       if (!C || !cr.offer) return fail('offer');
       if (st.budget < C.cost) return fail('budget');
       var entry = capture();
-      st.budget -= C.cost; cr.active.push(C.days); cr.hired++; cr.offer = false;
+      // a equipe rende ate o fim da partida no maximo (a folha diz quantas manhas); a proxima oferta, gapDays depois
+      st.budget -= C.cost; cr.active.push(crewDaysFor(st.day)); cr.hired++; cr.offer = false; cr.next = st.day + crewGap();
       undoStack.push(entry);
       refresh();
       emit({ type: 'crew', active: cr.active.length });
       return { ok: true, active: cr.active.length };
     };
-    g.declineCrew = function () { if (!needPlan()) return fail('phase'); st.crew.offer = false; return { ok: true }; };
+    g.declineCrew = function () {
+      if (!needPlan()) return fail('phase');
+      if (st.crew.offer) st.crew.next = st.day + crewGap();   // Not now: volta gapDays depois (sem oferta: nada muda)
+      st.crew.offer = false; return { ok: true };
+    };
+    function crewGap() { var G = CFG.crew && CFG.crew.gapDays; return G > 0 ? G | 0 : 1; }
+    // manhas que uma equipe contratada hoje rende: days, cortado no fim da partida (rende do dia seguinte ao maxDays)
+    function crewDaysFor(day) { var C = CFG.crew; return C ? Math.max(0, Math.min(C.days, CFG.maxDays - day)) : 0; }
+    // para a UI: o negocio de hoje e o dia em que a proxima oferta pode vir (null: nao ha mais oferta nesta partida)
+    g.crewInfo = function () {
+      var C = CFG.crew, cr = st.crew; if (!C) return null;
+      var nx = Math.max(C.fromDay, cr.next | 0, st.day + 1);
+      return { cost: C.cost, perDay: C.perDay, days: crewDaysFor(st.day), total: C.perDay * crewDaysFor(st.day),
+               next: nx <= C.toDay && nx < CFG.maxDays ? nx : null };
+    };
 
     // ----- fluxo -----
     g.startDay = function () {
@@ -2498,7 +2558,12 @@
       shiftDay = nat(saved.shiftDay) ? saved.shiftDay : 0;
       // semaforo na mao: nunca mais que o teto (save de antes do teto pode ter mais no mapa); save sem o campo: nenhum
       st.lightHand = nat(s.lightHand) ? Math.min(s.lightHand, lightCap()) : 0;
-      if (isObjL(saved.crew)) { st.crew = crewNorm(saved.crew); if (st.phase !== 'plan') st.crew.offer = false; }
+      if (isObjL(saved.crew)) {
+        st.crew = crewNorm(saved.crew); if (st.phase !== 'plan') st.crew.offer = false;
+        // save de antes de w_crew (sem next): dentro da janela e sem oferta aberta, a de hoje ja passou; a proxima
+        // pode vir amanha (depois dela, a espera de gapDays vale como sempre)
+        if (saved.crew.next === undefined && CFG.crew && st.day >= CFG.crew.fromDay && !st.crew.offer) st.crew.next = st.day + 1;
+      }
       autoPair();
       syncModes(st.phase === 'plan' ? CFG.clear.charges : 0);
       // save antigo sem a marca: se o dia ja passou da liberacao, o aviso ja foi visto
@@ -2730,6 +2795,7 @@
     if (d.crew !== undefined && d.crew !== null) {
       if (!isObj(d.crew) || !Array.isArray(d.crew.active) || d.crew.active.length > 10) return false;
       for (i = 0; i < d.crew.active.length; i++) if (!nat(d.crew.active[i])) return false;
+      if (d.crew.next !== undefined && (!nat(d.crew.next) || d.crew.next > 60)) return false;
     }
     if (d.perks !== undefined && d.perks !== null) {
       if (!isObj(d.perks) || (d.perks.round !== undefined && typeof d.perks.round !== 'boolean')) return false;
@@ -2748,7 +2814,8 @@
              (free.light && cards.indexOf('freeLight') < 0 && dfree !== 'light'));
   }
   function budgetCap(s) {
-    var crewMax = CFG.crew ? (CFG.crew.maxActive || 0) * (CFG.crew.perDay || 0) : 0;   // v2: renda das equipes
+    // v2: renda das equipes (saves de antes de w_crew podiam ter 2 ativas: o teto segue cabendo nelas)
+    var crewMax = CFG.crew ? Math.max(CFG.crew.maxActive || 0, 2) * (CFG.crew.perDay || 0) : 0;
     return CFG.budget[s.day - 1] + CFG.carryCap + 2 + maxFaceBudget() + (s.speedApplied || 0) + crewMax;
   }
   // mundo de save ou de uma entrada do Undo: as mesmas regras que o Sim garante em mundo valido
