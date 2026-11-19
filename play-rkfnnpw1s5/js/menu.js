@@ -40,7 +40,7 @@
       yield: ['Yield', 'Main road never stops. Best where a busy road meets a side road.'],
       light: ['Traffic light', 'For crossings busy from every side; quiet streets wait on red. Two lights on one road pair up by themselves. Your city powers only a few lights, more as it grows; removing one is free.'],
       upgrade: ['Two lanes', 'Adds a second lane: a longer line fits. The crossing itself is no faster.'],
-      round: ['Roundabout', 'Cars go around without stopping. Best where four or more roads meet; weak with only three. You can pick it on day {roundDay}.'],
+      round: ['Roundabout', 'Cars go around without stopping. Best where four or more roads meet; weak with only three.'],
       oneway: ['One-way', 'Cars drive away from the half of the road you tap. Tap the arrow to flip it (free), again for two-way. A car with no route waits, then counts as lost.']
     },
     pts: function (c) { return c + (c === 1 ? ' build point' : ' build points'); },
@@ -51,7 +51,7 @@
       ['Daily dice', 'from day {diceDay}, tap the dice each morning to roll it. Early rolls only help. From day {offerDay} a roll is an offer with a good side and a cost: use it, or pass for a normal day. Passing is always free. From day {keepDay} you can keep one roll and use it on a later morning instead of rolling.'],
       ['Strikes', 'days 1 to {graceEnd}, a jam costs nothing. From day {strikeDay}, a jammed crossing ends the day and adds 1 strike. {n} in one chapter ({diff}): you go back to that chapter\'s first morning, city as it was. Strikes refill each chapter. Before day {restartDay} (and in all of chapter 1), the last one is forgiven.'],
       ['Ring colors', 'Amber ring: busy crossing. Red ring: about to jam.'],
-      ['Rewards', 'at the end of each day, pick 1 of the cards shown (2 or 3). Each one says what it changes, and it lasts one day (day {roundDay}: the rest of the game).'],
+      ['Rewards', 'at the end of each day, pick 1 of the cards shown (2 or 3). Each one says what it changes, and it lasts one day.'],
       ['Speed', 'during the day, tap the play button to change speed. Faster = more bonus score, but drivers wait less.'],
       ['Boost (\u26a1\ufe0e)', '{charges} per day (they recharge in the first {earlyDays} days). During the day, tap a road end to send a car now, or a crossing with a ring to clear it. A Boost chip appears by a rising amber ring and slows the day.'],
       ['Undo', 'before the day starts, undo gives the build points back.'],

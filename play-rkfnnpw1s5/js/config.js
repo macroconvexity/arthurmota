@@ -99,13 +99,14 @@
       light:   { cost: 4, unlockDay: 5 },
       upgrade: { cost: 3, unlockDay: 9 },
       cross:   { cost: 1, unlockDay: 999, removed: true },
-      round:   { cost: 3, unlockDay: 99, choiceDay: 19 },
+      round:   { cost: 3, unlockDay: 12 },   // w_light: para todos no dia 12 (antes so pela carta do dia 19); medido em v2/_scripts/w_light
       oneway:  { cost: 1, unlockDay: 9 }   // so no arquetipo com oneway: true (archetypes.river)
     },
     toolOrder: ['road', 'stop', 'yield', 'light', 'upgrade', 'round', 'oneway'],
     // v2: carta de escolha no resumo do dia `day` (componente das cartas do fim do dia): uma das duas, para o resto da
     // partida. round = libera a Roundabout; freePower = um semaforo sem manutencao (CFG.upkeep). Pular = nenhuma.
-    choiceCard: { day: 19, cards: ['round', 'freePower'] },
+    // w_light: a carta do dia 19 saiu (a Roundabout libera no dia 12 para todos; as vagas de semaforo cresceram em lightCap)
+    choiceCard: null,
     // v2 (2026-11-16, v2/nivel.md 3.2 e 3.3): formas de cidade, uma por partida, escolhida pela semente
     // (game.js archetypeOf; a primeira partida e sempre a Classica, main.js). Terreno sem cor nova (R8): o rio e uma
     // faixa em colors.grid sem contorno; o parque e um contorno tracejado em colors.inkSoft sem preenchimento.
@@ -554,7 +555,7 @@
     var map = {
       '{strikeDay}': (C.strikeGraceUntil | 0) + 1, '{graceEnd}': C.strikeGraceUntil | 0,
       '{diceDay}': D.fromDay || 2, '{offerDay}': D.firstOffer || 7, '{keepDay}': D.keepFrom || 15,
-      '{upkeepDay}': (C.upkeep && C.upkeep.fromDay) || 11, '{roundDay}': (C.choiceCard && C.choiceCard.day) || (C.tools && C.tools.round && C.tools.round.choiceDay) || 19,
+      '{upkeepDay}': (C.upkeep && C.upkeep.fromDay) || 11, '{roundDay}': (C.choiceCard && C.choiceCard.day) || (C.tools && C.tools.round && (C.tools.round.choiceDay || C.tools.round.unlockDay)) || 19,
       '{restartDay}': C.noRestartBeforeDay | 0, '{newjDay}': (J && J.fromDay) || 4,
       '{chapterLen}': L, '{chapters}': Math.ceil((C.maxDays || 30) / L), '{days}': C.maxDays || 30,
       // textos de ajuda: pan com um dedo, pontos que passam ao dia seguinte, cargas do Boost, Road crew, primeiro evento

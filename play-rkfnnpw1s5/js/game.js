@@ -1626,7 +1626,7 @@
     function advance(card) {
       var left = st.budget;
       // v2: carta de escolha = efeito permanente (st.perks), nao carta do dia seguinte
-      if (card && choiceIds().indexOf(card) >= 0) {
+      if (card && (choiceIds().indexOf(card) >= 0 || card === 'round' || card === 'freePower')) {   // w_light: save antigo do dia 19
         st.perks.chosen = card;
         if (card === 'round') st.perks.round = true;
         if (card === 'freePower') st.perks.freePower = (st.perks.freePower | 0) + 1;
@@ -2644,7 +2644,7 @@
   function isObj(v) { return !!v && typeof v === 'object' && !Array.isArray(v); }
   function cardOk(c) { for (var i = 0; i < CFG.cards.length; i++) if (CFG.cards[i].id === c) return true; return false; }
   // carta do resumo: as do sorteio ou as da escolha do dia 19 (estas nunca ficam ativas: viram state.perks)
-  function draftOk(c) { return cardOk(c) || (!!CFG.choiceCard && (CFG.choiceCard.cards || []).indexOf(c) >= 0); }
+  function draftOk(c) { return cardOk(c) || (!!CFG.choiceCard && (CFG.choiceCard.cards || []).indexOf(c) >= 0) || c === 'round' || c === 'freePower'; }   // w_light: save antigo no resumo do dia 19 (a carta saiu)
   function maxDieBudget(tab) {
     var m = 0;
     for (var i = 0; i < tab.outcomes.length; i++) m = Math.max(m, tab.outcomes[i].budget || 0);
