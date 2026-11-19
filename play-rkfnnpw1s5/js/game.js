@@ -216,6 +216,9 @@
     // needCp: falta um (save antigo, checkpoint recusado): o proximo plano grava um. graceT: no -> s ate destravar
     var checkpoint = null, needCp = false, graceT = {};
     var placed = {};            // nodeId -> custo pago hoje por tool
+    // mao unica de hoje por rua (edgeId -> { c, f, m }): c = pago hoje (volta ao tirar), f = 1 se ja virou desde que
+    // entrou, m = 1 se a rua ja era mao unica de manha (tirar e repor na mesma manha nao cobra de novo)
+    var owDay = {};
     var activeCards = [];       // cartas valendo no dia atual
     var hot = {};               // nodeId -> estresse maximo do ultimo dia
     var acc = 0, stepCount = 0, dayFailed = false;
@@ -234,6 +237,9 @@
     var st = {
       day: 1, maxDays: CFG.maxDays, phase: 'plan', budget: 0, strikes: 0, speed: CFG.speedDial.defaultSpeed, paused: false,
       dayTime: 0, dayLen: CFG.dayLen[0], die: null, nextDie: null, rerolled: false, tools: [],
+      // semaforo na mao (2026-11-18): tirado de um cruzamento, volta de graca em outro; fica para as manhas seguintes.
+      // Conta no teto (no mapa + na mao <= lightCap) e nunca vira pontos
+      lightHand: 0,
       // dado v2: dieState none (nao rolou) | offer (rolou, esperando Use/Pass/Keep) | used | passed | kept | auto (face
       // sem escolha, ja valendo). kept = face guardada { id, value } ou null. debt = pontos que saem do orcamento de
       // amanha (Loan); debtPaid = quanto saiu hoje. nextDie fica null: a previsao nao mostra o dado (sistemas.md 3.2)
@@ -453,7 +459,7 @@
       var t = own(CFG.tools, tool) ? CFG.tools[tool] : null;
       if (!t) return Infinity;
       if (tool === 'road' && st.free.road) return 0;
-      if (tool === 'light' && st.free.light) return 0;
+      if (tool === 'light' && (st.lightHand > 0 || st.free.light)) return 0;
       return t.cost;
     }
     // v2m: quantos semaforos a cidade liga hoje (CFG.lightCap.byDay: [[dia, N], ...] em ordem; a carta Free power soma
@@ -495,7 +501,8 @@
         var id = CFG.toolOrder[i], c = costOf(id), u = isUnlocked(id);
         if (!inMatch(id)) continue;
         var row = { id: id, cost: c, unlocked: u, afford: u && st.budget >= c };
-        if (id === 'light' && CFG.lightCap && CFG.lightCap.byDay) { row.cap = lightCap(); row.used = lightsUsed(); if (row.used >= row.cap) row.afford = false; }
+        if (id === 'light' && CFG.lightCap && CFG.lightCap.byDay) { row.cap = lightCap(); row.used = lightsUsed(); if (row.used >= row.cap && !(st.lightHand > 0)) row.afford = false; }
+        if (id === 'light') row.hand = st.lightHand | 0;
         arr.push(row);
       }
       st.tools = arr;
@@ -636,6 +643,7 @@
       chargeUpkeep();
       undoStack = [];
       placed = {};
+      owDay = {};
       // vigiados de ontem viram watchPrev (a manha confere o anel); hoje comeca sem nenhum
       st.watchPrev = st.watch && st.watch.day === day - 1 && st.watch.list.length ? st.watch : null;
       st.watch = { day: day, list: [] };
@@ -1629,8 +1637,8 @@
 
     // ----- desfazer -----
     function capture() {
-      return { layout: world.cloneLayout(), budget: st.budget, placed: clone(placed),
-               free: { road: st.free.road, light: st.free.light },
+      return { layout: world.cloneLayout(), budget: st.budget, placed: clone(placed), ow: clone(owDay),
+               free: { road: st.free.road, light: st.free.light }, lightHand: st.lightHand | 0,
                die: st.die ? clone(st.die) : null, rerolled: st.rerolled,
                watch: st.watch && st.watch.day === st.day ? clone(st.watch.list) : [], crew: clone(st.crew) };
     }
@@ -1647,9 +1655,9 @@
     var g = { world: world, state: st, migrated: !!(saved && saved.migrated) };
 
     g.cost = costOf;
-    g.canAfford = function (tool) { return isUnlocked(tool) && st.budget >= costOf(tool) && (tool !== 'light' || lightsUsed() < lightCap()); };
+    g.canAfford = function (tool) { return isUnlocked(tool) && st.budget >= costOf(tool) && (tool !== 'light' || st.lightHand > 0 || lightsUsed() < lightCap()); };
     // v2m: { used, cap } dos semaforos (cap Infinity sem a regra)
-    g.lightCap = function () { return { used: lightsUsed(), cap: lightCap() }; };
+    g.lightCap = function () { return { used: lightsUsed(), cap: lightCap(), hand: st.lightHand | 0 }; };
 
     // ----- v2x: 'e se' do conselho da manha -----
     // Playtest cego 5: o conselho mandava semaforo pelo tipo do cruzamento e o resumo do dia seguinte mostrava a espera
@@ -1831,8 +1839,11 @@
       if (n.portal && degree(n) < 2) return fail('portal');
       if (degree(n) < (tool === 'cross' ? 2 : 3)) return fail('notjunction');
       if (n.tool === tool) return fail('same');
-      if (tool === 'light' && lightsUsed(nodeId) >= lightCap()) return fail('cap');   // v2m: a cidade nao liga mais um
-      var refund = placed[nodeId] || 0, c = costOf(tool);
+      var fromHand = tool === 'light' && st.lightHand > 0;   // o semaforo na mao ja conta no teto
+      if (tool === 'light' && !fromHand && lightsUsed(nodeId) >= lightCap()) return fail('cap');   // v2m: a cidade nao liga mais um
+      // semaforo que sai deste cruzamento (trocado por outra peca): vai para a mao, sem devolver pontos
+      var toHand = n.tool === 'light' && tool !== 'light';
+      var refund = toHand ? 0 : (placed[nodeId] || 0), c = costOf(tool);
       if (st.budget + refund < c) return fail('budget');
       var entry = capture();
       if (n.pair !== null && n.pair !== undefined && tool !== 'light') world.unpair(nodeId);
@@ -1840,7 +1851,9 @@
       var pairedWith = null;
       autoPair();                                   // v2: par automatico (o vizinho de um semaforo trocado pega outro)
       if (tool === 'light') pairedWith = n.pair;
-      if (tool === 'light' && st.free.light) st.free.light = false;
+      if (fromHand) st.lightHand--;
+      else if (tool === 'light' && st.free.light) st.free.light = false;
+      if (toHand) st.lightHand++;
       st.budget = st.budget + refund - c;
       placed[nodeId] = c;
       undoStack.push(entry);
@@ -1849,6 +1862,8 @@
       var pres = { ok: true, id: nodeId }, pw = watchOn(nodeId, tool);
       if (pw) pres.watched = pw;   // 'new': o cruzamento do anel de ontem passa a ser vigiado hoje
       if (pairedWith !== null && pairedWith !== undefined) { pres.paired = pairedWith; emit({ type: 'paired', a: nodeId, b: pairedWith }); }
+      if (fromHand) pres.fromHand = true;
+      if (toHand) pres.toHand = true;
       return pres;
     };
 
@@ -1858,16 +1873,37 @@
       if (!n) return fail('node');
       nodeId = n.id;
       if (!n.tool) return fail('notool');
-      var entry = capture();
+      var entry = capture(), wasLight = n.tool === 'light';
       if (n.pair !== null && n.pair !== undefined) world.unpair(nodeId);
       world.setTool(nodeId, null);
       if (n.tool === null) autoPair();   // o vizinho que ficou sem par pega outro
-      st.budget += placed[nodeId] || 0;
+      // semaforo tirado: vai para a mao (volta de graca em outro cruzamento), nunca vira pontos.
+      // As outras pecas seguem a regra de antes: o pago hoje volta
+      if (wasLight) st.lightHand++;
+      else st.budget += placed[nodeId] || 0;
       delete placed[nodeId];
       undoStack.push(entry);
       syncWatch();
       refresh();
       return { ok: true, id: nodeId };
+    };
+
+    // mover um semaforo num passo so (um Undo): tira de fromId (vai para a mao) e poe em toId (sai da mao). De graca
+    g.moveLight = function (fromId, toId) {
+      if (!needPlan()) return fail('phase');
+      var a = getNode(fromId), b = getNode(toId);
+      if (!a || !b) return fail('node');
+      if (a.tool !== 'light') return fail('notlight');
+      if (a === b || b.tool === 'light') return fail('same');
+      var entry = capture(), n0 = undoStack.length;
+      var r1 = g.removeTool(a.id);
+      if (!r1 || !r1.ok) return r1;
+      var r2 = g.placeTool(b.id, 'light');
+      if (!r2 || !r2.ok) { g.undo(); return r2; }
+      undoStack.length = n0;
+      undoStack.push(entry);
+      r2.moved = a.id;
+      return r2;
     };
 
     g.upgradeRoad = function (edgeId) {
@@ -1893,6 +1929,10 @@
       return ures;
     };
 
+    // mao unica (dono no iPhone, 2026-11-18: "tem que gastar dois para ficar no sentido que quero"): o sentido e
+    // escolha do jogador e custa uma vez. Pagar so ao por numa rua de duas maos; virar e de graca a qualquer hora do
+    // plano (mesmo a de um dia anterior); voltar a duas maos devolve o que foi pago hoje (a regra do removeTool), e
+    // repor na mesma manha a que ja estava de manha nao cobra
     g.setOneway = function (edgeId, dir) {
       if (!needPlan()) return fail('phase');
       if (!isUnlocked('oneway')) return fail('locked');
@@ -1900,18 +1940,39 @@
       if (!e) return fail('edge');
       edgeId = e.id;
       if (dir !== 0 && dir !== 1 && dir !== -1) return fail('dir');
-      if (e.oneway === dir) return fail('same');
-      var c = dir === 0 ? 0 : costOf('oneway'); // voltar a duas maos e gratis
+      var cur = e.oneway || 0;
+      if (cur === dir) return fail('same');
+      var ek = String(edgeId), rec = own(owDay, ek) ? owDay[ek] : null, c = 0, back = 0, nrec;
+      if (cur === 0) {
+        c = rec && rec.m ? 0 : costOf('oneway');
+        nrec = { c: c, f: 0, m: rec && rec.m ? 1 : 0 };
+      } else if (dir === 0) {
+        back = rec ? rec.c : 0;
+        nrec = rec ? (rec.m ? { c: 0, f: 0, m: 1 } : null) : { c: 0, f: 0, m: 1 };
+      } else {
+        nrec = rec ? { c: rec.c, f: 1, m: rec.m } : { c: 0, f: 1, m: 1 };
+      }
       if (st.budget < c) return fail('budget');
       var entry = capture();
       world.setOneway(edgeId, dir);
-      st.budget -= c;
+      st.budget = st.budget - c + back;
+      if (nrec) owDay[ek] = nrec; else delete owDay[ek];
       undoStack.push(entry);
       refresh();
       var a = world.nodes[e.a], b = world.nodes[e.b];
       emit({ type: 'built', x: (a.x + b.x) / 2, y: (a.y + b.y) / 2, kind: 'oneway' });
-      return { ok: true, id: edgeId };
+      return { ok: true, id: edgeId, dir: dir, cost: c, refund: back, flipped: cur !== 0 && dir !== 0, off: dir === 0 };
     };
+    // o proximo sentido de um toque na rua com a ferramenta: duas maos -> para longe da metade tocada (t: 0..1, a -> b);
+    // mao unica -> vira; ja virada -> duas maos
+    g.onewayNext = function (edgeId, t) {
+      var e = getEdge(edgeId);
+      if (!e) return 0;
+      var cur = e.oneway || 0;
+      if (cur === 0) return t < 0.5 ? 1 : -1;
+      return own(owDay, String(e.id)) && owDay[String(e.id)].f ? 0 : -cur;
+    };
+    g.onewayFlipped = function (edgeId) { var e = getEdge(edgeId); return !!(e && own(owDay, String(e.id)) && owDay[String(e.id)].f); };
 
     g.pairLights = function (aId, bId) {
       if (!needPlan()) return fail('phase');
@@ -2006,8 +2067,10 @@
       world.day = st.day;
       st.budget = e.budget;
       placed = e.placed;
+      owDay = owNorm(e.ow);
       st.free.road = e.free.road;
       st.free.light = e.free.light;
+      st.lightHand = nat(e.lightHand) ? e.lightHand : 0;
       // dado v2: o Undo desfaz obras, nunca a escolha do dado (shiftUndo ja ajustou os pontos das fotos)
       // vigiados como estavam antes da acao desfeita (entrada de save antigo sem o campo: so tira o que perdeu a peca)
       if (Array.isArray(e.watch)) { var nw = normWatch({ day: st.day, list: e.watch }); st.watch = nw || { day: st.day, list: [] }; }
@@ -2355,7 +2418,7 @@
           day: st.day, phase: st.phase === 'run' ? 'plan' : st.phase, budget: st.budget,
           strikes: st.strikes, speed: st.speed, die: st.die, nextDie: st.nextDie, rerolled: st.rerolled,
           dieState: st.dieState, kept: st.kept, debt: st.debt || 0, debtPaid: st.debtPaid || 0, dieFromKept: !!st.dieFromKept,
-          free: st.free, summary: st.summary,
+          free: st.free, summary: st.summary, lightHand: st.lightHand | 0,
           draft: st.draft, totalDelivered: st.totalDelivered, totalScore: st.totalScore,
           history: st.history, dayTime: st.phase === 'run' ? 0 : st.dayTime,
           // dia esticado pela cena do dia 2 (jamHold): o tamanho real do dia vai junto (resumo volta igual)
@@ -2370,7 +2433,7 @@
           // eventos de lugar (v2e): calendario, lugares, tamanho (face Big game) e o que ja foi visto
           events: EVM() && st.events ? EVM().forSave(g) : undefined
         },
-        cards: activeCards, placed: placed, hot: hot, hotMap: hotForSave(), undo: undoForSave(),
+        cards: activeCards, placed: placed, ow: st.phase === 'plan' && Object.keys(owDay).length ? owDay : undefined, hot: hot, hotMap: hotForSave(), undo: undoForSave(),
         // v2c: manutencao, escolhas da partida, forma da cidade, dia da mudanca por dentro e Road crew
         upkeep: st.upkeep, perks: st.perks, archetype: st.archetype, shiftDay: shiftDay, crew: st.crew,
         // v2m: forma de cada cruzamento (calm, main, even, heavy) que o conselho da manha le
@@ -2412,9 +2475,10 @@
       else { st.chapterCars0 = 0; (st.history || []).forEach(function (h) { if (h && h.day < chapterFirst(st.chapter) && nat(h.delivered)) st.chapterCars0 += h.delivered; }); }
       activeCards = saved.cards || []; st.cards = activeCards.slice();
       placed = saved.placed || {}; hot = saved.hot || {};
+      owDay = st.phase === 'plan' ? owNorm(saved.ow) : {};
       // Undo do plano de hoje (Game.load ja conferiu ou tirou d.undo): mesmas fotos, mesma ordem, mesmos reembolsos
       undoStack = (saved.undo && st.phase === 'plan') ? saved.undo.list.map(function (e) {
-        return { layout: e.layout, budget: e.budget, placed: e.placed, free: { road: e.free.road, light: e.free.light },
+        return { layout: e.layout, budget: e.budget, placed: e.placed, ow: owNorm(e.ow), free: { road: e.free.road, light: e.free.light }, lightHand: e.lightHand,
                  die: normDie(e.die, st.day), rerolled: e.rerolled, watch: Array.isArray(e.watch) ? e.watch : undefined, crew: e.crew };
       }) : [];
       st.hot = saved.hotMap || {};
@@ -2432,6 +2496,8 @@
       st.mode = modeOk(saved.mode) ? saved.mode : 'free'; st.date = st.mode === 'daily' && dateOk(saved.date) ? saved.date : null;
       if (typeof saved.archetype === 'string' && CFG.archetypes && own(CFG.archetypes, saved.archetype)) st.archetype = saved.archetype;
       shiftDay = nat(saved.shiftDay) ? saved.shiftDay : 0;
+      // semaforo na mao: nunca mais que o teto (save de antes do teto pode ter mais no mapa); save sem o campo: nenhum
+      st.lightHand = nat(s.lightHand) ? Math.min(s.lightHand, lightCap()) : 0;
       if (isObjL(saved.crew)) { st.crew = crewNorm(saved.crew); if (st.phase !== 'plan') st.crew.offer = false; }
       autoPair();
       syncModes(st.phase === 'plan' ? CFG.clear.charges : 0);
@@ -2769,6 +2835,18 @@
     return true;
   }
 
+  // mao unica de hoje (owDay) no save e no Undo: opcional; so entra o que tem a forma certa (save antigo: vazio)
+  function owNorm(O) {
+    var out = {};
+    if (!O || typeof O !== 'object' || Array.isArray(O)) return out;
+    for (var id in O) {
+      if (!Object.prototype.hasOwnProperty.call(O, id) || !/^\d+$/.test(id)) continue;
+      var x = O[id];
+      if (!x || typeof x !== 'object' || !(typeof x.c === 'number' && isFinite(x.c) && x.c >= 0 && x.c <= 99)) continue;
+      out[id] = { c: Math.floor(x.c), f: x.f ? 1 : 0, m: x.m ? 1 : 0 };
+    }
+    return out;
+  }
   // v2m: save com kinds estranho nao e recusado; so entra o que tem a forma certa
   function kindsNorm(K) {
     var out = {};

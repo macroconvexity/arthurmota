@@ -41,7 +41,7 @@
       light: ['Traffic light', 'For crossings busy from every side; quiet streets wait on red. Two lights on one road pair up by themselves. Your city powers only a few lights, more as it grows; removing one is free.'],
       upgrade: ['Two lanes', 'Adds a second lane: a longer line fits. The crossing itself is no faster.'],
       round: ['Roundabout', 'Cars go around without stopping. Best where four or more roads meet; weak with only three. You can pick it on day {roundDay}.'],
-      oneway: ['One-way', 'Cars drive away from the half of the road you tap. Tap again to flip, a third time for two-way. A car with no route waits, then counts as lost.']
+      oneway: ['One-way', 'Cars drive away from the half of the road you tap. Tap the arrow to flip it (free), again for two-way. A car with no route waits, then counts as lost.']
     },
     pts: function (c) { return c + (c === 1 ? ' build point' : ' build points'); },
     moreH: 'Daily rules',

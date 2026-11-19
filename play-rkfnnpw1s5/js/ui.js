@@ -146,7 +146,7 @@
       upgrade: 'Works on any road. Best where a line backs up into a crossing.',
       cross: 'Goes where 2 or more roads meet. Replaces the sign there.',
       round: 'Goes on a crossing with 4 or more roads. Replaces the sign there.',
-      oneway: 'Tap again to flip, a third time for two-way. A car with no route waits, then counts as lost.'
+      oneway: 'Tap the arrow to flip it (free), again for two-way. A car with no route waits, then counts as lost.'
     },
     // w_tiles: o que a ferramenta e, em poucas palavras (ladrilho bloqueado: nome + isto + quando chega)
     toolWhat: {
@@ -217,8 +217,14 @@
     crewLine: function (n) { return 'Crew: +' + n + ' today.'; },
     crewChip: function (n, left) { return (n === 1 ? 'Crew' : n + ' crews') + ': ' + left + (left === 1 ? ' day left' : ' days left'); },
     // v2m: a vaga de semaforos (CFG.lightCap): no guia, no ladrilho ('1 of 2') e na recusa
-    guideCap: function (n, more) { return 'Your city powers ' + n + (n === 1 ? ' light' : ' lights') + (more === false ? ' now.' : ' now, more later.') + ' Removing one is free.'; },
+    guideCap: function (n, more) { return 'Your city powers ' + n + (n === 1 ? ' light' : ' lights') + (more === false ? ' now.' : ' now, more later.') + ' Moving one is free.'; },
     capTile: function (used, cap) { return used + ' of ' + cap; },
+    // semaforo na mao (2026-11-18): mover e de graca, num toque no cruzamento e outro no semaforo
+    lightMoveAsk: 'Tap the light you want to move here.',
+    lightPicked: 'Light picked up. Tap a crossing to place it. Free.',
+    lightMoved: 'Light moved. Free.',
+    lightToHand: 'The light is in your hand: pick Light and tap a crossing. Free.',
+    lightTapMove: 'To move this light, pick Light and tap it. Free.',
     guideUpkeep: function (d, per) { return 'From day ' + d + ': ' + per + (per === 1 ? ' build point' : ' build points') + ' every morning. Removing it is free.'; },
     upkeepFirst: function (per, notToday) { return (notToday ? 'Each light costs ' : 'From today, each light costs ') + per + (per === 1 ? ' build point' : ' build points') + ' every morning. Removing one is free.'; },
     resumedDay: 'Resumed from the start of the day.',
@@ -230,6 +236,10 @@
     pairFail: 'Pick a light on the same road.',
     // I: retorno ao por um sinal
     placed: function (name) { return name + ' placed here.'; },
+    // mao unica (2026-11-18): o custo aparece uma vez, ao por; virar e de graca e diz isso
+    owPlaced: function (c) { return 'One-way: ' + (c > 0 ? c + (c === 1 ? ' point' : ' points') : 'free') + '. Tap the arrow to flip it.'; },
+    owFlipped: 'Flipped, free. Tap again for two-way.',
+    owOff: function (back) { return 'Two-way again' + (back > 0 ? ' (+' + back + (back === 1 ? ' point)' : ' points)') : '') + '.'; },
     // J: pontos que sobram
     carryOver: function (n) { return 'Saved for tomorrow: ' + n; },
     // K: dia 3 a 4x
@@ -350,7 +360,7 @@
       same: 'This spot already has that tool. Pick another crossing.',
       sameTool: function (name) { return 'Already a ' + name + ' here. Pick another crossing.'; },
       sameLanes: 'This road already has two lanes. Tap another road.',
-      cap: function (n) { return (n === 1 ? 'Your 1 light is' : 'All ' + n + ' lights are') + ' in use. Remove one (free) to move it.'; },
+      cap: function (n) { return (n === 1 ? 'Your 1 light is' : 'All ' + n + ' lights are') + ' in use. Tap a crossing to move one there. Free.'; },
       notJunction: 'Tap a crossing, where roads meet.',
       // sem cruzamento a frente para pulsar (antes pulsava o no do meio da rua, que nao e ponta nem cruzamento)
       portalNone: 'Road ends can\'t take a Stop, Yield or light. Pick a crossing with three or more roads.',
@@ -1254,12 +1264,12 @@
   function dist(x1, y1, x2, y2) { var dx = x2 - x1, dy = y2 - y1; return Math.sqrt(dx * dx + dy * dy); }
 
   // alterna mao unica: 0 -> sentido tocado -> oposto -> 0. t = posicao do toque (0..1, a -> b).
-  // Sentido tocado = de onde se tocou para a outra ponta.
-  function nextOneway(cur, t) {
+  // Sentido tocado = de onde se tocou para a outra ponta. Numa mao unica o toque vira (em qualquer metade: o dono
+  // tocava de novo no mesmo lugar para virar); ja virada (flipped, do game), o proximo toque volta a duas maos
+  function nextOneway(cur, t, flipped) {
     var dir = t < 0.5 ? 1 : -1;
     if (cur === 0 || cur === undefined || cur === null) return dir;
-    if (cur === dir) return -dir;
-    return 0;
+    return flipped ? 0 : -cur;
   }
 
   // lista de velocidades do dial (CFG.speedDial.levels) com reserva em CFG.speeds
@@ -2470,6 +2480,7 @@
         try { if (render.stop) render.stop(); } catch (e) { warnOnce('render.stop', e); }
       }
       var o = ov(); if (o) { o.hoverTool = id; if (id && !holding) { o.showInfluence = null; infTimer = 0; } }
+      if (id !== prev) lightArm = null;
       pairFirst = null; pairArm = null; pairRep = null; hidePairChip(); endSwapAsk(id !== prev ? 'tool' : null); syncSelectedNode();
       if (hint && hint.toolId === id) hint.tile = false;
     }
@@ -3500,6 +3511,9 @@
     // ate um toque noutro lugar, outra ferramenta ou o dia comecar; faixa fixa e botao Cancel discreto.
     // O segundo toque no MESMO no confirma; toque ao lado (ate SWAP_NEAR x raio de toque) conta como o mesmo no.
     var swapAsk = null, SWAP_MS = 6000, SWAP_NEAR = 1.7, ASK_MS = 864e5;
+    // mover semaforo com todos em uso: o cruzamento tocado espera o toque no semaforo que vem para ca
+    var lightArm = null, LIGHT_ARM_MS = 8000;
+    function pulseLights() { var pw = game.world.nodes, q; for (q in pw) if (pw.hasOwnProperty(q) && pw[q] && pw[q].tool === 'light') addPulse(pw[q].x, pw[q].y); }
     // por que o pedido fechou: 'cancel' (botao) diz "Swap cancelled."; outro toque, outra ferramenta ou o dia: calado
     function endSwapAsk(why) {
       if (!swapAsk) return;
@@ -3680,6 +3694,31 @@
         // de um no de 3+ ruas, o toque e nele (antes respondia 'Stops, yields and lights need a crossing')
         if (!askN && (!n || (!n.portal && (n.edges ? n.edges.length : 0) < (sel === 'cross' ? 2 : 3)))) n = nearJunction(sx, sy) || n;
         if (!n) { if (render.pickEdge(sx, sy)) snd('deny'); say(STR.deny.notJunction); var wp0 = render.toWorld ? render.toWorld(sx, sy) : { x: sx, y: sy }; pulseValid(sel, wp0.x, wp0.y); return; }
+        // semaforo: tocar um semaforo o pega (vai para a mao, de graca); com todos em uso, tocar um cruzamento sem
+        // semaforo pede o semaforo que vem para ca e o toque nele move num passo so
+        if (sel === 'light' && typeof game.moveLight === 'function') {
+          var lcap = game.lightCap ? game.lightCap() : null, larm = lightArm && nowMs() < lightArm.until ? lightArm : null;
+          if (n.tool === 'light') {
+            var tn = larm ? game.world.nodes[larm.to] : null;
+            lightArm = null;
+            if (tn && tn.tool !== 'light') {
+              var mr = game.moveLight(n.id, tn.id);
+              toolResult(mr, tn.x, tn.y, 'place', 'light');
+              if (mr && mr.ok) { addPulse(tn.x, tn.y); say(STR.lightMoved, 2600); emitUI('lightMoved', { from: n.id, to: tn.id }); }
+              return;
+            }
+            var pr = game.removeTool(n.id);
+            if (pr && pr.ok) { snd('select'); addPulse(n.x, n.y); say(STR.lightPicked, 4000); emitUI('lightPicked', { id: n.id }); }
+            else toolResult(pr, n.x, n.y, 'place', 'light');
+            return;
+          }
+          if (lcap && !(lcap.hand > 0) && isFinite(lcap.cap) && lcap.used >= lcap.cap && lcap.used > 0 && (n.edges ? n.edges.length : 0) >= 3) {
+            lightArm = { to: n.id, until: nowMs() + LIGHT_ARM_MS };
+            snd('select'); addPulse(n.x, n.y); pulseLights();
+            say(STR.lightMoveAsk, LIGHT_ARM_MS); emitUI('lightMoveAsk', { to: n.id });
+            return;
+          }
+        }
         // troca de sinal: o comprado em dia anterior nao volta; pede um segundo toque (3 s).
         // O colocado hoje e reembolsado pelo game: troca direto
         // Troca de sinal (2026-11-09): para cima (mesmo custo ou mais caro) troca direto; para baixo (perde
@@ -3688,7 +3727,7 @@
         var was = n.tool && n.tool !== sel && NODE_TOOLS[n.tool] && swapAllowed(s, n, sel) ? n.tool : null;
         // pontos perdidos = preco de tabela do antigo (com o semaforo gratis hoje, toolCost('light') e 0 e a troca
         // para baixo de um semaforo antigo passava sem pedir)
-        var paid = was ? paidToday(n.id) : false, lost = was && !paid ? listCost(was) : 0;
+        var paid = was ? paidToday(n.id) : false, lost = was && !paid && was !== 'light' ? listCost(was) : 0;   // o semaforo trocado vai para a mao
         var askFor = swapAsk && swapAsk.id === n.id && swapAsk.tool === sel;
         if (was && lost > 0 && swapDown(was, sel) && !askFor) {
           swapAsk = { id: n.id, tool: sel, free: freeNow(sel), text: STR.swapAsk(STR.tools[was], lost) };
@@ -3722,6 +3761,9 @@
         }
         if (tr && tr.ok && sel === 'yield') yieldBusyHint(s, n);
         if (tr && tr.ok) fbkPlaced(tr, n, !was && sel !== 'yield');
+        // semaforo: a frase do mover (de graca) vence a do retorno
+        if (tr && tr.ok && tr.fromHand) say(STR.lightMoved, 2600);
+        else if (tr && tr.ok && tr.toHand) say(STR.lightToHand, 4000);
         // ponta de rua: a fila espera no cruzamento a frente; pulsa ele (o lugar certo do sinal).
         // Sem cruzamento a frente, a frase muda (nada de "pulsing crossing" sem pulso)
         if (tr && !tr.ok && tr.reason === 'portal') {
@@ -3758,7 +3800,13 @@
       if (sel === 'oneway') {
         pk = render.pickEdge(sx, sy); if (!pk) { say(STR.deny.emptyRoad); return; }
         p = edgePoint(pk);
-        toolResult(game.setOneway(pk.edge.id, nextOneway(pk.edge.oneway || 0, pk.t)), p.x, p.y, 'place', 'oneway');
+        var owf = typeof game.onewayFlipped === 'function' ? game.onewayFlipped(pk.edge.id) : false;
+        var owr = game.setOneway(pk.edge.id, nextOneway(pk.edge.oneway || 0, pk.t, owf));
+        toolResult(owr, p.x, p.y, 'place', 'oneway');
+        if (owr && owr.ok) {
+          say(owr.off ? STR.owOff(owr.refund | 0) : owr.flipped ? STR.owFlipped : STR.owPlaced(owr.cost | 0), 3200);
+          emitUI('onewaySet', { id: pk.edge.id, dir: owr.dir, cost: owr.cost | 0, refund: owr.refund | 0 });
+        }
         return;
       }
       if (sel === 'road') {
@@ -3784,6 +3832,7 @@
       fbkTap(n.id);
       if (heatOf(s, n) >= HOT_TAP) say(tapAdvice(s, n));   // anel: diz o que ajuda ali (e qual rua)
       else if (isDeadEnd(n)) say(STR.deadEndTap);
+      else if (n.tool === 'light' && s.phase === 'plan' && tiles.light) say(STR.lightTapMove);
       if (n.tool === 'light') {
         pairFirst = n.id; pairUntil = nowMs() + PAIR_MS; snd('select');
         emitUI('pairTap', { id: n.id });
@@ -4778,6 +4827,11 @@
       if (sel === id) { setSel(null); snd('select'); return; }
       var info = null, i;
       for (i = 0; i < s.tools.length; i++) if (s.tools[i].id === id) info = s.tools[i];
+      // todos os semaforos em uso: a ferramenta entra mesmo assim (mover e de graca) e diz como
+      if (info && id === 'light' && info.cap != null && isFinite(info.cap) && (info.used | 0) >= info.cap && info.used > 0 && !(info.hand > 0) && info.unlocked !== false) {
+        setSel(id); snd('select'); say(denyText({ reason: 'cap' }, id, s, CFG), 4000); pulseLights(); emitUI('lightCapPick', { cap: info.cap });
+        return;
+      }
       if (info && !info.afford) {
         snd('deny'); shake(tiles[id].el);
         if (info.unlocked === false && CFG.tools[id]) { say(STR.deny.tileLocked(CFG.tools[id].unlockDay, id, CFG)); return; }
@@ -4819,7 +4873,7 @@
         // semanas sem saber o que era o aro com ponto. O ladrilho cresce na largura so o que o nome pede (style.css)
         // v2m: o ladrilho do semaforo diz quantos a cidade liga ('1 of 2'), ao lado do icone (crz-tcap)
         var hasCap = t.id === 'light' && t.cap != null && isFinite(t.cap);
-        var ck = hasCap ? c + '|' + t.used + '|' + t.cap : c;
+        var ck = t.id === 'light' && t.hand > 0 ? 'hand|' + t.hand + '|' + c + '|' + t.used + '|' + t.cap : hasCap ? c + '|' + t.used + '|' + t.cap : c;   // semaforo na mao: custo 'free'
         if (ck !== tl.c) {
           tl.c = ck; tl.cost.innerHTML = '<span class="crz-tname">' + (STR.tileName[t.id] || STR.tools[t.id] || t.id) + '</span>' + toneCost(c);
           if (tl.cap) { tl.cap.textContent = hasCap ? STR.capTile(t.used, t.cap) : ''; tl.el.classList.toggle('crz-capon', hasCap); }
@@ -5852,6 +5906,8 @@
       var b = s.budget | 0;
       // com um balao do tutorial na tela o aviso espera (nunca dois baloes): fica para o proximo gasto
       var tu = CRZ.app && CRZ.app.tutorial, tutOn = tutBalloonOn() || tutorScript();
+      // a frase da mao unica ('Tap the arrow to flip it.') fica: o aviso do primeiro gasto espera o proximo gasto
+      if (sayUntil && /^One-way: /.test(sayEl.textContent)) tutOn = true;
       if (b < spendBudget && !seen('firstSpend') && !tutOn) { markSeen('firstSpend'); say(STR.firstSpend(spendBudget - b)); }
       spendBudget = b;
     }

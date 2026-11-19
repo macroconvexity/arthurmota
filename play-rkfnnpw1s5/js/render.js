@@ -334,6 +334,10 @@
     // marcas de evento de lugar (events.js, v2e): o MESMO desenho da marca NEW (anel pontilhado, ponto que pulsa, letra
     // e cor dela) com o rotulo do evento. evBox: o que saiu no ultimo quadro (toque da UI e testes)
     var evBox = [], evMarks = [], DASH_CLOSED = [5, 5];
+    // w_flick: escolha do quadro anterior por marca (em.key): { text, sig, x, y, r, p, s, seen }
+    var evHold = {}, evHoldSeen = 0;
+    var njHold = {};   // idem para o rotulo NEW, por id: { sig, x, y, r, p, s } (p = 2: sem lado livre)
+    var EV_P_N = 6, EV_P_EXT = [0, 0, 6, 12, 0, 0], EV_P_ICON = [1, 1, 1, 1, 0, 0], EV_P_IN = [1, 1, 1, 1, 1, 0];
     function eventMarks() {
       if (!CRZ.Events || typeof CRZ.Events.marks !== 'function' || !game || !game.state) return evMarks;
       try { evMarks = CRZ.Events.marks(game) || []; } catch (e) { evMarks = []; }
@@ -1987,6 +1991,9 @@
       // (ou sair da area livre), vai para o proximo lado livre (embaixo, esquerda, direita), nessa ordem fixa, com as
       // marcas em ordem de id: deterministico, sem tremer entre quadros. Sem lado livre, fica em cima. Nada some.
       var njN = 0, njTW = 0, njTH = 10, njP2, njSd, njOk, njJ, njC;
+      // w_flick: a lista e do quadro. Antes ela guardava os ids do quadro anterior e o teste de repetido (indexOf) os
+      // pulava: njN saia 0 e 1 em quadros alternados, e o rotulo de evento (que evita o NEW) trocava de lado e de fonte
+      njIds.length = 0;
       if (nj && nj.length && (phase === 'plan' || phase === null || phase === undefined)) {
         for (i = 0; i < nj.length; i++) { // ids desta lista (ainda sem filtro de tela): a marca vizinha conta mesmo se acabou de entrar
           n = nodes[nj[i]];
@@ -1999,6 +2006,20 @@
         njIds.sort(function (a1, b1) { return (+a1) - (+b1) || (a1 < b1 ? -1 : a1 > b1 ? 1 : 0); });
         ctx.font = NEWJ_FONT; njTW = ctx.measureText(NEWJ_TEXT).width;
         var nuz = usable(), nux0 = nuz.l, nux1 = W - nuz.r, nuy0 = nuz.t, nuy1 = H - nuz.b;
+        var njSig = njIds.join(',') + ':' + nux0 + ',' + nux1 + ',' + nuy0 + ',' + nuy1;
+        for (k in njHold) if (njIds.indexOf(k) < 0) delete njHold[k];
+        // o lado njSd da passada pass (0: dentro da area util; 1: em qualquer lugar) cabe? Usa njTmpR
+        var njFits = function (i, pcx, pcy, pass, njSd) {
+          njRect(pcx, pcy, njRI[i], njTW, njTH, njSd, njTmpR, njTmpT);
+          if (pass === 0 && (njTmpR[0] - NEWJ_OUT < nux0 || njTmpR[2] + NEWJ_OUT > nux1 || njTmpR[1] - NEWJ_OUT < nuy0 || njTmpR[3] + NEWJ_OUT > nuy1)) return false;
+          for (var njJ = 0; njJ < njN; njJ++) {
+            if (njJ === i) continue;
+            var njC = njRects[njJ];
+            if (njHit(njTmpR, njC[0], njC[1], njC[2], njC[3])) return false;
+            var on = nodes[njIds[njJ]]; if (njHitRing(njTmpR, on.x * z + ox, on.y * z + oy, njRI[njJ])) return false;
+          }
+          return true;
+        };
         for (i = 0; i < njN; i++) {
           if (!njRects[i]) njRects[i] = [0, 0, 0, 0];
           njRI[i] = njRM[njIds[i]] = ringRad(nodes[njIds[i]].x * z + ox, nodes[njIds[i]].y * z + oy, njR, 5);
@@ -2006,22 +2027,18 @@
         }
         for (i = 0; i < njN; i++) {
           n = nodes[njIds[i]]; var pcx = n.x * z + ox, pcy = n.y * z + oy, chosen = 0;
-          for (njP2 = 0; njP2 < 2; njP2++) {
-            for (njSd = 0, njOk = false; njSd < 4 && !njOk; njSd++) {
-              njRect(pcx, pcy, njRI[i], njTW, njTH, njSd, njTmpR, njTmpT);
-              if (njP2 === 0 && (njTmpR[0] - NEWJ_OUT < nux0 || njTmpR[2] + NEWJ_OUT > nux1 || njTmpR[1] - NEWJ_OUT < nuy0 || njTmpR[3] + NEWJ_OUT > nuy1)) continue;
-              njOk = true;
-              for (njJ = 0; njJ < njN && njOk; njJ++) {
-                if (njJ === i) continue;
-                njC = njRects[njJ];
-                if (njHit(njTmpR, njC[0], njC[1], njC[2], njC[3])) njOk = false;
-                else { var on = nodes[njIds[njJ]]; if (njHitRing(njTmpR, on.x * z + ox, on.y * z + oy, njRI[njJ])) njOk = false; }
-              }
-              if (njOk) chosen = njSd;
-            }
-            if (njOk) break;
+          // w_flick: histerese por id. Mesma ancora e mesmas marcas do quadro anterior: fica o lado de antes enquanto
+          // ele ainda cabe; sem lado livre antes (p = 2), fica em cima ate a ancora ou as marcas mudarem
+          var njH = njHold[njIds[i]], njHeld = !!(njH && njH.sig === njSig && Math.abs(njH.x - pcx) < 0.75 && Math.abs(njH.y - pcy) < 0.75 && Math.abs(njH.r - njRI[i]) < 0.75);
+          njOk = false;
+          if (njHeld && njH.p < 2 && njFits(i, pcx, pcy, njH.p, njH.s)) { njOk = true; njP2 = njH.p; chosen = njH.s; }
+          else if (!njHeld || njH.p < 2) {
+            for (njP2 = 0; njP2 < 2 && !njOk; njP2++) for (njSd = 0; njSd < 4 && !njOk; njSd++) if (njFits(i, pcx, pcy, njP2, njSd)) { njOk = true; chosen = njSd; }
+            if (njOk) njP2--;
           }
-          if (!njOk) chosen = 0;
+          if (!njOk) { chosen = 0; njP2 = 2; }
+          if (!njH) njH = njHold[njIds[i]] = {};
+          njH.sig = njSig; njH.x = pcx; njH.y = pcy; njH.r = njRI[i]; njH.p = njP2; njH.s = chosen;
           njSide[njIds[i]] = chosen;
           njRect(pcx, pcy, njRI[i], njTW, njTH, chosen, njRects[i], njTmpT);
         }
@@ -2088,38 +2105,68 @@
         var evObs = [], eoK = Object.keys(nodes), eoR = ps * 0.5 + 2;
         for (eJ = 0; eJ < eoK.length; eJ++) { var eon = nodes[eoK[eJ]]; if (eon && (eon.tool || (eon.edges && eon.edges.length >= 3))) evObs.push(eon.x * z + ox, eon.y * z + oy, eon.tool ? eoR : 5); }
         var euz = usable(), eux0 = euz.l, eux1 = W - euz.r, euy0 = euz.t, euy1 = H - euz.b, evR = ps * 0.5 + 6, eP, eSd, eOk, eJ, eTw;
+        // w_flick: assinatura dos obstaculos fixos (icones, marcas NEW, area util). Com ela e a ancora iguais ao quadro
+        // anterior, o rotulo guarda o lado e o tamanho que tinha enquanto a escolha ainda vale (histerese por em.key)
+        var eSig = eoR, eHold, eKeep;
+        for (eJ = 0; eJ < evObs.length; eJ += 3) eSig += evObs[eJ + 2] * (1 + (eJ % 7));
+        eSig = evObs.length + ':' + eSig.toFixed(1) + ':' + njN + ':' + njIds.join(',') + ':' + eux0 + ',' + eux1 + ',' + euy0 + ',' + euy1;
+        evHoldSeen++;
+        // lados 0 a 3 como o NEW; 4 e 5: em cima e embaixo deslizados para dentro da area util (rotulo comprido perto
+        // da borda), so se o texto ainda passa sobre o centro do anel
+        var evRect = function (ecx, ecy, eR, eTw, eTh, eSd) {
+          njRect(ecx, ecy, eR, eTw, eTh, eSd > 3 ? eSd - 4 : eSd, njTmpR, njTmpT);
+          if (eSd < 4) return;
+          var dx = njTmpR[0] < eux0 ? eux0 - njTmpR[0] : njTmpR[2] > eux1 ? eux1 - njTmpR[2] : 0;
+          if (Math.abs(dx) > eTw * 0.5 - 4) dx = 0;
+          njTmpR[0] += dx; njTmpR[2] += dx; njTmpT[0] += dx;
+        };
+        // o lado (eSd) de uma passada (eP) cabe? Preenche njTmpR/njTmpT
+        var evFits = function (i, ecx, ecy, eP, eSd, eTw, eTh) {
+          var eJ, eR = evRE[i] + EV_P_EXT[eP];
+          evRect(ecx, ecy, eR, eTw, eTh, eSd);
+          if (EV_P_IN[eP] && (njTmpR[0] < eux0 || njTmpR[2] > eux1 || njTmpR[1] < euy0 || njTmpR[3] > euy1)) return false;
+          for (eJ = 0; eJ < njN; eJ++) {
+            var nr = njRects[eJ];
+            if (njHit(njTmpR, nr[0], nr[1], nr[2], nr[3])) return false;
+            var nn2 = nodes[njIds[eJ]]; if (nn2 && njHitRing(njTmpR, nn2.x * z + ox, nn2.y * z + oy, njRI[eJ])) return false;
+          }
+          for (eJ = 0; eJ < evBox.length; eJ++) {
+            var ob = evBox[eJ];
+            if (njHit(njTmpR, ob.x0, ob.y0, ob.x1, ob.y1) || njHitRing(njTmpR, ob.cx, ob.cy, ob.r)) return false;
+          }
+          for (eJ = i + 1; eJ < evm.length; eJ++) if (njHitRing(njTmpR, evm[eJ].x * z + ox, evm[eJ].y * z + oy, evRE[eJ])) return false;
+          if (EV_P_ICON[eP]) for (eJ = 0; eJ < evObs.length; eJ += 3) if (njHitRing(njTmpR, evObs[eJ], evObs[eJ + 1], evObs[eJ + 2])) return false;
+          return true;
+        };
         for (i = 0; i < evm.length; i++) {
           var em = evm[i], ecx = em.x * z + ox, ecy = em.y * z + oy;
           if (ecx < eux0 - 4 || ecx > eux1 + 4 || ecy < euy0 - 4 || ecy > euy1 + 4) continue;   // fora da area util: a seta de borda leva la
-          // passes: 0 = 13 px longe de icones; 1 = 9 px longe de icones; 2 = 9 px; 3 = 9 px em qualquer lugar
+          // passadas (EV_P_*): 0 = 13 px longe de icones; 1 = 10 px longe de icones; 2 e 3 = 10 px longe de icones, um
+          // pouco mais longe do anel (+6, +12); 4 = 10 px colado no anel; 5 = 10 px em qualquer lugar; sem lugar: em cima
           ctx.font = EV_FONT; var eTwB = ctx.measureText(em.text).width; ctx.font = EV_FONT_S; var eTwS = ctx.measureText(em.text).width;
           var eCh = 0, eTh = EV_TH;
-          for (eP = 0; eP < 4; eP++) {
-            eTw = eP === 0 ? eTwB : eTwS; eTh = eP === 0 ? EV_TH : EV_TH_S;
-            for (eSd = 0, eOk = false; eSd < 4 && !eOk; eSd++) {
-              njRect(ecx, ecy, evRE[i], eTw, eTh, eSd, njTmpR, njTmpT);
-              if (eP < 3 && (njTmpR[0] < eux0 || njTmpR[2] > eux1 || njTmpR[1] < euy0 || njTmpR[3] > euy1)) continue;
-              eOk = true;
-              for (eJ = 0; eJ < njN && eOk; eJ++) {
-                var nr = njRects[eJ];
-                if (njHit(njTmpR, nr[0], nr[1], nr[2], nr[3])) eOk = false;
-                else { var nn2 = nodes[njIds[eJ]]; if (nn2 && njHitRing(njTmpR, nn2.x * z + ox, nn2.y * z + oy, njRI[eJ])) eOk = false; }
-              }
-              for (eJ = 0; eJ < evBox.length && eOk; eJ++) {
-                var ob = evBox[eJ];
-                if (njHit(njTmpR, ob.x0, ob.y0, ob.x1, ob.y1) || njHitRing(njTmpR, ob.cx, ob.cy, ob.r)) eOk = false;
-              }
-              for (eJ = i + 1; eJ < evm.length && eOk; eJ++) if (njHitRing(njTmpR, evm[eJ].x * z + ox, evm[eJ].y * z + oy, evRE[eJ])) eOk = false;
-              for (eJ = 0; eJ < evObs.length && eOk && eP < 2; eJ += 3) if (njHitRing(njTmpR, evObs[eJ], evObs[eJ + 1], evObs[eJ + 2])) eOk = false;
-              if (eOk) eCh = eSd;
-            }
-            if (eOk) break;
+          eHold = evHold[em.key]; eKeep = false;
+          if (eHold && eHold.text === em.text && eHold.sig === eSig && Math.abs(eHold.x - ecx) < 0.75 && Math.abs(eHold.y - ecy) < 0.75 && Math.abs(eHold.r - evRE[i]) < 0.75) {
+            eP = eHold.p; eCh = eHold.s;
+            if (eP >= EV_P_N) eKeep = true;   // estava no recurso final: so sai dele se a ancora ou os obstaculos mudarem
+            else eKeep = evFits(i, ecx, ecy, eP, eCh, eP === 0 ? eTwB : eTwS, eP === 0 ? EV_TH : EV_TH_S);
           }
-          if (!eOk) { eCh = 0; eTw = eTwS; eTh = EV_TH_S; }
-          njRect(ecx, ecy, evRE[i], eTw, eTh, eCh, njTmpR, njTmpT);
+          if (!eKeep) {
+            for (eP = 0, eOk = false; eP < EV_P_N && !eOk; eP++) {
+              eTw = eP === 0 ? eTwB : eTwS; eTh = eP === 0 ? EV_TH : EV_TH_S;
+              for (eSd = 0; eSd < 6 && !eOk; eSd++) if (evFits(i, ecx, ecy, eP, eSd, eTw, eTh)) { eOk = true; eCh = eSd; }
+            }
+            eP = eOk ? eP - 1 : EV_P_N;
+            if (!eOk) eCh = 0;
+          }
+          if (!eHold) eHold = evHold[em.key] = {};
+          eHold.text = em.text; eHold.sig = eSig; eHold.x = ecx; eHold.y = ecy; eHold.r = evRE[i]; eHold.p = eP; eHold.s = eCh; eHold.seen = evHoldSeen;
+          eTw = eP === 0 ? eTwB : eTwS; eTh = eP === 0 ? EV_TH : EV_TH_S;
+          evRect(ecx, ecy, evRE[i] + (eP < EV_P_N ? EV_P_EXT[eP] : 0), eTw, eTh, eCh);
           evBox.push({ key: em.key, type: em.type, kind: em.kind, when: em.when, nodeId: em.nodeId, edgeId: em.edgeId, text: em.text, font: eTh === EV_TH ? EV_FONT : EV_FONT_S,
-                       cx: ecx, cy: ecy, r: evRE[i], x0: njTmpR[0], y0: njTmpR[1], x1: njTmpR[2], y1: njTmpR[3], tx: njTmpT[0], ty: njTmpT[1], al: njTmpT[2] });
+                       cx: ecx, cy: ecy, r: evRE[i], x0: njTmpR[0], y0: njTmpR[1], x1: njTmpR[2], y1: njTmpR[3], tx: njTmpT[0], ty: njTmpT[1], al: njTmpT[2], pass: eP, side: eCh });
         }
+        for (k in evHold) if (evHold[k].seen !== evHoldSeen) delete evHold[k];
         if (evBox.length) {
           ctx.beginPath();
           for (i = 0; i < evBox.length; i++) ringArcs(evBox[i].cx, evBox[i].cy, evBox[i].r, 4);
@@ -2753,6 +2800,7 @@
       { on: false, x0: 0, y0: 0, x1: 0, y1: 0, text: '', forced: false },
       { on: false, x0: 0, y0: 0, x1: 0, y1: 0, text: '', forced: false }
     ];
+    var labHold = [{ on: false }, { on: false }];   // w_flick: escolha do quadro anterior por pilula
     r._labels = function () { return labOut; };   // so para testes: retangulos escolhidos
     // CAND: deslocamento (sinal x, sinal y) e distancia (0 perto, 1 longe) dos 12 candidatos
     var CAND_DX = [0, 0, -1, 1, 0, 0, -1, 1, -1, 1, -1, 1];
@@ -2806,12 +2854,14 @@
       return false;
     }
     // tenta os candidatos de um texto; devolve true e preenche lab
-    function tryText(text, req, edges, nodes, z, ox, oy, avoidRoads) {
-      var w = measure(text) + LAB_PADX * 2, h = LAB_H, c, cx, cy, gap, x0, y0, u = ua;
+    // only (opcional): testa so esse candidato (histerese, w_flick)
+    function tryText(text, req, edges, nodes, z, ox, oy, avoidRoads, only) {
+      var w = measure(text) + LAB_PADX * 2, h = LAB_H, c, cx, cy, gap, x0, y0, u = ua, cEnd = 12;
       // ponto sob o HUD ou na bandeja: o rotulo parte do limite da area util (o ponto fica fora dela)
       var apx = clamp(req.px, LAB_EDGE + w * 0.5, Math.max(LAB_EDGE + w * 0.5, W - LAB_EDGE - w * 0.5));
       var apy = clamp(req.py, u.t + h, Math.max(u.t + h, H - u.b - h));
-      for (c = 0; c < 12; c++) {
+      c = 0; if (only !== undefined) { c = only; cEnd = only + 1; }
+      for (; c < cEnd; c++) {
         gap = CAND_FAR[c] ? 40 : 14;
         // eixo puro: afasta so nele; diagonal: afasta h/2+gap na vertical e so w/2+4 na horizontal
         cx = apx + CAND_DX[c] * (w * 0.5 + (CAND_DY[c] === 0 ? gap : 4));
@@ -2819,7 +2869,7 @@
         x0 = cx - w * 0.5; y0 = cy - h * 0.5;
         if (hitsHard(x0, y0, x0 + w, y0 + h, req.line)) continue;
         if (avoidRoads && hitsRoad(edges, nodes, z, ox, oy, x0, y0, x0 + w, y0 + h)) continue;
-        lab.x0 = x0; lab.y0 = y0; lab.x1 = x0 + w; lab.y1 = y0 + h; lab.text = text; lab.forced = false;
+        lab.x0 = x0; lab.y0 = y0; lab.x1 = x0 + w; lab.y1 = y0 + h; lab.text = text; lab.forced = false; lab.c = c; lab.roads = !!avoidRoads;
         return true;
       }
       return false;
@@ -2846,19 +2896,26 @@
       usable();
       for (i = 0; i < 2; i++) {
         q = labReq[i]; o = labOut[i]; o.on = false;
-        if (!q.on || !q.text || !ctx.fillText) continue;
+        if (!q.on || !q.text || !ctx.fillText) { labHold[i].on = false; continue; }
         text = q.text;
         ctx.font = LAB_FONT;
-        ok2 = tryText(text, q, edges, nodes, z, ox, oy, true);
-        if (!ok2) ok2 = tryText(text, q, edges, nodes, z, ox, oy, false);
-        if (!ok2) { var st = shortText(text); if (st !== text) { text = st; ok2 = tryText(text, q, edges, nodes, z, ox, oy, true) || tryText(text, q, edges, nodes, z, ox, oy, false); } }
+        // w_flick: mesmo pedido (texto e ponto) que no quadro anterior: o candidato de antes fica enquanto cabe
+        var hd = labHold[i], held = hd.on && hd.req === q.text && Math.abs(hd.px - q.px) < 0.75 && Math.abs(hd.py - q.py) < 0.75 && hd.W === W && hd.H === H;
+        ok2 = held && !hd.forced && tryText(hd.text, q, edges, nodes, z, ox, oy, hd.roads, hd.c);
+        if (ok2) text = hd.text;
+        else if (held && hd.forced) ok2 = false;
+        else ok2 = tryText(text, q, edges, nodes, z, ox, oy, true);
+        if (!ok2 && !(held && hd.forced)) ok2 = tryText(text, q, edges, nodes, z, ox, oy, false);
+        if (!ok2 && !(held && hd.forced)) { var st = shortText(text); if (st !== text) { text = st; ok2 = tryText(text, q, edges, nodes, z, ox, oy, true) || tryText(text, q, edges, nodes, z, ox, oy, false); } }
         if (!ok2) {
           // nada cabe: cola no limite da area util, do lado do ponto (marcado como forcado)
           var w2 = measure(text) + LAB_PADX * 2, u = ua;
           var fx0 = clamp(q.px - w2 * 0.5, LAB_EDGE, Math.max(LAB_EDGE, W - LAB_EDGE - w2));
           var fy0 = clamp(q.py - 14 - LAB_H, u.t + 2, Math.max(u.t + 2, H - u.b - 2 - LAB_H));
+          if (held && hd.forced) text = hd.text, w2 = measure(text) + LAB_PADX * 2, fx0 = clamp(q.px - w2 * 0.5, LAB_EDGE, Math.max(LAB_EDGE, W - LAB_EDGE - w2));
           lab.x0 = fx0; lab.y0 = fy0; lab.x1 = fx0 + w2; lab.y1 = fy0 + LAB_H; lab.text = text; lab.forced = true;
         }
+        hd.on = true; hd.req = q.text; hd.px = q.px; hd.py = q.py; hd.W = W; hd.H = H; hd.text = lab.text; hd.forced = lab.forced; hd.c = lab.c; hd.roads = lab.roads;
         drawPill(lab.text, q.color || C.red, q.alpha);
         o.on = true; o.x0 = lab.x0; o.y0 = lab.y0; o.x1 = lab.x1; o.y1 = lab.y1; o.text = lab.text; o.forced = lab.forced;
         if (obsExtraN < 4) {
