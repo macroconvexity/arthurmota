@@ -1136,6 +1136,30 @@ html body #hud .crz-ui[data-phase="over"] .crz-bottom, html body #hud .crz-ui[da
 .crz-panel > .crz-half { flex: none; }
 .crz-chnext { white-space: normal; }
 .crz-omarks { width: 100%; max-width: none; padding: 0 12px; box-sizing: border-box; }
+/* ---- w_chap: as marcas sao registro, nao escolha. Feita: o chip com o check. Nao feita: texto quieto, sem contorno,
+   sem circulo vazio (o toque diz o que ela pede). Titulo com a conta, no desenho dos rotulos do fim ('Days', 'Cars') ---- */
+.crz-omarkshead { flex: 0 0 100%; text-align: center; font-size: var(--fs-sm); color: var(--inkText); }
+.crz-omark { cursor: pointer; }
+.crz-omark.off { border-color: transparent; background: transparent; color: var(--inkText); font-weight: var(--fw-normal); padding: 2px 6px; }
+.crz-say.crz-saytop { z-index: 6; }
+/* dias do fim: um grupo por capitulo, com folga entre as dezenas */
+.crz-odays { gap: 6px 12px; }
+.crz-odaysch { display: flex; gap: 4px; }
+/* HUD: 'Chapter 2 of 3' sob 'Day 14 of 30' (a mesma segunda linha do 'Tomorrow' sob o dado) */
+/* a faixa do topo ganha a altura da linha (12 px) e o que fica logo abaixo dela desce o mesmo */
+.crz-top .crz-dots .crz-lbl-ch { top: auto; bottom: 3px; left: 6px; }
+.crz-top { padding-bottom: 36px; }
+.crz-say { top: calc(var(--sat) + 96px); }
+.crz-sayundo { top: calc(var(--sat) + 170px); }
+.crz-daybanner { top: calc(var(--sat) + 124px); }
+/* cartao de comeco de capitulo (a folha da confirmacao do Play) */
+.crz-chtitle { font-size: var(--fs-lg); font-weight: var(--fw-bold); line-height: 1.25; }
+.crz-chdays { font-size: var(--fs-sm); color: var(--inkText); margin-top: -10px; }
+.crz-chstrk { display: flex; align-items: center; gap: 10px; font-size: var(--fs-md); font-weight: var(--fw-semi); }
+.crz-chstrk .crz-sstrikes { flex: none; }
+.crz-chcard .crz-strike { transition: background-color var(--t-base) var(--ease), border-color var(--t-base) var(--ease); }
+.crz-chnew { font-size: var(--fs-sm); line-height: 1.35; color: var(--inkText); }
+.crz-chcard .gone { display: none; }
 /* telas baixas (iPhone SE, 667): o fim inteiro cabe sem rolar */
 @media (max-height: 700px) and (orientation: portrait) {
   .crz-over { gap: 8px; }

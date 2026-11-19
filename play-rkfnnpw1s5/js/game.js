@@ -2958,12 +2958,33 @@
     if (!s) return [];
     var f = s.final || {}, win = f.win === true, t = tallyOf(s), out = [], c, chs = Math.ceil(CFG.maxDays / chapLen()), clean = false;
     out.push({ id: 'days', on: win && (s.day | 0) >= CFG.maxDays, n: CFG.maxDays });
-    out.push({ id: 'noRetry', on: win && (s.chapterRetries | 0) === 0 });
+    // w_chap: no One strike nao existe volta de capitulo: a marca nao se aplica (aparecia como pendente)
+    var iron = !!(CFG.ironMode || s.iron || s.mode === 'iron' || f.iron);
+    if (!iron) out.push({ id: 'noRetry', on: win && (s.chapterRetries | 0) === 0 });
     for (c = 1; c <= chs; c++) if (chapClean(s, c, true)) clean = true;
     out.push({ id: 'clean', on: clean });
     if (t.events > 0) out.push({ id: 'events', on: t.prepared === t.events, n: t.events });
     var kf = CFG.dice && CFG.dice.keepFrom;
     if (kf > 0 && (s.day | 0) >= kf) out.push({ id: 'kept', on: t.kept > 0 });
+    // w_chap: open = ainda da para ganhar nesta partida. Partida no meio: tudo aberto. Fim: so a derrota com volta
+    // (f.retry) deixa algo aberto, e so o que o Retry (manha do dia f.retry.day, cidade como estava) ainda alcanca
+    var over = s.phase === 'over' || typeof f.win === 'boolean', rd = f.retry && f.retry.day > 0 ? f.retry.day | 0 : 0;
+    for (c = 0; c < out.length; c++) {
+      var m = out[c];
+      if (m.on) { m.open = false; continue; }
+      if (!over) { m.open = true; continue; }
+      if (win || !rd) { m.open = false; continue; }
+      if (m.id === 'noRetry') m.open = false;   // o Retry ja e uma volta
+      else if (m.id === 'events') m.open = evRan(s, 1, rd - 1).every(function (e) { return !!e.prep; });
+      else m.open = true;   // days, clean (o capitulo da volta pode sair limpo), kept (o Keep segue nos dias que faltam)
+    }
+    return out;
+  }
+  // w_chap: as marcas de um capitulo para o fim dele (resumo dos dias 10 e 20): nenhum strike nele e, com evento, o preparo
+  function chapterMarksOf(s, c) {
+    var r = chapRange(c), ran = evRan(s, r[0], r[1]), prep = 0, i, out = [{ id: 'chClean', on: chapClean(s, c, false) }];
+    for (i = 0; i < ran.length; i++) if (ran[i].prep) prep++;
+    if (ran.length) out.push({ id: 'chEvents', on: prep === ran.length, n: ran.length, prep: prep });
     return out;
   }
   // a marca do capitulo c (fim de capitulo): com evento no capitulo, o preparo; senao, nenhum strike nele
@@ -3012,7 +3033,7 @@
 
   CRZ.Game = {
     kindOf: kindOf,
-    marks: marksOf, chapterMark: chapterMarkOf, nextChapter: nextChapterOf, tally: tallyOf, recordsApply: recordsApply, _watchFixed: watchFixedOf,
+    marks: marksOf, chapterMark: chapterMarkOf, chapterMarks: chapterMarksOf, nextChapter: nextChapterOf, tally: tallyOf, recordsApply: recordsApply, _watchFixed: watchFixedOf,
     // v2: capitulos (lidos pela UI e pelas ferramentas; um so lugar decide a conta)
     chapterOf: chapterOf, chapterFirst: chapterFirst, chapterStart: chapterStart, forgiveWhy: forgiveWhy, graceDay: graceDay,
     _teach: TEACH,   // ajuste fino (testes/simulacao); valores finais propostos em NOTES_GAME.md

@@ -48,7 +48,18 @@
     // v2 capitulos: a linha extra do letreiro do dia no primeiro dia de cada capitulo, e o momento de fim de capitulo
     chapterN: function (c) { return 'Chapter ' + c; },
     chapterDone: function (c) { return 'Chapter ' + c + ' complete'; },
-    chapterLine: function (cars, left, max) { return cars + (cars === 1 ? ' car' : ' cars') + ' this chapter \u00b7 ' + left + ' of ' + max + ' strikes left'; },
+    // w_chap: strikes USADOS no capitulo (antes 'left'): o numero que o cartao do comeco prometeu
+    chapterLine: function (cars, left, max) { var u = Math.max(0, max - left); return u + ' of ' + max + ' strikes used \u00b7 ' + cars + (cars === 1 ? ' car' : ' cars'); },
+    // w_chap: o comeco do capitulo (cartao das manhas 11 e 21) e o rotulo do HUD. O nome diz a fase da cidade
+    chapterName: ['Small town', 'Growing city', 'Full city'],
+    chTitle: function (c) { var n = STR.chapterName[c - 1]; return 'Chapter ' + c + (n ? ': ' + n : ''); },
+    chDays: function (a, b) { return 'Days ' + a + ' to ' + b + ': the dots at the top.'; },
+    chSaved: 'Progress saved: if you run out of strikes, you come back to this morning.',
+    chSavedFrom: function (d) { return 'Progress saved: from day ' + d + ', running out of strikes brings you back to this morning.'; },
+    chNoRestart: 'This chapter never starts over: the last strike is forgiven.',
+    chRetry: function (d) { return 'You are back at the morning of day ' + d + ', city as it was.'; },
+    chNewLead: 'New: ', chCars: 'more cars', chWait: 'drivers wait less',
+    lblChapter: function (c, n) { return 'Chapter ' + c + ' of ' + n; },
     chapterStop: 'A good place to stop: your game is saved.',
     // v2 strikes (D9): dias livres, perdao, volta ao capitulo, vitoria com voltas
     freeJamFirst: 'No strike this time. From day {strikeDay} it counts.',
@@ -59,7 +70,8 @@
       early: function (d) { return 'Last strike forgiven: no restart before day ' + d + '.'; }
     },
     loseChapter: function (d) { return 'City jammed on day ' + d; },
-    retryLine: function (d) { return 'Retry: back to the morning of day ' + d + ', city as it was.'; },
+    // w_chap: diz onde o capitulo comecou (quem nunca leu a palavra entende para onde volta)
+    retryLine: function (d, c) { return (c > 0 ? 'Chapter ' + c + ' began on day ' + d + '. Retry goes back to that morning, city as it was.' : 'Retry: back to the morning of day ' + d + ', city as it was.'); },
     retryBtn: function (c) { return 'Retry chapter ' + c; },
     winRetries: function (n) { return 'Finished with ' + n + (n === 1 ? ' chapter retry' : ' chapter retries'); },
     lblStrikes: 'Strikes', lblDie: 'Dice', lblBp: 'Build points',
@@ -513,6 +525,15 @@
       chEvents: function (p, n) { return 'Prepared ' + p + ' of ' + n + (n === 1 ? ' event' : ' events'); }, chClean: 'No strike this chapter'
     },
     markOn: 'Done: ', markOff: 'Not yet: ',
+    // w_chap: as marcas sao um registro, nao uma escolha: titulo com a conta e, ao toque, o que cada uma pede
+    marksHead: function (n, m) { return 'Marks this match: ' + n + ' of ' + m; },
+    chMarksHead: function (n, m) { return 'Marks this chapter: ' + n + ' of ' + m; },
+    markHow: {
+      days: function (n) { return 'Finish all ' + n + ' days.'; }, noRetry: 'Win without replaying a chapter.',
+      clean: 'Get through a whole chapter with no strike.', events: 'Prepare for every event before it starts.',
+      kept: 'Keep a roll, then use it on a later day.', chEvents: 'Prepare for each event in this chapter.',
+      chClean: 'Get through this chapter with no strike.'
+    },
     nextCh: {
       lead: 'Next: ',
       evStart: function (n) { return 'Events begin, ' + n + ' in all.'; },
@@ -1794,6 +1815,8 @@
     for (i = 0; i < CH_LEN; i++) { var d = el('span', 'crz-dot'); d.setAttribute('aria-label', 'Day ' + (i + 1)); dotsEl.appendChild(d); dotEls.push(d); }
     // rotulo 'Day N of 30' sob os pontinhos (o ponto vermelho e hoje)
     var dayLbl = el('span', 'crz-lbl crz-lbl-day'); dayLbl.setAttribute('aria-hidden', 'true'); dotsEl.appendChild(dayLbl);
+    // w_chap: segunda linha sob 'Day 14 of 30' (como 'Tomorrow' sob o dado): as 10 bolinhas sao deste capitulo
+    var chLbl = el('span', 'crz-lbl crz-lbl-ch'); chLbl.setAttribute('aria-hidden', 'true'); dotsEl.appendChild(chLbl);
     // dado + previsao formam um unico botao (alvo de toque >= 44 px)
     var dieEl = tut(el('button', 'crz-die off'), 'die');
     var diePips = el('span', 'crz-dpips'), dieEv = el('span', 'crz-dev'), dieNext = el('span', 'crz-dnext off');
@@ -1988,6 +2011,7 @@
     // w_medals: o porque da vitoria (uma frase da partida), recorde batido e as marcas
     var overWhy = tut(el('div', 'crz-owhy gone'), 'over-why'), overRec = tut(el('div', 'crz-orec gone'), 'over-record');
     var overMarks = tut(el('div', 'crz-omarks gone'), 'over-marks');
+    on(overMarks, 'click', function (e) { markTap(e); }); on(chMarkEl, 'click', function (e) { markTap(e); });
     var overRetry = null;   // { chapter, day } quando a derrota oferece a volta
     // vitoria no ultimo dia: a linha de fechamento do dia 12 (o game vai do dia 12 direto ao fim, sem resumo)
     var overClose = tut(el('div', 'crz-sclose gone'), 'over-closing');
@@ -2051,6 +2075,7 @@
     function say(text, ms, valid) {
       if (!text) return;
       denyPend = false;
+      sayEl.classList.remove('crz-saytop');   // w_chap: so a explicacao da marca tocada passa por cima da tela do fim
       sayValid = typeof valid === 'function' ? valid : null;
       // nv7: com balao do tutorial aberto o aviso preto espera (o balao pulava quando o aviso sumia)
       // A4: recusa (som de erro agora) e pergunta com botao passam mesmo com balao: o balao nao pula mais
@@ -4944,6 +4969,7 @@
           dotEls[i].className = 'crz-dot' + (past ? ' past' : (now ? ' now' : '')) + (di > CFG.maxDays ? ' gone' : '');
           dotEls[i].setAttribute('aria-label', 'Day ' + di);
           if (now) dayLbl.textContent = STR.lblDay(s.day | 0, CFG.maxDays);
+          if (now) chLbl.textContent = CH_LEN < CFG.maxDays ? STR.lblChapter(Math.ceil((s.day | 0) / CH_LEN), Math.ceil(CFG.maxDays / CH_LEN)) : '';
           if (now) dotEls[i].setAttribute('aria-current', 'step'); else if (dotEls[i].removeAttribute) dotEls[i].removeAttribute('aria-current');
           if (now && lastDayOf(s) && dotsEl.setAttribute) dotsEl.setAttribute('aria-label', STR.lastDay(s.day | 0, CFG.maxDays));
         }
@@ -5268,22 +5294,37 @@
       if (m.id === 'chEvents') return t(m.prep | 0, m.n | 0);
       return typeof t === 'string' ? t : '';
     }
+    // w_chap: o que a marca pede, em uma frase (o toque na marca diz isso na faixa)
+    function markHow(m) { var h = STR.markHow[m.id]; return typeof h === 'function' ? h(m.n | 0) : (h || ''); }
+    // w_chap (dono: 'parece uma lista de opcoes'): feita = chip com o check; nao feita = texto quieto, sem contorno e sem
+    // circulo vazio. Nenhuma e botao de escolha; tocar diz o que ela pede
     function markChip(m) {
       var tx = markText(m);
       if (!tx) return null;
-      var c = el('span', 'crz-chip crz-omark' + (m.on ? ' on' : ''),
-        m.on ? svg('<circle cx="11" cy="11" r="9" class="f-ink"/><path d="M6.5 11.5L9.5 14.5L15.5 8" fill="none" stroke-width="2.2" stroke="#fff" stroke-linecap="round" stroke-linejoin="round"/>', '0 0 22 22')
-             : svg('<circle cx="11" cy="11" r="8.2" fill="none" stroke-width="1.5" class="s-ink"/>', '0 0 22 22'));
+      var c = el('span', 'crz-chip crz-omark' + (m.on ? ' on' : ' off'),
+        m.on ? svg('<circle cx="11" cy="11" r="9" class="f-ink"/><path d="M6.5 11.5L9.5 14.5L15.5 8" fill="none" stroke-width="2.2" stroke="#fff" stroke-linecap="round" stroke-linejoin="round"/>', '0 0 22 22') : '');
       var sp = el('span'); sp.textContent = tx; c.appendChild(sp);
-      c.setAttribute('aria-label', (m.on ? STR.markOn : STR.markOff) + tx);
+      c.setAttribute('aria-label', (m.on ? STR.markOn : STR.markOff) + tx + '. ' + markHow(m));
       c.setAttribute('data-mark', m.id);
+      c.setAttribute('data-how', markHow(m));
       return c;
     }
-    function fillMarks(box, list) {
+    // head(n, m): o titulo com a conta (feitas de mostradas); sem head, so os chips
+    function fillMarks(box, list, head) {
       box.innerHTML = '';
-      var n = 0;
-      for (var i = 0; i < list.length; i++) { var c = markChip(list[i]); if (c) { box.appendChild(c); n++; } }
+      var n = 0, on = 0, chipsL = [];
+      for (var i = 0; i < list.length; i++) { var c = markChip(list[i]); if (c) { chipsL.push(c); n++; if (list[i].on) on++; } }
+      if (n && head) { var hd = el('div', 'crz-omarkshead'); hd.textContent = head(on, n); box.appendChild(hd); }
+      for (i = 0; i < chipsL.length; i++) box.appendChild(chipsL[i]);
       box.classList.toggle('gone', !n);
+    }
+    function markTap(e) {
+      var t = e && e.target, k = 0;
+      while (t && k++ < 4 && !(t.getAttribute && t.getAttribute('data-how'))) t = t.parentNode;
+      var how = t && t.getAttribute ? t.getAttribute('data-how') : '';
+      if (!how) return;
+      if (e.stopPropagation) e.stopPropagation();
+      snd('select'); sayUntil = 0; say(how, 3000); sayEl.classList.add('crz-saytop');
     }
     function nextChText(parts) {
       if (!parts || !parts.length) return '';
@@ -5296,8 +5337,8 @@
     }
     // fim de capitulo: a marca mais ligada ao capitulo e uma linha do proximo (CRZ.Game.chapterMark / nextChapter)
     function chapterMoment(s, cd) {
-      var G = CRZ.Game, mk = cd && G && G.chapterMark ? G.chapterMark(s, cd.chapter) : null;
-      fillMarks(chMarkEl, mk ? [mk] : []);
+      var G = CRZ.Game, mk = cd && G && G.chapterMarks ? G.chapterMarks(s, cd.chapter) : (cd && G && G.chapterMark ? [G.chapterMark(s, cd.chapter)] : []);
+      fillMarks(chMarkEl, mk || [], STR.chMarksHead);
       var nt = cd && G && G.nextChapter ? nextChText(G.nextChapter(s, cd.chapter)) : '';
       chNextEl.textContent = nt; chNextEl.classList.toggle('gone', !nt);
     }
@@ -5347,7 +5388,7 @@
       var lockN = win ? null : lockedNodeOf(s, game.world);
       overSub.textContent = win ? (stk === 0 ? STR.winFlawless : stk === 1 ? STR.winOne(days | 0) : STR.winMany(stk | 0))
         : (lockN ? loseText(lockN, days, CFG, lockN.edges ? game.world : null, function (o) { return heatOf(s, o); }, { budget: s.budget | 0 }) : (STR.loseSub1 + (days | 0) + STR.loseSub2));
-      var oc = win && (days | 0) >= CFG.maxDays ? (f.lastFailed ? STR.closingJam : STR.closing(days | 0, deliv | 0)) : (overRetry ? STR.retryLine(overRetry.day | 0) : '');
+      var oc = win && (days | 0) >= CFG.maxDays ? (f.lastFailed ? STR.closingJam : STR.closing(days | 0, deliv | 0)) : (overRetry ? STR.retryLine(overRetry.day | 0, overRetry.chapter | 0) : '');
       overClose.textContent = oc; overClose.classList.toggle('gone', !oc);
       // melhor dia (do historico; senao do final) e pior momento (so se houve strike)
       var hs2 = s.history || [], bN = -1, bD = 0, tD = 0, hi;
@@ -5366,17 +5407,23 @@
       if (news.cars > 0) rl.push(STR.recCars(deliv | 0, news.cars));
       if (news.retries > 0) rl.push(STR.recRetries(nr, news.retries));
       overRec.textContent = rl.length ? STR.recLead + rl.join(', ') : ''; overRec.classList.toggle('gone', !rl.length);
-      fillMarks(overMarks, CRZ.Game && CRZ.Game.marks ? CRZ.Game.marks(s) : []);
+      // w_chap: na derrota so as marcas feitas e as que o Retry ainda alcanca (open); a que nao se ganha mais nao aparece
+      var mks = CRZ.Game && CRZ.Game.marks ? CRZ.Game.marks(s) : [];
+      if (!win) mks = mks.filter(function (m) { return m.on || m.open !== false; });
+      fillMarks(overMarks, mks, STR.marksHead);
       var wy = win && CRZ.Game && CRZ.Game.tally ? STR.winWhy(CRZ.Game.tally(s), signCount(game.world)) : '';
       overWhy.textContent = wy; overWhy.classList.toggle('gone', !wy);
       overHard.textContent = (stk > 0 && tD > 0) ? STR.toughDay(tD) : '';
       overHard.classList.toggle('gone', !(stk > 0 && tD > 0));
       overDays.innerHTML = '';
-      var nBad = 0;
+      var nBad = 0, grp = null, gCh = -1;
       for (hi = 0; hi < hs2.length; hi++) {
         var sq = el('i', 'crz-oday' + (hs2[hi].failed ? ' bad' : ''));
         if (hs2[hi].failed) nBad++;
-        overDays.appendChild(sq);
+        // w_chap: um grupo por capitulo (uma folga entre as dezenas): o lugar onde cada capitulo comeca
+        var hc = Math.max(1, Math.ceil((hs2[hi].day | 0) / CH_LEN));
+        if (!grp || hc !== gCh) { grp = el('span', 'crz-odaysch'); gCh = hc; overDays.appendChild(grp); }
+        grp.appendChild(sq);
       }
       overDays.setAttribute('aria-label', STR.daysAria(hs2.length, nBad));
       overDays.classList.toggle('gone', !hs2.length); overDaysCap.classList.toggle('gone', !hs2.length);
@@ -5737,7 +5784,7 @@
       // dado (dia 2+, plano) e velocidade (primeiro dia que roda): uma vez cada
       if (s.phase === 'plan' && (s.day | 0) >= 2 && s.die && !seen('fu:die')) { firstUse('die', STR.dieFirst, now); pulseEl(dieEl); }
       if (s.phase === 'run' && !seen('fu:speed') && !seen('speedTaught') && runAt && now - runAt >= 7000) { firstUse('speed', STR.speedFirst, now); pulseEl(playBtn); }
-      if (!fuQueue.length || sayUntil || modal()) return;
+      if (!fuQueue.length || sayUntil || modal() || chCardPending(s)) return;
       say(fuQueue.shift(), 6000);
     }
     function toolIntro(id) {
@@ -5784,6 +5831,87 @@
     //  - a primeira manha em que um jam vira strike (dia strikeGraceUntil + 1)
     //  - a manha de cada capitulo novo (11, 21): strikes cheios de novo
     //  (o perdao do ultimo strike sai na faixa do travamento, em onPhase: forgivenText)
+    // ---- w_chap: cartao de comeco de capitulo (manhas 11 e 21; dono: 'quem joga nao percebe o capitulo') ----
+    // A folha da confirmacao do Play (o componente da Road crew): numero e nome do capitulo, os dias dele (as bolinhas),
+    // os circulos de strike esvaziando (repostos), o que o progresso salvo garante e uma linha do que chega. Um toque.
+    // E a PRIMEIRA coisa da manha: abre antes da tela do dado (chCardTick roda antes de rollScreenTick) e, como camada
+    // de body.crz-modal, segura o dado, a Road crew, a manutencao, os eventos, o crescimento e o retorno da manha.
+    // Uma vez por capitulo e por volta (a chave leva chapterRetries): o capitulo repetido mostra de novo, dizendo que
+    // voltou. Sem dia 1 nem dia 6: o dia 1 e do tutorial e o capitulo 1 nunca recomeca (a promessa nao valeria).
+    var chEl = tut(el('div', 'crz-confirm crz-chcard gone'), 'chapter-card');
+    chEl.setAttribute('role', 'dialog'); chEl.setAttribute('aria-modal', 'true');
+    var chBox = el('div', 'crz-cbox'), chTitleEl = el('div', 'crz-chtitle'), chDaysEl = el('div', 'crz-chdays');
+    chTitleEl.id = 'crz-ch-title'; chEl.setAttribute('aria-labelledby', 'crz-ch-title');
+    var chStrkRow = el('div', 'crz-chstrk'), chStrk = el('div', 'crz-sstrikes'), chStrkTxt = el('span'), chStrkEls = [];
+    for (i = 0; i < (CFG.ironMode ? 1 : CFG.maxStrikes); i++) { var cs0 = el('span', 'crz-strike'); chStrk.appendChild(cs0); chStrkEls.push(cs0); }
+    chStrkRow.appendChild(chStrk); chStrkRow.appendChild(chStrkTxt);
+    var chSaveEl = el('div', 'crz-ctxt'), chNewEl = el('div', 'crz-chnew'), chRow = el('div', 'crz-crow');
+    var chGo = tut(el('button', 'crz-cstart'), 'chapter-go'); chGo.textContent = STR.cont; chRow.appendChild(chGo);
+    [chTitleEl, chDaysEl, chStrkRow, chSaveEl, chNewEl, chRow].forEach(function (x) { chBox.appendChild(x); });
+    chEl.appendChild(chBox); ui.appendChild(chEl);
+    var chCur = null;
+    function chCardOpen() { return !chEl.classList.contains('gone'); }
+    function chCardKey(s) { return 'chcard' + (s.day | 0) + '.' + (s.chapterRetries | 0) + runTag; }
+    function chCardDay(d) { return d > 1 && CH_LEN < CFG.maxDays && (d - 1) % CH_LEN === 0 && d <= CFG.maxDays; }
+    // a manha ainda vai abrir o cartao (as faixas que nao esperam o boot seguram ate ele sair)
+    function chCardPending(s) { return chCardOpen() || (s.phase === 'plan' && chCardDay(s.day | 0) && !hints[chCardKey(s)]); }
+    // o que o progresso salvo garante NESTE capitulo (CFG.noRestartBeforeDay; Easy: 21, Normal: 15)
+    function chSaveText(s, c) {
+      if (CFG.ironMode) return '';
+      var a = (c - 1) * CH_LEN + 1, b = Math.min(CFG.maxDays, a + CH_LEN - 1), R = CFG.noRestartBeforeDay | 0;
+      if ((s.chapterRetries | 0) > 0 && s.checkpointDay === a) return STR.chRetry(a);
+      if (CFG.chapter1LastStrikeWarns && c === 1) return STR.chNoRestart;
+      if (R <= a) return STR.chSaved;
+      if (R <= b) return STR.chSavedFrom(R);
+      return STR.chNoRestart;
+    }
+    // o que chega: carros e paciencia do perfil (CFG.difficulties[..].chapter) e o calendario (CRZ.Game.nextChapter)
+    function chNewText(s, c) {
+      var P = CFG.difficulties && CFG.difficulties[CFG.difficultyName], cx = P && P.chapter && P.chapter[c], out = [], G = CRZ.Game;
+      if (cx && cx.spawn > 1) out.push(STR.chCars);
+      if (cx && cx.patience > 0 && cx.patience < 1) out.push(STR.chWait);
+      var lead = out.length ? STR.chNewLead + out.join(', ') + '.' : '';
+      var nx = G && G.nextChapter ? nextChText(G.nextChapter(s, c - 1)).replace(STR.nextCh.lead, '') : '';
+      if (!lead && nx) return STR.chNewLead + nx;
+      return lead + (lead && nx ? ' ' + nx : '');
+    }
+    // strikes do capitulo anterior (dias com strike depois dos livres); numa volta, todos (acabaram)
+    function chPrevUsed(s, c) {
+      var M = chStrkEls.length, a = (c - 2) * CH_LEN + 1, b = a + CH_LEN - 1, h = s.history || [], n = 0, k;
+      if ((s.chapterRetries | 0) > 0 && s.checkpointDay === (c - 1) * CH_LEN + 1) return M;
+      for (k = 0; k < h.length; k++) if (h[k] && h[k].failed && h[k].day >= a && h[k].day <= b && h[k].day > (CFG.strikeGraceUntil | 0)) n++;
+      return Math.min(M, n);
+    }
+    function chCardShow(s) {
+      var d = s.day | 0, c = Math.ceil(d / CH_LEN), b = Math.min(CFG.maxDays, d + CH_LEN - 1), used = chPrevUsed(s, c);
+      chCur = { key: chCardKey(s), day: d };
+      chTitleEl.textContent = STR.chTitle(c);
+      chDaysEl.textContent = STR.chDays(d, b);
+      chStrkTxt.textContent = STR.strikesBack(CFG.ironMode ? 1 : CFG.maxStrikes | 0);
+      var sv = chSaveText(s, c); chSaveEl.textContent = sv; chSaveEl.classList.toggle('gone', !sv);
+      var nw = chNewText(s, c); chNewEl.textContent = nw; chNewEl.classList.toggle('gone', !nw);
+      // os usados aparecem cheios e esvaziam um a um (repostos); movimento reduzido: ja vazios
+      var k, rm = reducedMotion();
+      for (k = 0; k < chStrkEls.length; k++) chStrkEls[k].classList.toggle('on', !rm && k < used);
+      for (k = used - 1; !rm && k >= 0; k--) (function (e, t) { later(function () { e.classList.remove('on'); }, t); })(chStrkEls[k], 450 + (used - 1 - k) * 220);
+      chEl.classList.remove('gone'); modalReg().set(doc.body, 'chapter', true); snd('select');
+      try { if (chGo.focus) chGo.focus(); } catch (e) {}
+      emitUI('chapterCard', { day: d, chapter: c });
+    }
+    function chCardClose() {
+      if (!chCardOpen()) return;
+      chEl.classList.add('gone'); modalReg().set(doc.body, 'chapter', false);
+      if (chCur) { hints[chCur.key] = 1; lsSet(HINT_KEY, JSON.stringify(hints)); markSeen('chapter' + chCur.day); }
+      chCur = null;
+    }
+    on(chGo, 'click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); snd('select'); chCardClose(); emitUI('chapterCardClosed', {}); });
+    on(doc, 'keydown', function (e) { if (e && chCardOpen() && (e.key === 'Enter' || e.key === 'Escape')) { pd(e); chCardClose(); } });
+    function chCardTick(s) {
+      if (chCardOpen()) { if (s.phase !== 'plan' || !chCur || chCur.day !== (s.day | 0)) chCardClose(); return; }
+      if (s.phase !== 'plan' || !chCardDay(s.day | 0) || hints[chCardKey(s)]) return;
+      if (bootFrames >= 0 || holdUntil || roll.open || rollAnyModal() || modal()) return;
+      chCardShow(s);
+    }
     var pendFreeJam = false, bannerWait = -1;
     function chapterTick(s) {
       var d = s.day | 0, G = CFG.strikeGraceUntil | 0;
@@ -5792,14 +5920,14 @@
       if (s.phase === 'plan' && d > 1 && CH_LEN < CFG.maxDays && (d - 1) % CH_LEN === 0) {
         // integracao: o letreiro e a primeira mensagem da manha; as faixas (capitulo, manutencao, problema do dia)
         // esperam ele sair (antes a faixa cobria 'Day 11')
-        if (roll.open) bannerWait = d; else if (bannerWait === d) { bannerWait = -1; showDayBanner(s); if (!sayEl.classList.contains('show')) sayUntil = Math.max(sayUntil, nowMs() + 1300); }
+        if (roll.open || chCardOpen()) bannerWait = d; else if (bannerWait === d) { bannerWait = -1; showDayBanner(s); if (!sayEl.classList.contains('show')) sayUntil = Math.max(sayUntil, nowMs() + 1300); }
       }
       if (modal() || tutBalloonOn() || sayUntil || confirmOpen()) return;
       if (pendFreeJam && s.phase === 'run') { if (sayShown(STR.freeJamFirst, 4000)) pendFreeJam = false; return; }
       // o primeiro dia em que um jam conta: na corrida, quando passa a valer (o plano da manha ja tem as suas dicas)
       if (s.phase === 'run' && G > 0 && d === G + 1 && !seen('strikes6')) { if (sayShown(STR.strikesFrom(strikeMax()), 4200)) markSeen('strikes6'); return; }
       if (s.phase !== 'plan' || roll.open || growPend || bootFrames >= 0) return;
-      if (d > 1 && CH_LEN < CFG.maxDays && (d - 1) % CH_LEN === 0 && !seen('chapter' + d)) {
+      if (d > 1 && CH_LEN < CFG.maxDays && (d - 1) % CH_LEN === 0 && !seen('chapter' + d) && !chCardOpen()) {
         if (sayShown(STR.strikesBack(CFG.ironMode ? 1 : CFG.maxStrikes | 0), 3600)) markSeen('chapter' + d);
       }
     }
@@ -5968,7 +6096,7 @@
       var tut = CRZ.app && CRZ.app.tutorial;
       var tutOn = !!(tut && tut.isActive && tut.isActive());
       if (tutOn) hint = null;   // o tutorial guiado assume
-      else maybeStartHint(s, now);
+      else if (!chCardOpen()) maybeStartHint(s, now);   // w_chap: a ferramenta nova espera o cartao do capitulo
       if (hint && s.phase !== 'plan') hint = null;
       if (hint && !tutOn) {
         if (hint.stage === 'tile' && (!hint.tile || now >= hint.tileUntil)) {
@@ -5994,6 +6122,7 @@
       runHintTick(s, now);
       boostLiveTick(s);
       ffTick(s, now);
+      chCardTick(s);   // w_chap: o cartao do capitulo antes da tela do dado (a primeira coisa da manha)
       rollScreenTick(s, now);
       growTick(s);
       day4RuleTick(s);
