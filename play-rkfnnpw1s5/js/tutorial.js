@@ -61,7 +61,8 @@
       upgrade: 'Two lanes, {c}: holds a longer line. The crossing is no faster.',
       // o motivo do "pouco": a faixa para carros por pedestres (o cartao passa de 10 palavras por isso)
       cross: 'Crosswalk, {c}: cars stay calm longer, so rings show up later.',
-      round: 'Roundabout, {c}: four or more busy roads. Weak with only three.',
+      // w_tiles: diz o que a rotatoria FAZ (antes so onde usar), nas palavras da linha da bandeja
+      round: 'Roundabout, {c}: cars go around without stopping. Best where four roads meet.',
       oneway: 'One-way, {c}: cars drive away from the half you tap.'
     },
     // vocabulario do anel igual a cor do render: {R}/{L}/{E} viram o nivel do no na hora (ringSay):

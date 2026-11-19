@@ -85,6 +85,9 @@
     nextShort: 'Not enough points to build more. Tap \u25b6\ufe0e to start the day.',
     nextNew: 'Give each NEW crossing a sign, then tap \u25b6\ufe0e.',
     roadTile: 'Road',
+    // w_tiles: nome curto em todo ladrilho, no molde do 'Road 2' (cabe a 375 px com ate 7 ladrilhos; medido em
+    // dev/review/w_tiles). O nome inteiro fica no aria, na linha de uso e no guia (STR.tools)
+    tileName: { road: 'Road', stop: 'Stop', yield: 'Yield', light: 'Light', upgrade: 'Lanes', cross: 'Walk', round: 'Round', oneway: 'One-way' },
     roadFirstTut: 'Build one road first: tap Road, then drag from a road end.',
     roadFirst: 'Build one road first.',
     carryAsk: function (b, cap) { return 'You have ' + b + ' build points. Only ' + cap + ' are kept. Tap \u25b6\ufe0e again to start.'; },
@@ -129,9 +132,9 @@
       stop: 'Cars take turns. Good on small crossings, slow on a main road.',
       yield: 'Main road keeps going, side road waits. Jams if all are busy.',
       light: 'For crossings busy from every side. Quiet streets wait on red.',
-      upgrade: 'Holds a longer line. The crossing itself does not get faster.',
+      upgrade: 'Longer line fits. Good where cars back up; the crossing is no faster.',
       cross: 'Drivers wait longer before the ring turns red. Replaces the sign.',
-      round: 'No stopping where 4+ roads meet. Jams on a T or when packed.',
+      round: 'Cars go around without stopping. Good where 4 roads meet; jams when packed.',
       oneway: 'Tap a road: cars drive away from the half you tap.'
     },
     toolWorks: {
@@ -143,6 +146,12 @@
       cross: 'Goes where 2 or more roads meet. Replaces the sign there.',
       round: 'Goes on a crossing with 4 or more roads. Replaces the sign there.',
       oneway: 'Tap again to flip, a third time for two-way. A car with no route waits, then counts as lost.'
+    },
+    // w_tiles: o que a ferramenta e, em poucas palavras (ladrilho bloqueado: nome + isto + quando chega)
+    toolWhat: {
+      road: 'joins two spots.', stop: 'cars take turns.', yield: 'the main road keeps going.',
+      light: 'for crossings busy from every side.', upgrade: 'a longer line fits.', cross: 'rings turn red later.',
+      round: 'cars go around without stopping.', oneway: 'cars go one way only.'
     },
     legend: function (name, cost, line) { return name + ' \u00b7 ' + (cost <= 0 ? 'free' : cost + (cost === 1 ? ' point' : ' points')) + ' \u00b7 ' + line; },
     guideTitle: 'Tools & buttons', guideOpen: 'Tools and buttons', guideClose: 'Close',
@@ -307,7 +316,7 @@
       patient: 'Drivers wait {patientPct}% longer before the ring turns red.',
       waveBonus: 'Green waves are worth double tomorrow.',
       smooth: 'All cars drive 10% faster tomorrow.',
-      round: 'Unlocks the Roundabout tool. No stopping, until it gets packed.',
+      round: 'New tool: cars go around without stopping, until packed.',
       // integracao: v2m trocou a manutencao pela vaga de semaforos (CFG.lightCap); a carta soma uma vaga
       freePower: 'Your city powers one more traffic light.'
     },
@@ -366,7 +375,12 @@
       boostRunning: 'Boost is already working here. Try another crossing.',
       // v2 recusa: toda recusa diz o motivo e o que serve (REFUSALS.md)
       tileRun: 'Tools work before the day starts. Wait for the next morning.',
-      tileLocked: function (d) { return 'Unlocks on day ' + d + '. Use what you have for now.'; },
+      // w_tiles: com a ferramenta, diz o que ela e e quando chega (a Roundabout chega pela escolha do dia 19)
+      tileLocked: function (d, id, cfg) {
+        var t = id && cfg && cfg.tools && cfg.tools[id], what = id && STR.toolWhat && STR.toolWhat[id];
+        if (!t || !what) return 'Unlocks on day ' + d + '. Use what you have for now.';
+        return STR.tools[id] + ': ' + what + (t.choiceDay ? ' A choice on day ' + t.choiceDay + '.' : ' Unlocks on day ' + t.unlockDay + '.');
+      },
       emptyTap: 'Tap a crossing, where roads meet.',
       emptyRoad: 'Tap right on a road.',
       undoNone: 'Nothing to undo yet. Undo reverses your last build today.',
@@ -1382,11 +1396,12 @@
     stop: CRZ.STOP_SIGN ? CRZ.STOP_SIGN.svg(24, 24, 17, 'class="f-red"', 'class="f-white"', true) : '',
     yield: '<path class="f-red" fill-rule="evenodd" d="M5 9H43L24 42Z M13.5 14.5H34.5L24 32.5Z"/>',
     light: '<rect x="15" y="4" width="18" height="40" rx="9" class="f-ink"/><circle cx="24" cy="14" r="4" class="f-dim"/><circle cx="24" cy="24" r="4" class="f-dim"/><circle cx="24" cy="34" r="4.2" class="f-green"/>',
-    // rotatoria e faixa iguais ao mapa (drawPicto do render.js com s = 36): aro r = 0,4s, traco 0,16s,
-    // ponto central 0,11s; zebra 0,9s x 0,7s com 3 barras solidas de cw/5, sem moldura
-    round: '<circle cx="24" cy="24" r="14.4" fill="none" stroke-width="5.76" class="s-ink"/><circle cx="24" cy="24" r="3.96" class="f-ink"/>',
+    // rotatoria igual ao mapa (drawPicto do render.js com s = 36): a placa de tres setas girando (CRZ.ROUND_SIGN,
+    // config.js; w_tiles: o aro com ponto lia como alvo). Zebra 0,9s x 0,7s com 3 barras solidas de cw/5, sem moldura
+    round: CRZ.ROUND_SIGN ? CRZ.ROUND_SIGN.svg(24, 24, 36, 'class="s-ink"', 'class="f-ink"') : '',
     cross: '<rect x="7.8" y="11.4" width="6.48" height="25.2" class="f-ink"/><rect x="20.76" y="11.4" width="6.48" height="25.2" class="f-ink"/><rect x="33.72" y="11.4" width="6.48" height="25.2" class="f-ink"/>',
-    upgrade: '<line x1="5" y1="18" x2="43" y2="18" stroke-width="3" stroke-dasharray="7 5" class="s-ink"/><line x1="5" y1="30" x2="43" y2="30" stroke-width="3" stroke-dasharray="7 5" class="s-ink"/>',
+    // w_tiles: duas faixas = uma rua vista de cima, duas bordas e a faixa tracejada no meio (antes so dois tracejados)
+    upgrade: '<line x1="12" y1="5" x2="12" y2="43" stroke-width="3.5" class="s-ink"/><line x1="36" y1="5" x2="36" y2="43" stroke-width="3.5" class="s-ink"/><line x1="24" y1="7" x2="24" y2="43" stroke-width="3" stroke-dasharray="6 5" class="s-ink"/>',
     road: '<line x1="7" y1="41" x2="33" y2="15" stroke-width="3" stroke-linecap="round" class="s-ink"/><circle cx="37" cy="11" r="5.5" class="f-ink"/>',
     oneway: '<line x1="5" y1="24" x2="18" y2="24" stroke-width="4" class="s-ink"/><path d="M17 11L43 24L17 37Z" class="f-ink"/>'
   };
@@ -4674,7 +4689,9 @@
     // ---- bandeja ----
     // custo no ladrilho: o numero (jogador-so-tela 2026-11-09: os pontinhos nao diziam 'custa 2'); gratis: 'free'
     function toneCost(n) {
-      if (n <= 0) return '<b class="free">free</b>';
+      // w_tiles: com o nome ao lado, 'Road free' nao cabe no ladrilho de 42 px (tela baixa, 5 ferramentas numa linha):
+      // la o gratis vira o numero 0 em verde ('Road 0'); nas outras telas segue 'free' (style.css, crz-f0/crz-fw)
+      if (n <= 0) return '<b class="free"><span class="crz-fw">free</span><span class="crz-f0">0</span></b>';
       return '<b>' + n + '</b>';
     }
     function rebuildTray(s) {
@@ -4684,13 +4701,17 @@
       for (i = 0; i < s.tools.length; i++) {
         (function (t) {
           if (!t.unlocked) return;
-          var b = tut(el('button', 'crz-tile', toolIcon(t.id)), 'tool-' + t.id);
+          // w_tiles: o semaforo leva o teto ('1 of 2') ao lado da cabeca do sinal (a caixa do SVG recortada no corpo,
+          // viewBox 13..35): nome e custo ficam no rotulo como nos outros, sem empilhar tres coisas numa linha
+          var lightRow = t.id === 'light', capEl = null;
+          var b = tut(el('button', 'crz-tile', lightRow ? '' : toolIcon(t.id)), 'tool-' + t.id);
+          if (lightRow) { var row = el('span', 'crz-trow', svg(ICONS.light, '13 0 22 48')); capEl = el('span', 'crz-tcap'); row.appendChild(capEl); b.appendChild(row); }
           b.setAttribute('aria-label', STR.tools[t.id] || t.id);
           var cost = el('div', 'crz-cost');
           b.appendChild(cost);
           tilesEl.appendChild(b);
           b.setAttribute('data-tool', t.id);   // o clique chega por delegacao em tilesEl
-          tiles[t.id] = { el: b, cost: cost, c: -1, poor: null, sel: null, hint: null };
+          tiles[t.id] = { el: b, cost: cost, c: -1, poor: null, sel: null, hint: null, cap: capEl };
         })(s.tools[i]);
       }
       // sem ferramenta nenhuma: so o play na base (bandeja e orcamento somem)
@@ -4742,7 +4763,7 @@
       for (i = 0; i < s.tools.length; i++) if (s.tools[i].id === id) info = s.tools[i];
       if (info && !info.afford) {
         snd('deny'); shake(tiles[id].el);
-        if (info.unlocked === false && CFG.tools[id]) { say(STR.deny.tileLocked(CFG.tools[id].unlockDay)); return; }
+        if (info.unlocked === false && CFG.tools[id]) { say(STR.deny.tileLocked(CFG.tools[id].unlockDay, id, CFG)); return; }
         if (info.cap != null && (info.used | 0) >= info.cap && (s.budget | 0) >= (typeof info.cost === 'number' ? info.cost : 0)) {
           say(denyText({ reason: 'cap' }, id, s, CFG)); var pw = game.world.nodes, pk0; for (pk0 in pw) if (pw.hasOwnProperty(pk0) && pw[pk0].tool === 'light') addPulse(pw[pk0].x, pw[pk0].y);
           return;
@@ -4777,11 +4798,17 @@
         var c = game.cost ? game.cost(t.id) : t.cost;
         // nv10 1: a gratuidade que veio do dado so aparece depois de a jogadora rolar
         if (c === 0 && (t.id === 'road' || t.id === 'light') && dieFreeHidden(s)) c = CFG.tools[t.id].cost;
-        // a rua ganha o nome ('Road') ao lado do custo: so o icone nao dizia o que era
-        // v2m: o ladrilho do semaforo diz quantos a cidade liga ('1 of 2', a mesma etiqueta do 'Road')
-        var ck = t.id === 'light' && t.cap != null && isFinite(t.cap) ? c + '|' + t.used + '|' + t.cap : c;
-        if (ck !== tl.c) { tl.c = ck; tl.cost.innerHTML = (t.id === 'road' && c > 0 ? '<span class="crz-tname">' + STR.roadTile + '</span>' : '') +
-          (ck !== c ? '<span class="crz-tname">' + STR.capTile(t.used, t.cap) + '</span>' : '') + toneCost(c); }   // final check 6: 'Road free' estourava o ladrilho; gratis mostra so 'free'
+        // w_tiles: todo ladrilho diz o nome curto ao lado do custo ('Road 2', 'Stop 1', 'Round 3'): o dono jogou
+        // semanas sem saber o que era o aro com ponto. O ladrilho cresce na largura so o que o nome pede (style.css)
+        // v2m: o ladrilho do semaforo diz quantos a cidade liga ('1 of 2'), ao lado do icone (crz-tcap)
+        var hasCap = t.id === 'light' && t.cap != null && isFinite(t.cap);
+        var ck = hasCap ? c + '|' + t.used + '|' + t.cap : c;
+        if (ck !== tl.c) {
+          tl.c = ck; tl.cost.innerHTML = '<span class="crz-tname">' + (STR.tileName[t.id] || STR.tools[t.id] || t.id) + '</span>' + toneCost(c);
+          if (tl.cap) { tl.cap.textContent = hasCap ? STR.capTile(t.used, t.cap) : ''; tl.el.classList.toggle('crz-capon', hasCap); }
+          tl.el.setAttribute('aria-label', (STR.tools[t.id] || t.id) + ', ' + (c <= 0 ? 'free' : c + (c === 1 ? ' build point' : ' build points')) +
+            (hasCap ? ', ' + STR.capTile(t.used, t.cap) + ' lights' : ''));
+        }
         var poor = !t.afford;
         if (poor !== tl.poor) { tl.poor = poor; tl.el.classList.toggle('poor', poor); }
         // rua gratis do dia ainda nao usada: o ladrilho Road pulsa (o 'free' ja aparece no custo)
@@ -6487,6 +6514,8 @@
   CRZ.UI = {
     create: create,
     STR: STR,
+    // w_tiles: desenho das ferramentas (SVG, caixa 48): o How to play (menu.js) usa o mesmo da bandeja e do guia
+    toolIcons: ICONS,
     // recomendador unico por no (o tutorial usa para o balao do anel): advise(node, day, cfg, world, heat)
     // -> {key, tool, text, dir}. Mesmo estado do no, mesma recomendacao
     advise: advise,

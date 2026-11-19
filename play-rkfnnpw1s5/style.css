@@ -1142,3 +1142,22 @@ html body #hud .crz-ui[data-phase="over"] .crz-bottom, html body #hud .crz-ui[da
   .crz-over .crz-mark svg { width: 44px; height: 44px; }
   .crz-over .crz-stats { margin: 0; }
 }
+
+/* w_tiles (2026-11-18): todo ladrilho diz o nome curto ao lado do custo ('Stop 1', 'Round 3'), no tamanho do 'Road 2'.
+   O ladrilho fica quadrado e so cresce na largura o que o nome pede ('One-way 1'); o semaforo leva o teto ('1 of 2') ao
+   lado da cabeca do sinal, na linha do icone. Medido a 390x844 e 375x667 com as 7 ferramentas (dev/review/w_tiles) */
+.crz-tile { width: auto; min-width: var(--tile); padding: 0 1px; box-sizing: border-box; }
+.crz-tile .crz-cost { max-width: none; }
+.crz-tile .crz-trow { display: flex; align-items: center; gap: 2px; }
+.crz-tile .crz-trow svg { width: auto; }
+.crz-tile .crz-tcap { display: none; font-size: var(--fs-xs); line-height: 1; font-weight: var(--fw-semi); color: var(--inkText); letter-spacing: -0.2px; white-space: nowrap; }
+.crz-tile.crz-capon .crz-tcap { display: block; }
+.crz-tile .crz-f0 { display: none; }
+@media (max-height: 700px) and (orientation: portrait) {
+  /* 375x667: cinco ladrilhos com nome numa linha so (Light com o teto e Lanes sao os mais largos) */
+  .crz-tiles { gap: 4px; }
+  /* icone 26 + 2 + rotulo: a perna do 'g' de 'Light' nao encosta na borda de baixo do ladrilho de 42 px */
+  .crz-tile { gap: 2px; }
+  .crz-tile .crz-fw { display: none; }
+  .crz-tile .crz-f0 { display: inline; }
+}

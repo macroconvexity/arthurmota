@@ -1317,11 +1317,16 @@
           ctx.beginPath(); circle(x, y + (i - 1) * gap, dr); ctx.fill();
         }
       } else if (tool === 'round') {
-        var rr = s * 0.4;
-        ctx.fillStyle = C.bg; ctx.beginPath(); circle(x, y, rr); ctx.fill();
-        ctx.strokeStyle = C.ink; ctx.lineWidth = Math.max(2, s * 0.16); ctx.beginPath(); circle(x, y, rr); ctx.stroke();
-        // ilha central: aro + ponto = rotatoria (o aro vazado sozinho lia como ponta de rua/portal)
-        ctx.fillStyle = C.ink; ctx.beginPath(); circle(x, y, s * 0.11); ctx.fill();
+        // w_tiles: a placa da rotatoria, tres setas girando (CRZ.ROUND_SIGN, config.js; a mesma da bandeja). O aro com
+        // ponto lia como alvo. Caixa igual: meia largura h (signExt), fundo creme corta a rua por baixo
+        var RS = CRZ.ROUND_SIGN, RA = RS.arrows(x, y, s), rk, hd;
+        ctx.fillStyle = C.bg; ctx.beginPath(); circle(x, y, s * RS.bg); ctx.fill();
+        ctx.strokeStyle = C.ink; ctx.lineWidth = Math.max(2, s * RS.w); ctx.lineCap = 'butt'; ctx.beginPath();
+        for (rk = 0; rk < RA.length; rk++) { ctx.moveTo(x + Math.cos(RA[rk].a0) * s * RS.R, y + Math.sin(RA[rk].a0) * s * RS.R); ctx.arc(x, y, s * RS.R, RA[rk].a0, RA[rk].a1); }
+        ctx.stroke();
+        ctx.fillStyle = C.ink; ctx.beginPath();
+        for (rk = 0; rk < RA.length; rk++) { hd = RA[rk].head; ctx.moveTo(hd[0][0], hd[0][1]); ctx.lineTo(hd[1][0], hd[1][1]); ctx.lineTo(hd[2][0], hd[2][1]); ctx.closePath(); }
+        ctx.fill();
       } else if (tool === 'cross') {
         // zebra: 3 barras solidas sem moldura (fundo creme so para cortar a rua por baixo)
         var cw = s * 0.9, ch = s * 0.7, x0 = x - cw * 0.5, y0 = y - ch * 0.5;

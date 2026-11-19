@@ -488,6 +488,43 @@
     }
   };
 
+  /* Rotatoria (w_tiles, 2026-11-18): geometria UNICA do icone da Roundabout, usada pelo mapa (render.js drawPicto,
+   * canvas), pela bandeja, guia e cartao de escolha (ui.js, SVG 48) e pelo How to play (menu.js usa o SVG da
+   * bandeja). O aro com ponto lia como alvo; agora e a placa: tres setas curvas girando no sentido anti-horario (mao
+   * direita) sobre um circulo. Tudo em fracoes de s (lado do icone). Caixa igual a do aro antigo: meia largura
+   * 0,5 s (signExt do render devolve h = s/2 para a rotatoria; o carro parado e o toque nao mudam).
+   *  R: raio do aro (linha do meio); w: espessura do aro; hw: meia largura da ponta (R + hw = 0,5);
+   *  hb: comprimento da ponta ao longo do aro (rad); gap: vao antes da ponta seguinte (rad); tips: angulo da ponta
+   *  (graus, y para baixo; nenhuma ponta no canto de cima a direita, onde o cartao poe a bolinha verde). */
+  CRZ.ROUND_SIGN = {
+    R: 0.33, w: 0.14, hw: 0.17, hb: 0.8, gap: 0.22, tips: [-30, 90, 210], bg: 0.47,   // variantes a 14..32 px: dev/review/w_tiles/sizes.html
+    // 3 setas: {a0, a1} arco (rad, a0 < a1, a seta anda de a1 para a0) e a ponta [base externa, ponta, base interna]
+    arrows: function (cx, cy, s) {
+      var out = [], R = this.R * s, hw = this.hw * s, i, t, b;
+      for (i = 0; i < this.tips.length; i++) {
+        t = this.tips[i] * Math.PI / 180; b = t + this.hb;
+        out.push({
+          a0: b, a1: t + 2 * Math.PI / this.tips.length - this.gap,
+          head: [[cx + Math.cos(b) * (R + hw), cy + Math.sin(b) * (R + hw)], [cx + Math.cos(t) * R, cy + Math.sin(t) * R],
+                 [cx + Math.cos(b) * (R - hw), cy + Math.sin(b) * (R - hw)]]
+        });
+      }
+      return out;
+    },
+    // SVG: ink = atributo de cor ('class="s-ink"' para o traco, 'class="f-ink"' para a ponta) ou fill/stroke direto
+    svg: function (cx, cy, s, strokeAttr, fillAttr) {
+      var A = this.arrows(cx, cy, s), R = this.R * s, f = function (v) { return +v.toFixed(3); }, out = '', i, a, p;
+      for (i = 0; i < A.length; i++) {
+        a = A[i];
+        out += '<path ' + strokeAttr + ' fill="none" stroke-width="' + f(this.w * s) + '" d="M' + f(cx + Math.cos(a.a1) * R) + ' ' + f(cy + Math.sin(a.a1) * R) +
+          'A' + f(R) + ' ' + f(R) + ' 0 0 0 ' + f(cx + Math.cos(a.a0) * R) + ' ' + f(cy + Math.sin(a.a0) * R) + '"/>';
+        p = a.head;
+        out += '<path ' + fillAttr + ' d="M' + f(p[0][0]) + ' ' + f(p[0][1]) + 'L' + f(p[1][0]) + ' ' + f(p[1][1]) + 'L' + f(p[2][0]) + ' ' + f(p[2][1]) + 'Z"/>';
+      }
+      return out;
+    }
+  };
+
   /* utilitario: PRNG deterministico (mulberry32). Todos usam este. */
   // Textos do jogo que citam dias fixos (integracao v2): os numeros saem do CFG, nunca escritos no texto.
   // CRZ.dayText('From {strikeDay}, ...') troca as marcas pelos valores de agora; objetos e listas: troca em toda string

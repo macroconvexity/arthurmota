@@ -40,7 +40,7 @@
       yield: ['Yield', 'Main road never stops. Best where a busy road meets a side road.'],
       light: ['Traffic light', 'For crossings busy from every side; quiet streets wait on red. Two lights on one road pair up by themselves. Your city powers only a few lights, more as it grows; removing one is free.'],
       upgrade: ['Two lanes', 'Adds a second lane: a longer line fits. The crossing itself is no faster.'],
-      round: ['Roundabout', 'For four or more roads with steady traffic. Weak with only three roads. You can pick it on day {roundDay}.'],
+      round: ['Roundabout', 'Cars go around without stopping. Best where four or more roads meet; weak with only three. You can pick it on day {roundDay}.'],
       oneway: ['One-way', 'Cars drive away from the half of the road you tap. Tap again to flip, a third time for two-way. A car with no route waits, then counts as lost.']
     },
     pts: function (c) { return c + (c === 1 ? ' build point' : ' build points'); },
@@ -312,7 +312,10 @@
     round: '<circle cx="12" cy="12" r="6" ' + G + '/><path d="M12 2v4M12 18v4M2 12h4M18 12h4" ' + G + '/>',
     oneway: '<path d="M4 12h16M14 6l6 6-6 6" ' + G + '/>'
   };
+  // w_tiles: o How to play desenha a mesma figura da bandeja e do guia (CRZ.UI ICONS, caixa 48); sem ui.js, a antiga
   function toolSvg(id) {
+    var U = CRZ.UI && CRZ.UI.toolIcons;
+    if (U && U[id]) return '<svg viewBox="0 0 48 48" width="26" height="26" aria-hidden="true">' + U[id] + '</svg>';
     return '<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">' + (TOOL_SVG[id] || '') + '</svg>';
   }
   var ICON_MENU = '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>';
