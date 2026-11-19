@@ -1778,10 +1778,10 @@
     var nextLbl = el('span', 'crz-lbl crz-lbl-next'); nextLbl.setAttribute('aria-hidden', 'true'); dieEl.appendChild(nextLbl);
     dieEl.setAttribute('aria-expanded', 'false');
     var strikesEl = tut(el('div', 'crz-strikes'), 'strikes'), strikeEls = [];
-    for (i = 0; i < CFG.maxStrikes; i++) { var sk = el('span', 'crz-strike'); strikesEl.appendChild(sk); strikeEls.push(sk); }
+    for (i = 0; i < (CFG.ironMode ? 1 : CFG.maxStrikes); i++) { var sk = el('span', 'crz-strike'); strikesEl.appendChild(sk); strikeEls.push(sk); }
     var strikeLbl = el('span', 'crz-lbl crz-lbl-strk', STR.lblStrikes); strikeLbl.setAttribute('aria-hidden', 'true'); strikesEl.appendChild(strikeLbl);
     // role fica com infoTap (button focavel que explica ao toque); o aria-label da o numero
-    strikesEl.setAttribute('aria-label', 'Strikes: 0 of ' + CFG.maxStrikes);
+    strikesEl.setAttribute('aria-label', 'Strikes: 0 of ' + (CFG.ironMode ? 1 : CFG.maxStrikes));
     // play fica na bandeja (zona do polegar), nao no topo: e o botao mais tocado e o topo
     // direito e o ponto mais dificil de alcancar com uma mao. "Novo jogo" vai para la.
     var playBtn = tut(el('button', 'crz-play'), 'play');
@@ -2133,7 +2133,7 @@
       }
       srOver = false;
       if (s.strikes !== srStrikes) {
-        if (srStrikes >= 0 && s.strikes > srStrikes) { srLast = ''; announce('Strike ' + s.strikes + ' of ' + CFG.maxStrikes); }
+        if (srStrikes >= 0 && s.strikes > srStrikes) { srLast = ''; announce('Strike ' + s.strikes + ' of ' + (CFG.ironMode ? 1 : CFG.maxStrikes)); }
         srStrikes = s.strikes;
       }
       if (s.day !== srDay) { srDay = s.day; srRing = 0; if (s.phase === 'plan') { srLast = ''; announce('Day ' + s.day + ' started'); } }
@@ -2756,7 +2756,8 @@
       if (modal() || !render) return;
       var cut = cityCut();
       camFreeze = false;
-      try { if (cut && render.fitAll) render.fitAll(true); else if (render.fit) render.fit(true); } catch (e) { warnOnce('render.fit', e); }
+      // pedido da jogadora: passa pela regra do dedo parado (render.byUser), anda ja
+      try { camByUser(function () { if (cut && render.fitAll) render.fitAll(true); else if (render.fit) render.fit(true); }); } catch (e) { warnOnce('render.fit', e); }
       snd('select');
       emitUI('fitPressed', { all: cut });
     }
@@ -3243,6 +3244,9 @@
     }
     // render agent (2026-11-15): zoom de destaque do chip de cruzamentos novos e do 'Busiest crossing'. 1.1 fixo saltava
     // ~3,8x a partir de 0,29 nos dias finais e as ruas passavam por baixo do HUD; agora o zoom de conforto do render
+    // toque da jogadora num botao que pede a camera (enquadrar, chip, linha do resumo): anda ja, sem esperar o dedo
+    // ficar parado (render.byUser); todo o resto e automatico e o render guarda ate IDLE_MS sem toque no mapa
+    function camByUser(fn) { if (render && render.byUser) return render.byUser(fn); return fn(); }
     function focusZoom() {
       var z = (render.camera && render.camera.zoom) || 1, zl = render.zoomLimits;
       return Math.max(z, zl && zl.comfort > 0 ? zl.comfort : 1.1);
@@ -3251,7 +3255,7 @@
     on(todoEl, 'click', function () {
       var n = todoNode; if (!n) return;
       snd('select');
-      try { if (render && render.focus) render.focus(n.x, n.y, focusZoom(), !reducedMotion()); } catch (e) { warnOnce('render.focus', e); }
+      try { if (render && render.focus) camByUser(function () { render.focus(n.x, n.y, focusZoom(), !reducedMotion()); }); } catch (e) { warnOnce('render.focus', e); }
       addPulse(n.x, n.y); later(function () { addPulse(n.x, n.y); }, 900);
       sumEl.classList.add('crz-peek');
       if (peekT) root.clearTimeout(peekT);
@@ -3263,7 +3267,7 @@
       var L = newJList(), n = L[0];
       if (!n) return;
       snd('select');
-      try { if (render && render.focus) render.focus(n.x, n.y, focusZoom(), !reducedMotion()); } catch (e) { warnOnce('render.focus', e); }
+      try { if (render && render.focus) camByUser(function () { render.focus(n.x, n.y, focusZoom(), !reducedMotion()); }); } catch (e) { warnOnce('render.focus', e); }
       addPulse(n.x, n.y); later(function () { addPulse(n.x, n.y); }, 900);
       // o resumo cobre o mapa: abaixa por ~2 s para a jogadora ver o cruzamento, depois volta
       sumEl.classList.add('crz-peek');
@@ -3314,7 +3318,7 @@
       // so o toque da jogadora (chip) move a camera; dica e confirmacao so pulsam (no plano a camera nunca anda
       // sozinha: o mapa mexendo entre dois toques trocava o sinal de lugar, novato 2026-11-09)
       try {
-        if (focus && render && render.focus) render.focus(n.x, n.y, focusZoom(), !reducedMotion());
+        if (focus && render && render.focus) camByUser(function () { render.focus(n.x, n.y, focusZoom(), !reducedMotion()); });
       } catch (e) { warnOnce('render.focus', e); }
       addPulse(n.x, n.y); later(function () { addPulse(n.x, n.y); }, 900);
     }
@@ -3537,7 +3541,7 @@
       g.id = null;
       return n || null;
     }
-    var tapInCamAnim = false;   // pointerdown caiu na animacao de camera do inicio da corrida (ou da lupa, no plano)
+    var tapInCamAnim = false;   // pointerdown caiu num movimento de camera pedido pela jogadora (lupa, enquadrar, chip)
 
     // ---- toque com lupa (plano) ----
     // Dias 20 a 30: a cidade inteira na tela deixa os cruzamentos a 29-33 px uns dos outros em 390x844 e a 18-20 px
@@ -3608,7 +3612,8 @@
     function magZoom(sx, sy, mp) {
       var wp = render.toWorld(sx, sy);
       camFreeze = false;
-      try { camFree(function () { render.focus(wp.x, wp.y, mp.z, !reducedMotion()); }); } catch (e) { warnOnce('render.focus', e); }
+      // zoom pedido pelo toque da jogadora: passa por render.byUser, senao o portao da camera segura 600 ms
+      try { camFree(function () { camByUser(function () { render.focus(wp.x, wp.y, mp.z, !reducedMotion()); }); }); } catch (e) { warnOnce('render.focus', e); }
       magUntil = nowMs() + MAG_MS;
       snd('select');
       emitUI('magZoom', { zoom: mp.z });
@@ -3616,9 +3621,10 @@
     }
     function onTap(sx, sy) {
       var s = game.state;
-      // camera deslizando para o enquadre do inicio da corrida (CAM_MS = 450 ms no render) quando o dedo desceu:
+      // camera andando por pedido da jogadora (lupa, enquadrar, chip; CAM_MS = 450 ms no render) quando o dedo desceu:
       // o toque seria resolvido contra um mapa em movimento e podia pegar o no errado. Ignora sem acao, aviso,
-      // som nem carga. Botoes do HUD (inclusive o chip do Boost) sao DOM e nao passam por aqui.
+      // som nem carga. Movimento automatico (inicio da corrida, abertura do plano) nao chega aqui: o render o para
+      // no pointerdown e o toque age no mapa parado. Botoes do HUD sao DOM e nao passam por aqui.
       if (tapInCamAnim) { tapInCamAnim = false; return; }
       if (s.phase === 'plan') { var mp = magPlan(sx, sy, false); if (mp) { magZoom(sx, sy, mp); return; } }
       // plano, mao vazia: a curva comum (2 ruas, sem sinal nem anel) nao responde ao toque; um ponto que responde
@@ -3883,10 +3889,10 @@
       if (gesture.count() === 0 || e.isPrimary) readRect();
       // camera congelada durante o gesto: animacao em curso para no quadro visivel ANTES do alvo
       // do toque ser lido (fitRoom ao pegar a Rua, reveal do tutorial); nada a move ate soltar
-      // Corrida com a camera ainda animando (render.animating): o toque deste gesto sera ignorado (onTap) e a
-      // camera NAO e congelada, para a animacao terminar no enquadre (hold pararia no meio do caminho).
-      // Lupa: no plano, o mesmo durante a aproximacao da lupa (MAG_MS)
-      if (gesture.count() === 0) tapInCamAnim = (game.state.phase === 'run' || (game.state.phase === 'plan' && nowMs() < magUntil)) && !!(render && render.animating && render.animating());
+      // Regra unica da camera sob o dedo (w_int2): o render ja parou aqui qualquer movimento AUTOMATICO (o toque
+      // age no mapa parado que se ve). Se ainda anda, e um movimento PEDIDO pela jogadora (lupa, enquadrar, chip),
+      // que termina: o toque deste gesto cairia num mapa em movimento e e ignorado (onTap, canRoad, magAt)
+      if (gesture.count() === 0) tapInCamAnim = !!(render && render.animating && render.animating());
       if (!tapInCamAnim) camHold(true);
       if (game.state.phase === 'plan') mapTouched = true;
       var p = localXY(e); gesture.down(e.pointerId, p.x, p.y, nowMs(), !!e.isPrimary);
@@ -3930,7 +3936,10 @@
     // ---- botoes ----
     on(playBtn, 'click', function () {
       playTapAt = nowMs();
-      if (modal() || confirmOpen()) return;   // A3: com a folha aberta o Play (e Enter/espaco nele) nao faz nada
+      if (confirmOpen()) return;   // A3: com a folha aberta o Play (e Enter/espaco nele) nao faz nada
+      // camada modal aberta e o toque chegou ao Play (o balao do roteiro nao cobre a base): o balao pula e soa a
+      // recusa, nunca um toque mudo (w_cam, playtest cego 5)
+      if (modal()) { snd('deny'); var tuM = CRZ.app && CRZ.app.tutorial; try { if (tuM && tuM.bump) tuM.bump(); } catch (e) { warnOnce('tutorial.bump', e); } emitUI('playBlocked', { reason: 'modal' }); return; }
       var s = game.state;
       if (s.phase === 'plan') {
         // dia 1 sem nenhuma rua: o Play nao roda um dia vazio (nv4: o Play no primeiro balao pulou tudo)
@@ -3942,7 +3951,8 @@
         }
         // balao do roteiro que nao pede o Play (Day 1 of 12, The city grew...): o Play espera; o balao pula
         var tuP = CRZ.app && CRZ.app.tutorial;
-        if (tuP && tuP.blocksPlay && tuP.blocksPlay()) { snd('deny'); try { tuP.bump(); } catch (e) { warnOnce('tutorial.bump', e); } emitUI('playBlocked', { reason: 'tutorial' }); return; }
+        // w_cam: so trava com o balao de fato na tela (o motivo visivel); balao ainda nao desenhado nao engole o toque
+        if (tuP && tuP.blocksPlay && tuP.blocksPlay() && tutBalloonOn()) { snd('deny'); try { tuP.bump(); } catch (e) { warnOnce('tutorial.bump', e); } emitUI('playBlocked', { reason: 'tutorial' }); return; }
         // playtest as cegas: as confirmacoes viraram UMA folha visivel com dois botoes grandes (nunca 'toque de novo')
         if (confirmPlay(s)) return;
         startDayNow(s);
@@ -3950,6 +3960,20 @@
         runSpeedTap(s);
       }
     });
+    // w_cam (playtest cego 5, shots 281-287): um toque no Play visivel e com cara de ativo sempre faz algo ou diz
+    // por que nao. Guarda que ignora o toque (os ~1 s depois de comecar o dia; a velocidade travada no dia 1 do
+    // roteiro) deixa o botao com cara de desligado enquanto vale (.crz-guard, a mesma opacidade do Undo sem uso)
+    var playWait = false;
+    function playWaitOn(s, now) {
+      if (s.phase !== 'run' || s.ff) return false;
+      if (now - playPressedAt < PLAY_GUARD) return true;
+      var tu = CRZ.app && CRZ.app.tutorial;
+      try { return !!(tu && tu.speedLocked && tu.speedLocked()); } catch (e) { return false; }
+    }
+    function playWaitTick(s, now) {
+      var w = playWaitOn(s, now);
+      if (w !== playWait) { playWait = w; playBtn.classList.toggle('crz-guard', w); }
+    }
     function startDayNow(s) {
         playBtn.classList.remove('crz-ask');
         setSel(null); clearGhost();
@@ -3969,7 +3993,7 @@
         if (tuL && tuL.speedLocked && tuL.speedLocked()) { snd('deny'); try { tuL.bump(); } catch (e) { warnOnce('tutorial.bump', e); } return; }
         // balao com Got it aberto (que nao e o da velocidade): o botao nao faz nada, o balao pula
         var tuS = CRZ.app && CRZ.app.tutorial;
-        if (tuS && tuS.blocksPlay && tuS.blocksPlay()) { snd('deny'); try { tuS.bump(); } catch (e) { warnOnce('tutorial.bump', e); } return; }
+        if (tuS && tuS.blocksPlay && tuS.blocksPlay() && tutBalloonOn()) { snd('deny'); try { tuS.bump(); } catch (e) { warnOnce('tutorial.bump', e); } return; }
         game.setSpeed(nextSpeed(s.speed, speeds)); snd('select'); speedChosen = game.state.speed; planMemo.speed = speedChosen; planMemoSave();
         playFace.classList.remove('pop'); void playFace.offsetWidth; playFace.classList.add('pop');
         emitUI('speedChanged', { speed: game.state.speed });
@@ -4868,7 +4892,7 @@
       refreshSheet(s);
       if (cache.strikes !== s.strikes) {
         for (i = 0; i < strikeEls.length; i++) strikeEls[i].classList.toggle('on', i < s.strikes);
-        strikesEl.setAttribute('aria-label', 'Strikes: ' + (s.strikes | 0) + ' of ' + CFG.maxStrikes);
+        strikesEl.setAttribute('aria-label', 'Strikes: ' + (s.strikes | 0) + ' of ' + (CFG.ironMode ? 1 : CFG.maxStrikes));
       }
       if (cache.phase !== s.phase || cache.speed !== s.speed || cache.ff !== !!s.ff) {
         cache.ff = !!s.ff;
@@ -5183,7 +5207,8 @@
     var REC_KEY = 'gridlet.records';
     function recordKey(s) {
       var dName = (CRZ.difficulty && CRZ.difficulty.name) || CFG.difficultyName || 'easy';
-      return dName + '.' + (s.archetype || 'classic') + (typeof s.mode === 'string' && s.mode ? '.' + s.mode : '');
+      // w_modes: o jogo de sempre (mode 'free') fica na chave de antes, sem sufixo
+      return dName + '.' + (s.archetype || 'classic') + (typeof s.mode === 'string' && s.mode && s.mode !== 'free' ? '.' + s.mode : '');
     }
     function recordOver(s, win, days, deliv, bestN, retries) {
       var G = CRZ.Game; if (!G || !G.recordsApply) return {};
@@ -5291,7 +5316,7 @@
       ui.classList.toggle('crz-hold', !!holdUntil);
       sumEl.classList.toggle('show', s.phase === 'summary' && !holdUntil);
       overEl.classList.toggle('show', s.phase === 'over' && !holdUntil);
-      if (s.phase === 'plan' && refitOnPlan) { refitOnPlan = false; try { if (render && render.fit) render.fit(true); } catch (e) { warnOnce('render.fit', e); } }
+      if (s.phase === 'plan' && refitOnPlan) { refitOnPlan = false; try { if (render && render.fitAll) render.fitAll(true); } catch (e) { warnOnce('render.fit', e); } }
       if (s.phase !== 'plan') { setSel(null); clearGhost(); showInfluence(null, 0); }
       if (s.phase === 'summary') {
         // o aviso do primeiro gasto (do plano) nao entra no painel do resumo
@@ -6024,6 +6049,7 @@
         var o2 = ov(); if (o2 && o2.showInfluence !== null && o2.showInfluence !== undefined) o2.showInfluence = null;
       }
       sumShownTick(now);
+      playWaitTick(s, now);
       if (pairArm && now > pairArm.until) { pairArm = null; pairRep = null; syncSelectedNode(); }
       if (pairFirst !== null && now > pairUntil && !pairArm) { pairFirst = null; syncSelectedNode(); }
       pairChipTick(false);

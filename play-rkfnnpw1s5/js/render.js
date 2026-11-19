@@ -346,7 +346,7 @@
     var dvX = new Float64Array(DELIV_N), dvY = new Float64Array(DELIV_N), dvT0 = new Float64Array(DELIV_N);
     var dvOn = new Uint8Array(DELIV_N), dvNext = 0, dvLive = 0;
 
-    var anim = { on: false, t0: 0, fx: 0, fy: 0, fz: 1, tx: 0, ty: 0, tz: 1 };
+    var anim = { on: false, t0: 0, fx: 0, fy: 0, fz: 1, tx: 0, ty: 0, tz: 1, auto: false };
     // camera: true quando o ultimo movimento NAO foi um enquadramento da cidade inteira (gesto, foco, reveal).
     // As setas de borda so aparecem nesse caso; depois de fit/fitAll a cidade esta toda na area util
     var camUser = false, camPhase, camDay = null, dtMs = 0;
@@ -487,7 +487,7 @@
 
     r.pan = function (dx, dy) {
       var c = cam();
-      anim.on = false; held.moved = true; camUser = true;
+      anim.on = false; held.moved = true; held.pend = false; camUser = true;
       c.x -= dx / c.zoom; c.y -= dy / c.zoom;
       clampCam(c);
     };
@@ -495,7 +495,7 @@
     r.zoomAt = function (factor, sx, sy) {
       if (!(factor > 0) || !isFinite(factor)) return;
       var c = cam();
-      anim.on = false; held.moved = true; camUser = true;
+      anim.on = false; held.moved = true; held.pend = false; camUser = true;
       if (typeof sx !== 'number') { sx = W * 0.5; sy = H * 0.5; }
       var wx = (sx - W * 0.5) / c.zoom + c.x, wy = (sy - H * 0.5) / c.zoom + c.y;
       c.zoom = clamp(c.zoom * factor, zMin, ZMAX);
@@ -509,28 +509,83 @@
     // exatamente no quadro que a jogadora esta vendo (o ponto sob o dedo nao foge). Enquanto
     // segura, focus/fit/reveal nao mexem na camera: o ultimo pedido fica guardado e roda (animado)
     // ao soltar, a menos que o proprio gesto tenha movido a camera (pan, pinca, auto-pan).
+    // Camera parada perto do dedo (playtest cego 5, shots 048/058/074: depois de construir a camera pulava e o
+    // segundo arrasto caia noutro lugar). Regra: um movimento AUTOMATICO (fit, fitAll, focus, reveal, abertura do
+    // plano e comeco da corrida no draw) nunca roda com um dedo no mapa nem ate CAM_IDLE_MS depois do ultimo toque nele:
+    // fica guardado (o ultimo pedido vale) e roda, animado, no primeiro quadro ocioso. O proprio render escuta o
+    // ponteiro no canvas (vale mesmo quando a UI nao chama hold). Dedo que pousa durante uma animacao automatica:
+    // a camera para onde esta e o resto volta a ficar guardado. Pedido explicito da jogadora (botao de enquadrar,
+    // chip): r.byUser(fn) passa direto. Gesto (pan, pinca) descarta o guardado: a jogadora tomou a camera.
+    var CAM_IDLE_MS = 600;
     var held = { on: false, moved: false, pend: false, x: 0, y: 0, z: 1 };
+    var touch = { ids: {}, n: 0, last: -1e9 }, userReq = 0;
+    var clkF = null;   // relogio injetavel so para testes (r._camClock)
+    function clk() { return clkF ? clkF() : (root.performance && root.performance.now) ? root.performance.now() : Date.now(); }
+    r._camClock = function (f) { clkF = typeof f === 'function' ? f : null; };
+    function busy() { return held.on || touch.n > 0 || clk() - touch.last < CAM_IDLE_MS; }
+    // Regra unica (w_int2): o mapa nunca anda sob um dedo que vai resolver um toque.
+    //  - movimento AUTOMATICO em curso quando o dedo pousa: para no quadro visivel (o toque age no que se ve) e o
+    //    resto do destino espera o dedo ficar parado CAM_IDLE_MS;
+    //  - movimento PEDIDO pela jogadora (r.byUser: lupa, botao de enquadrar, chips) segue ate o fim: parar no meio
+    //    deixaria a lupa num zoom onde os alvos ainda estao perto demais. O toque que pousa nele e ignorado pela UI
+    //    (r.animating() verdadeiro no pointerdown = o mapa esta andando sob o dedo).
+    function stopAuto() {
+      if (!anim.on || !anim.auto) return;
+      held.pend = true; held.x = anim.tx; held.y = anim.ty; held.z = anim.tz;
+      anim.on = false;
+    }
+    function onDown(e) {
+      if (e && e.pointerType === 'mouse' && e.button) return;
+      var id = e && e.pointerId != null ? e.pointerId : 0;
+      if (!touch.ids[id]) { touch.ids[id] = 1; touch.n++; }
+      touch.last = clk(); stopAuto();
+    }
+    function onUp(e) {
+      var id = e && e.pointerId != null ? e.pointerId : 0;
+      if (touch.ids[id]) { delete touch.ids[id]; touch.n = Math.max(0, touch.n - 1); }
+      touch.last = clk();
+    }
+    if (canvas && canvas.addEventListener) {
+      var cap = { capture: true, passive: true };
+      canvas.addEventListener('pointerdown', onDown, cap);
+      canvas.addEventListener('pointerup', onUp, cap);
+      canvas.addEventListener('pointercancel', onUp, cap);
+      canvas.addEventListener('lostpointercapture', onUp, cap);
+    }
+    r.byUser = function (fn) { userReq++; try { return fn(); } finally { userReq--; } };
+    r.camIdle = function () { return !busy(); };   // so para testes e para a UI
+    r.camPending = function () { return !!held.pend; };
     r.hold = function (on) {
+      touch.last = clk();
       if (on) {
         if (held.on) return;
-        anim.on = false;
-        held.on = true; held.moved = false; held.pend = false;
+        stopAuto();
+        held.on = true; held.moved = false;
         return;
       }
       if (!held.on) return;
       held.on = false;
-      if (held.pend && !held.moved) { held.pend = false; moveCam(held.x, held.y, held.z, true); }
-      held.pend = false;
+      // o guardado NAO roda ao soltar: espera CAM_IDLE_MS sem toque (draw); o gesto que mexeu na camera o descarta
+      if (held.moved) held.pend = false;
+      // perdeu o pointerup (estado do canvas preso): a UI soltou o gesto, entao nenhum dedo conta mais
+      touch.ids = {}; touch.n = 0;
     };
     r.held = function () { return held.on; };
+    function pendTick() {
+      if (!held.pend || busy()) return;
+      held.pend = false;
+      moveCam(held.x, held.y, held.z, true);
+    }
     function moveCam(x, y, z, animated) {
       var c = cam();
       z = clamp(z, zMin, ZMAX);
-      if (held.on) { held.pend = true; held.x = x; held.y = y; held.z = z; return; }
+      var auto = userReq <= 0;
+      if (auto && busy()) { held.pend = true; held.x = x; held.y = y; held.z = z; return; }
+      if (!auto) held.pend = false;   // pedido da jogadora vence o guardado
       // alvo limitado ao CAM_R antes de aplicar ou animar (focus, fit, reveal passam por aqui)
       var t = clampCam({ x: x, y: y }, z);
       if (!animated || reduceMotion) { anim.on = false; c.x = t.x; c.y = t.y; c.zoom = z; return; }   // reduce: salta ao destino
-      anim.on = true; anim.t0 = -1;
+      anim.on = true; anim.t0 = -1; anim.auto = auto;
       anim.fx = c.x; anim.fy = c.y; anim.fz = c.zoom;
       anim.tx = t.x; anim.ty = t.y; anim.tz = z;
     }
@@ -1298,6 +1353,8 @@
         camPhase = phase; camDay = camD;
       }
 
+      // movimento automatico guardado (dedo no mapa ou toque ha menos de CAM_IDLE_MS): roda agora se ocioso
+      pendTick();
       // animacao de camera
       var c = cam(), camAnim = anim.on;
       if (anim.on) {

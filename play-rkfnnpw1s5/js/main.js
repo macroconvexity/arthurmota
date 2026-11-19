@@ -46,8 +46,15 @@
     if (done || !bad) { return; }
     try { localStorage.setItem(RECOVER_KEY, '1'); if (localStorage.getItem(RECOVER_KEY) !== '1') { return; } } catch (e) { return; }
     if (played === '1' || (cur && !freshDay1(cur))) { return; }
+    // w_modes: so para o jogo de sempre. Nada com um save de modo ativo (One strike, Today's city), com um jogo de
+    // sempre guardado a parte (gridlet.slot.free) ou com uma copia recusada que era de um modo
+    var parsedBad = null, parsedCur = null, parkedFree = null;
+    try { parsedBad = JSON.parse(bad); } catch (e) { return; }
+    try { parsedCur = cur ? JSON.parse(cur) : null; } catch (e) { parsedCur = null; }
+    try { parkedFree = localStorage.getItem('gridlet.slot.free'); } catch (e) { parkedFree = null; }
+    if ((parsedBad && parsedBad.mode && parsedBad.mode !== 'free') || (parsedCur && parsedCur.mode && parsedCur.mode !== 'free') || parkedFree) { return; }
     var g = null;
-    try { g = CRZ.Game.load(JSON.parse(bad)); } catch (e) { g = null; }
+    try { CRZ.CFG.ironMode = false; g = CRZ.Game.load(parsedBad); } catch (e) { g = null; }
     if (!g || g.migrated || g.state.day < 2) { return; }
     var okW = false;
     try { localStorage.setItem(SAVE_KEY, bad); okW = localStorage.getItem(SAVE_KEY) === bad; } catch (e) {}
@@ -81,14 +88,17 @@
     } catch (e) { if (root.console) { root.console.error('cfg invalido', e); } }
     var game = null;
     var saved = null, notice = null;
-    if (param('reset') === null && param('seed') === null) { recoverBad(); }
+    // w_modes: modo pedido pela tela inicial antes do reload (menu.js CRZ.Modes.go); o save carregado diz o seu
+    var Modes = CRZ.Modes || null, launch = Modes ? Modes.takeLaunch() : null;
+    // a recuperacao unica so devolve o save do jogo de sempre, e nunca a caminho de um modo (recoverBad confere o resto)
+    if (param('reset') === null && param('seed') === null && !launch) { recoverBad(); }
     try { saved = localStorage.getItem(SAVE_KEY); } catch (e) {}
     // ?seed= so troca a partida salva numa maquina de desenvolvimento; em producao o link nao apaga o save
     var seedParam = param('seed');
     if (seedParam !== null && saved && !devHost()) { seedParam = null; }
     if (saved && seedParam === null) {
       var parsed = null;
-      try { parsed = JSON.parse(saved); game = CRZ.Game.load(parsed); } catch (e) { game = null; }
+      try { parsed = JSON.parse(saved); if (Modes) { CRZ.CFG.ironMode = !!(parsed && parsed.mode === 'iron'); } game = CRZ.Game.load(parsed); } catch (e) { game = null; }
       if (game && game.migrated) { notice = MIGRATED_NOTICE; }
       var flag = null;
       try { flag = sessionStorage.getItem(DIFF_SWITCH_KEY); sessionStorage.removeItem(DIFF_SWITCH_KEY); } catch (e) {}
@@ -122,7 +132,11 @@
       // v2: a primeira partida e sempre a Classica (v2/nivel.md 3.2: aprende o jogo antes da forma); depois, a semente
       // escolhe (game.js archetypeOf). ?arch=river|park|classic (testes) escolhe direto
       var archP = param('arch');
-      game = CRZ.Game.create(seed, { teach: !played, archetype: archP || (played ? 'seed' : 'classic') });   // a cena do dia 2 e so do primeiro jogo
+      // w_modes: One strike liga a regra de um crash (CFG.ironMode); Today's city tira a semente e a forma da data local
+      var mode = launch || 'free', date = null;
+      if (Modes) { CRZ.CFG.ironMode = mode === 'iron'; }
+      if (Modes && mode === 'daily') { date = Modes.todayStr(); seed = Modes.dateSeed(date); }
+      game = CRZ.Game.create(seed, { teach: !played, archetype: archP || (played || mode === 'daily' ? 'seed' : 'classic'), mode: mode, date: date });   // a cena do dia 2 e so do primeiro jogo
     }
 
     var audio = CRZ.Audio.create();
@@ -158,7 +172,7 @@
     try {
       if (CRZ.Menu) {
         menu = CRZ.Menu.create({ root: hud, game: game, render: render, ui: ui, audio: audio, tutorial: tutorial,
-                                 autoStart: param('nostart') === null });
+                                 autoStart: param('nostart') === null && !launch });
         CRZ.app.menu = menu;
       }
     } catch (e) { if (root.console) { root.console.error('Menu falhou', e); } }
@@ -183,6 +197,17 @@
         return true;
       },
       restart: function () {
+        // w_modes: One strike recomeca do zero no mesmo modo; Today's city nao recomeca (uma por data): a derrota
+        // final fica como o resultado de hoje, a partida em andamento fica guardada, e o jogo vai para a tela inicial
+        var ms = game.state || {};
+        if (Modes && ms.mode === 'iron') { Modes.go('iron', { drop: true }); return; }
+        if (Modes && ms.mode === 'daily') {
+          if (ms.phase === 'over') {
+            if (ms.final && ms.final.retry) { Modes.recordDaily(ms, false); }
+            Modes.go('free', { start: true, drop: true });
+          } else { Modes.go('free', { start: true }); }
+          return;
+        }
         // B1 (revisao 2026-11-09): o pagehide/visibilitychange do reload chamava ui.saveNow e regravava o save
         CRZ.app.leaving = true;
         try { if (ui && ui.beginLeave) { ui.beginLeave(); } } catch (e) {}

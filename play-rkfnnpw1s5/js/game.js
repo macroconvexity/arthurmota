@@ -245,6 +245,9 @@
       // v2 (D9): voltas ao comeco de um capitulo nesta partida; dia do checkpoint (manha para onde a volta leva; null
       // sem checkpoint, ironMode); jams livres de hoje (dias 1 a 5) e se o aviso do primeiro jam livre ja saiu
       chapterRetries: 0, checkpointDay: null, freeJams: 0, freeJamSeen: false, iron: !!CFG.ironMode,
+      // modos (w_modes): 'free' (o jogo de sempre), 'iron' (One strike: main.js liga CFG.ironMode) ou 'daily' (Today's
+      // city; date = 'AAAA-MM-DD' local da semente). Vem de opts na partida nova e do save no load
+      mode: modeOk(opts.mode) ? opts.mode : 'free', date: dateOk(opts.date) ? opts.date : null,
       // mapa de problemas: nodeId -> PICO de estresse do dia (so >= HOT_MIN). Vive do fim do
       // dia ate o proximo startDay. No removeNode/splitEdge a entrada fica (id inexistente: o
       // render ignora; nao e reaproveitado porque ids de no nao se repetem).
@@ -809,7 +812,7 @@
                hardestDay: hasPeak ? hard : 0, hardestPeak: hasPeak ? Math.round(Math.max(0, hardP) * 100) / 100 : 0, failedDays: failedDays,
                // v2: strikes da partida inteira (dias com strike no historico), voltas de capitulo, e a volta oferecida
                // (derrota com checkpoint: o capitulo e o dia da manha para onde a partida volta)
-               strikesTotal: failedDays.length, chapter: chapterOf(st.day), chapterRetries: st.chapterRetries, iron: !!CFG.ironMode,
+               strikesTotal: failedDays.length, chapter: chapterOf(st.day), chapterRetries: st.chapterRetries, iron: !!CFG.ironMode, mode: st.mode,
                retry: (!win && checkpoint && !CFG.ironMode) ? { chapter: chapterOf(checkpoint.st.day), day: checkpoint.st.day } : null };
     }
     // ----- checkpoint (v2, D9) -----
@@ -2367,7 +2370,9 @@
         // v2m: forma de cada cruzamento (calm, main, even, heavy) que o conselho da manha le
         kinds: st.kinds,
         // v2x: o 'e se' do dia que acabou e a memoria do conselho por cruzamento (estavel entre dias e reloads)
-        whatIf: st.whatIf || undefined, adv: st.adv || undefined
+        whatIf: st.whatIf || undefined, adv: st.adv || undefined,
+        // w_modes: so fora do jogo de sempre (save antigo e save do jogo livre seguem iguais)
+        mode: st.mode !== 'free' ? st.mode : undefined, date: st.mode === 'daily' ? st.date : undefined
       });
     }
 
@@ -2418,6 +2423,7 @@
       if (isObjL(saved.whatIf) && fin(saved.whatIf.day) && isObjL(saved.whatIf.nodes)) st.whatIf = saved.whatIf;
       if (isObjL(saved.adv)) st.adv = saved.adv;
       if (isObjL(saved.perks)) st.perks = { round: saved.perks.round === true, freePower: nat(saved.perks.freePower) ? saved.perks.freePower : 0, chosen: typeof saved.perks.chosen === 'string' ? saved.perks.chosen : undefined };
+      st.mode = modeOk(saved.mode) ? saved.mode : 'free'; st.date = st.mode === 'daily' && dateOk(saved.date) ? saved.date : null;
       if (typeof saved.archetype === 'string' && CFG.archetypes && own(CFG.archetypes, saved.archetype)) st.archetype = saved.archetype;
       shiftDay = nat(saved.shiftDay) ? saved.shiftDay : 0;
       if (isObjL(saved.crew)) { st.crew = crewNorm(saved.crew); if (st.phase !== 'plan') st.crew.offer = false; }
@@ -2491,6 +2497,9 @@
   }
 
   // ---------- validacao de save (localStorage pode vir corrompido ou de outra versao) ----------
+  var MODES = { free: 1, iron: 1, daily: 1 };
+  function modeOk(m) { return typeof m === 'string' && MODES[m] === 1; }
+  function dateOk(d) { return typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d); }
   function fin(v) { return typeof v === 'number' && isFinite(v); }
   var DIE_STATES = { none: 1, offer: 1, used: 1, passed: 1, kept: 1, auto: 1 };
   function keptOk(k) { var df = isObj(k) && typeof k.id === 'string' ? faceDef(k.id) : null; return !!df && !!df.offer && nat(k.value) && k.value >= 1 && k.value <= (DC().faces || 6); }

@@ -73,9 +73,38 @@
     diffStrike: 'A strike is a crossing that jams.',
     diffNew: 'Switching starts a new game.',
     // paisagem curta (altura <= 500): o jogo e de iPhone em pe
-    landTitle: 'Best in portrait', landText: 'Turn your phone upright for the best view.', landGo: 'Play anyway'
+    landTitle: 'Best in portrait', landText: 'Turn your phone upright for the best view.', landGo: 'Play anyway',
+    // w_modes: dois jeitos de jogar, numa folha atras de um botao da tela inicial
+    // Today's city sem sequencia de dias, contagem regressiva ou lembrete: v2/jogador.md 6.1 (a sequencia faz voltar
+    // para nao perder a contagem, nao porque se quer jogar). O resultado de hoje fica na folha ate a data mudar
+    moreWays: 'More ways to play',
+    daily: 'Today\'s city', dailyLine: 'One city for everyone today. Normal rules, {days} days.',
+    dailyCont: 'Continue', dailyDone: 'Done',
+    dailyResult: function (r) { return 'Today: day ' + r.day + ' \u00b7 ' + r.cars + ' cars' + (r.retries ? ' \u00b7 ' + r.retries + (r.retries === 1 ? ' retry' : ' retries') : '') + '. A new city tomorrow.'; },
+    dailyOld: function (d) { return 'Your unfinished city from ' + d + ' will be replaced.'; },
+    iron: 'One strike', ironLocked: 'Locked', ironLockLine: 'Win all {days} days once to unlock.',
+    ironLine: 'One jam ends the game. No chapter replays.',
+    ironBest: function (b, dl) { return 'Best on ' + dl + ': day ' + b.bestDays + ' \u00b7 ' + b.bestDelivered + ' cars'; },
+    ironRule: 'One strike: days 1 to {graceEnd} are free. From day {strikeDay}, the first jam ends the game and you start over on day 1.',
+    ironGo: 'Start', back: 'Back',
+    goalIron: 'Guide the cars through the city for {d} days. One strike: from day {strikeDay}, the first crossing that jams ends the game.',
+    strikesIron: 'days 1 to {graceEnd}, a jam costs nothing. From day {strikeDay}, the first jam ends the game. No chapter replays.',
+    modeTagDaily: function (d) { return 'Today\'s city \u00b7 ' + d; }
   };
   if (CRZ.dayText) CRZ.dayText(STR);   // integracao v2: dias de regra nos textos ({strikeDay}, {offerDay}...) saem do CFG
+  // w_modes: no One strike as frases de strike da UI (ui.js carrega antes) dizem a regra do modo, nao 'replay it'.
+  // Embrulho lido na hora (CFG.ironMode e ligado por main.js no boot); fora do modo, a frase de sempre
+  (function wrapIron() {
+    var U = CRZ.UI && CRZ.UI.STR;
+    if (!U || U.__iron) { return; }
+    var IR = { strikesFrom: 'From today, one jam ends the game.', lockedFirst: 'This crossing jammed. One strike: the game is over.',
+               strikesBack: 'New chapter. One jam still ends the game.' };
+    Object.keys(IR).forEach(function (k) {
+      var f = U[k]; if (typeof f !== 'function') { return; }
+      U[k] = function () { return CRZ.CFG && CRZ.CFG.ironMode ? IR[k] : f.apply(this, arguments); };
+    });
+    try { Object.defineProperty(U, '__iron', { value: true }); } catch (e) {}
+  })();
   // frase de um perfil de dificuldade (le os numeros do perfil, nunca fixos aqui)
   // ref (opcional) = o outro perfil, para comparar: {label, spawn, patience, strikes, words}.
   // ref.words = true: diz em palavras (o Normal contra o Easy); senao, os numeros contra ref ("than Normal").
@@ -130,11 +159,11 @@
   }
   function readSound() { return getItem(ls(), KEY_SOUND) !== '0'; }
   function writeSound(on) { setItem(ls(), KEY_SOUND, on ? '1' : '0'); }
+  // w_modes: o save do jogo de sempre (ativo ou estacionado; CRZ.Modes logo abaixo). Save antigo sem mode e dele
+  function freeSave() { return CRZ.Modes ? CRZ.Modes.modeSave('free') : null; }
   function saveDay() {
-    try {
-      var j = JSON.parse(getItem(ls(), KEY_SAVE) || 'null');
-      return j && j.st ? num(j.st.day) : 0;
-    } catch (e) { return 0; }
+    var j = freeSave();
+    return j && j.st ? num(j.st.day) : 0;
   }
   // dia 2 em diante, ou o dia 1 ja jogado (resumo/carta): o save retoma a partida, nao e um comeco
   // nv8 7: limite de strikes da dificuldade em jogo (4 Easy, 3 Normal), lido na hora
@@ -145,13 +174,122 @@
   // v2x: o nome da dificuldade ao lado do numero (playtest cego 5: leu '3' no How to play com o Normal ja marcado,
   // depois de jogar o Easy de 4)
   function diffLabel() { var D = CRZ.difficulty; return (D && D.label && D.label()) || 'Easy'; }
-  function hasContinue() {
-    if (saveDay() > 1) { return true; }
-    try {
-      var j = JSON.parse(getItem(ls(), KEY_SAVE) || 'null');
-      return !!(j && j.st && num(j.st.day) === 1 && (j.st.phase === 'summary' || j.st.phase === 'run'));
-    } catch (e) { return false; }
+  function resumes(j) { return !!(j && j.st && (num(j.st.day) > 1 || (num(j.st.day) === 1 && (j.st.phase === 'summary' || j.st.phase === 'run')))); }
+  // Continue do botao grande: o jogo de sempre. activeContinue: a partida carregada agora (qualquer modo) retoma
+  function hasContinue() { return resumes(freeSave()); }
+  function activeContinue() { var j = CRZ.Modes ? parseJ(getItem(ls(), KEY_SAVE)) : null; return CRZ.Modes ? (resumes(j) || (!!j && !!j.st && modeOf(j) !== 'free')) : hasContinue(); }
+  /* ---------- modos (w_modes): One strike e Today's city ----------
+   * Um so save ativo, como sempre ('cruzamento.save', o que ui.js grava). Os outros modos ficam estacionados em
+   * 'gridlet.slot.<modo>' (e o memo do plano em '.plan'): trocar de modo estaciona o ativo, traz o outro e recarrega.
+   * Save sem campo mode (todo save antigo) e o jogo de sempre ('free'). sessionStorage 'gridlet.launch' = modo pedido
+   * antes do reload: main.js cria a partida nova nesse modo quando nao ha save e a tela inicial nao abre. */
+  var MODES = { free: 1, iron: 1, daily: 1 };
+  var KEY_PLAN = 'gridlet.plan', KEY_MIDDAY = 'cruzamento.midday', KEY_SLOT = 'gridlet.slot.';
+  var KEY_UNLOCK = 'gridlet.ironUnlocked', KEY_IRON = 'gridlet.ironBest', KEY_DAILY = 'gridlet.daily', KEY_LAUNCH = 'gridlet.launch';
+  function pad2(n) { return (n < 10 ? '0' : '') + n; }
+  // data local de hoje 'AAAA-MM-DD' (now: Date ou ms, para os testes)
+  function todayStr(now) {
+    var d = now instanceof Date ? now : new Date(now == null ? Date.now() : +now);
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
   }
+  // semente da cidade do dia: FNV-1a 32 bits da data, em 1..2^31-1 (igual em todo aparelho na mesma data local)
+  function dateSeed(str) {
+    var h = 0x811c9dc5, s = 'gridlet-daily-' + String(str);
+    for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    return (h % 2147483646) + 1;
+  }
+  var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  function dateLabel(str) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(str)); return m ? MONTHS[+m[2] - 1] + ' ' + (+m[3]) : ''; }
+  function parseJ(v) { try { var j = JSON.parse(v || 'null'); return j && typeof j === 'object' ? j : null; } catch (e) { return null; } }
+  function modeOf(j) { return j && typeof j.mode === 'string' && MODES[j.mode] === 1 ? j.mode : 'free'; }
+  function activeSave() { var j = parseJ(getItem(ls(), KEY_SAVE)); return j && j.st ? j : null; }
+  function activeMode() { var j = activeSave(); return j ? modeOf(j) : null; }
+  // save de um modo (ativo ou estacionado); o do dia so vale na mesma data
+  function modeSave(mode, today) {
+    var j = activeSave();
+    if (!(j && modeOf(j) === mode)) { j = parseJ(getItem(ls(), KEY_SLOT + mode)); if (!(j && j.st && modeOf(j) === mode)) { j = null; } }
+    if (j && mode === 'daily' && j.date !== (today || todayStr())) { return null; }
+    return j;
+  }
+  function moveKey(from, to) {
+    var v = getItem(ls(), from);
+    try { if (ls()) { if (v != null && v !== '') { ls().setItem(to, v); } else { ls().removeItem(to); } ls().removeItem(from); } } catch (e) {}
+  }
+  function park() {
+    var m = activeMode();
+    if (m) { moveKey(KEY_SAVE, KEY_SLOT + m); moveKey(KEY_PLAN, KEY_SLOT + m + '.plan'); }
+    try { if (ls()) { ls().removeItem(KEY_SAVE); ls().removeItem(KEY_MIDDAY); } } catch (e) {}
+    return m;
+  }
+  function unpark(mode, today) {
+    var j = parseJ(getItem(ls(), KEY_SLOT + mode));
+    var ok = j && j.st && modeOf(j) === mode && (mode !== 'daily' || j.date === (today || todayStr()));
+    if (ok) { moveKey(KEY_SLOT + mode, KEY_SAVE); moveKey(KEY_SLOT + mode + '.plan', KEY_PLAN); }
+    else { try { if (ls()) { ls().removeItem(KEY_SLOT + mode); ls().removeItem(KEY_SLOT + mode + '.plan'); } } catch (e) {} }
+    return !!ok;
+  }
+  function dropActive() { try { if (ls()) { ls().removeItem(KEY_SAVE); ls().removeItem(KEY_PLAN); ls().removeItem(KEY_MIDDAY); } } catch (e) {} }
+  // One strike: liberado depois de vencer os 30 dias uma vez (marca propria; quem ja venceu antes dela tambem)
+  function ironUnlocked() { return getItem(ls(), KEY_UNLOCK) === '1' || readBest().wins > 0; }
+  function unlockIron() { setItem(ls(), KEY_UNLOCK, '1'); }
+  // recorde do One strike por dificuldade, como os recordes do fim de partida (ui.js 'gridlet.records')
+  function ironKey() { var C = CRZ.CFG || {}; return KEY_IRON + '.' + ((CRZ.difficulty && CRZ.difficulty.name) || C.difficultyName || 'easy'); }
+  function readIron() {
+    var out = { games: 0, wins: 0, bestDays: 0, bestDelivered: 0 }, j = parseJ(getItem(ls(), ironKey()));
+    if (j) { for (var k in out) { out[k] = num(j[k]); } }
+    return out;
+  }
+  function recordIron(s, win) {
+    var b = readIron();
+    b.games += 1; if (win) { b.wins += 1; }
+    b.bestDays = Math.max(b.bestDays, num(s.day)); b.bestDelivered = Math.max(b.bestDelivered, num(s.totalDelivered));
+    setItem(ls(), ironKey(), JSON.stringify(b));
+    return b;
+  }
+  // resultado de hoje na cidade do dia (um por data; o de outra data nao conta)
+  function readDaily(today) {
+    var j = parseJ(getItem(ls(), KEY_DAILY));
+    if (!j || j.date !== (today || todayStr())) { return null; }
+    return { date: j.date, day: num(j.day), cars: num(j.cars), retries: num(j.retries), win: j.win === true };
+  }
+  function recordDaily(s, win) {
+    var r = { date: (s && s.date) || todayStr(), day: num(s.day), cars: num(s.totalDelivered), retries: num(s.chapterRetries), win: !!win };
+    setItem(ls(), KEY_DAILY, JSON.stringify(r));
+    return r;
+  }
+  function takeLaunch() {
+    var v = getItem(ss(), KEY_LAUNCH);
+    try { var s0 = ss(); if (s0) { s0.removeItem(KEY_LAUNCH); } } catch (e) {}
+    return v && MODES[v] === 1 ? v : null;
+  }
+  // troca para o modo pedido e recarrega. opts.start: abre a tela inicial depois (senao entra direto na partida).
+  // A partida em memoria (plano, resumo ou dia correndo) e gravada antes de estacionar; a terminada nao
+  function go(mode, opts) {
+    opts = opts || {};
+    if (MODES[mode] !== 1) { return false; }
+    var app = CRZ.app || {}, g = app.game, s = g && g.state;
+    if (g && g.save && s && s.phase !== 'over' && !opts.drop) { try { setItem(ls(), KEY_SAVE, JSON.stringify(g.save())); } catch (e) {} }
+    if (opts.drop) {
+      dropActive();
+      // recomecar do zero no mesmo modo: nenhuma partida guardada desse modo volta
+      if (s && s.mode === mode) { try { if (ls()) { ls().removeItem(KEY_SLOT + mode); ls().removeItem(KEY_SLOT + mode + '.plan'); } } catch (e) {} }
+    }
+    // cidade do dia de outra data no save ativo: a de hoje comeca no lugar dela
+    if (mode === 'daily' && activeMode() === 'daily' && !modeSave('daily')) { dropActive(); }
+    if (activeMode() !== mode) { park(); unpark(mode); }
+    app.leaving = true;
+    if (opts.start) { setItem(ss(), 'gridlet.afterSwitch', '1'); }
+    else { setItem(ss(), KEY_LAUNCH, mode); setItem(ss(), KEY_SESSION, '1'); }
+    try { root.location.reload(); } catch (e) {}
+    return true;
+  }
+  CRZ.Modes = {
+    todayStr: todayStr, dateSeed: dateSeed, dateLabel: dateLabel, modeOf: modeOf, activeMode: activeMode, modeSave: modeSave,
+    park: park, unpark: unpark, dropActive: dropActive, ironUnlocked: ironUnlocked, unlockIron: unlockIron,
+    readIron: readIron, recordIron: recordIron, readDaily: readDaily, recordDaily: recordDaily, takeLaunch: takeLaunch, go: go,
+    keys: { slot: KEY_SLOT, unlock: KEY_UNLOCK, iron: KEY_IRON, daily: KEY_DAILY, launch: KEY_LAUNCH }
+  };
+
   var sessionFlag = false;
   // 'gridlet.afterSwitch': difficulty.set pede a tela inicial depois do reload (lido uma vez)
   var afterSwitch = false;
@@ -227,6 +365,12 @@
     '.crzm-dnote{font-size: var(--fs-sm)}',
     '.crzm-best{font-size: var(--fs-sm);line-height:1.6;color:var(--inkText);min-height:20px}',
     '.crzm-best b{color:var(--ink);font-weight: var(--fw-semi)}',
+    /* w_modes: a folha dos modos usa a folha da troca de dificuldade, as linhas do menu e a linha cinza do seletor */
+    '.crzm-modes .crzm-sheet{gap:0}.crzm-modes .crzm-switchtxt{margin-bottom:2px}',
+    '.crzm-modes .crzm-row{border-bottom:0;min-height: var(--h-btn)}',
+    '.crzm-modes .crzm-row.lock{opacity:.45}',
+    '.crzm-mline{font-size: var(--fs-sm);line-height:1.4;color:var(--inkText);text-align:left;padding:0 0 12px;border-bottom:var(--bw) solid var(--grid);margin-bottom:12px}',
+    '.crzm-mline div+div{margin-top:2px}',
     /* folha de menu */
     '.crzm-menu{z-index:2;align-items:flex-end;justify-content:center;background: var(--scrim)}',
     // B2: a folha de troca de dificuldade fica acima da tela inicial (3) e do menu (2)
@@ -331,7 +475,8 @@
     function st() { return (game && game.state) || {}; }
     function body() { return doc && doc.body; }
     function bodyClass(name, on) { var b = body(); if (b && b.classList) { b.classList[on ? 'add' : 'remove'](name); } }
-    function modalCount() { return (startOpen ? 1 : 0) + (menuOpen ? 1 : 0) + (helpOpen ? 1 : 0) + (landOpen ? 1 : 0) + (switchOpen ? 1 : 0); }
+    function modalCount() { return (startOpen ? 1 : 0) + (menuOpen ? 1 : 0) + (helpOpen ? 1 : 0) + (landOpen ? 1 : 0) + (switchOpen ? 1 : 0) + (modesOpen ? 1 : 0); }
+    var modesEl = null, modesOpen = false;   // w_modes: folha 'More ways to play'
     // nv7: trocar de dificuldade com partida em andamento apaga a partida: pede confirmacao numa folha
     var switchEl = null, switchOpen = false, switchTo = null;
     // nv8 2: dia 1 com qualquer construcao (ou dia ja iniciado) tambem pede a folha antes de apagar
@@ -341,16 +486,24 @@
       try { if (game && game.canUndo && game.canUndo()) { return true; } } catch (e) {}
       return false;
     }
+    // w_modes: trocar a dificuldade recomeca o jogo de sempre (difficulty.set apaga o save ativo); a cidade do dia ou o
+    // One strike carregado agora fica guardado antes, e o jogo livre volta para a chave que a troca apaga
+    function keepModes() {
+      var M = CRZ.Modes, s = st();
+      if (!M || !s.mode || s.mode === 'free' || !(CRZ.app && CRZ.app.game === game)) { return; }
+      if (s.phase !== 'over' && game.save) { try { setItem(ls(), KEY_SAVE, JSON.stringify(game.save())); } catch (e) {} }
+      M.park(); M.unpark('free');
+    }
     function askSwitch(n) {
       var D = CRZ.difficulty; if (!D) { return; }
-      if (!hasContinue() && !liveProgress()) { D.set(n); return; }
+      if (!hasContinue() && !liveProgress()) { keepModes(); D.set(n); return; }
       switchTo = n;
       if (!switchEl) {
         switchEl = layer('crzm-switch', STR.difficulty);
         var sh = el('div', 'crzm-sheet'); sh.setAttribute('data-scroll', '');
         els.switchTxt = el('p', 'crzm-switchtxt', '');
         sh.appendChild(els.switchTxt);
-        sh.appendChild(btn('crzm-big', STR.switchYes, function () { var t = switchTo; closeSwitch(); if (t && CRZ.difficulty) { CRZ.difficulty.set(t); } }));
+        sh.appendChild(btn('crzm-big', STR.switchYes, function () { var t = switchTo; closeSwitch(); if (t && CRZ.difficulty) { keepModes(); CRZ.difficulty.set(t); } }));
         sh.appendChild(btn('crzm-ghost', STR.switchNo, function () { closeSwitch(); }));
         switchEl.appendChild(sh); rootEl.appendChild(switchEl);
       }
@@ -525,6 +678,7 @@
       var day = num(st().day) || 1;
       var CFG = CRZ.CFG || {};
       sc.appendChild(el('h3', null, STR.goalH));
+      if (CRZ.CFG && CRZ.CFG.ironMode) { sc.appendChild(el('p', null, STR.goalIron.replace('{d}', String(CRZ.CFG.maxDays || 30)))); } else
       sc.appendChild(el('p', null, STR.goal.replace('{n}', String(strikesNow())).replace('{diff}', diffLabel()).replace('{d}', String((CRZ.CFG && CRZ.CFG.maxDays) || 30))));
       sc.appendChild(el('h3', null, STR.gestH));
       STR.gest.forEach(function (g) { sc.appendChild(liText(g[0], g[1])); });
@@ -553,7 +707,7 @@
       sc.appendChild(el('h3', null, STR.moreH));
       var ms = String(strikesNow());
       var rrN = CRZ.CFG && CRZ.CFG.dice && CRZ.CFG.dice.rerollCost, rrTxt = typeof rrN === 'number' ? rrN + (rrN === 1 ? ' build point' : ' build points') : '1 build point';
-      STR.more.forEach(function (g) { sc.appendChild(liText(g[0], g[1].replace('{n}', ms).replace('{diff}', diffLabel()).replace('{rr}', rrTxt))); });
+      STR.more.forEach(function (g) { if (g[0] === 'Strikes' && CRZ.CFG && CRZ.CFG.ironMode) { g = [g[0], STR.strikesIron]; } sc.appendChild(liText(g[0], g[1].replace('{n}', ms).replace('{diff}', diffLabel()).replace('{rr}', rrTxt))); });
     }
     function liText(head, text) {
       var li = el('div', 'crzm-li');
@@ -596,8 +750,85 @@
       els.play.setAttribute('data-tut', 'start');
       els.how = btn('crzm-ghost', STR.howto, function () { openHelp(); });
       els.best = el('div', 'crzm-best');
-      startEl.appendChild(els.play); startEl.appendChild(els.how); startEl.appendChild(els.best);
+      startEl.appendChild(els.play); startEl.appendChild(els.how);
+      // w_modes: os dois modos ficam atras de um botao no estilo do How to play (a 375x667 a tela nao tem lugar para
+      // duas linhas novas com explicacao)
+      if (CRZ.Modes) {
+        els.more = btn('crzm-ghost crzm-more', STR.moreWays, function () { openModes(); });
+        els.more.setAttribute('data-tut', 'modes');
+        startEl.appendChild(els.more);
+      }
+      startEl.appendChild(els.best);
       rootEl.appendChild(startEl);
+    }
+
+    /* ---------- w_modes: folha dos modos ---------- */
+    function rowText(r, main, small) {
+      r.appendChild(doc.createTextNode ? doc.createTextNode(main) : el('span', null, main));
+      if (small) { r.appendChild(el('small', null, small)); }
+      return r;
+    }
+    function mline(lines) {
+      var d = el('div', 'crzm-mline');
+      lines.forEach(function (t) { if (t) { d.appendChild(el('div', null, t)); } });
+      return d;
+    }
+    function fillModes(step) {
+      var M = CRZ.Modes, sh = els.modesBody; if (!M || !sh) { return; }
+      sh.textContent = '';
+      sh.appendChild(el('div', 'crzm-grab'));
+      if (step === 'iron') {
+        // escolhido: a regra numa frase antes de comecar
+        sh.appendChild(el('p', 'crzm-switchtxt', STR.ironRule));
+        sh.appendChild(btn('crzm-big', STR.ironGo, function () { launchMode('iron'); }));
+        sh.appendChild(btn('crzm-ghost', STR.back, function () { fillModes(null); }));
+        sh.style.gap = '10px';
+        return;
+      }
+      sh.style.gap = '';
+      sh.appendChild(el('p', 'crzm-switchtxt', STR.moreWays));
+      var today = M.todayStr(), dsave = M.modeSave('daily', today), res = M.readDaily(today);
+      var r1 = btn('crzm-row crzm-mdaily' + (res ? ' lock' : ''), null, res ? null : function () { launchMode('daily'); });
+      rowText(r1, STR.daily, res ? STR.dailyDone : (dsave ? STR.dailyCont : M.dateLabel(today)));
+      if (res) { r1.disabled = true; }
+      r1.setAttribute('data-tut', 'mode-daily');
+      sh.appendChild(r1);
+      // cidade inacabada de outra data (ativa ou guardada): diz que a de hoje toma o lugar dela
+      var old = null;
+      if (!res && !dsave) {
+        var a = parseJ(getItem(ls(), KEY_SAVE)), p = parseJ(getItem(ls(), KEY_SLOT + 'daily'));
+        old = a && modeOf(a) === 'daily' ? a : (p && modeOf(p) === 'daily' ? p : null);
+      }
+      sh.appendChild(mline([res ? STR.dailyResult(res) : STR.dailyLine, old && old.date ? STR.dailyOld(M.dateLabel(old.date)) : '']));
+      var un = M.ironUnlocked(), isave = un ? M.modeSave('iron') : null, ib = M.readIron();
+      var r2 = btn('crzm-row crzm-miron' + (un ? '' : ' lock'), null, un ? function () { if (isave) { launchMode('iron'); } else { fillModes('iron'); } } : null);
+      rowText(r2, STR.iron, un ? (isave ? STR.dailyCont : '') : STR.ironLocked);
+      if (!un) { r2.disabled = true; }
+      r2.setAttribute('data-tut', 'mode-iron');
+      sh.appendChild(r2);
+      sh.appendChild(mline(un ? [STR.ironLine, ib.games > 0 ? STR.ironBest(ib, diffLabel()) : ''] : [STR.ironLockLine]));
+      sh.appendChild(btn('crzm-ghost', STR.close, function () { closeModes(); }));
+    }
+    function openModes() {
+      if (!CRZ.Modes || !rootEl) { return; }
+      if (!modesEl) {
+        modesEl = layer('crzm-switch crzm-modes', STR.moreWays);
+        modesEl.addEventListener('click', function (e) { if (e.target === modesEl) { closeModes(); } });
+        els.modesBody = el('div', 'crzm-sheet'); els.modesBody.setAttribute('data-scroll', '');
+        modesEl.appendChild(els.modesBody); rootEl.appendChild(modesEl);
+      }
+      fillModes(null);
+      modesOpen = true; openLayer(modesEl); syncModal();
+    }
+    function closeModes() { if (!modesOpen) { return; } modesOpen = false; closeLayer(modesEl); syncModal(); }
+    // entra no modo: a partida carregada ja e dele (mesma data, no do dia) -> fecha e joga; senao troca e recarrega
+    function launchMode(m) {
+      var M = CRZ.Modes; if (!M) { return; }
+      markSession();
+      try { if (audio && audio.unlock) { audio.unlock(); } } catch (e) {}
+      var s = st(), mine = CRZ.app && CRZ.app.game === game;
+      if (mine && s.mode === m && (m !== 'daily' || s.date === M.todayStr()) && s.phase !== 'over') { closeModes(); playPressed(); return; }
+      M.go(m);
     }
 
     /* ---------- paisagem curta: 'Best in portrait' ---------- */
@@ -667,6 +898,9 @@
 
     /* ---------- ações ---------- */
     function playPressed() {
+      // w_modes: o botao grande e o jogo de sempre; com outro modo carregado, troca para ele (e recarrega)
+      var cur = st().mode;
+      if (CRZ.Modes && cur && cur !== 'free' && CRZ.app && CRZ.app.game === game && !modesOpen) { markSession(); CRZ.Modes.go('free'); return; }
       markSession();
       try { if (audio && audio.unlock) { audio.unlock(); } } catch (e) {}
       closeStart();
@@ -682,6 +916,7 @@
       if (!startOpen) { return; }
       startOpen = false; closeLayer(startEl); syncModal();
       if (helpOpen) { closeHelp(); }
+      if (modesOpen) { closeModes(); }
     }
 
     function toggleMenu() { if (menuOpen) { closeMenu(); } else { open(); } }
@@ -756,7 +991,7 @@
       els.rNew.textContent = armed ? STR.newConfirm : STR.newGame;
       els.rNew.classList[armed ? 'add' : 'remove']('armed');
       els.stats.textContent = STR.stats(num(s.day) || 1, num(s.maxDays) || (CRZ.CFG && CRZ.CFG.maxDays) || 12,
-        num(s.totalDelivered), num(s.strikes), (CRZ.CFG && CRZ.CFG.maxStrikes) || 3);
+        num(s.totalDelivered), num(s.strikes), (CRZ.CFG && CRZ.CFG.ironMode) ? 1 : (CRZ.CFG && CRZ.CFG.maxStrikes) || 3);
     }
     function syncPause() {
       if (!pauseBtn) { return; }
@@ -833,6 +1068,19 @@
       ps.top = Math.round(topBar + 10) + 'px'; ps.bottom = 'auto';
     }
 
+    // w_modes: o fim de partida de um modo diz qual foi, numa linha cinza do proprio painel (ui.js nao muda)
+    var modeTag = null;
+    function syncModeTag() {
+      var s = st(), md = s.mode, over = null;
+      if (s.phase !== 'over' || !md || md === 'free') { if (modeTag && modeTag.parentNode) { modeTag.parentNode.removeChild(modeTag); } return; }
+      try { over = doc.querySelector && doc.querySelector('.crz-over'); } catch (e) { over = null; }
+      if (!over) { return; }
+      if (!modeTag) { modeTag = el('div', 'crz-oextra crzm-modetag'); modeTag.setAttribute('data-tut', 'over-mode'); }
+      modeTag.textContent = md === 'iron' ? STR.iron : STR.modeTagDaily(CRZ.Modes ? CRZ.Modes.dateLabel(s.date) : '');
+      var title = over.querySelector && over.querySelector('.crz-otitle');
+      if (modeTag.parentNode !== over) { if (title && over.insertBefore) { over.insertBefore(modeTag, title); } else { over.appendChild(modeTag); } }
+    }
+
     function update(dt) {
       if (destroyed) { return; }
       pauseClock -= (+dt || 0);
@@ -846,6 +1094,7 @@
       }
       cacheKey = key;
       syncPause();
+      try { syncModeTag(); } catch (e) {}
       if (menuOpen) { syncMenuRows(); }
     }
 
@@ -855,7 +1104,17 @@
         if (!ev) { return; }
         if (ev.type === 'over') {
           // v2: derrota com volta ao capitulo nao e fim de partida (o recorde conta quando ela termina de verdade)
-          if (!recorded && !ev.retry) { recorded = true; recordOver(st(), !!ev.win); }
+          if (!recorded && !ev.retry) {
+            recorded = true;
+            // w_modes: One strike tem recorde proprio; vitoria no jogo de regras normais libera o One strike
+            var md = st().mode || 'free';
+            if (md === 'iron' && CRZ.Modes) { CRZ.Modes.recordIron(st(), !!ev.win); }
+            else {
+              recordOver(st(), !!ev.win);
+              if (ev.win && CRZ.Modes) { CRZ.Modes.unlockIron(); }
+              if (md === 'daily' && CRZ.Modes) { CRZ.Modes.recordDaily(st(), !!ev.win); }
+            }
+          }
           if (menuOpen) { closeMenu(); }
         } else if (ev.type === 'day' || ev.type === 'phase') {
           if (ev.type === 'phase' && ev.phase === 'run') { recorded = false; }
@@ -867,7 +1126,7 @@
 
     function onKey(e) {
       if (!e || e.key !== 'Escape') { return; }
-      if (switchOpen) { closeSwitch(); } else if (helpOpen) { closeHelp(); } else if (menuOpen) { closeMenu(); }
+      if (switchOpen) { closeSwitch(); } else if (modesOpen) { closeModes(); } else if (helpOpen) { closeHelp(); } else if (menuOpen) { closeMenu(); }
     }
     function onResize() {
       readViewport();
@@ -892,7 +1151,7 @@
       if (menuOpen && ownPaused && game && game.setPaused) { try { game.setPaused(false); } catch (e) {} }
       disposers.forEach(function (d) { try { d(); } catch (e) {} });
       if (landPaused && game && game.setPaused) { try { game.setPaused(false); } catch (e) {} }
-      [menuBtn, pauseBtn, stamp, startEl, menuEl, helpEl, landEl, switchEl].forEach(function (x) {
+      [menuBtn, pauseBtn, stamp, startEl, menuEl, helpEl, landEl, switchEl, modesEl, modeTag].forEach(function (x) {
         try { if (x && x.parentNode) { x.parentNode.removeChild(x); } } catch (e) {}
       });
       try { if (styleEl && styleEl.parentNode) { styleEl.parentNode.removeChild(styleEl); } } catch (e) {}
@@ -906,7 +1165,7 @@
       onResize(); syncPause();
       // nv7: sem partida em andamento (nenhum dia jogado), a visita volta a tela inicial mesmo na mesma aba;
       // a sessao so conta como vista depois do Play
-      if (opts.autoStart !== false && (!sessionSeen() || !hasContinue())) { showStart(); }
+      if (opts.autoStart !== false && (!sessionSeen() || !activeContinue())) { showStart(); }
     }
 
     return {

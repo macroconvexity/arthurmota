@@ -149,6 +149,8 @@ button svg { pointer-events: none; }
 }
 .crz-play svg { width: 22px; height: 22px; margin-left: 3px; }
 .crz-play.off { visibility: hidden; }
+/* w_cam: guarda do Play ativa (toque ignorado): cara de desligado, a mesma do Undo sem uso */
+.crz-play.crz-guard { opacity: 0.3; }
 .crz-ui[data-phase="run"] .crz-tiles, .crz-ui[data-phase="run"] .crz-undo { opacity: 0.3; }
 .crz-ui[data-phase="run"] .crz-tile, .crz-ui[data-phase="run"] .crz-undo { pointer-events: none; }
 .crz-ui[data-phase="summary"] .crz-bottom, .crz-ui[data-phase="over"] .crz-bottom { display: none; }
