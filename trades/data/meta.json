@@ -1,7 +1,7 @@
 {
- "updated": "2026-11-20T23:00:17Z",
+ "updated": "2026-11-20T23:56:21Z",
  "slot": "manual",
- "as_of_ny": "2026-11-20 17:59",
+ "as_of_ny": "2026-11-20 18:55",
  "last_close": "2026-11-19",
  "live_since": "2026-10-07",
  "in_sample": true,
@@ -17,7 +17,7 @@
    "since": "2026-11-17",
    "pnl_pct": -4.655,
    "locked": false,
-   "band_pct": 4.43,
+   "band_pct": 4.429,
    "breach": false
   },
   {
@@ -112,7 +112,7 @@
    "name": "State Street Health Care Select Sector SPDR ETF",
    "side": "sell",
    "w_from": 0.282998,
-   "w_to": 0.218926
+   "w_to": 0.218925
   },
   {
    "t": "IBB",
@@ -126,7 +126,7 @@
    "name": "State Street Energy Select Sector SPDR ETF",
    "side": "buy",
    "w_from": 0.13309,
-   "w_to": 0.156652
+   "w_to": 0.156653
   },
   {
    "t": "ERX",
@@ -140,7 +140,7 @@
    "name": "Direxion Daily Healthcare Bull 3X ETF",
    "side": "sell",
    "w_from": 0.083109,
-   "w_to": 0.07225
+   "w_to": 0.072249
   }
  ],
  "alerts": [
@@ -205,12 +205,12 @@
    {
     "year": 2012,
     "sys": 0.107252,
-    "spy": 0.159903
+    "spy": 0.159904
    },
    {
     "year": 2013,
-    "sys": 1.021607,
-    "spy": 0.323078
+    "sys": 1.021608,
+    "spy": 0.323077
    },
    {
     "year": 2014,
@@ -229,7 +229,7 @@
    },
    {
     "year": 2017,
-    "sys": 0.607548,
+    "sys": 0.607547,
     "spy": 0.217054
    },
    {
@@ -240,17 +240,17 @@
    {
     "year": 2019,
     "sys": 0.153516,
-    "spy": 0.312239
+    "spy": 0.312238
    },
    {
     "year": 2020,
     "sys": 0.430775,
-    "spy": 0.183317
+    "spy": 0.183316
    },
    {
     "year": 2021,
-    "sys": 0.219713,
-    "spy": 0.287287
+    "sys": 0.219714,
+    "spy": 0.287288
    },
    {
     "year": 2022,
@@ -264,12 +264,12 @@
    },
    {
     "year": 2024,
-    "sys": 0.362173,
+    "sys": 0.362172,
     "spy": 0.248865
    },
    {
     "year": 2025,
-    "sys": 0.568605,
+    "sys": 0.568604,
     "spy": 0.177191
    },
    {
