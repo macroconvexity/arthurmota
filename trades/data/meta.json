@@ -1,8 +1,8 @@
 {
- "updated": "2026-11-20T00:33:33Z",
- "slot": "manual",
- "as_of_ny": "2026-11-19 19:32",
- "last_close": "2026-11-18",
+ "updated": "2026-11-20T13:08:08Z",
+ "slot": "open",
+ "as_of_ny": "2026-11-20 08:06",
+ "last_close": "2026-11-19",
  "live_since": "2026-10-07",
  "in_sample": true,
  "positions": [
@@ -11,13 +11,13 @@
    "name": "Schwab US Dividend Equity ETF",
    "lev": 1,
    "w": 0.301606,
-   "w_target": 0.253489,
+   "w_target": 0.247839,
    "px": 34.2,
-   "chg_pct": -1.441,
+   "chg_pct": 0.0,
    "since": "2026-11-17",
    "pnl_pct": -3.925,
    "locked": false,
-   "band_pct": 4.176,
+   "band_pct": 4.43,
    "breach": false
   },
   {
@@ -25,13 +25,13 @@
    "name": "State Street Health Care Select Sector SPDR ETF",
    "lev": 1,
    "w": 0.281063,
-   "w_target": 0.247766,
+   "w_target": 0.228061,
    "px": 177.46,
-   "chg_pct": -2.048,
+   "chg_pct": 0.0,
    "since": "2026-11-05",
    "pnl_pct": -7.276,
    "locked": false,
-   "band_pct": 4.452,
+   "band_pct": 5.016,
    "breach": false
   },
   {
@@ -39,13 +39,13 @@
    "name": "iShares Biotechnology ETF",
    "lev": 1,
    "w": 0.139335,
-   "w_target": 0.185113,
+   "w_target": 0.198012,
    "px": 203.72,
-   "chg_pct": -0.813,
+   "chg_pct": 0.0,
    "since": "2026-11-09",
    "pnl_pct": -6.137,
    "locked": false,
-   "band_pct": 6.087,
+   "band_pct": 5.902,
    "breach": false
   },
   {
@@ -53,13 +53,13 @@
    "name": "State Street Energy Select Sector SPDR ETF",
    "lev": 1,
    "w": 0.132845,
-   "w_target": 0.156842,
+   "w_target": 0.168088,
    "px": 60.89,
-   "chg_pct": -0.653,
+   "chg_pct": 0.0,
    "since": "2026-11-13",
    "pnl_pct": -6.212,
    "locked": false,
-   "band_pct": 6.591,
+   "band_pct": 6.378,
    "breach": false
   },
   {
@@ -67,13 +67,13 @@
    "name": "Direxion Daily Healthcare Bull 3X ETF",
    "lev": 3,
    "w": 0.083235,
-   "w_target": 0.080152,
+   "w_target": 0.075616,
    "px": 146.27,
-   "chg_pct": -5.881,
+   "chg_pct": 0.0,
    "since": "2026-10-15",
    "pnl_pct": -7.724,
    "locked": false,
-   "band_pct": 13.042,
+   "band_pct": 14.338,
    "breach": false
   },
   {
@@ -81,74 +81,19 @@
    "name": "Direxion Energy Bull 2X ETF",
    "lev": 2,
    "w": 0.061916,
-   "w_target": 0.076638,
+   "w_target": 0.082383,
    "px": 96.69,
-   "chg_pct": -1.024,
+   "chg_pct": 0.0,
    "since": "2026-10-09",
    "pnl_pct": -12.517,
    "locked": false,
-   "band_pct": 12.974,
+   "band_pct": 12.517,
    "breach": false
   }
  ],
  "orders": [],
- "preview": [
-  {
-   "t": "SCHD",
-   "name": "Schwab US Dividend Equity ETF",
-   "side": "sell",
-   "w_from": 0.301606,
-   "w_to": 0.0
-  },
-  {
-   "t": "IBB",
-   "name": "iShares Biotechnology ETF",
-   "side": "buy",
-   "w_from": 0.139335,
-   "w_to": 0.258524
-  },
-  {
-   "t": "XLE",
-   "name": "State Street Energy Select Sector SPDR ETF",
-   "side": "buy",
-   "w_from": 0.132845,
-   "w_to": 0.219461
-  },
-  {
-   "t": "ERX",
-   "name": "Direxion Energy Bull 2X ETF",
-   "side": "buy",
-   "w_from": 0.061916,
-   "w_to": 0.107546
-  },
-  {
-   "t": "UBT",
-   "name": "ProShares Ultra 20+ Year Treasury",
-   "side": "buy",
-   "w_from": 0.0,
-   "w_to": 0.017935
-  },
-  {
-   "t": "XLV",
-   "name": "State Street Health Care Select Sector SPDR ETF",
-   "side": "buy",
-   "w_from": 0.281063,
-   "w_to": 0.297803
-  },
-  {
-   "t": "CURE",
-   "name": "Direxion Daily Healthcare Bull 3X ETF",
-   "side": "buy",
-   "w_from": 0.083235,
-   "w_to": 0.098731
-  }
- ],
- "alerts": [
-  {
-   "level": "info",
-   "text": "7 order(s) the next open signal would give at current prices."
-  }
- ],
+ "preview": [],
+ "alerts": [],
  "stats": {
   "live": {
    "days": 31,
@@ -160,33 +105,33 @@
     "label": "Since 2012",
     "start": "2012-01-03",
     "end": "2026-11-19",
-    "sys_cagr": 0.20186,
+    "sys_cagr": 0.187472,
     "spy_cagr": 0.143878,
-    "sys_maxdd": -0.522921,
+    "sys_maxdd": -0.523593,
     "spy_maxdd": -0.337173,
-    "sys_sharpe": 0.6279,
+    "sys_sharpe": 0.5982,
     "spy_sharpe": 0.7943
    },
    {
     "label": "2012 to 2022-09",
     "start": "2012-01-03",
     "end": "2022-09-30",
-    "sys_cagr": 0.138089,
+    "sys_cagr": 0.138918,
     "spy_cagr": 0.123395,
-    "sys_maxdd": -0.522921,
+    "sys_maxdd": -0.523593,
     "spy_maxdd": -0.337173,
-    "sys_sharpe": 0.5252,
+    "sys_sharpe": 0.5283,
     "spy_sharpe": 0.7402
    },
    {
     "label": "Since 2022-10",
     "start": "2022-10-03",
     "end": "2026-11-19",
-    "sys_cagr": 0.385533,
+    "sys_cagr": 0.324091,
     "spy_cagr": 0.199084,
     "sys_maxdd": -0.410657,
     "spy_maxdd": -0.187552,
-    "sys_sharpe": 0.8508,
+    "sys_sharpe": 0.7533,
     "spy_sharpe": 0.9442
    },
    {
@@ -204,27 +149,27 @@
   "yearly": [
    {
     "year": 2012,
-    "sys": 0.10725,
+    "sys": 0.107252,
     "spy": 0.159904
    },
    {
     "year": 2013,
-    "sys": 1.021605,
+    "sys": 1.021608,
     "spy": 0.323078
    },
    {
     "year": 2014,
-    "sys": 0.260899,
-    "spy": 0.134637
+    "sys": 0.260905,
+    "spy": 0.134638
    },
    {
     "year": 2015,
-    "sys": -0.345962,
+    "sys": -0.345965,
     "spy": 0.012343
    },
    {
     "year": 2016,
-    "sys": 0.180969,
+    "sys": 0.18097,
     "spy": 0.119979
    },
    {
@@ -234,18 +179,18 @@
    },
    {
     "year": 2018,
-    "sys": -0.307261,
+    "sys": -0.308307,
     "spy": -0.04569
    },
    {
     "year": 2019,
-    "sys": 0.153403,
+    "sys": 0.153516,
     "spy": 0.312239
    },
    {
     "year": 2020,
-    "sys": 0.430771,
-    "spy": 0.183316
+    "sys": 0.430775,
+    "spy": 0.183317
    },
    {
     "year": 2021,
@@ -254,22 +199,22 @@
    },
    {
     "year": 2022,
-    "sys": 0.00369,
+    "sys": -0.159503,
     "spy": -0.181754
    },
    {
     "year": 2023,
-    "sys": 0.361133,
+    "sys": 0.361132,
     "spy": 0.261758
    },
    {
     "year": 2024,
-    "sys": 0.362168,
-    "spy": 0.248865
+    "sys": 0.362169,
+    "spy": 0.248864
    },
    {
     "year": 2025,
-    "sys": 0.568598,
+    "sys": 0.568609,
     "spy": 0.177191
    },
    {
@@ -1254,6 +1199,11 @@
   },
   {
    "date": "2026-11-19",
+   "slot": "open",
+   "orders": []
+  },
+  {
+   "date": "2026-11-20",
    "slot": "open",
    "orders": []
   }
