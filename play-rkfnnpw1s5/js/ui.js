@@ -235,12 +235,26 @@
     // v2m: a vaga de semaforos (CFG.lightCap): no guia, no ladrilho ('1 of 2') e na recusa
     guideCap: function (n, more) { return 'Your city powers ' + n + (n === 1 ? ' light' : ' lights') + (more === false ? ' now.' : ' now, more later.') + ' Moving one is free.'; },
     capTile: function (used, cap) { return used + ' of ' + cap; },
-    // semaforo na mao (2026-11-18): mover e de graca, num toque no cruzamento e outro no semaforo
+    // semaforo, Stop, Yield e Two lanes na mao (mover e de graca)
     lightMoveAsk: 'Tap the light you want to move here.',
     lightPicked: 'Light picked up. Tap a crossing to place it. Free.',
     lightMoved: 'Light moved. Free.',
     lightToHand: 'The light is in your hand: pick Light and tap a crossing. Free.',
     lightTapMove: 'To move this light, pick Light and tap it. Free.',
+    stopPicked: 'Stop picked up. Tap a crossing to place it. Free.',
+    stopMoved: 'Stop moved. Free.',
+    stopToHand: 'The stop is in your hand: pick Stop and tap a crossing. Free.',
+    stopTapMove: 'To move this stop, pick Stop and tap it. Free.',
+    yieldPicked: 'Yield picked up. Tap a crossing to place it. Free.',
+    yieldMoved: 'Yield moved. Free.',
+    yieldToHand: 'The yield is in your hand: pick Yield and tap a crossing. Free.',
+    yieldTapMove: 'To move this yield, pick Yield and tap it. Free.',
+    upgradePicked: 'Two lanes picked up. Tap a road to place it. Free.',
+    upgradeMoved: 'Two lanes moved. Free.',
+    movePlaced: function (id) {
+      if (id === 'upgrade') return 'Not enough points. Tap a two-lane road to move it. Free.';
+      return 'Not enough points. Tap a placed ' + (TL[id] || lc(STR.tools[id] || id)) + ' to move it. Free.';
+    },
     guideUpkeep: function (d, per) { return 'From day ' + d + ': ' + per + (per === 1 ? ' build point' : ' build points') + ' every morning. Removing it is free.'; },
     upkeepFirst: function (per, notToday) { return (notToday ? 'Each light costs ' : 'From today, each light costs ') + per + (per === 1 ? ' build point' : ' build points') + ' every morning. Removing one is free.'; },
     resumedDay: 'Resumed from the start of the day.',
@@ -250,6 +264,7 @@
     welcomeShort: function (d) { return 'Welcome back. Day ' + d + ': not enough points to build more. Tap \u25b6\ufe0e to start the day.'; },
     welcomeFreeRoad: function (d) { return 'Welcome back. Day ' + d + ': you still have a free road today.'; },
     welcomeFreeLight: function (d) { return 'Welcome back. Day ' + d + ': you still have a free traffic light today.'; },
+    welcomeHand: function (d) { return 'Welcome back. Day ' + d + ': you have a piece in your hand to place.'; },
     cWhyFreeLight: 'You still have a free traffic light today.',
     newJChipSay: 'Each NEW crossing needs a sign.',
     // F: faixa de pedestre sobre um sinal
@@ -1195,6 +1210,11 @@
   var SAVE_KEY = 'cruzamento.save';
   var HINT_KEY = 'cruzamento.hints';
   var NODE_TOOLS = { stop: 1, yield: 1, light: 1, round: 1, cross: 1 };
+  var HAND_TOOLS = { light: 1, stop: 1, yield: 1, upgrade: 1 };
+  function handStr(kind, tool) {
+    if (tool === true) tool = 'light';
+    return STR[tool + kind] || STR['light' + kind];
+  }
   var HOT_TAP = 0.35;   // mesmo limiar do anel tracejado em render.js
   var JAM_SUMMARY = 0.5; // no resumo, so fala do pior ponto quando o anel ficou vermelho de verdade
   var RING_SEEN = 0.42;  // a jogadora viu um anel vermelho (render desenha acima de 0.35; tutorial avisa em 0.42)
@@ -2238,6 +2258,7 @@
         if (r.reason === 'cap') pulseValid('lightOwn', x, y);
         else if (r.reason === 'notjunction' || r.reason === 'same') pulseValid(tool, x, y);
       }
+      if (r && r.reason === 'budget' && HAND_TOOLS[tool] && hasOnMap(tool)) pulsePlaced(tool);
       return false;
     }
     // calor de um no: pico do dia (state.hot, o anel tracejado) ou estresse agora
@@ -2486,7 +2507,6 @@
       if (typeof c !== 'number') c = CFG.tools[id] ? CFG.tools[id].cost : 0;
       return STR.legend(STR.tools[id] || id, c, STR.toolUseLine[id] || '');
     }
-    var legendWasHeld = false;
     function legendAfford(id) { try { return !game.canAfford || game.canAfford(id) !== false; } catch (e) { return true; } }
     // playtest cego 3 (031): o cartao do tutorial da ferramenta ('tool:stop') e a legenda da mesma ferramenta
     // empilhados com o mesmo texto. A legenda espera o cartao fechar (nao some: volta logo depois do 'Got it')
@@ -2501,11 +2521,11 @@
       legendEl.classList.toggle('gone', !on);
       bottom.classList.toggle('crz-legendon', on);
     }
-    function setSel(id) {
+    function setSel(id, noPulse) {
       var prev = sel;
       sel = id;
       if (prev && prev !== id) emitUI('toolDeselected', { tool: prev });
-      if (id && id !== prev) { emitUI('toolSelected', { tool: id }); pulseCandidates(id); }
+      if (id && id !== prev) { emitUI('toolSelected', { tool: id }); if (!noPulse) pulseCandidates(id); }
       syncLegend();
       // Escolher ferramenta NUNCA reenquadra (passeio humano 2026-11-09: a camera andava depois de pegar a
       // ferramenta; antes a Rua chamava fitRoom e qualquer ferramenta chamava settle, que salta para o fim da
@@ -3549,6 +3569,31 @@
     // mover semaforo com todos em uso: o cruzamento tocado espera o toque no semaforo que vem para ca
     var lightArm = null, LIGHT_ARM_MS = 8000;
     function pulseLights() { var pw = game.world.nodes, q; for (q in pw) if (pw.hasOwnProperty(q) && pw[q] && pw[q].tool === 'light') addPulse(pw[q].x, pw[q].y); }
+    function hasOnMap(id) {
+      var w = game.world, k; if (!w) return false;
+      if (id === 'upgrade') {
+        for (k in w.edges) if (w.edges.hasOwnProperty(k) && w.edges[k] && (w.edges[k].lanes || 1) >= 2) return true;
+        return false;
+      }
+      for (k in w.nodes) if (w.nodes.hasOwnProperty(k) && w.nodes[k] && w.nodes[k].tool === id) return true;
+      return false;
+    }
+    function pulsePlaced(id) {
+      var w = game.world, k, c = 0; if (!w) return;
+      if (id === 'upgrade') {
+        for (k in w.edges) if (w.edges.hasOwnProperty(k) && c < 6) {
+          var e = w.edges[k]; if (!e || (e.lanes || 1) < 2) continue;
+          var a = w.nodes[e.a], b = w.nodes[e.b]; if (!a || !b) continue;
+          addPulse((a.x + b.x) / 2, (a.y + b.y) / 2);
+          if (render && typeof render.highlightRoad === 'function') { try { render.highlightRoad(e.id, 2000); } catch (er) {} }
+          c++;
+        }
+        return;
+      }
+      for (k in w.nodes) if (w.nodes.hasOwnProperty(k) && c < 6) {
+        var n = w.nodes[k]; if (n && n.tool === id) { addPulse(n.x, n.y); c++; }
+      }
+    }
     // por que o pedido fechou: 'cancel' (botao) diz "Swap cancelled."; outro toque, outra ferramenta ou o dia: calado
     function endSwapAsk(why) {
       if (!swapAsk) return;
@@ -3739,7 +3784,7 @@
             if (tn && tn.tool !== 'light') {
               var mr = game.moveLight(n.id, tn.id);
               toolResult(mr, tn.x, tn.y, 'place', 'light');
-              if (mr && mr.ok) { addPulse(tn.x, tn.y); say(STR.lightMoved, 2600); emitUI('lightMoved', { from: n.id, to: tn.id }); }
+              if (mr && mr.ok) { addPulse(tn.x, tn.y); say(mr.toHand ? handStr('ToHand', mr.toHand) : STR.lightMoved, mr.toHand ? 4000 : 2600); emitUI('lightMoved', { from: n.id, to: tn.id }); }
               return;
             }
             var pr = game.removeTool(n.id);
@@ -3754,6 +3799,13 @@
             return;
           }
         }
+        // Stop e Yield: tocar um sinal ja posto pega ele (vai para a mao, de graca); tocar outro cruzamento poe
+        if ((sel === 'stop' || sel === 'yield') && n.tool === sel && typeof game.removeTool === 'function') {
+          var rp = game.removeTool(n.id);
+          if (rp && rp.ok) { snd('select'); addPulse(n.x, n.y); say(handStr('Picked', sel), 4000); emitUI(sel + 'Picked', { id: n.id }); }
+          else toolResult(rp, n.x, n.y, 'place', sel);
+          return;
+        }
         // troca de sinal: o comprado em dia anterior nao volta; pede um segundo toque (3 s).
         // O colocado hoje e reembolsado pelo game: troca direto
         // Troca de sinal (2026-11-09): para cima (mesmo custo ou mais caro) troca direto; para baixo (perde
@@ -3762,7 +3814,7 @@
         var was = n.tool && n.tool !== sel && NODE_TOOLS[n.tool] && swapAllowed(s, n, sel) ? n.tool : null;
         // pontos perdidos = preco de tabela do antigo (com o semaforo gratis hoje, toolCost('light') e 0 e a troca
         // para baixo de um semaforo antigo passava sem pedir)
-        var paid = was ? paidToday(n.id) : false, lost = was && !paid && was !== 'light' ? listCost(was) : 0;   // o semaforo trocado vai para a mao
+        var paid = was ? paidToday(n.id) : false, lost = was && !paid && !(was === 'light' || was === 'stop' || was === 'yield') ? listCost(was) : 0;   // peca da mao trocada vai para a mao
         var askFor = swapAsk && swapAsk.id === n.id && swapAsk.tool === sel;
         if (was && lost > 0 && swapDown(was, sel) && !askFor) {
           swapAsk = { id: n.id, tool: sel, free: freeNow(sel), text: STR.swapAsk(STR.tools[was], lost) };
@@ -3796,9 +3848,9 @@
         }
         if (tr && tr.ok && sel === 'yield') yieldBusyHint(s, n);
         if (tr && tr.ok) fbkPlaced(tr, n, !was && sel !== 'yield');
-        // semaforo: a frase do mover (de graca) vence a do retorno
-        if (tr && tr.ok && tr.fromHand) say(STR.lightMoved, 2600);
-        else if (tr && tr.ok && tr.toHand) say(STR.lightToHand, 4000);
+        // peca da mao: a frase do mover (de graca) ou da peca que foi para a mao vence a do retorno
+        if (tr && tr.ok && tr.toHand) say(handStr('ToHand', tr.toHand), 4000);
+        else if (tr && tr.ok && tr.fromHand && !was) say(handStr('Moved', tr.fromHand), 2600);
         // ponta de rua: a fila espera no cruzamento a frente; pulsa ele (o lugar certo do sinal).
         // Sem cruzamento a frente, a frase muda (nada de "pulsing crossing" sem pulso)
         if (tr && !tr.ok && tr.reason === 'portal') {
@@ -3827,9 +3879,18 @@
       if (sel === 'upgrade') {
         pk = render.pickEdge(sx, sy); if (!pk) { say(STR.deny.emptyRoad); return; }
         p = edgePoint(pk);
+        if ((pk.edge.lanes || 1) >= 2 && typeof game.downgradeRoad === 'function') {
+          var dr = game.downgradeRoad(pk.edge.id);
+          if (dr && dr.ok) { snd('select'); addPulse(p.x, p.y); say(STR.upgradePicked, 4000); emitUI('upgradePicked', { id: pk.edge.id }); }
+          else toolResult(dr, p.x, p.y, 'build', 'upgrade');
+          return;
+        }
         var ur = game.upgradeRoad(pk.edge.id);
         toolResult(ur, p.x, p.y, 'build', 'upgrade');
-        if (ur && ur.ok) fbkPlaced(ur, ur.watchId != null && game.world.nodes ? game.world.nodes[ur.watchId] : null, false);
+        if (ur && ur.ok) {
+          fbkPlaced(ur, ur.watchId != null && game.world.nodes ? game.world.nodes[ur.watchId] : null, false);
+          if (ur.fromHand) say(STR.upgradeMoved, 2600);
+        }
         return;
       }
       if (sel === 'oneway') {
@@ -3867,7 +3928,7 @@
       fbkTap(n.id);
       if (heatOf(s, n) >= HOT_TAP) say(tapAdvice(s, n));   // anel: diz o que ajuda ali (e qual rua)
       else if (isDeadEnd(n)) say(STR.deadEndTap);
-      else if (n.tool === 'light' && s.phase === 'plan' && tiles.light) say(STR.lightTapMove);
+      else if ((n.tool === 'light' || n.tool === 'stop' || n.tool === 'yield') && s.phase === 'plan' && tiles[n.tool]) say(handStr('TapMove', n.tool));
       if (n.tool === 'light') {
         pairFirst = n.id; pairUntil = nowMs() + PAIR_MS; snd('select');
         emitUI('pairTap', { id: n.id });
@@ -4137,9 +4198,12 @@
     }
     function undoLabel(a, b) {
       var k;
-      for (k in a.tools) if (a.tools.hasOwnProperty(k) && a.tools[k] && a.tools[k] !== (b.tools[k] || '')) return STR.tools[a.tools[k]] || a.tools[k];
+      for (k in a.tools) if (a.tools.hasOwnProperty(k) && (a.tools[k] || '') !== (b.tools[k] || '')) {
+        var tk = a.tools[k] || b.tools[k];
+        return STR.tools[tk] || tk;
+      }
       if (a.e > b.e) return STR.tools.road;
-      for (k in a.lanes) if (a.lanes.hasOwnProperty(k) && b.lanes[k] !== undefined && a.lanes[k] > b.lanes[k]) return STR.tools.upgrade;
+      for (k in a.lanes) if (a.lanes.hasOwnProperty(k) && b.lanes[k] !== undefined && a.lanes[k] !== b.lanes[k]) return STR.tools.upgrade;
       for (k in a.ow) if (a.ow.hasOwnProperty(k) && b.ow[k] !== undefined && a.ow[k] !== b.ow[k]) return STR.tools.oneway;
       if (a.die !== b.die) return STR.reroll;
       return '';
@@ -4868,6 +4932,10 @@
         return;
       }
       if (info && !info.afford) {
+        if (info.unlocked !== false && !(info.hand > 0) && HAND_TOOLS[id] && hasOnMap(id)) {
+          setSel(id, true); snd('select'); say(STR.movePlaced(id), 4000); pulsePlaced(id); emitUI('movePick', { tool: id });
+          return;
+        }
         snd('deny'); shake(tiles[id].el);
         if (info.unlocked === false && CFG.tools[id]) { say(STR.deny.tileLocked(CFG.tools[id].unlockDay, id, CFG)); return; }
         if (info.cap != null && (info.used | 0) >= info.cap && (s.budget | 0) >= (typeof info.cost === 'number' ? info.cost : 0)) {
@@ -4908,7 +4976,7 @@
         // semanas sem saber o que era o aro com ponto. O ladrilho cresce na largura so o que o nome pede (style.css)
         // v2m: o ladrilho do semaforo diz quantos a cidade liga ('1 of 2'), ao lado do icone (crz-tcap)
         var hasCap = t.id === 'light' && t.cap != null && isFinite(t.cap);
-        var ck = t.id === 'light' && t.hand > 0 ? 'hand|' + t.hand + '|' + c + '|' + t.used + '|' + t.cap : hasCap ? c + '|' + t.used + '|' + t.cap : c;   // semaforo na mao: custo 'free'
+        var ck = HAND_TOOLS[t.id] && t.hand > 0 ? 'hand|' + t.hand + '|' + c + '|' + (t.used | 0) + '|' + (t.cap == null ? '' : t.cap) : hasCap ? c + '|' + t.used + '|' + t.cap : c;   // peca na mao: custo 'free'
         if (ck !== tl.c) {
           tl.c = ck; tl.cost.innerHTML = '<span class="crz-tname">' + (STR.tileName[t.id] || STR.tools[t.id] || t.id) + '</span>' + toneCost(c);
           // o semaforo na mao ainda e da jogadora: o teto conta mapa + mao ('3 of 3' com um na mao e o custo 'free')
@@ -5863,6 +5931,13 @@
       if (b < minToolCost(s) && !freeLeft(s) && !(s.debtPaid > 0) && !(s.upkeep && s.upkeep.paid > 0)) return true;
       return false;
     }
+    function handAny(s) {
+      var i, t;
+      if (s && s.lightHand > 0) return true;
+      if (s && s.hand && (s.hand.stop > 0 || s.hand.yield > 0 || s.hand.upgrade > 0)) return true;
+      for (i = 0; s && s.tools && i < s.tools.length; i++) { t = s.tools[i]; if (t.unlocked && t.hand > 0) return true; }
+      return false;
+    }
     function welcomeText(s) {
       var d = s.day | 0, b = s.budget | 0;
       if (b < minToolCost(s) && !freeLeft(s)) {
@@ -5870,7 +5945,10 @@
         return b > 0 ? STR.welcomeShort(d) : STR.welcomeOut(d);
       }
       if (b > 0) return STR.welcomePoints(d, b);
-      return s.free && s.free.road ? STR.welcomeFreeRoad(d) : STR.welcomeFreeLight(d);
+      if (s.free && s.free.road) return STR.welcomeFreeRoad(d);
+      if (s.free && s.free.light) return STR.welcomeFreeLight(d);
+      if (handAny(s)) return STR.welcomeHand(d);
+      return builtToday(s) ? STR.welcomeBuilt(d) : STR.welcomeOut(d);
     }
     function untouchedDay1(s) {
       return (s.day | 0) === 1 && !(s.history && s.history.length) &&
@@ -6228,8 +6306,7 @@
       }
       // nv8 5: a legenda segue o custo (a rua gratis usada volta a custar): reescreve quando o texto muda
       if (sel && !legendEl.classList.contains('gone')) { if (!legendAfford(sel) || legendHeld()) syncLegend(); else { var lt = legendText(sel); if (legendEl.textContent !== lt) legendEl.textContent = lt; } }
-      else if (sel && s.phase === 'plan' && legendWasHeld && !legendHeld()) syncLegend();
-      legendWasHeld = legendHeld();
+      else if (sel && s.phase === 'plan' && legendAfford(sel) && !legendHeld()) syncLegend();
       firstSpendTick(s); ringEverTick(s); ringGroupTick(s);
       if (s.phase === 'run' && !runAt) runAt = now; else if (s.phase !== 'run') runAt = 0;
       firstUseTick(s, now);

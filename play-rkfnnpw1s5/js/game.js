@@ -10,6 +10,8 @@
   var BRANCHING = false;        // v2x: um ramo do 'e se' (g.whatIf) esta rodando: ele nao guarda manha nem abre ramos
   var CLEAR = 26;               // folga minima entre estradas nao ligadas
   var PLACEABLE = { stop: 1, yield: 1, light: 1, round: 1 };   // v2: a faixa de pedestre (cross) saiu
+  var HAND_TOOLS = { light: 1, stop: 1, yield: 1, upgrade: 1 };
+  var HAND_KEYS = ['stop', 'yield', 'upgrade'];
   // v2m: o tipo de um cruzamento pelo trafego de um dia (sim.nodeTraffic): o que a jogadora ve na rua.
   //  calm: poucos carros (abaixo de K.calm por minuto): sem sinal basta
   //  main: uma rua leva K.mainShare ou mais dos carros (as duas maos do mesmo eixo): Yield
@@ -240,6 +242,8 @@
       // semaforo na mao (2026-11-18): tirado de um cruzamento, volta de graca em outro; fica para as manhas seguintes.
       // Conta no teto (no mapa + na mao <= lightCap) e nunca vira pontos
       lightHand: 0,
+      // Stop, Yield e Two lanes na mao (mesma regra: tirados voltam de graca, nunca viram pontos)
+      hand: { stop: 0, yield: 0, upgrade: 0 },
       // dado v2: dieState none (nao rolou) | offer (rolou, esperando Use/Pass/Keep) | used | passed | kept | auto (face
       // sem escolha, ja valendo). kept = face guardada { id, value } ou null. debt = pontos que saem do orcamento de
       // amanha (Loan); debtPaid = quanto saiu hoje. nextDie fica null: a previsao nao mostra o dado (sistemas.md 3.2)
@@ -456,11 +460,20 @@
     }
 
     // ----- custos -----
+    function handOf(tool) {
+      if (tool === 'light') return st.lightHand | 0;
+      return HAND_TOOLS[tool] ? (st.hand[tool] | 0) : 0;
+    }
+    function addHand(tool, delta) {
+      if (tool === 'light') st.lightHand = Math.max(0, (st.lightHand | 0) + delta);
+      else if (HAND_TOOLS[tool]) st.hand[tool] = Math.max(0, (st.hand[tool] | 0) + delta);
+    }
     function costOf(tool) {
       var t = own(CFG.tools, tool) ? CFG.tools[tool] : null;
       if (!t) return Infinity;
       if (tool === 'road' && st.free.road) return 0;
-      if (tool === 'light' && (st.lightHand > 0 || st.free.light)) return 0;
+      if (tool === 'light' && st.free.light) return 0;
+      if (handOf(tool) > 0) return 0;
       return t.cost;
     }
     // v2m: quantos semaforos a cidade liga hoje (CFG.lightCap.byDay: [[dia, N], ...] em ordem; a carta Free power soma
@@ -478,6 +491,10 @@
       return c;
     }
     function onMap(tool) {
+      if (tool === 'upgrade') {
+        for (var ke in world.edges) if (own(world.edges, ke) && world.edges[ke] && (world.edges[ke].lanes || 1) >= 2) return true;
+        return false;
+      }
       for (var k in world.nodes) if (own(world.nodes, k) && world.nodes[k] && world.nodes[k].tool === tool) return true;
       return false;
     }
@@ -486,7 +503,7 @@
       if (tool === 'round' && st.perks && st.perks.round) return true;                 // v2: carta do dia 19
       if (tool === 'oneway' && !archHas('oneway')) return false;                      // v2: so no arquetipo que pede
       // w_light: save de um calendario antigo (Yield liberava no dia 5) com a peca ja no mapa: ela segue liberada
-      if (st.day < CFG.tools[tool].unlockDay && tool !== 'road' && onMap(tool)) return true;
+      if (st.day < CFG.tools[tool].unlockDay && tool !== 'road' && (onMap(tool) || handOf(tool) > 0)) return true;
       return st.day >= CFG.tools[tool].unlockDay;
     }
     // ferramenta existe nesta partida (a bandeja e o guia so mostram estas; o ladrilho bloqueado nao aparece)
@@ -503,7 +520,7 @@
         if (!inMatch(id)) continue;
         var row = { id: id, cost: c, unlocked: u, afford: u && st.budget >= c };
         if (id === 'light' && CFG.lightCap && CFG.lightCap.byDay) { row.cap = lightCap(); row.used = lightsUsed(); if (row.used >= row.cap && !(st.lightHand > 0)) row.afford = false; }
-        if (id === 'light') row.hand = st.lightHand | 0;
+        if (HAND_TOOLS[id]) row.hand = handOf(id);
         arr.push(row);
       }
       st.tools = arr;
@@ -1643,7 +1660,7 @@
     // ----- desfazer -----
     function capture() {
       return { layout: world.cloneLayout(), budget: st.budget, placed: clone(placed), ow: clone(owDay),
-               free: { road: st.free.road, light: st.free.light }, lightHand: st.lightHand | 0,
+               free: { road: st.free.road, light: st.free.light }, lightHand: st.lightHand | 0, hand: handNorm(st.hand),
                die: st.die ? clone(st.die) : null, rerolled: st.rerolled,
                watch: st.watch && st.watch.day === st.day ? clone(st.watch.list) : [], crew: clone(st.crew) };
     }
@@ -1684,7 +1701,7 @@
     // em passos (branchOpen, branchStep) e a UI chama job.run(ms, agora) entre quadros. Os ramos sao os mesmos, na mesma
     // ordem, de saves iguais, sem nada compartilhado entre eles: o resultado nao depende de como as fatias caem.
     // g.whatIf (sincrono, robos e testes) roda o mesmo trabalho de uma vez.
-    function branchOpen(save, id, tool, mul, salt) {
+    function branchOpen(save, id, tool, mul, salt, collectLocks) {
       var lc = CFG.lightCap, br = null;
       BRANCHING = true;
       try {
@@ -1697,7 +1714,7 @@
         b.startDay();
         CFG.lightCap = lc;
         if (mul > 0 && mul !== 1 && bw.params) bw.params.spawnMul = (bw.params.spawnMul > 0 ? bw.params.spawnMul : 1) * mul;
-        br = { b: b, bw: bw, id: id, lock: false, steps: 0, max: Math.ceil(b.state.dayLen / STEP) * 3 + 200, out: null };
+        br = { b: b, bw: bw, id: id, lock: false, locks: collectLocks ? {} : null, all: null, steps: 0, max: Math.ceil(b.state.dayLen / STEP) * 3 + 200, out: null };
       } catch (e) { br = null; } finally { CFG.lightCap = lc; BRANCHING = false; }
       return br;
     }
@@ -1705,11 +1722,20 @@
     function branchStep(br, n) {
       BRANCHING = true;
       try {
-        var b = br.b, bw = br.bw, id = br.id, k = 0;
-        while (k++ < n && b.state.phase === 'run' && br.steps < br.max) { br.steps++; b.update(STEP); if (bw.nodes[id] && bw.nodes[id].locked) br.lock = true; }
+        var b = br.b, bw = br.bw, id = br.id, k = 0, grace = br.locks && b.state.day <= CFG.strikeGraceUntil;
+        while (k++ < n && b.state.phase === 'run' && br.steps < br.max) {
+          br.steps++; b.update(STEP);
+          if (bw.nodes[id] && bw.nodes[id].locked) br.lock = true;
+          if (grace) for (var qid in bw.nodes) if (bw.nodes[qid].locked) br.locks[qid] = 1;
+        }
         if (b.state.phase === 'run' && br.steps < br.max) return false;
         var sm = b.state.summary || {}, tr = b.state.trouble && b.state.trouble.nodes && b.state.trouble.nodes[id];
         if (sm.lock && sm.lock.nodeId === id) br.lock = true;
+        if (br.locks) {
+          for (var nid in bw.nodes) if (bw.nodes[nid].locked) br.locks[nid] = 1;
+          if (sm.lock && sm.lock.nodeId != null) br.locks[sm.lock.nodeId] = 1;
+          br.all = { nodes: (b.state.trouble && b.state.trouble.nodes) || {}, locks: br.locks, failed: !!sm.failed };
+        }
         br.out = { w: tr ? tr.w : 0, p: tr ? tr.p : 0, lock: br.lock, cut: !!sm.failed && !br.lock };
       } catch (e) { br.out = null; } finally { BRANCHING = false; }
       br.b = br.bw = null;
@@ -1728,36 +1754,50 @@
     // e para cada peca a medida normal e a de hi vezes os carros). So o agendamento mudou: a regra do que ganha e a do
     // adviceFor. job.run(ms, now): anda ate ms de relogio (now() em ms); sem now, ate o fim.
     // Fim: job.done, job.r (o resultado, guardado em st.whatIf; null se o ramo de hoje quebrou)
-    function wiJob(id) {
+    function wiJob(id, prune) {
       var n = world.nodes[id]; if (!n || n.portal || degree(n) < 3) return null;
       var cur = n.tool || null, d1 = st.day + 1, room = cur === 'light' || lightsUsed() < capAt(d1);
       // duas medidas por peca: o dia de ontem como foi e o mesmo dia com hi vezes os carros (a cidade cresce: a peca
       // mandada precisa ganhar nos dois, senao o numero de amanha desmente o conselho)
-      var hi = (CFG.advice && CFG.advice.hi) || 1.2;
-      var save = morning.save, day = st.day, r = { day: day, tool: cur, cur: null, curHi: null, alt: {}, altHi: {} }, base = {};
-      var q = [{ k: 'cur', t: cur, mul: 1 }, { k: 'curHi', t: cur, mul: hi }];
-      for (var i = 0; i < WI_TOOLS.length; i++) {
-        var t = WI_TOOLS[i];
-        if (t === cur || !openAt(t, d1) || (t === 'light' && !room)) continue;
-        q.push({ k: 'alt', t: t, mul: 1 });
+      var A = CFG.advice || {}, hi = A.hi || 1.2;
+      var save = morning.save, mBase = morning.base || (morning.base = {}), day = st.day, r = { day: day, tool: cur, cur: null, curHi: null, alt: {}, altHi: {} }, base = {};
+      function bKey(mul, s) { return (mul === 1 ? '1' : String(mul)) + ':' + (s || 0); }
+      var m = prune && st.adv && st.adv[id], kd = m && st.kinds && st.kinds[id];
+      var followed = !!(m && m.tool && cur === m.tool && m.from !== m.tool);
+      var material = !m || !kd || !m.k || kd.k !== m.k || (m.v > 0 && Math.abs(kd.v - m.v) > m.v * (A.material || 1 / 3));
+      var tried = (m && m.tried) || [], onlyTool = m && m.tool && !followed && !material && m.at !== day ? m.tool : null;
+      var q = [{ k: 'cur', t: cur, mul: 1, bk: bKey(1, 0) }];
+      if (!(prune && followed && !material)) {
+        q.push({ k: 'curHi', t: cur, mul: hi, bk: bKey(hi, 0) });
+        for (var i = 0; i < WI_TOOLS.length; i++) {
+          var t = WI_TOOLS[i];
+          if (t === cur || !openAt(t, d1) || (t === 'light' && !room)) continue;
+          if (prune && (tried.indexOf(t) >= 0 || (onlyTool && t !== onlyTool))) continue;
+          q.push({ k: 'alt', t: t, mul: 1 });
+        }
       }
       // w_yield: peca de resultado ruidoso (CFG.advice.noisy: o Yield, onde um carro da rua lateral pode esperar ate
       // ~12 s e a espera mais longa depende de quando os carros chegam): depois da fila de cima, o mesmo dia mais reps
       // vezes com outra sorte de chegada (salt), peca nova e peca de hoje lado a lado, a 1x e a hi x carros. So para a
       // peca ruidosa que ja ganha na repeticao exata. adviceFor conta as vitorias (repWin). Mesmos ramos, mesma ordem.
-      var A = CFG.advice || {}, R = A.reps | 0, NZ = A.noisy || [], repQ = false;
+      var R = A.reps | 0, NZ = A.noisy || [], repQ = false, repState = {};
+      var minGain = Math.min(A.gain || 0.25, A.gainChanged || 0.4), repNeed = Math.ceil((A.repWin || 0.625) * 2 * R - 1e-9);
+      function pushSalt(t2, s) {
+        r.rep[t2].push({ a: null, c: null, ah: null, ch: null });
+        q.splice(job.i, 0,
+          { k: 'rep', f: 'a', t: t2, mul: 1, s: s, rt: t2 },
+          { k: 'rep', f: 'c', t: cur, mul: 1, s: s, rt: t2, bk: bKey(1, s) },
+          { k: 'rep', f: 'ah', t: t2, mul: hi, s: s, rt: t2 },
+          { k: 'rep', f: 'ch', t: cur, mul: hi, s: s, rt: t2, bk: bKey(hi, s) });
+      }
       function queueReps() {
         repQ = true;
         for (var t2 in r.alt) {
           if (!own(r.alt, t2) || NZ.indexOf(t2) < 0 || R <= 0) continue;
           if (!wiWins(r.alt[t2], r.cur, A.gain || 0.25) || !wiWins(r.altHi[t2], r.curHi, A.gain || 0.25)) continue;
           if (!r.rep) r.rep = {};
-          r.rep[t2] = [];
-          for (var s = 1; s <= R; s++) {
-            r.rep[t2].push({ a: null, c: null, ah: null, ch: null });
-            q.push({ k: 'rep', f: 'a', t: t2, mul: 1, s: s, rt: t2 }, { k: 'rep', f: 'c', t: cur, mul: 1, s: s, rt: t2 },
-                   { k: 'rep', f: 'ah', t: t2, mul: hi, s: s, rt: t2 }, { k: 'rep', f: 'ch', t: cur, mul: hi, s: s, rt: t2 });
-          }
+          r.rep[t2] = []; repState[t2] = { kw: 0 };
+          pushSalt(t2, 1);
         }
       }
       function repTidy() {
@@ -1768,8 +1808,23 @@
       function settle(task, out) {
         job.i++;
         if (task.k === 'cur' || task.k === 'curHi') { r[task.k] = out; if (!out) { job.done = true; job.r = null; } return; }
-        if (task.k === 'rep') { r.rep[task.rt][task.s - 1][task.f] = out; return; }
-        if (task.k === 'alt') { if (out) { base[task.t] = out; q.splice(job.i, 0, { k: 'altHi', t: task.t, mul: hi }); } return; }
+        if (task.k === 'rep') {
+          var e = r.rep[task.rt][task.s - 1];
+          e[task.f] = out;
+          if (task.f === 'ch' && e.a && e.c && e.ah && e.ch) {
+            var stR = repState[task.rt];
+            stR.kw += (wiWins(e.a, e.c, minGain) ? 1 : 0) + (wiWins(e.ah, e.ch, minGain) ? 1 : 0);
+            if (task.s < R && stR.kw + 2 * (R - task.s) >= repNeed) pushSalt(task.rt, task.s + 1);
+          }
+          return;
+        }
+        if (task.k === 'alt') {
+          if (out) {
+            if (wiWins(out, r.cur, minGain)) { base[task.t] = out; q.splice(job.i, 0, { k: 'altHi', t: task.t, mul: hi }); }
+            else r.alt[task.t] = out;
+          }
+          return;
+        }
         if (out) { r.alt[task.t] = base[task.t]; r.altHi[task.t] = out; }
       }
       job.run = function (ms, now) {
@@ -1784,8 +1839,16 @@
             if (st.whatIf.day === day) st.whatIf.nodes[id] = r;
             break;
           }
-          if (!job.br) { job.br = branchOpen(save, id, task.t, task.mul, task.s); job.branches++; if (!job.br) { settle(task, null); continue; } }
-          else if (branchStep(job.br, now ? 45 : Infinity)) { settle(task, job.br.out); job.br = null; }
+          if (!job.br && task.bk && mBase[task.bk]) {
+            var hit = mBase[task.bk], htr = hit.nodes[id], hlk = !!hit.locks[id];
+            settle(task, { w: htr ? htr.w : 0, p: htr ? htr.p : 0, lock: hlk, cut: hit.failed && !hlk });
+            continue;
+          }
+          if (!job.br) { job.br = branchOpen(save, id, task.t, task.mul, task.s, !!task.bk); job.branches++; if (!job.br) { settle(task, null); continue; } }
+          else if (branchStep(job.br, now ? 45 : Infinity)) {
+            if (task.bk && job.br.all) mBase[task.bk] = job.br.all;
+            settle(task, job.br.out); job.br = null;
+          }
           if (now && now() - t0 >= ms) break;
         }
         return job.done;
@@ -1799,23 +1862,23 @@
     // g.whatIf(id): { day, tool (o de hoje), cur {w,p,lock}, alt { peca: {w,p,lock} } } para um cruzamento do dia que
     // acabou (fase summary). Guardado em st.whatIf (vai no save): a manha seguinte le dali. null sem a manha na memoria.
     // lazy: so o que ja esta guardado (a UI nunca joga um dia inteiro dentro de um quadro)
-    g.whatIf = function (id, lazy) {
+    g.whatIf = function (id, lazy, prune) {
       id = +id;
       var C = wiCached(id);
       if (C || lazy) return C;
-      var job = g.whatIfJob(id);
+      var job = g.whatIfJob(id, prune);
       if (!job) return null;
       job.run();
       return job.r;
     };
     // g.whatIfJob(id): o mesmo 'e se' em fatias (job.run(ms, now) ate job.done; job.r). Ja guardado: job pronto.
     // null fora do resumo, sem a manha de hoje na memoria (um reload no resumo) ou num cruzamento sem 'e se'
-    g.whatIfJob = function (id) {
+    g.whatIfJob = function (id, prune) {
       id = +id;
       var C = wiCached(id);
       if (C) return { id: id, day: C.day, done: true, r: C, branches: 0, run: function () { return true; } };
       if (st.phase !== 'summary' || !morning || morning.day !== st.day || BRANCHING) return null;
-      return wiJob(id);
+      return wiJob(id, prune);
     };
     // g.adviceFor(id): a peca que o conselho manda para o cruzamento amanha, decidida pelo 'e se':
     //  { tool: 'stop'|'yield'|'light'|'round', from, w0, w1 } (a peca nova ganha no numero do resumo) ou
@@ -1826,7 +1889,7 @@
     // volta a uma peca que ja saiu dali pelo conselho (sem vai e volta).
     g.adviceFor = function (id, lazy) {
       id = +id;
-      var r = g.whatIf(id, lazy); if (!r) return null;
+      var r = g.whatIf(id, lazy, true); if (!r) return null;
       var A = CFG.advice || {}, n = world.nodes[id], kd = st.kinds && st.kinds[id];
       if (!st.adv) st.adv = {};
       var m = st.adv[id], dayK = r.day;
@@ -1884,10 +1947,12 @@
       if (n.portal && degree(n) < 2) return fail('portal');
       if (degree(n) < (tool === 'cross' ? 2 : 3)) return fail('notjunction');
       if (n.tool === tool) return fail('same');
-      var fromHand = tool === 'light' && st.lightHand > 0;   // o semaforo na mao ja conta no teto
+      var fromHand = HAND_TOOLS[tool] && handOf(tool) > 0;   // o semaforo na mao ja conta no teto
       if (tool === 'light' && !fromHand && lightsUsed(nodeId) >= lightCap()) return fail('cap');   // v2m: a cidade nao liga mais um
-      // semaforo que sai deste cruzamento (trocado por outra peca): vai para a mao, sem devolver pontos
-      var toHand = n.tool === 'light' && tool !== 'light';
+      // peca da mao que sai deste cruzamento: Light sempre vai para a mao; Stop/Yield de dia anterior ou da mao
+      // vao para a mao (o pago hoje segue reembolsando na troca direta na mesma manha)
+      var prev = n.tool;
+      var toHand = prev && prev !== tool && (prev === 'light' || ((prev === 'stop' || prev === 'yield') && !(placed[nodeId] > 0))) ? prev : null;
       var refund = toHand ? 0 : (placed[nodeId] || 0), c = costOf(tool);
       if (st.budget + refund < c) return fail('budget');
       var entry = capture();
@@ -1896,9 +1961,9 @@
       var pairedWith = null;
       autoPair();                                   // v2: par automatico (o vizinho de um semaforo trocado pega outro)
       if (tool === 'light') pairedWith = n.pair;
-      if (fromHand) st.lightHand--;
+      if (fromHand) addHand(tool, -1);
       else if (tool === 'light' && st.free.light) st.free.light = false;
-      if (toHand) st.lightHand++;
+      if (toHand) addHand(toHand, 1);
       st.budget = st.budget + refund - c;
       placed[nodeId] = c;
       undoStack.push(entry);
@@ -1907,8 +1972,8 @@
       var pres = { ok: true, id: nodeId }, pw = watchOn(nodeId, tool);
       if (pw) pres.watched = pw;   // 'new': o cruzamento do anel de ontem passa a ser vigiado hoje
       if (pairedWith !== null && pairedWith !== undefined) { pres.paired = pairedWith; emit({ type: 'paired', a: nodeId, b: pairedWith }); }
-      if (fromHand) pres.fromHand = true;
-      if (toHand) pres.toHand = true;
+      if (fromHand) pres.fromHand = tool;
+      if (toHand) pres.toHand = toHand;
       return pres;
     };
 
@@ -1918,13 +1983,13 @@
       if (!n) return fail('node');
       nodeId = n.id;
       if (!n.tool) return fail('notool');
-      var entry = capture(), wasLight = n.tool === 'light';
+      var entry = capture(), was = n.tool, toHand = was === 'light' || was === 'stop' || was === 'yield';
       if (n.pair !== null && n.pair !== undefined) world.unpair(nodeId);
       world.setTool(nodeId, null);
       if (n.tool === null) autoPair();   // o vizinho que ficou sem par pega outro
-      // semaforo tirado: vai para a mao (volta de graca em outro cruzamento), nunca vira pontos.
+      // semaforo, Stop e Yield tirados: vao para a mao (voltam de graca em outro cruzamento), nunca viram pontos.
       // As outras pecas seguem a regra de antes: o pago hoje volta
-      if (wasLight) st.lightHand++;
+      if (toHand) addHand(was, 1);
       else st.budget += placed[nodeId] || 0;
       delete placed[nodeId];
       undoStack.push(entry);
@@ -1958,10 +2023,12 @@
       if (!e) return fail('edge');
       edgeId = e.id;
       if (e.lanes >= 2) return fail('same');
+      var fromHand = handOf('upgrade') > 0;
       var c = costOf('upgrade');
       if (st.budget < c) return fail('budget');
       var entry = capture();
       world.setLanes(edgeId, 2);
+      if (fromHand) addHand('upgrade', -1);
       st.budget -= c;
       undoStack.push(entry);
       refresh();
@@ -1971,7 +2038,24 @@
       var wa = +st.hot[a.id] || 0, wb = +st.hot[b.id] || 0, wn = wa >= wb ? a : b, ures = { ok: true, id: edgeId };
       if (degree(wn) >= 3) { var uw = watchOn(wn.id, 'upgrade'); if (uw) { ures.watched = uw; ures.watchId = wn.id; } }
       if (!ures.watched && degree(wn === a ? b : a) >= 3) { var uo = watchOn((wn === a ? b : a).id, 'upgrade'); if (uo) { ures.watched = uo; ures.watchId = (wn === a ? b : a).id; } }
+      if (fromHand) ures.fromHand = 'upgrade';
       return ures;
+    };
+
+    // Two lanes tirado de uma rua: vai para a mao (volta de graca em outra rua), nunca vira pontos
+    g.downgradeRoad = function (edgeId) {
+      if (!needPlan()) return fail('phase');
+      var e = getEdge(edgeId);
+      if (!e) return fail('edge');
+      edgeId = e.id;
+      if ((e.lanes || 1) < 2) return fail('notool');
+      var entry = capture();
+      world.setLanes(edgeId, 1);
+      addHand('upgrade', 1);
+      undoStack.push(entry);
+      syncWatch();
+      refresh();
+      return { ok: true, id: edgeId };
     };
 
     // mao unica (dono no iPhone, 2026-11-18: "tem que gastar dois para ficar no sentido que quero"): o sentido e
@@ -2127,6 +2211,7 @@
       st.free.road = e.free.road;
       st.free.light = e.free.light;
       st.lightHand = nat(e.lightHand) ? e.lightHand : 0;
+      st.hand = handNorm(e.hand);
       // dado v2: o Undo desfaz obras, nunca a escolha do dado (shiftUndo ja ajustou os pontos das fotos)
       // vigiados como estavam antes da acao desfeita (entrada de save antigo sem o campo: so tira o que perdeu a peca)
       if (Array.isArray(e.watch)) { var nw = normWatch({ day: st.day, list: e.watch }); st.watch = nw || { day: st.day, list: [] }; }
@@ -2230,7 +2315,7 @@
     g.startDay = function () {
       if (st.phase !== 'plan') return fail('phase');
       // v2x: a manha de hoje (so na memoria) para o 'e se' do resumo (g.whatIf): o mesmo dia, outra peca num cruzamento
-      if (!BRANCHING) { morning = saveCore(); delete morning.undo; morning = { day: st.day, save: morning }; }
+      if (!BRANCHING) { morning = saveCore(); delete morning.undo; morning = { day: st.day, save: morning, base: {} }; }
       // oferta sem resposta ao comecar o dia: passou (nada aplicado). So face usada ou sem escolha mexe no dia
       if (st.dieState === 'offer') { st.dieState = 'passed'; dieEvent(); }
       var o = (dieLive() && st.die.effect) || {};
@@ -2489,7 +2574,7 @@
           day: st.day, phase: st.phase === 'run' ? 'plan' : st.phase, budget: st.budget,
           strikes: st.strikes, speed: st.speed, die: st.die, nextDie: st.nextDie, rerolled: st.rerolled,
           dieState: st.dieState, kept: st.kept, debt: st.debt || 0, debtPaid: st.debtPaid || 0, dieFromKept: !!st.dieFromKept,
-          free: st.free, summary: st.summary, lightHand: st.lightHand | 0,
+          free: st.free, summary: st.summary, lightHand: st.lightHand | 0, hand: handNorm(st.hand),
           draft: st.draft, totalDelivered: st.totalDelivered, totalScore: st.totalScore,
           history: st.history, dayTime: st.phase === 'run' ? 0 : st.dayTime,
           // dia esticado pela cena do dia 2 (jamHold): o tamanho real do dia vai junto (resumo volta igual)
@@ -2549,7 +2634,7 @@
       owDay = st.phase === 'plan' ? owNorm(saved.ow) : {};
       // Undo do plano de hoje (Game.load ja conferiu ou tirou d.undo): mesmas fotos, mesma ordem, mesmos reembolsos
       undoStack = (saved.undo && st.phase === 'plan') ? saved.undo.list.map(function (e) {
-        return { layout: e.layout, budget: e.budget, placed: e.placed, ow: owNorm(e.ow), free: { road: e.free.road, light: e.free.light }, lightHand: e.lightHand,
+        return { layout: e.layout, budget: e.budget, placed: e.placed, ow: owNorm(e.ow), free: { road: e.free.road, light: e.free.light }, lightHand: e.lightHand, hand: handNorm(e.hand),
                  die: normDie(e.die, st.day), rerolled: e.rerolled, watch: Array.isArray(e.watch) ? e.watch : undefined, crew: e.crew };
       }) : [];
       st.hot = saved.hotMap || {};
@@ -2569,6 +2654,7 @@
       shiftDay = nat(saved.shiftDay) ? saved.shiftDay : 0;
       // semaforo na mao: nunca mais que o teto (save de antes do teto pode ter mais no mapa); save sem o campo: nenhum
       st.lightHand = nat(s.lightHand) ? Math.min(s.lightHand, lightCap()) : 0;
+      st.hand = handNorm(s.hand);
       if (isObjL(saved.crew)) {
         st.crew = crewNorm(saved.crew); if (st.phase !== 'plan') st.crew.offer = false;
         // save de antes de w_crew (sem next): dentro da janela e sem oferta aberta, a de hoje ja passou; a proxima
@@ -2769,6 +2855,8 @@
     if (s.kept !== undefined && s.kept !== null && !keptOk(s.kept)) return false;
     if ((s.debt !== undefined && (!nat(s.debt) || s.debt > 20)) || (s.debtPaid !== undefined && (!nat(s.debtPaid) || s.debtPaid > 20))) return false;
     if (s.rerolled !== undefined && typeof s.rerolled !== 'boolean') return false;
+    if (s.lightHand !== undefined && (!nat(s.lightHand) || s.lightHand > 400)) return false;
+    if (s.hand !== undefined && !handOk(s.hand)) return false;
     if (s.clearSeen !== undefined && typeof s.clearSeen !== 'boolean') return false;
     if (s.teachOn !== undefined && typeof s.teachOn !== 'boolean') return false;
     if (s.teachSeen !== undefined && typeof s.teachSeen !== 'boolean') return false;
@@ -2914,6 +3002,8 @@
       var e = u.list[i];
       if (!isObj(e) || !nat(e.budget) || e.budget > cap || !isObj(e.free) || !isObj(e.placed)) return false;
       if (typeof e.free.road !== 'boolean' || typeof e.free.light !== 'boolean' || typeof e.rerolled !== 'boolean') return false;
+      if (e.lightHand !== undefined && (!nat(e.lightHand) || e.lightHand > 400)) return false;
+      if (e.hand !== undefined && !handOk(e.hand)) return false;
       if (!dieOk(e.die, s.day, true) || !freeOk(e.free, e.die, s.day, cards)) return false;
       for (k in e.placed) if (!/^\d+$/.test(k) || !fin(e.placed[k]) || e.placed[k] < 0) return false;
       var L = e.layout;
@@ -2923,6 +3013,26 @@
     return true;
   }
 
+  function handNorm(h) {
+    var out = { stop: 0, yield: 0, upgrade: 0 };
+    if (!isObj(h)) return out;
+    for (var i = 0; i < HAND_KEYS.length; i++) {
+      var k = HAND_KEYS[i], v = own(h, k) ? h[k] : undefined;
+      if (nat(v)) out[k] = Math.min(v, k === 'upgrade' ? 800 : 400);
+    }
+    return out;
+  }
+  function handOk(h) {
+    if (!isObj(h)) return false;
+    var ks = Object.keys(h);
+    for (var i = 0; i < ks.length; i++) {
+      var k = ks[i];
+      if (HAND_KEYS.indexOf(k) < 0) return false;
+      var v = h[k];
+      if (!nat(v) || v > (k === 'upgrade' ? 800 : 400)) return false;
+    }
+    return true;
+  }
   // mao unica de hoje (owDay) no save e no Undo: opcional; so entra o que tem a forma certa (save antigo: vazio)
   function owNorm(O) {
     var out = {};

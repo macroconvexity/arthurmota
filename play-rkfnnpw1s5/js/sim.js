@@ -73,6 +73,7 @@
     var Q = {};                // id da estrada -> {d:[LS dir 1, LS dir -1]}
     var NS = {};               // id do no -> estado interno
     var distCache = {};        // id destino -> {stamp, arr}
+    var reachStamp = 0, reachCache = {}; // origem -> {stamp, arr} (alcancabilidade estatica)
     var events = [];
     var rng = CRZ.rng(w.seed);
     var stepNo = 0, STEP_DT = 1 / 30;
@@ -102,6 +103,7 @@
       else if (c && typeof c === 'object') { for (k in c) if (c[k] && w.edges[k]) { CL[k] = true; any = true; } }
       if (!any) CL = null;
       distCache = {};
+      reachStamp++;
     }
     function closedE(e) { return CL !== null && CL[e.id] === true; }
 
@@ -188,6 +190,7 @@
         ns.serveCost = serveCostOf(n);
       }
       distCache = {};
+      reachStamp++;
       recalcPairs();
     }
 
@@ -488,6 +491,30 @@
         }
       }
       c.stamp = stepNo;
+      return arr;
+    }
+    // nos alcancaveis a partir de srcId (independe de fila nos arcos; cacheado por topologia/closed)
+    function reachFrom(srcId) {
+      if (w.params.closed !== clRef) syncClosed();
+      var c = reachCache[srcId];
+      if (c && c.stamp === reachStamp) return c.arr;
+      var N = nodeList.length;
+      if (!c || c.arr.length !== N) c = reachCache[srcId] = { stamp: -1, arr: new Uint8Array(N) };
+      var arr = c.arr;
+      arr.fill(0);
+      var si = nIdx[srcId];
+      arr[si] = 1;
+      var q = [si], qi = 0;
+      while (qi < q.length) {
+        var u = nodeList[q[qi++]], es = u.edges;
+        for (var k = 0; k < es.length; k++) {
+          var e = w.edges[es[k]], dir = e.a === u.id ? 1 : -1;
+          if ((dir === 1 && e.oneway === -1) || (dir === -1 && e.oneway === 1) || closedE(e)) continue;
+          var vi = nIdx[dir === 1 ? e.b : e.a];
+          if (!arr[vi]) { arr[vi] = 1; q.push(vi); }
+        }
+      }
+      c.stamp = reachStamp;
       return arr;
     }
     // proximo arco a partir de nodeId rumo a dest; codifica eid*2 + (dir==1?0:1); -1 sem rota
@@ -911,7 +938,7 @@
         // Nenhum com rota: devolve -2 SEM consumir rng (o carro espera no portal, ver spawn). Com todos
         // alcancaveis o consumo e o sorteio sao identicos aos de antes; com mao unica o sorteio muda.
         // CFG.trafficBalance.destDistK > 0: ponta mais longe do centro atrai mais (NOTES_TRAFFIC.md); 0 = peso antigo
-        var others = [], ws = [], tot = 0, pi = nIdx[p.id];
+        var others = [], ws = [], tot = 0, vis = reachFrom(p.id);
         var TB = CFG.trafficBalance, dk = TB && TB.destDistK > 0 && w.day >= (TB.destFromDay || 1) ? TB.destDistK / CFG.worldRadius : 0;
         // w_cars (2026-11-18): destAttract = peso de destino da ponta que gera pouco (fraca da cidade, do jogador), no
         // lugar da taxa dela: a ponta nova atrai carro mesmo gerando pouco. destTripK: viagem longa pesa mais
@@ -919,7 +946,7 @@
         var DA = TB && TB.destAttract && w.day >= (TB.destFromDay || 1) ? TB.destAttract : null, tk = TB && TB.destTripK > 0 && w.day >= (TB.destFromDay || 1) ? TB.destTripK / CFG.worldRadius : 0;
         for (var i = 0; i < portalList.length; i++) {
           var q = portalList[i];
-          if (q === p || !(distTo(q.id)[pi] < INF)) continue;
+          if (q === p || !vis[nIdx[q.id]]) continue;
           var qr = q.rate > 0 && q.rate < 1 ? q.rate : 1;
           if (DA && qr < 1) qr = Math.max(qr, (q.rate === CFG.builtPortalRate ? DA.player : DA.weak) || 0);
           var wq = qr * (dk ? 1 + dk * Math.sqrt(q.x * q.x + q.y * q.y) : 1) * (tk ? 1 + tk * Math.hypot(q.x - p.x, q.y - p.y) : 1);
