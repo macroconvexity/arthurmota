@@ -244,6 +244,12 @@
     guideUpkeep: function (d, per) { return 'From day ' + d + ': ' + per + (per === 1 ? ' build point' : ' build points') + ' every morning. Removing it is free.'; },
     upkeepFirst: function (per, notToday) { return (notToday ? 'Each light costs ' : 'From today, each light costs ') + per + (per === 1 ? ' build point' : ' build points') + ' every morning. Removing one is free.'; },
     resumedDay: 'Resumed from the start of the day.',
+    welcomeBuilt: function (d) { return 'Welcome back. Day ' + d + ': you already built today. Tap \u25b6\ufe0e to start the day.'; },
+    welcomePoints: function (d, n) { return 'Welcome back. Day ' + d + ': you have ' + n + (n === 1 ? ' build point' : ' build points') + ' to spend.'; },
+    welcomeOut: function (d) { return 'Welcome back. Day ' + d + ': out of build points. Tap \u25b6\ufe0e to start the day.'; },
+    welcomeShort: function (d) { return 'Welcome back. Day ' + d + ': not enough points to build more. Tap \u25b6\ufe0e to start the day.'; },
+    welcomeFreeRoad: function (d) { return 'Welcome back. Day ' + d + ': you still have a free road today.'; },
+    welcomeFreeLight: function (d) { return 'Welcome back. Day ' + d + ': you still have a free traffic light today.'; },
     cWhyFreeLight: 'You still have a free traffic light today.',
     newJChipSay: 'Each NEW crossing needs a sign.',
     // F: faixa de pedestre sobre um sinal
@@ -5837,6 +5843,61 @@
       if (v && v === runTag + '|' + (game.state.day | 0) && game.state.phase === 'plan') resumePend = true;
       lsDel(RUN_KEY);
     })();
+    function hasKeys(o) {
+      if (!o || typeof o !== 'object') return false;
+      for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) return true;
+      return false;
+    }
+    function builtToday(s) {
+      if (game.canUndo && game.canUndo()) return true;
+      if ((s.day | 0) === 1 && edgeTotal() > DAY1_EDGES) return true;
+      var p = planToday(s), b = s.budget | 0;
+      if (p && p.b0 > b) return true;
+      if (typeof game.save === 'function') {
+        try {
+          var sv = game.save();
+          if (sv && (hasKeys(sv.placed) || hasKeys(sv.ow))) return true;
+        } catch (e) {}
+      }
+      // Old saves without d.undo / gridlet.plan: out of points with no debt or upkeep drain means spent today.
+      if (b < minToolCost(s) && !freeLeft(s) && !(s.debtPaid > 0) && !(s.upkeep && s.upkeep.paid > 0)) return true;
+      return false;
+    }
+    function welcomeText(s) {
+      var d = s.day | 0, b = s.budget | 0;
+      if (b < minToolCost(s) && !freeLeft(s)) {
+        if (builtToday(s)) return STR.welcomeBuilt(d);
+        return b > 0 ? STR.welcomeShort(d) : STR.welcomeOut(d);
+      }
+      if (b > 0) return STR.welcomePoints(d, b);
+      return s.free && s.free.road ? STR.welcomeFreeRoad(d) : STR.welcomeFreeLight(d);
+    }
+    function untouchedDay1(s) {
+      return (s.day | 0) === 1 && !(s.history && s.history.length) &&
+        !(game.canUndo && game.canUndo()) && edgeTotal() <= DAY1_EDGES &&
+        (s.budget | 0) >= ((CFG.budget && CFG.budget[0]) | 0) && !(s.free && (s.free.road || s.free.light));
+    }
+    var welcomePend = !!(opts.resumed || (game && game.resumed)) && !resumePend &&
+      !!(game && game.state && game.state.phase === 'plan') && !untouchedDay1(game.state);
+    var welcomeSettle = false;
+    function welcomeValid() {
+      return !!(game && game.state && game.state.phase === 'plan') &&
+        !tutBalloonOn() && !modal() && !confirmOpen() && !sheetOpen && !roll.open && !crewOpen() && !chCardOpen();
+    }
+    function welcomeTick(s) {
+      if (!welcomePend) return;
+      if (resumePend || s.phase !== 'plan') { welcomePend = false; return; }
+      var rollPend = ROLL_ON && (s.day | 0) >= 2 && (s.dieState === 'none' ? diceInfoOf(s).canRoll : s.dieState === 'offer');
+      var crewPend = !!(CFG.crew && s.crew && s.crew.offer && (s.budget | 0) >= CFG.crew.cost && crewAskDay !== s.day);
+      if (bootFrames >= 0 || growPend || holdUntil || modal() || chCardOpen() || chCardPending(s) ||
+          roll.open || rollPend || crewOpen() || crewPend || confirmOpen() || sheetOpen || guideEl ||
+          tutBalloonOn() || tutorTalking() || sayUntil || sayEl.classList.contains('show')) {
+        welcomeSettle = false;
+        return;
+      }
+      if (!welcomeSettle) { welcomeSettle = true; return; }
+      if (sayShown(welcomeText(s), 4000, welcomeValid)) welcomePend = false;
+    }
     // v2 (D9): o que muda nos strikes, na hora em que importa, com a faixa de sempre (uma vez cada por partida)
     //  - o primeiro jam livre (dias 1 a 5): nao contou, e a partir de quando conta
     //  - a primeira manha em que um jam vira strike (dia strikeGraceUntil + 1)
@@ -6152,6 +6213,7 @@
       upkeepTick(s);
       crewTick(s);
       invisTick(s, now);
+      welcomeTick(s);
       // nv8 6: com aviso preto na tela o selo PAUSED (menu.js) desce para baixo dele
       var sOn = sayEl.classList.contains('show') && !!s.paused;
       if (doc.body && doc.body.classList && sOn !== doc.body.classList.contains('crz-say-on')) {

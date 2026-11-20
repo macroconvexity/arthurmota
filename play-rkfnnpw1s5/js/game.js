@@ -357,7 +357,7 @@
       syncBoost();
     }
     var HOT_MIN = 0.35;
-    var PORTAL_CAP = 10;        // teto de portais criados por ruas do jogador
+    var PORTAL_CAP = typeof CFG.playerPortalCap === 'number' ? CFG.playerPortalCap : 10;   // teto de portais criados por ruas do jogador (a UI le o mesmo CFG.playerPortalCap)
     // 'New record' (finishDay). fromDay: os dias 1 e 2 sao roteiro do tutorial (o dia 2 tem o dobro de carros por
     // segundo, CFG.day2Mul) e nao entram na base nem viram recorde. rateMul 1,25 -> 1,10 nos 30 dias: os dias quase
     // nao crescem (45 a 60 s) e com 1,25 o recorde sumia depois do dia 11 (dev/game/test_record.js, INTEGRACAO.md)
@@ -1657,7 +1657,7 @@
     function needPlan() { return st.phase === 'plan'; }
 
     // ----- objeto publico -----
-    var g = { world: world, state: st, migrated: !!(saved && saved.migrated) };
+    var g = { world: world, state: st, migrated: !!(saved && saved.migrated), resumed: !!saved };
 
     g.cost = costOf;
     g.canAfford = function (tool) { return isUnlocked(tool) && st.budget >= costOf(tool) && (tool !== 'light' || st.lightHand > 0 || lightsUsed() < lightCap()); };
@@ -2055,7 +2055,17 @@
       var tx = r.x, ty = r.y;
       if (dist(tx, ty, 0, 0) > BUILD_R + 1e-6) { var fo = fail('radius'); fo.why = 'range'; return fo; }
       var entry = capture();
-      var chain = [fromId], okB = true, endNode = null, i, sn, hit;
+      var chain = [fromId], okB = true, endNode = null, i, sn, hit, moveFrom = false;
+      // w_cars (CFG.trafficBalance.movePortal = primeiro dia; 0 desliga): a rua que estica a ponta de uma rua (ponta com uma rua so, sem evento
+      // marcado nela) leva a ponta junto: a ponta nova herda a taxa (da cidade ou do jogador) e a antiga vira rua
+      // comum. Antes a ponta ficava no meio da rua e a nova virava ponta do jogador (taxa baixa) ou beco no teto.
+      function endOpts() {
+        var TBm = CFG.trafficBalance, evs = st.events && Array.isArray(st.events.list) ? st.events.list : [];
+        moveFrom = !!(TBm && TBm.movePortal > 0 && st.day >= TBm.movePortal && from.portal && degree(from) === 1 &&
+          !evs.some(function (ev) { return ev.node === from.id && ev.day >= st.day; }));
+        if (moveFrom) return from.rate > 0 && from.rate < 1 ? { portal: true, rate: from.rate } : { portal: true };
+        return { portal: playerPortals() < PORTAL_CAP, rate: CFG.builtPortalRate };
+      }
       // 1) cruzamentos (o Sim garante que cada estrada cruzada aparece uma vez e que nenhuma e o alvo do T)
       var cross = r.cross || [];
       for (i = 0; okB && i < cross.length; i++) {
@@ -2068,7 +2078,7 @@
         if (r.nodeId !== undefined && r.nodeId !== null && world.nodes[r.nodeId]) endId = r.nodeId;
         else if (r.edgeId !== undefined && r.edgeId !== null && world.edges[r.edgeId]) endId = idOf(world.splitEdge(r.edgeId, tx, ty));
         else if (r.end === 'free') {
-          endId = idOf(world.addNode(tx, ty, { portal: playerPortals() < PORTAL_CAP, rate: CFG.builtPortalRate }));
+          endId = idOf(world.addNode(tx, ty, endOpts()));
         } else {
           // sim sem r.end (stub dos testes): procura no ou estrada no ponto final
           var near = world.nearestNode(tx, ty, CFG.minNodeSpacing);
@@ -2077,7 +2087,7 @@
           if (near) endId = near.id;
           else if (hit && hit.dist < 14) endId = idOf(world.splitEdge(hit.edge.id, hit.x, hit.y));
           // a ponta nova vira portal: a rua construida passa a gerar e receber carros (muda o jogo na hora)
-          else endId = idOf(world.addNode(tx, ty, { portal: playerPortals() < PORTAL_CAP, rate: CFG.builtPortalRate }));
+          else endId = idOf(world.addNode(tx, ty, endOpts()));
         }
         if (endId === null || endId === undefined || !world.nodes[endId]) okB = false;
         else { chain.push(endId); endNode = world.nodes[endId]; }
@@ -2093,6 +2103,7 @@
         world.restore(entry.layout); world.day = st.day;
         return fail('invalid');
       }
+      if (moveFrom && endNode && typeof world.setPortal === 'function') world.setPortal(fromId, false);
       if (st.free.road) st.free.road = false;
       st.budget -= c;
       undoStack.push(entry);
@@ -2399,7 +2410,7 @@
           for (var j = 0; j < ids.length; j++) {
             var n = world.nodes[ids[j]];
             if ((n.stress || 0) > (runHot[ids[j]] || 0)) { runHot[ids[j]] = n.stress; runAt[ids[j]] = st.dayTime; }
-            if ((n.stress || 0) >= 1 && !n.locked) { runFull[ids[j]] = (runFull[ids[j]] || 0) + 10 * STEP; lockNear = Math.max(lockNear, runFull[ids[j]] / (CFG.lockSeconds || 8)); } else if (!n.locked) runFull[ids[j]] = 0;
+            if ((n.stress || 0) >= 1 && !n.locked) { runFull[ids[j]] = (runFull[ids[j]] || 0) + 10 * STEP; lockNear = Math.max(lockNear, runFull[ids[j]] / ((typeof world.lockSecs === 'function' && +world.lockSecs()) || CFG.lockSeconds || 8)); } else if (!n.locked) runFull[ids[j]] = 0;
             var wq = waitNow(ids[j], n);
             if (wq > (runWait[ids[j]] || 0)) runWait[ids[j]] = wq;
             if (stepCount % TRACE_EVERY === 0) (runTrace[ids[j]] || (runTrace[ids[j]] = [])).push(Math.round(Math.min(1, n.stress || 0) * 100));
@@ -2678,6 +2689,16 @@
         var n = w.nodes[i];
         if (isObj(n) && n.portal === true && n.rate === undefined && fin(n.x) && fin(n.y) &&
             n.x * n.x + n.y * n.y > CFG.worldRadius * CFG.worldRadius) n.rate = CFG.builtPortalRate;
+      }
+      // w_cars: beco de um save antigo (ponta de rua sem portal, o traco que nunca recebia carro: rua do jogador alem do
+      // teto antigo de 10) vira ponta do jogador, como toda ponta solta agora (CFG.playerPortalCap)
+      if (typeof CFG.playerPortalCap === 'number' && CFG.playerPortalCap > 10 && Array.isArray(w.edges)) {
+        var dg = {};
+        w.edges.forEach(function (e) { if (isObj(e)) { dg[e.a] = (dg[e.a] || 0) + 1; dg[e.b] = (dg[e.b] || 0) + 1; } });
+        for (i = 0; i < w.nodes.length; i++) {
+          var dn = w.nodes[i];
+          if (isObj(dn) && dn.portal !== true && !dn.tool && dg[dn.id] === 1) { dn.portal = true; dn.rate = CFG.builtPortalRate; }
+        }
       }
     }
     // v2: ferramenta cortada (CFG.tools.<id>.removed, a faixa de pedestre): vira cruzamento sem sinal e o custo volta

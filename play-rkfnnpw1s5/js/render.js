@@ -1189,7 +1189,7 @@
       if (!st || st.phase !== 'run' || n.locked || !((n.stress || 0) >= 1)) { if (lockAt[id] !== undefined) delete lockAt[id]; return -1; }
       if (st.day !== lockDay) { lockAt = {}; lockDay = st.day; }
       if (lockAt[id] === undefined || t < lockAt[id]) lockAt[id] = t;
-      var L = +CFG.lockSeconds || 8;
+      var L = (game && game.world && typeof game.world.lockSecs === 'function' && +game.world.lockSecs()) || +CFG.lockSeconds || 8;   // w_cars: o relogio do dia
       return Math.max(0, Math.min(1, (t - lockAt[id]) / L));
     }
     // octogono regular de apotema a, lado plano em cima e embaixo (sinal de Pare), como subcaminho

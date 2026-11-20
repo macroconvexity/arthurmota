@@ -531,6 +531,26 @@
       if ((dir === 1 && (e.a !== nodeId || e.oneway === -1)) || (dir === -1 && (e.b !== nodeId || e.oneway === 1))) return false;
       return !closedE(e);
     }
+    // w_cars: alvo de agora do carro (o ponto de passagem _via, se houver e existir; senao o destino). Carro sem _via:
+    // sempre o destino (como antes)
+    function tgt(car) { var v = car._via; return v >= 0 && w.nodes[v] ? v : car.dest; }
+    // w_cars (CFG.trafficBalance.via): uma parte dos carros passa por um cruzamento sorteado no caminho, se o desvio
+    // custa no maximo slack a mais que a rota direta. Sem isso a rua que nao esta em nenhum caminho mais curto (anel,
+    // atalho de lado) fica vazia o dia inteiro. Consome rng so com via ligado (1 sorteio + 1 por tentativa).
+    function pickVia(p, d) {
+      var V = CFG.trafficBalance && CFG.trafficBalance.via;
+      if (!V || !(V.p > 0) || w.day < (V.fromDay || 1) || d < 0) return -1;
+      if (rng() >= V.p) return -1;
+      var pi = nIdx[p.id], dd = distTo(d)[pi];
+      if (!(dd < INF)) return -1;
+      for (var t = 0; t < (V.tries || 3); t++) {
+        var v = nodeList[Math.floor(rng() * nodeList.length)];
+        if (!v || v.portal || v === p || v.id === d || v.edges.length < 3) continue;   // so cruzamento (nunca beco nem curva)
+        var a = distTo(v.id)[pi], b = distTo(d)[nIdx[v.id]];
+        if (a > 0 && a + b <= (1 + (V.slack || 0)) * dd) return v.id;
+      }
+      return -1;
+    }
     // coloca o carro no arco code, faixa l, e decide o proximo arco
     function enter(car, code, l, fromNode) {
       var e = w.edges[code >> 1], di = code & 1, ls = Q[e.id].d[di];
@@ -540,8 +560,9 @@
       ls.last[l] = w.time;
       ls.inCnt++;   // v2m: carros que entraram nesta aproximacao hoje (w.nodeTraffic)
       var far = ls.node;
+      if (car._via >= 0 && (far === car._via || !w.nodes[car._via])) car._via = -1;   // w_cars: passou pelo ponto de passagem
       if (far === car.dest) { car._next = -1; return true; }
-      car._next = route(far, e.id, car.dest);
+      car._next = route(far, e.id, tgt(car));
       if (car._next < 0) {
         ls.cars[l].pop();
         removeCar(car);
@@ -572,7 +593,7 @@
     function tryRelease(n, ns, c, emit) {
       var car = c.car;
       if (!codeValid(car._next, n.id)) {
-        car._next = route(n.id, car.edgeId, car.dest);
+        car._next = route(n.id, car.edgeId, tgt(car));
         if (car._next < 0) {
           c.ls.cars[c.l].shift(); removeCar(car); w.stats.unroutable++; c.done = true;
           return false;
@@ -892,10 +913,16 @@
         // CFG.trafficBalance.destDistK > 0: ponta mais longe do centro atrai mais (NOTES_TRAFFIC.md); 0 = peso antigo
         var others = [], ws = [], tot = 0, pi = nIdx[p.id];
         var TB = CFG.trafficBalance, dk = TB && TB.destDistK > 0 && w.day >= (TB.destFromDay || 1) ? TB.destDistK / CFG.worldRadius : 0;
+        // w_cars (2026-11-18): destAttract = peso de destino da ponta que gera pouco (fraca da cidade, do jogador), no
+        // lugar da taxa dela: a ponta nova atrai carro mesmo gerando pouco. destTripK: viagem longa pesa mais
+        // (x (1 + destTripK x distancia(p, q) / worldRadius)): carros cruzam a cidade de ponta a ponta. Ausentes = antes.
+        var DA = TB && TB.destAttract && w.day >= (TB.destFromDay || 1) ? TB.destAttract : null, tk = TB && TB.destTripK > 0 && w.day >= (TB.destFromDay || 1) ? TB.destTripK / CFG.worldRadius : 0;
         for (var i = 0; i < portalList.length; i++) {
           var q = portalList[i];
           if (q === p || !(distTo(q.id)[pi] < INF)) continue;
-          var wq = (q.rate || 1) * (dk ? 1 + dk * Math.sqrt(q.x * q.x + q.y * q.y) : 1);
+          var qr = q.rate > 0 && q.rate < 1 ? q.rate : 1;
+          if (DA && qr < 1) qr = Math.max(qr, (q.rate === CFG.builtPortalRate ? DA.player : DA.weak) || 0);
+          var wq = qr * (dk ? 1 + dk * Math.sqrt(q.x * q.x + q.y * q.y) : 1) * (tk ? 1 + tk * Math.hypot(q.x - p.x, q.y - p.y) : 1);
           others.push(q); ws.push(wq); tot += wq;
         }
         if (!others.length) return -2;
@@ -916,13 +943,17 @@
       var cityN = 0, ref = (w.portalNorm && CFG.portalRef) ? CFG.portalRef(w.day) : Infinity;
       for (var j = 0; j < portalList.length; j++) if (!(portalList[j].rate > 0 && portalList[j].rate < 1)) cityN++;
       var cityMul = cityN > ref ? ref / cityN : 1;
+      // w_cars (CFG.trafficBalance.playerEmitMax): as pontas do jogador somadas geram no maximo isto (em pontas cheias);
+      // acima, cada uma gera menos (toda ponta solta do jogador e ponta de verdade, sem beco, e o total nao dispara)
+      var PEM = w.portalNorm && CFG.trafficBalance && CFG.trafficBalance.playerEmitMax > 0 ? CFG.trafficBalance.playerEmitMax : 0, playMul = 1;
+      if (PEM) { var pSum = 0; for (j = 0; j < portalList.length; j++) if (portalList[j].rate === CFG.builtPortalRate) pSum += portalList[j].rate; if (pSum > PEM) playMul = PEM / pSum; }
       var PM = w.params.portalMul && typeof w.params.portalMul === 'object' ? w.params.portalMul : null;
       for (var i = 0; i < portalList.length; i++) {
         var p = portalList[i], ns = NS[p.id];
         var pm = PM !== null && PM[p.id] > 0 && isFinite(PM[p.id]) ? PM[p.id] : 1;
         // fila do portal (CFG.portalQueueCap): ns.pq guarda a hora de chegada de cada carro (pend = pq.length).
         // O sorteio de chegada consome 1 rng por portal e passo, com ou sem vaga (consumo igual ao de antes).
-        if (rng() < rate * pm * (p.rate > 0 && p.rate < 1 ? p.rate : cityMul)) {
+        if (rng() < rate * pm * (p.rate > 0 && p.rate < 1 ? p.rate * (p.rate === CFG.builtPortalRate ? playMul : 1) : cityMul)) {
           if (!(CFG.portalQueueCap > 0) || ns.pend < CFG.portalQueueCap) { ns.pend++; ns.pq.push(w.time); }
           else if (ns.pendLost) { w.stats.unroutable++; w.stats.lost++; events.push({ type: 'lost', nodeId: p.id, lost: w.stats.lost }); }
           else w.stats.dropped++;
@@ -947,9 +978,12 @@
         ns.pendLost = false;
         var l = laneFor(code);
         if (l < 0) continue;
+        var via = pickVia(p, ns.pendDest), cv = via >= 0 ? route(p.id, -1, via) : -1;
+        if (cv >= 0 && laneFor(cv) >= 0) { code = cv; l = laneFor(cv); } else via = -1;
         var car = { id: nextCar++, edgeId: 0, dir: 1, s: 0, lane: 0, speed: CFG.speedSlow,
           dest: ns.pendDest, waited: 0, x: p.x, y: p.y, ang: 0,
           _i: w.cars.length, _we: 0, _next: -1, _from: p.id, _lineAt: -1, _wave: 0, _wh: 0 };
+        if (via >= 0) car._via = via;
         w.cars.push(car);
         ns.pend--; ns.pq.shift(); ns.pendDest = -1;
         if (enter(car, code, l, p.id)) {
@@ -967,6 +1001,16 @@
       var pd = CFG.patienceDay && CFG.patienceDay[w.day - 1];
       return CFG.patience * (pd > 0 ? pd : 1) * w.params.patienceMul;
     }
+    // w_cars: CFG.patienceLate = { fromDay, mul } (difficulty.js latePatience): com mais carros na cidade, o cruzamento
+    // demora mais para TRAVAR a partir de fromDay. O anel (estresse) segue a paciencia de sempre (o semaforo num
+    // cruzamento calmo ainda acende o anel ambar, o anel vermelho aparece na mesma espera); so o relogio da trava ganha
+    // (mul - 1) x paciencia do dia: o tempo ate travar de quem espera cada vez mais e o de uma paciencia mul vezes maior.
+    // Os dias de aprendizado (cena do dia 2) ficam iguais
+    function lockSecsNow() {
+      var PL = CFG.patienceLate, pl = PL && PL.mul > 0 && w.day >= (PL.fromDay || 1) ? PL.mul : 1;
+      return CFG.lockSeconds + (pl > 1 ? (pl - 1) * patNow() : 0);
+    }
+    w.lockSecs = lockSecsNow;   // relogio da trava (render.js lockProgress, game.js lockNear)
 
     function stress(dt) {
       var i, n, ns, pat = patNow();
@@ -995,7 +1039,7 @@
         if (!ns.ev8 && prev < 0.8 && s >= 0.8) { ns.ev8 = true; events.push({ type: 'stress', nodeId: n.id, value: 0.8 }); }
         if (!n.locked) {
           if (ns.sraw >= 1) ns.lockT += dt; else ns.lockT = 0;
-          if (ns.lockT >= CFG.lockSeconds) {
+          if (ns.lockT >= lockSecsNow()) {
             n.locked = true;
             w.stats.gridlocks++;
             events.push({ type: 'gridlock', nodeId: n.id });

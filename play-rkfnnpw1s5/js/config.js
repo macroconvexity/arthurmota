@@ -66,23 +66,32 @@
     // (v2m) e sem manutencao, o robo que escolhe bem deixava 3,7 pontos parados por dia no Normal; com 4, 2,9, e o
     // dado pela regra passa a vencer usar sempre e passar sempre (39, 33 e 33 de 40). Easy igual (40 de 40).
     // Medido em dev/review/v2int/measure_out (exp.jsonl, E1), INTEGRACAO.md secao 9
-    budget:   [2, 4, 3, 3, 4, 4, 4, 4, 4, 4,
-               4, 4, 4, 4, 4, 4, 4, 4, 4, 4,
-               4, 4, 4, 4, 4, 4, 4, 4, 4, 4],
-    carryCap: 3,          // pontos que sobram e passam ao dia seguinte
+    // w_cars (2026-11-18, testadora: "poucos pontos por rodada, demora para construir"): com mais carros na cidade, mais
+    // pontos. Dias 7 a 20 de 4 para 5, capitulo 3 de 4 para 6, sobra de 3 para 4. Medido com os carros novos
+    // (web/dev/review/w_cars/NOTES.md): o robo atento deixa 2,5 pontos parados por dia, como antes
+    budget:   [2, 4, 3, 3, 4, 4, 5, 5, 5, 5,
+               5, 5, 5, 5, 5, 5, 5, 5, 5, 5,
+               6, 6, 6, 6, 6, 6, 6, 6, 6, 6],
+    carryCap: 4,          // pontos que sobram e passam ao dia seguinte
     // carros novos por segundo, por portal, antes do multiplicador do dado (v2/economia.md 6.2): capitulo 1 a curva de
     // antes x0,85 (dias 1 e 2 iguais aos de main), capitulo 2 o valor do dia 10 + 0,008 por dia, capitulo 3 + 0,03 de
     // degrau + 0,008 por dia.
     // Dia 2 (ritmo, de main): metade do tempo (64 -> 32 s) e o dobro de carros por segundo (day2Mul): os mesmos ~21
     // carros do dia 2 de antes. Medido em node (40 sementes, Easy): anel >= 0,3 no dia 2 em 1 de 40.
     day2Mul: 2,
+    // w_cars (2026-11-18, dono: "precisa de mais carros"): fator de carros por capitulo, do dia fromDay em diante (os
+    // dias 1 a 4 e a cena do dia 2 ficam como estavam). Medido em web/dev/review/w_cars (diag.js, NOTES.md)
+    carsMul: { fromDay: 5, byChapter: [1.4, 1.1, 1] },
+    // w_cars: paciencia dos motoristas a partir de fromDay (sim.js patNow); mul vem do perfil (difficulty.js latePatience)
+    patienceLate: { fromDay: 5, mul: 1 },
     spawnRate: function (day) {
-      var c1 = 0.85 * (0.1326 + 0.01872 * 10);
+      var c1 = 0.85 * (0.1326 + 0.01872 * 10), CM = CRZ.CFG.carsMul;
+      var m = CM && day >= CM.fromDay && CM.byChapter ? (CM.byChapter[Math.min(CM.byChapter.length, Math.ceil(day / (CRZ.CFG.chapterDays || 10))) - 1] || 1) : 1;
       if (day <= 1) return 0.234;
       if (day === 2) return (0.1326 + 0.01872 * 2) * CRZ.CFG.day2Mul;   // main, sem o x0,85
-      if (day <= 10) return 0.85 * (0.1326 + 0.01872 * day);
-      if (day <= 20) return c1 + 0.008 * (day - 10);
-      return c1 + 0.08 + 0.03 + 0.008 * (day - 20);
+      if (day <= 10) return 0.85 * (0.1326 + 0.01872 * day) * m;
+      if (day <= 20) return (c1 + 0.008 * (day - 10)) * m;
+      return (c1 + 0.08 + 0.03 + 0.008 * (day - 20)) * m;
     },
 
     // ferramentas: custo e dia em que liberam
@@ -187,7 +196,7 @@
     // em vez de beco morto. fromPortal: peso (x raio) de crescer a partir de um portal da borda; o portal
     // anda para a ponta nova. Antes (2026-11-08): base 0.2, min 0.15, max 0.85, teto 8, sem fraco:
     // 35% das ruas sem carro nenhum no dia (playtest da testadora e web/dev/novice2).
-    growPortal: { base: 0.55, perR: 1.0, min: 0.5, max: 0.95, weakRate: 0.3, fromPortal: 1.5,
+    growPortal: { base: 0.55, perR: 1.0, min: 0.5, max: 0.95, weakRate: 0.5, fromPortal: 1.5,   // w_cars: weakRate 0.3 -> 0.5
       cap: function (day) { return Math.min(12, 2 + day); } },   // teto de portais cheios da cidade
     // aneis do crescimento (ligacoes entre nos existentes): a partir de fromDay, base + 1 com chance extraP,
     // + 1 a partir de lateDay. Cada anel abre cruzamentos novos sem sinal.
@@ -202,9 +211,24 @@
     // destDistK (sim.js spawnDest, do dia destFromDay em diante): peso do destino = taxa x (1 + destDistK x r / worldRadius),
     //   r = distancia da ponta ao centro do mundo (0,0). Mesmo 1 rng por sorteio. 0 = exatamente o jogo de antes.
     //   LIGADO (k = 2): aresta de fora / central 61 -> 66% (Easy), 63 -> 66% (Normal); carros +1%; vitorias no ruido.
-    trafficBalance: { usefulGrowth: false, usefulMin: 1, destDistK: 2, destFromDay: 4 },
+    // w_cars (2026-11-18, dono: "os carros ficam sempre no mesmo lugar"; testadora: "rua que termina em traco nao recebe
+    //   carro"). Medido em web/dev/review/w_cars/NOTES.md (diag.js, 20 sementes x 3 cidades):
+    //   destAttract: peso de destino da ponta fraca e da ponta do jogador (no lugar da taxa delas, 0,3 e 0,2): toda ponta
+    //     e lugar para onde carro vai, mesmo gerando pouco. destTripK: viagem longa pesa mais (sim.js spawnDest).
+    //   via: parte dos carros passa por um cruzamento sorteado, se o desvio custa no maximo slack a mais (sim.js pickVia):
+    //     a rua de lado (anel, atalho) deixa de ficar vazia o dia todo.
+    //   (destAttract, destTripK e via valem do dia destFromDay: os dias 1 a 3 do tutorial ficam iguais)
+    //   movePortal: do dia N, a rua que estica uma ponta leva a ponta junto (game.js buildRoad).
+    //   playerEmitMax: as pontas do jogador somadas geram no maximo isto em pontas cheias (sem teto de pontas: sem beco).
+    trafficBalance: { usefulGrowth: false, usefulMin: 1, destDistK: 2, destFromDay: 4,
+      destAttract: { weak: 1, player: 1 }, destTripK: 1.5, via: { p: 0.35, slack: 0.5, fromDay: 4 }, movePortal: 4, playerEmitMax: 2 },
+    // w_cars: teto de pontas criadas por ruas do jogador (era 10 fixo no game.js; acima dele a rua nova virava beco, a
+    // ponta com traco que nunca recebe carro). Alto de proposito: toda ponta solta e ponta de verdade (ui.js le o mesmo)
+    playerPortalCap: 40,
     // acima de portalRef(dia) portais da cidade, a taxa de cada um cai na proporcao (total constante)
-    portalRef: function (day) { return Math.min(8, 2 + Math.floor((day + 1) / 2)); },
+    // w_cars: o teto sobe com a cidade (portalRefMax, era 8): a cidade de 17 pontas do capitulo 3 manda carro como 12
+    portalRefMax: 12,
+    portalRef: function (day) { return Math.min(CRZ.CFG.portalRefMax || 8, 2 + Math.floor((day + 1) / 2)); },
 
     // Velocidade como decisao (desde o dia 1): o jogador escolhe 1x, 2x ou 4x a qualquer momento do dia.
     // Mais rapido = cada carro entregue rende mais "gorjeta" (tips), mas os motoristas tem menos

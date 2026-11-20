@@ -34,9 +34,18 @@
               // Curioso: 1,88 strikes no cap. 2, repete o 3 em 24%; cuidadoso 4%; preguicoso 0% no 2 e 48% no 3; ingenuo
               // 1,04 strikes no 2. Picos (um dia em tres com 30% mais carros; spawnDays) mediram pior que o plano.
               chapter: { 2: { spawn: 1.2, patience: 0.75 }, 3: { spawn: 1.05 } },
+              // w_cars (2026-11-18): com ~1,7x carros na cidade (config.js carsMul, portalRefMax), os motoristas esperam
+              // 20% mais do dia 5 em diante (CFG.patienceLate), e o Easy ganha 1 ponto a menos por dia que o Normal nos
+              // capitulos 2 e 3 (budgetAdd: 4 e 5). Novatos, 40 partidas, depois do merge de main: curioso repete o 3 em 10%
+              // (main 18%) com 1,0 strike no 2 (2,0), cuidadoso 0% (8%), preguicoso 65% (45%). Paciencia mais baixa ou mais
+              // carros pesam primeiro no preguicoso (93% com carros x1,3/x1,15). web/dev/review/w_cars/NOTES.md
+              latePatience: 1.2, budgetAdd: [0, -1, -1],
               restartFrom: 21,
               assist: { chipAt: 0.45, chipOff: 0.3, playConfirm: true, newJunctionTip: true, newMark: true, jamBalloonAt: 0.3 } },
     normal: { label: 'Normal', spawn: 0.85, patience: 1.1,  strikes: 3,
+              // w_cars: x1,3 do dia 5 (CFG.patienceLate). 40 sementes: aware limpo 80% (antes 82), lightsUp 85% (80), smart 35%
+              // (42), spendAll 30% (40); com 1,25 o aware caia para 65% e o smart para 18%
+              latePatience: 1.3,
               spawnDay: [1, 1, 0.9],    // v2 (v2/economia.md 6.2: spawnDay sai); dia ausente vale 1
               assist: { chipAt: 0.45, chipOff: 0.3, playConfirm: false, newJunctionTip: false, newMark: true, jamBalloonAt: 0.3 } }
   };
@@ -58,6 +67,14 @@
   // Medidas: node web/dev/review/v2x/f3_measure.js (CRZ_TUNE no node troca o bloco so em memoria, para varrer)
   var tune = root.CRZ_TUNE && root.CRZ_TUNE[name];
   if (tune && tune.chapter) p.chapter = tune.chapter;
+  if (tune && tune.latePatience > 0) p.latePatience = tune.latePatience;            // w_cars: varredura (novrun.js)
+  if (tune && Array.isArray(tune.budgetAdd)) p.budgetAdd = tune.budgetAdd;
+  // budgetAdd (opcional, w_cars): pontos a mais (ou a menos) por dia nos capitulos [1, 2, 3] sobre CFG.budget. O capitulo 1
+  // fica sempre como esta (os dias de aprendizado). Ex.: o Easy sobe menos que o Normal nos capitulos 2 e 3
+  if (Array.isArray(p.budgetAdd) && Array.isArray(CFG.budget)) {
+    var CDb = CFG.chapterDays || 10;
+    CFG.budget = CFG.budget.map(function (b, i) { var ch = Math.ceil((i + 1) / CDb), a = ch > 1 ? (p.budgetAdd[ch - 1] | 0) : 0; return Math.max(1, b + a); });
+  }
   if (p.chapter) {
     var CD = CFG.chapterDays || 10, sd = (p.spawnDay || []).slice(), pd = (p.patienceDay || []).slice();
     for (var dd = 1; dd <= CFG.maxDays; dd++) {
@@ -78,6 +95,8 @@
   CFG.patience = CFG.patience * p.patience;
   if (p.lock > 0) CFG.lockSeconds = CFG.lockSeconds * p.lock;
   if (p.patienceDay) CFG.patienceDay = p.patienceDay;   // lido por sim.js (stress)
+  // latePatience (opcional, w_cars): fator de paciencia do dia CFG.patienceLate.fromDay em diante (sim.js patNow)
+  if (p.latePatience > 0 && CFG.patienceLate) CFG.patienceLate.mul = p.latePatience;
   CFG.maxStrikes = p.strikes;
   // restartFrom (opcional): primeiro dia em que gastar os strikes manda de volta (CFG.noRestartBeforeDay; antes dele o
   // ultimo strike so avisa, como no capitulo 1). Os textos leem {restartDay}
