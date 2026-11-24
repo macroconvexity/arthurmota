@@ -779,6 +779,39 @@ body.crz-modal #hud .crz-guide, body.crz-modal #hud .crz-guide * { pointer-event
 .crz-cstart { background: var(--ink); color: var(--bg); }
 .crz-cback { background: transparent; color: var(--ink); border: var(--bw) solid var(--ink); }
 body.crz-modal #hud .crz-confirm, body.crz-modal #hud .crz-confirm * { pointer-events: auto !important; }
+/* w_choice: cartao da escolha do sinal (a folha da confirmacao do Play: mesma caixa, mesmos botoes). Uma linha por peca,
+   na ordem da bandeja: icone, nome, preco, barra com o antes e o depois, no maximo uma consequencia. Medido a 375x667 com 4 linhas */
+.crz-choice .crz-cbox { gap: 10px; padding: 14px; }
+.crz-sctitle { font-size: var(--fs-md); font-weight: var(--fw-bold); line-height: 1.3; }
+.crz-schelp { font-size: var(--fs-sm); line-height: 1.35; color: var(--ink-2); margin-top: -4px; }
+.crz-schelp.gone, .crz-scmsg.gone { display: none; }
+.crz-scrows { display: flex; flex-direction: column; gap: 8px; }
+.crz-scrow { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 56px; padding: 6px 12px 6px 8px; text-align: left; background: var(--bg); border: var(--bw) solid var(--ink); border-radius: var(--r-md); }
+.crz-scrow:active, .crz-scleave:active { background: var(--hair); }
+.crz-scico { flex: none; width: 34px; height: 34px; }
+.crz-scico svg { width: 100%; height: 100%; }
+.crz-scbody { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.crz-sctop { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.crz-scname { font-size: var(--fs-md); font-weight: var(--fw-bold); }
+.crz-scprice { font-size: var(--fs-sm); font-weight: var(--fw-semi); }
+.crz-scrow.poor .crz-scprice { color: var(--ink-2); font-weight: var(--fw-normal); }
+.crz-scmid { display: flex; align-items: center; gap: 8px; }
+.crz-scbar { position: relative; flex: 1; height: 6px; background: var(--hair); border-radius: var(--r-sm); }
+.crz-scbar i { display: block; height: 100%; background: var(--ink-2); border-radius: var(--r-sm); }
+.crz-scrow.good .crz-scbar i { background: var(--green); }
+.crz-scrow.bad .crz-scbar i { background: var(--red); }
+.crz-scbar u { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--ink); text-decoration: none; }
+.crz-scnum { flex: none; min-width: 78px; text-align: right; font-size: var(--fs-sm); font-weight: var(--fw-bold); font-variant-numeric: tabular-nums; }
+.crz-scrow.good .crz-scnum { color: var(--green-text); }
+.crz-scrow.bad .crz-scnum { color: var(--red); }
+.crz-scnote { font-size: var(--fs-sm); line-height: 1.25; color: var(--ink-2); }
+.crz-scrow.bad .crz-scnote { color: var(--red); }
+.crz-scmsg { font-size: var(--fs-sm); line-height: 1.3; font-weight: var(--fw-semi); color: var(--red); }
+.crz-scleave { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; min-height: var(--h-btn); padding: 0 16px; background: transparent; border: var(--bw) solid var(--ink); border-radius: var(--r-pill); }
+.crz-scleave .crz-scnum { min-width: 0; }
+/* resumo: a linha do vigiado que piorou convida a tentar outra peca */
+.crz-swtry { text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.crz-swtry.on { text-decoration: none; }
 /* dias 1 a 3, corrida: raio com carga pulsa de leve (do dia 4 em diante so com anel) */
 @keyframes crz-boltlive { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.08); opacity: 0.85; } }
 .crz-clear.crz-boostlive { animation: crz-boltlive var(--t-loop) ease-in-out infinite; }

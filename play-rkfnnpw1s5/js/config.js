@@ -390,6 +390,10 @@
     // de chegada) so com a vitoria em repWin das 2 x reps repeticoes do dia com outra sorte (a 1x e a hi x carros).
     // Medido (v2/_scripts/v2x/yield_probe.js, 80 sementes): a 4 repeticoes, ganhar em 5 de 8 tira os Yields que pioram
     advice: { gain: 0.25, minS: 2, pTol: 0.05, material: 1 / 3, gainChanged: 0.4, hi: 1.2, noisy: ['yield'], reps: 4, repWin: 0.625 },
+    // w_choice: o cartao da escolha do sinal (game.choiceFor, ui.js). Mostra o que o 'e se' mediu, nao muda nenhuma regra.
+    // rise: s a mais que a rua mais quieta passa a esperar para a linha dizer 'side street waits N s'; quiet: a rua
+    // mais quieta leva no maximo essa fracao dos carros da mais cheia; minCars: carros da rua quieta para valer
+    signCard: { rise: 2, quiet: 0.5, minCars: 3 },
     // v2 (v2/economia.md 3.2 e 6.2, v2/sistemas.md 4): Road crew, a troca entre hoje e depois. Nas manhas de fromDay a
     // toDay o plano oferece: pagar cost pontos hoje e receber perDay ponto toda manha pelos proximos days dias (a
     // partir de amanha). No maximo maxActive ao mesmo tempo. Paga-se no 4o dia (cost / perDay) e rende +6. days e a

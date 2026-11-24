@@ -290,6 +290,8 @@
       perks: { round: false, freePower: 0 },
       // v2m: tipo de cada cruzamento no dia que acabou (kindOf): nodeId -> { k, v, share, waste }. Vai no save.
       kinds: {},
+      // w_choice: a promessa do cartao da escolha por cruzamento { day, tool, w0, w1 } (vai no save, opcional)
+      choice: {},
       // v2: forma da cidade (CFG.archetypes, v2/nivel.md 3.2): 'classic' | 'river' | 'park'
       archetype: 'classic',
       // v2: Road crew (CFG.crew). active = dias que faltam de cada equipe; income = pontos que entraram hoje;
@@ -665,6 +667,7 @@
       // vigiados de ontem viram watchPrev (a manha confere o anel); hoje comeca sem nenhum
       st.watchPrev = st.watch && st.watch.day === day - 1 && st.watch.list.length ? st.watch : null;
       st.watch = { day: day, list: [] };
+      if (st.choice) for (var ck in st.choice) if (own(st.choice, ck) && !(st.choice[ck] && st.choice[ck].day >= day)) delete st.choice[ck];   // w_choice: a promessa de ontem ja foi conferida
       st.freeJams = 0;
       refresh();
       // eventos de lugar: o de hoje confere o lugar, o de amanha ganha o lugar (aviso da vespera). Sem rng do jogo
@@ -1707,6 +1710,7 @@
       try {
         var b = CRZ.Game.load(save); if (!b) return null;
         var bw = b.world, nd = bw.nodes[id]; if (!nd) return null;
+        bw.armTrack = true;   // w_choice: espera por aproximacao (sim.js armsOf), so neste ramo
         CFG.lightCap = null;
         if ((nd.tool || null) !== tool) bw.setTool(id, tool);
         // salt: o mesmo dia com outra sorte de chegada (a semente do dia do Sim muda; cidade, pecas e carros/min iguais)
@@ -1731,12 +1735,16 @@
         if (b.state.phase === 'run' && br.steps < br.max) return false;
         var sm = b.state.summary || {}, tr = b.state.trouble && b.state.trouble.nodes && b.state.trouble.nodes[id];
         if (sm.lock && sm.lock.nodeId === id) br.lock = true;
+        var arms = null;
         if (br.locks) {
           for (var nid in bw.nodes) if (bw.nodes[nid].locked) br.locks[nid] = 1;
           if (sm.lock && sm.lock.nodeId != null) br.locks[sm.lock.nodeId] = 1;
-          br.all = { nodes: (b.state.trouble && b.state.trouble.nodes) || {}, locks: br.locks, failed: !!sm.failed };
+          br.all = { nodes: (b.state.trouble && b.state.trouble.nodes) || {}, locks: br.locks, failed: !!sm.failed, arms: {} };
+          if (typeof bw.armsOf === 'function') for (var an in bw.nodes) { var aa = bw.armsOf(+an); if (aa && aa.length >= 3) br.all.arms[an] = aa; }
         }
+        if (typeof bw.armsOf === 'function') arms = bw.armsOf(id);
         br.out = { w: tr ? tr.w : 0, p: tr ? tr.p : 0, lock: br.lock, cut: !!sm.failed && !br.lock };
+        if (arms) br.out.a = arms;   // w_choice: campo extra [[arco, espera, carros]]; w, p, lock e cut seguem iguais
       } catch (e) { br.out = null; } finally { BRANCHING = false; }
       br.b = br.bw = null;
       return true;
@@ -1810,6 +1818,7 @@
         if (task.k === 'cur' || task.k === 'curHi') { r[task.k] = out; if (!out) { job.done = true; job.r = null; } return; }
         if (task.k === 'rep') {
           var e = r.rep[task.rt][task.s - 1];
+          if (out && out.a) { out = { w: out.w, p: out.p, lock: out.lock, cut: out.cut }; }   // as repeticoes nao levam as aproximacoes (o save fica menor)
           e[task.f] = out;
           if (task.f === 'ch' && e.a && e.c && e.ah && e.ch) {
             var stR = repState[task.rt];
@@ -1841,7 +1850,9 @@
           }
           if (!job.br && task.bk && mBase[task.bk]) {
             var hit = mBase[task.bk], htr = hit.nodes[id], hlk = !!hit.locks[id];
-            settle(task, { w: htr ? htr.w : 0, p: htr ? htr.p : 0, lock: hlk, cut: hit.failed && !hlk });
+            var hout = { w: htr ? htr.w : 0, p: htr ? htr.p : 0, lock: hlk, cut: hit.failed && !hlk };
+            if (hit.arms && hit.arms[id]) hout.a = hit.arms[id];
+            settle(task, hout);
             continue;
           }
           if (!job.br) { job.br = branchOpen(save, id, task.t, task.mul, task.s, !!task.bk); job.branches++; if (!job.br) { settle(task, null); continue; } }
@@ -1925,6 +1936,88 @@
                              : { tool: m.tool, from: m.from, at: dayK, k: m.k, v: m.v, tried: nt, res: res };
       if (best && (!followed || material)) { st.adv[id].k = kd ? kd.k : null; st.adv[id].v = kd ? kd.v : 0; }
       return res;
+    };
+    // w_choice: o cartao da escolha do sinal. Tudo sai do 'e se' guardado (wiCached: o resumo calculou, a manha le), nada
+    // e conta nova: por peca da bandeja que o cruzamento aceita (ordem da bandeja, nunca por ganho) o antes e o depois
+    // da espera mais longa, e no maximo UMA consequencia (chave, o texto e da UI) escolhida pelo que a repeticao mostra.
+    // Devolve null sem 'e se' guardado (a UI cai no conselho de uma frase). Leitura pura: nao toca o estado.
+    // { id, day, tool (a peca da repeticao), have (a de agora), deg, before (s), loud (arco que mais esperou ou null),
+    //   rows: [{ tool, cost, hand, afford, capped, w, p, lock, res: better|worse|same|null, note, nv }],
+    //   leave: { tool, w, before, same } }
+    function medianOf(a) { var b = a.slice().sort(function (x, y) { return x - y; }), m = b.length >> 1; return b.length % 2 ? b[m] : (b[m - 1] + b[m]) / 2; }
+    function placeCheck(nodeId, tool) {   // as recusas de placeTool que dependem de pontos e do teto de semaforos
+      var n = world.nodes[nodeId], fromHand = !!(HAND_TOOLS[tool] && handOf(tool) > 0);
+      var capped = tool === 'light' && !fromHand && lightsUsed(nodeId) >= lightCap();
+      var prev = n.tool, toHand = prev && prev !== tool && (prev === 'light' || ((prev === 'stop' || prev === 'yield') && !(placed[nodeId] > 0)));
+      var refund = toHand ? 0 : (placed[nodeId] || 0), c = costOf(tool);
+      return { cost: c, hand: fromHand, capped: capped, afford: st.budget + refund >= c };
+    }
+    // skeleton (a UI, com o 'e se' do cruzamento ainda andando em fatias): as mesmas linhas sem numero (pending: true)
+    g.choiceFor = function (id, skeleton) {
+      id = +id;
+      var n = world.nodes[id]; if (!n || n.portal || degree(n) < 3) return null;
+      var r = wiCached(id), pend = false; if (r && !r.cur) r = null;
+      if (!r) {
+        if (!skeleton) return null;
+        pend = true; r = { day: st.day, tool: n.tool || null, cur: null, curHi: null, alt: {}, altHi: {} };
+      }
+      var A = CFG.advice || {}, K = CFG.signCard || {}, gain = A.gain || 0.25, have = n.tool || null, deg = degree(n);
+      var arms = r.cur && r.cur.a && r.cur.a.length >= 3 ? r.cur.a : null, quiet = null, loud = null, busy = null, i, maxC = 0;
+      if (arms) {
+        for (i = 0; i < arms.length; i++) { if (arms[i][2] > maxC) { maxC = arms[i][2]; busy = arms[i]; } if (arms[i][1] > 0 && (!loud || arms[i][1] > loud[1])) loud = arms[i]; }
+        for (i = 0; i < arms.length; i++) if (arms[i][2] >= (K.minCars || 3) && arms[i][2] <= (K.quiet || 0.5) * maxC && (!quiet || arms[i][2] < quiet[2])) quiet = arms[i];
+      }
+      // o ramo sem anel (calmo) nao guarda registro do no (w = 0): a espera que existe e a das aproximacoes
+      function waitOf2(res) { if (!res) return null; if (res.w > 0 || !res.a) return res.w; var m = 0; for (var j = 0; j < res.a.length; j++) if (res.a[j][1] > m) m = res.a[j][1]; return m; }
+      function armW(res, edge) { if (!res || !res.a) return null; for (var j = 0; j < res.a.length; j++) if (res.a[j][0] === edge) return res.a[j][1]; return null; }
+      var before = pend ? null : waitOf2(r.cur), bShow = Math.round(before), rows = [], capNow = lightCap();
+      for (i = 0; i < CFG.toolOrder.length; i++) {
+        var t = CFG.toolOrder[i];
+        if (WI_TOOLS.indexOf(t) < 0 || !inMatch(t) || !isUnlocked(t) || t === have) continue;
+        var x = pend ? null : (t === r.tool ? r.cur : (own(r.alt, t) ? r.alt[t] : null)), xh = t === r.tool ? r.curHi : (r.altHi && own(r.altHi, t) ? r.altHi[t] : null);
+        var pc = placeCheck(id, t), row = { tool: t, cost: pc.cost, hand: pc.hand, afford: pc.afford, capped: pc.capped, w: null, p: null, lock: false, res: null, note: null, nv: 0 };
+        if (x) {
+          var wv = waitOf2(x), L = r.rep && r.rep[t], repBad = false;
+          if (L && L.length && (A.noisy || []).indexOf(t) >= 0) {
+            var ws = [wv], k = 0; L.forEach(function (e) { ws.push(e.a.w); k += (wiWins(e.a, e.c, gain) ? 1 : 0) + (wiWins(e.ah, e.ch, gain) ? 1 : 0); });
+            wv = medianOf(ws); repBad = k < Math.ceil((A.repWin || 0.625) * 2 * L.length - 1e-9);
+          }
+          row.w = wv; row.p = x.p; row.lock = !!x.lock;
+          var aShow = Math.round(wv), newLock = !!x.lock && !r.cur.lock;
+          row.flat = Math.abs(wv - before) < 1;
+          row.res = newLock || aShow > bShow ? 'worse' : (aShow < bShow ? 'better' : 'same');
+          var qb, win = t !== r.tool && wiWins(x, r.cur, gain), qa = quiet ? armW(x, quiet[0]) : null;
+          if (t !== r.tool) {
+            if (newLock) row.note = 'jam';
+            else if (pc.capped) row.note = 'lightsFull';
+            else if (t === 'round' && deg === 3) { row.note = 'weak3'; row.nv = deg; }
+            else if (t === 'light' && lightsUsed(id) + 1 >= capNow) row.note = 'lastLight';
+            else if (qa !== null && qa - quiet[1] >= (K.rise || 2)) { row.note = 'side'; row.nv = Math.round(qa); }
+            else if (busy && (qb = armW(x, busy[0])) !== null && qb - busy[1] >= (K.rise || 2)) { row.note = 'main'; row.nv = Math.round(qb); }
+            else if (win && r.curHi && xh && !wiWins(xh, r.curHi, gain)) row.note = 'busy';
+            else if (repBad) row.note = 'varies';
+          }
+        } else if (pc.capped) row.note = 'lightsFull';
+        rows.push(row);
+      }
+      var lw = pend ? null : (have === r.tool ? before : (have && own(r.alt, have) ? waitOf2(r.alt[have]) : (have ? null : before)));
+      return { id: id, day: r.day, pending: pend, tool: r.tool, have: have, deg: deg, before: before, loud: loud ? loud[0] : null, rows: rows,
+               leave: { tool: have, w: lw, before: before, same: have === r.tool || (!have && !r.tool) } };
+    };
+    // a promessa da escolha: o que o cartao mostrou para a peca (antes e depois, s inteiros), guardado em st.choice (vai no
+    // save) para o fim do dia dizer se a peca cumpriu. promiseFor le ANTES de a peca entrar (depois, o cartao ja nao a lista);
+    // keepPromise guarda quando a peca esta no cruzamento. Sem numero na linha do cartao: null
+    g.promiseFor = function (id, tool) {
+      var c = g.choiceFor(id); if (!c) return null;
+      for (var i = 0; i < c.rows.length; i++) if (c.rows[i].tool === tool && c.rows[i].w !== null) return { day: st.day, tool: tool, w0: Math.round(c.before), w1: Math.round(c.rows[i].w) };
+      return null;
+    };
+    g.keepPromise = function (id, rec) {
+      id = +id; var n = world.nodes[id];
+      if (!rec || !n || n.tool !== rec.tool || rec.day !== st.day) return false;
+      if (!st.choice) st.choice = {};
+      st.choice[id] = { day: rec.day, tool: rec.tool, w0: rec.w0, w1: rec.w1 };
+      return true;
     };
     // efeito de uma carta (copia de CFG.cardEffects) com active = vale hoje; null para id desconhecido
     g.cardInfo = function (id) {
@@ -2596,6 +2689,8 @@
         kinds: st.kinds,
         // v2x: o 'e se' do dia que acabou e a memoria do conselho por cruzamento (estavel entre dias e reloads)
         whatIf: st.whatIf || undefined, adv: st.adv || undefined,
+        // w_choice: a promessa do cartao da escolha (campo opcional: save sem ele carrega igual)
+        choice: st.choice && Object.keys(st.choice).length ? st.choice : undefined,
         // w_modes: so fora do jogo de sempre (save antigo e save do jogo livre seguem iguais)
         mode: st.mode !== 'free' ? st.mode : undefined, date: st.mode === 'daily' ? st.date : undefined
       });
@@ -2648,6 +2743,7 @@
       st.kinds = kindsNorm(saved.kinds);
       if (isObjL(saved.whatIf) && fin(saved.whatIf.day) && isObjL(saved.whatIf.nodes)) st.whatIf = saved.whatIf;
       if (isObjL(saved.adv)) st.adv = saved.adv;
+      st.choice = choiceNorm(saved.choice);
       if (isObjL(saved.perks)) st.perks = { round: saved.perks.round === true, freePower: nat(saved.perks.freePower) ? saved.perks.freePower : 0, chosen: typeof saved.perks.chosen === 'string' ? saved.perks.chosen : undefined };
       st.mode = modeOk(saved.mode) ? saved.mode : 'free'; st.date = st.mode === 'daily' && dateOk(saved.date) ? saved.date : null;
       if (typeof saved.archetype === 'string' && CFG.archetypes && own(CFG.archetypes, saved.archetype)) st.archetype = saved.archetype;
@@ -3042,6 +3138,19 @@
       var x = O[id];
       if (!x || typeof x !== 'object' || !(typeof x.c === 'number' && isFinite(x.c) && x.c >= 0 && x.c <= 99)) continue;
       out[id] = { c: Math.floor(x.c), f: x.f ? 1 : 0, m: x.m ? 1 : 0 };
+    }
+    return out;
+  }
+  // w_choice: a promessa do cartao da escolha por cruzamento { day, tool, w0, w1 }; campo ausente ou estranho: nenhuma
+  function choiceNorm(C) {
+    var out = {};
+    if (!C || typeof C !== 'object' || Array.isArray(C)) return out;
+    for (var id in C) {
+      if (!Object.prototype.hasOwnProperty.call(C, id) || !/^\d+$/.test(id)) continue;
+      var x = C[id];
+      if (!x || typeof x !== 'object' || !PLACEABLE[x.tool] || !Object.prototype.hasOwnProperty.call(PLACEABLE, x.tool)) continue;
+      if (!(fin(x.day) && x.day >= 1 && x.day <= 999 && fin(x.w0) && x.w0 >= 0 && x.w0 <= 9999 && fin(x.w1) && x.w1 >= 0 && x.w1 <= 9999)) continue;
+      out[id] = { day: Math.floor(x.day), tool: x.tool, w0: Math.floor(x.w0), w1: Math.floor(x.w1) };
     }
     return out;
   }

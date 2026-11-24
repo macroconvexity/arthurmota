@@ -1050,6 +1050,8 @@
         var e = w.edges[car.edgeId];
         ns = NS[car.dir === 1 ? e.b : e.a];
         if (car._we > ns.maxW) ns.maxW = car._we;
+        // w_choice: espera mais longa por aproximacao no dia (so nos ramos do 'e se': w.armTrack). Leitura pura
+        if (w.armTrack) { var am = ns.armW || (ns.armW = {}); if (car._we > (am[car.edgeId] || 0)) am[car.edgeId] = car._we; }
       }
       var k = Math.min(1, dt / CFG.stressSmooth);
       for (i = 0; i < nodeList.length; i++) {
@@ -1142,6 +1144,17 @@
       }
       return out;
     };
+    // w_choice: por aproximacao do no, [[arco, espera mais longa do dia (s, 1 casa), carros que entraram], ...] na ordem
+    // das aproximacoes. So existe com w.armTrack ligado antes do dia. Puro (nao consome rng)
+    w.armsOf = function (nodeId) {
+      var ns = NS[nodeId]; if (!ns || !w.armTrack) return null;
+      var out = [], am = ns.armW || {};
+      for (var a = 0; a < ns.ap.length; a++) {
+        var ls = ns.ap[a];
+        out.push([ls.e.id, Math.round((am[ls.e.id] || 0) * 10) / 10, ls.inCnt || 0]);
+      }
+      return out;
+    };
     w.drainEvents = function () { var e = events; events = []; return e; };
     // espera mais longa AGORA (s de jogo) de um carro parado na fila de um no: a mesma medida que enche o anel
     // (estresse = espera / paciencia, suavizado). Leitura pura, para o registro por cruzamento do game.js
@@ -1165,7 +1178,7 @@
         var n = nodeList[i], ns = NS[n.id];
         resetServer(ns);
         ns.waste = 0;
-        ns.lockT = 0; ns.sraw = 0; ns.ev5 = ns.ev8 = false; ns.pend = 0; ns.pendDest = -1; ns.maxW = 0; ns.pq.length = 0; ns.pendLost = false;
+        ns.lockT = 0; ns.sraw = 0; ns.ev5 = ns.ev8 = false; ns.pend = 0; ns.pendDest = -1; ns.maxW = 0; ns.pq.length = 0; ns.pendLost = false; ns.armW = null;
         n.stress = 0; n.locked = false; n.lightPhase = 0; n.boost = 0; ns.bmul = 1;
       }
       // semente do dia: o dia depende so de semente, dia, layout e params
