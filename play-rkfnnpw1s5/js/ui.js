@@ -596,6 +596,11 @@
       leave: 'Leave it', leaveAria: 'Leave this crossing as it is',
       free: 'free', pts: function (c) { return c + (c === 1 ? ' point' : ' points'); },
       wait: function (a, b) { return a + ' s \u2192 ' + b + ' s'; }, one: function (a) { return a + ' s'; },
+      // w_choice2: o depois e uma faixa ('2 to 9 s') feita das repeticoes a 1x e a 1,2x os carros; sem faixa, o numero
+      waitR: function (a, lo, hi) { return a + ' s \u2192 ' + (hi > lo ? lo + ' to ' + hi : lo) + ' s'; },
+      pay: function (me, other) { return 'this road ' + me + ' s \u00b7 the other ' + other + ' s'; },
+      points: function (n) { return 'You have ' + n + (n === 1 ? ' point.' : ' points.'); },
+      replaces: function (n, name) { return 'replaces your ' + name + ': ' + n + (n === 1 ? ' point' : ' points') + ' lost'; },
       pending: '\u2026', none: '', flat: 'no change here',
       placed: function (name) { return name + ' placed. Tomorrow you will see if it worked.'; },
       note: {
@@ -608,8 +613,13 @@
     fbk: {
       watchFirst: 'Watch this crossing today.',
       // w_choice: o vigiado que veio do cartao: o numero prometido ao lado do que aconteceu (s inteiros, como o cartao)
-      mine: function (t, a, b, e) { return 'Your ' + t + ' here: ' + a + ' s \u2192 ' + b + ' s. (Expected ' + e + ' s.)'; },
-      mineWorse: function (t, a, b) { return 'Your ' + t + ' here: ' + a + ' s \u2192 ' + b + ' s. Tap to try another.'; },
+      mine: function (t, a, b, e, hi) { return 'Your ' + t + ' here: ' + a + ' s \u2192 ' + b + ' s. (Expected ' + (hi > e ? e + ' to ' + hi : e) + ' s.)'; },
+      mineWorse: function (t, a, b, e, hi) { return 'Your ' + t + ' here: ' + a + ' s \u2192 ' + b + ' s. ' + (e !== undefined ? '(Expected ' + (hi > e ? e + ' to ' + hi : e) + ' s.) ' : '') + 'Tap to try another.'; },
+      // w_choice2: a linha do dia seguinte de uma peca posta fora do cartao (sem promessa) e o motivo de ter saido da faixa
+      placed: function (t, a, b) { return 'Your ' + t + ' here: ' + a + ' s \u2192 ' + b + ' s.'; },
+      moreCars: function (n, y) { return 'More cars today: ' + n + ', yesterday ' + y + '.'; },
+      fewerCars: function (n, y) { return 'Fewer cars today: ' + n + ', yesterday ' + y + '.'; },
+      more: function (k) { return 'and ' + k + ' more: tap a crossing to see'; },
       // nome curto da ferramenta no balao e na linha do resumo ('Traffic light' estourava as 6 palavras)
       tool: { stop: 'Stop', yield: 'Yield', light: 'Light', round: 'Roundabout', cross: 'Crosswalk', upgrade: 'Two lanes' },
       good: function (t) { return /\s/.test(t) ? 'Calm today. Your ' + t + ' work.' : 'Calm here today. Your ' + t + ' works.'; },
@@ -2320,7 +2330,7 @@
     // relogio: o cruzamento que falta
     // fica com o conselho pelo tipo (o mesmo de sem 'e se'). Reload no meio: a manha de ontem nao esta mais na memoria,
     // o job nao existe e vale o conselho pelo tipo; nada fica esperando.
-    var WI_SLICE = 12, WI_CAP = 2000, wiQ = null, wiPort = null;
+    var WI_SLICE = 12, WI_CAP = 5000, wiQ = null, wiPort = null;
     function wiIds(s) {
       var w = game.world, h = s.hot || {}, L = [], k;
       for (k in h) if (h.hasOwnProperty(k) && w.nodes[k] && !w.nodes[k].portal && degOf(w.nodes[k]) >= 3 && +h[k] >= HOT_TAP) L.push(+k);
@@ -2338,6 +2348,20 @@
       wiQ = { day: s.day | 0, jobs: jobs, i: 0, t0: nowMs(), t1: 0, done: false, stop: null, kicked: false, slices: 0, maxSlice: 0, fresh: false };
       wiAdvance();
       if (!wiQ.done) wiKick();
+    }
+    // w_choice2: o 'e se' de um anel que o resumo nao calculou (a fila do resumo leva os 2 mais quentes e o pior): o toque de
+    // manha comeca o mesmo trabalho em fatias (game.whatIfJob com fromPlan) e o cartao se enche quando ele termina
+    function wiAdd(id) {
+      if (typeof game.whatIfJob !== 'function') return false;
+      var j = null, q = wiQ, k;
+      try { j = game.whatIfJob(id, false, true); } catch (e) { warnOnce('game.whatIfJob', e); }
+      if (!j) return false;
+      if (j.done) return true;
+      if (!q || q.done) { q = wiQ = { day: j.day, jobs: [], i: 0, t0: nowMs(), t1: 0, done: false, stop: null, kicked: false, slices: 0, maxSlice: 0, fresh: false, cap: 6000 }; }
+      else { q.t0 = nowMs(); q.cap = 6000; }
+      for (k = q.i; k < q.jobs.length; k++) if (q.jobs[k].id === id) return true;
+      q.jobs.push(j); wiKick();
+      return true;
     }
     function wiPending(id) {
       if (!wiQ || wiQ.done) return false;
@@ -2380,7 +2404,7 @@
       // (o trabalho guarda o save de ontem), entao seguem em fatias ate o fim ou o WI_CAP, e o cartao do anel enche
       var inSum = s.phase === 'summary' && (s.day | 0) === q.day, inMorn = s.phase === 'plan' && (s.day | 0) === q.day + 1;
       if (!inSum && !inMorn) { wiEnd('phase'); return; }
-      if (nowMs() - q.t0 > WI_CAP) { wiEnd('cap'); return; }
+      if (nowMs() - q.t0 > (q.cap || WI_CAP)) { wiEnd('cap'); return; }
       var job = q.jobs[q.i], t = nowMs();
       try { job.run(WI_SLICE, nowMs); } catch (e) { warnOnce('game.whatIfJob', e); job.done = true; job.r = null; }
       var dt = nowMs() - t; q.slices++; if (dt > q.maxSlice) q.maxSlice = dt;
@@ -3790,6 +3814,8 @@
       if (gn) hitN = gn;
       if (hitN) emitUI('nodeTap', { id: hitN.id });
       if (s.phase === 'run') { runTap(s, hitN, sx, sy, false, !!gn); return; }
+      // w_choice2: no resumo, o toque num cruzamento com linha do dia seguinte (a que 'and N more' manda ver) a diz na faixa
+      if (s.phase === 'summary' && hitN && Object.prototype.hasOwnProperty.call(sumTexts, hitN.id)) { addPulse(hitN.x, hitN.y); snd('select'); sayUntil = 0; say(sumTexts[hitN.id], 5000); emitUI('sumLine', { id: hitN.id }); return; }
       if (s.phase !== 'plan') return;
       var n, pk, p;
       if (sel && NODE_TOOLS[sel]) {
@@ -6203,11 +6229,11 @@
     var scEl = tut(el('div', 'crz-confirm crz-choice gone'), 'choice-card'), scId = null, scSig = '', scHlEdge = null, cardPick = null, choiceAsk = null, scAt = -1e9, SC_GHOST_MS = 450;
     scEl.setAttribute('role', 'dialog'); scEl.setAttribute('aria-modal', 'true');
     var scBox = el('div', 'crz-cbox'); scBox.setAttribute('data-scroll', '');
-    var scTitle = el('div', 'crz-ctxt crz-sctitle'), scHelp = el('div', 'crz-schelp gone'), scRows = el('div', 'crz-scrows'), scMsg = el('div', 'crz-scmsg gone');
+    var scTitle = el('div', 'crz-ctxt crz-sctitle'), scHelp = el('div', 'crz-schelp gone'), scRows = el('div', 'crz-scrows'), scMsg = el('div', 'crz-scmsg gone'), scPts = el('div', 'crz-scpts');
     scTitle.id = 'crz-choice-title'; scEl.setAttribute('aria-labelledby', 'crz-choice-title');
     var scLeave = tut(el('button', 'crz-scleave'), 'choice-leave');
     scLeave.setAttribute('aria-label', STR.choice.leaveAria);
-    scBox.appendChild(scTitle); scBox.appendChild(scHelp); scBox.appendChild(scRows); scBox.appendChild(scMsg); scBox.appendChild(scLeave);
+    scBox.appendChild(scTitle); scBox.appendChild(scHelp); scBox.appendChild(scRows); scBox.appendChild(scMsg); scBox.appendChild(scLeave); scBox.appendChild(scPts);
     scEl.appendChild(scBox); ui.appendChild(scEl);
     function choiceOpen() { return !scEl.classList.contains('gone'); }
     function choiceData(id) {
@@ -6222,9 +6248,10 @@
       if (scHlEdge !== null && render && typeof render.highlightRoad === 'function') { try { render.highlightRoad(scHlEdge, 1); } catch (e) {} }
       scHlEdge = null; scId = null; scSig = '';
     }
-    // a linha de uma peca: icone, nome, preco, barra e numero, consequencia. Barra: a faixa e a espera de ontem (o traco);
-    // o preenchimento e a espera com a peca (vermelho quando piora). O preco fica cinza quando faltam pontos
-    function choiceRow(r, c, M) {
+    // a linha de uma peca: icone, nome, preco, barra e numero, quem paga, consequencia. Barra: o traco e a espera de ontem; o
+    // preenchimento escuro vai ate o menor numero da faixa e o trecho claro ate o maior (w_choice2); vermelho quando piora. O
+    // preco fica cinza quando faltam pontos. lost: pontos que a troca faz perder (Roundabout trocada), dito na linha antes do toque
+    function choiceRow(r, c, M, lost) {
       var C = STR.choice, name = STR.tools[r.tool] || r.tool, price = r.cost > 0 ? C.pts(r.cost) : C.free;
       var b = el('button', 'crz-scrow' + (r.flat ? '' : r.res === 'worse' ? ' bad' : (r.res === 'better' ? ' good' : '')) + (r.afford ? '' : ' poor') + (r.capped ? ' capped' : ''), '');
       b.setAttribute('data-tool', r.tool);
@@ -6232,40 +6259,51 @@
       var nm = el('span', 'crz-scname'); nm.textContent = name;
       var pr = el('span', 'crz-scprice'); pr.textContent = price;
       top.appendChild(nm); top.appendChild(pr); body.appendChild(top);
-      var nums;
-      if (c.pending) nums = C.pending; else if (r.w === null) nums = C.none; else nums = r.flat ? C.flat : C.wait(Math.round(c.before), Math.round(r.w));
+      var nums, lo = r.lo !== null && r.lo !== undefined ? r.lo : Math.round(r.w), hi = r.hi !== null && r.hi !== undefined ? r.hi : lo;
+      if (c.pending) nums = C.pending; else if (r.w === null) nums = C.none; else nums = r.flat ? C.flat : C.waitR(Math.round(c.before), lo, hi);
       var mid = el('span', 'crz-scmid'), bar = el('span', 'crz-scbar'), num = el('span', 'crz-scnum');
       if (!c.pending && r.w !== null && !r.flat) {
         var fill = el('i'), mark = el('u');
-        fill.style.width = Math.max(2, Math.round(100 * r.w / M)) + '%'; mark.style.left = Math.min(100, Math.round(100 * c.before / M)) + '%';
-        bar.appendChild(fill); bar.appendChild(mark);
+        fill.style.width = Math.max(2, Math.round(100 * lo / M)) + '%'; mark.style.left = Math.min(100, Math.round(100 * c.before / M)) + '%';
+        bar.appendChild(fill);
+        if (hi > lo) { var seg = el('b'); seg.style.left = Math.max(2, Math.round(100 * lo / M)) + '%'; seg.style.width = Math.max(1, Math.round(100 * (hi - lo) / M)) + '%'; bar.appendChild(seg); }
+        bar.appendChild(mark);
       }
       num.textContent = nums; mid.appendChild(bar); mid.appendChild(num); body.appendChild(mid);
-      var noteTxt = '';
+      var noteTxt = '', payTxt = '', lostTxt = '';
+      if (!c.pending && r.pay) { payTxt = C.pay(r.pay.me, r.pay.other); var py = el('span', 'crz-scpay'); py.textContent = payTxt; body.appendChild(py); }
       if (r.note) noteTxt = typeof C.note[r.note] === 'function' ? C.note[r.note](r.nv) : C.note[r.note];
       if (noteTxt) { var nt = el('span', 'crz-scnote'); nt.textContent = noteTxt; body.appendChild(nt); }
+      if (lost > 0) { lostTxt = C.replaces(lost, String(STR.tools[c.have] || c.have).toLowerCase()); var ls = el('span', 'crz-scnote crz-sclost'); ls.textContent = lostTxt; body.appendChild(ls); }
       b.appendChild(ico); b.appendChild(body);
-      b.setAttribute('aria-label', C.aria(name, price, nums, noteTxt));
-      b.addEventListener('click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); if (nowMs() - scAt < SC_GHOST_MS) return; choicePick(r.tool); });
+      b.setAttribute('aria-label', C.aria(name, price, nums, [payTxt, noteTxt, lostTxt].filter(Boolean).join('. ')));
+      b.addEventListener('click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); if (nowMs() - scAt < SC_GHOST_MS) return; choicePick(r.tool, r.edge); });
       return b;
     }
     function paintChoice(c) {
       var C = STR.choice, M = Math.max(1, c.before || 0), i;
-      for (i = 0; i < c.rows.length; i++) if (c.rows[i].w !== null && c.rows[i].w > M) M = c.rows[i].w;
+      for (i = 0; i < c.rows.length; i++) { var rw = c.rows[i]; if (rw.w !== null && rw.w > M) M = rw.w; if (rw.hi > M) M = rw.hi; }
       if (c.leave && c.leave.w !== null && c.leave.w > M) M = c.leave.w;
       var lit = c.loud !== null && c.loud !== undefined && render && typeof render.highlightRoad === 'function';
       scTitle.textContent = c.pending ? C.titleWait : (lit ? C.titleRoad : C.title)(Math.max(1, Math.round(c.before)));
       if (lit && scHlEdge !== c.loud) { try { if (render.highlightRoad(c.loud, 60000)) scHlEdge = c.loud; } catch (e) { warnOnce('render.highlightRoad', e); } }
+      // a Roundabout trocada perde os pontos dela (a de hoje e reembolsada): o preco aparece na linha de cada troca, antes do toque
+      var lostPts = c.have === 'round' && !paidToday(c.id) ? listCost('round') : 0;
       scRows.innerHTML = '';
-      for (i = 0; i < c.rows.length; i++) scRows.appendChild(choiceRow(c.rows[i], c, M));
+      for (i = 0; i < c.rows.length; i++) scRows.appendChild(choiceRow(c.rows[i], c, M, c.rows[i].tool === 'upgrade' ? 0 : lostPts));
       var lv = c.leave, ln;
       scLeave.innerHTML = '';
       var lt = el('span', 'crz-scname'); lt.textContent = C.leave; scLeave.appendChild(lt);
       if (!c.pending && lv && lv.w !== null) { ln = el('span', 'crz-scnum'); ln.textContent = lv.same ? C.one(Math.round(lv.w)) : C.wait(Math.round(lv.before), Math.round(lv.w)); scLeave.appendChild(ln); }
+      scPts.textContent = C.points(game.state.budget | 0);
     }
     function openChoice(s, n) {
       if (s.phase !== 'plan' || modal() || choiceOpen() || degOf(n) < 3 || n.portal) return false;
-      var c = choiceData(n.id); if (!c || !c.rows.length) return false;
+      var c = choiceData(n.id);
+      // w_choice2: anel sem 'e se' guardado: o toque comeca o trabalho (as linhas vem com '...' e se enchem); sem a manha de
+      // ontem na memoria (reload), nao ha o que medir e vale a frase de sempre
+      if (!c && wiAdd(n.id)) c = choiceData(n.id);
+      if (!c || !c.rows.length) return false;
       scId = n.id; scSig = ''; scAt = nowMs(); scMsg.classList.add('gone'); scMsg.textContent = '';
       var first = !seen('choiceHelp');
       scHelp.textContent = STR.choice.help; scHelp.classList.toggle('gone', !first); if (first) markSeen('choiceHelp');
@@ -6295,11 +6333,30 @@
       cardPick = null;
       if (typeof game.keepPromise === 'function') { try { game.keepPromise(n.id, cp.rec); } catch (e) { warnOnce('game.keepPromise', e); } }
     }
-    function choicePick(tool) {
+    // w_choice2: a linha Two lanes do cartao: o mesmo gesto da bandeja (game.upgradeRoad na rua mais cheia que chega aqui)
+    function choiceLane(n, edgeId, rec) {
+      var s = game.state, E = game.world.edges && game.world.edges[edgeId];
+      if (!E || s.phase !== 'plan') { choiceClose(); return; }
+      var a = game.world.nodes[E.a], b = game.world.nodes[E.b], px = a && b ? (a.x + b.x) / 2 : n.x, py = a && b ? (a.y + b.y) / 2 : n.y;
+      sayUntil = 0; sayEl.textContent = '';
+      var ur = game.upgradeRoad(edgeId);
+      toolResult(ur, px, py, 'build', 'upgrade');
+      emitUI('choicePick', { id: n.id, tool: 'upgrade', ok: !!(ur && ur.ok) });
+      if (ur && ur.ok) {
+        fbkPlaced(ur, ur.watchId != null && game.world.nodes ? game.world.nodes[ur.watchId] : null, false);
+        if (rec && typeof game.keepPromise === 'function') { try { game.keepPromise(n.id, rec); } catch (e) { warnOnce('game.keepPromise', e); } }
+        if (ur.fromHand) say(STR.upgradeMoved, 2600); else say(STR.choice.placed(STR.tools.upgrade), 4500);
+        choiceClose(); setSel(null, true);
+        return;
+      }
+      scMsg.textContent = sayEl.textContent || ''; scMsg.classList.toggle('gone', !scMsg.textContent);
+    }
+    function choicePick(tool, edgeId) {
       var s = game.state, n = scId !== null && game.world.nodes ? game.world.nodes[scId] : null;
       if (!n || s.phase !== 'plan') { choiceClose(); return; }
       var rec = null, had = n.tool || null;
       try { rec = typeof game.promiseFor === 'function' ? game.promiseFor(n.id, tool) : null; } catch (e) { warnOnce('game.promiseFor', e); }
+      if (tool === 'upgrade') { choiceLane(n, edgeId, rec); return; }
       cardPick = rec ? { id: n.id, tool: tool, rec: rec, until: nowMs() + 8000 } : null;
       sayUntil = 0; sayEl.textContent = '';
       setSel(tool, true);
@@ -6670,7 +6727,7 @@
     // mora dentro do painel, preso ao topo dele (sticky), e volta ao lugar quando o resumo fecha
     var sayIn = false, moreClock = 0, moreSay = false, fitClock = 0;
     function sayHome() {
-      var want = sumEl.classList.contains('show');
+      var want = sumEl.classList.contains('show') && !sumEl.classList.contains('crz-peek');   // w_choice2: com o resumo abaixado (peek) o aviso volta ao topo da tela, senao some com o painel
       if (want === sayIn || !panel.insertBefore || !ui.insertBefore) return;
       try {
         if (want) panel.insertBefore(sayEl, panel.firstChild);
@@ -7004,24 +7061,75 @@
       if (hn && boostable(hn)) bchip.want = { id: hn.id, until: nowMs() + 8000 };
     }
 
-    // resumo: uma linha por vigiado com numero honesto (a espera mais longa, em s de jogo) e a linha do porque
-    function fbkSummary(s) {
-      var L = s.watch && s.watch.day === s.day ? s.watch.list || [] : [], i, n = 0;
-      watchLineEl.innerHTML = '';
+    // resumo: uma linha por peca posta ou movida onde ontem passaram carros (os vigiados do anel e as marcas de game.state.marks), com numero
+    // honesto (a espera mais longa, em s de jogo) e a linha do porque. w_choice2: a peca do cartao leva a faixa prometida
+    // ('Expected 2 to 9 s'); fora da faixa, UM motivo lido do estado (os carros do cruzamento hoje e ontem); mais de 2 linhas: as 2 de maior
+    // mudanca e 'and N more: tap a crossing to see'
+    var sumTexts = {};
+    function sumList(s) {
+      var out = [], seen = {}, i, L = s.watch && s.watch.day === s.day ? s.watch.list || [] : [], M = s.marks && s.marks.day === s.day ? s.marks.list || [] : [];
       for (i = 0; i < L.length; i++) {
-        var e = L[i];
-        if (!e.now || typeof e.w !== 'number') continue;   // save antigo sem a espera de ontem: sem numero inventado
+        var e = L[i]; if (!e.now || typeof e.w !== 'number') continue;   // save antigo sem a espera de ontem: sem numero inventado
+        seen[e.id] = 1; out.push({ id: e.id, tool: e.tool, e: e, n0: e.n, n1: e.now.n });
+      }
+      for (i = 0; i < M.length; i++) {
+        var m = M[i]; if (!m.now || seen[m.id]) continue;
+        seen[m.id] = 1; out.push({ id: m.id, tool: m.tool, e: { id: m.id, tool: m.tool, w: m.w, now: { w: m.now.w } }, n0: m.n, n1: m.now.n });
+      }
+      for (i = 0; i < out.length; i++) { out[i].a = Math.round(out[i].e.w); out[i].b = Math.round(out[i].e.now.w); out[i].score = Math.abs(out[i].b - out[i].a); }
+      out.sort(function (x, y) { return (y.score - x.score) || (x.id - y.id); });
+      return out;
+    }
+    // o texto de uma linha: { text, why, tryIt }
+    function sumText(s, l) {
+      var cn = game.world && game.world.nodes ? game.world.nodes[l.id] : null, ch = s.choice && s.choice[l.id], tn = lc(fbkToolName(l.tool)), r = { text: '', why: '', tryIt: false };
+      var mine = ch && ch.day === s.day && ch.tool === l.tool && cn && (l.tool === 'upgrade' || cn.tool === ch.tool);
+      if (!mine) { r.text = STR.fbk.line(fbkToolName(l.tool), l.a, l.b); return r; }
+      var lo = ch.lo !== undefined ? ch.lo : ch.w1, hi = ch.hi !== undefined ? ch.hi : ch.w1;
+      if (fbkResult(l.e) === 'worse') { r.text = STR.fbk.mineWorse(tn, l.a, l.b, lo, hi); r.tryIt = true; }
+      else r.text = STR.fbk.mine(tn, l.a, l.b, lo, hi);
+      // fora da faixa: o motivo que o estado mostra (os carros que cruzaram aqui hoje contra ontem), senao nenhum
+      var n0 = l.n0, n1 = l.n1;
+      if (typeof n0 === 'number' && typeof n1 === 'number') {
+        if (l.b > hi && n1 >= n0 * 1.15 && n1 - n0 >= 3) r.why = STR.fbk.moreCars(n1, n0);
+        else if (l.b < lo && n1 <= n0 * 0.85 && n0 - n1 >= 3) r.why = STR.fbk.fewerCars(n1, n0);
+      }
+      return r;
+    }
+    function fbkSummary(s) {
+      var A = sumList(s), i, n = 0;
+      watchLineEl.innerHTML = ''; sumTexts = {};
+      for (i = 0; i < A.length; i++) {
+        var l = A[i], t = sumText(s, l);
+        sumTexts[l.id] = t.text + (t.why ? ' ' + t.why : '');
+        if (i >= 2) continue;
         var d = el('div');
-        // w_choice: o vigiado que veio do cartao ('Your light here: 12 s -> 5 s. (Expected 4 s.)'); piorou: convida a tentar outra peca
-        var ch = s.choice && s.choice[e.id], cn = game.world && game.world.nodes ? game.world.nodes[e.id] : null;
-        if (ch && ch.day === s.day && ch.tool === e.tool && cn && cn.tool === ch.tool) {
-          var tn = lc(fbkToolName(e.tool)), wa = Math.round(e.w), wb = Math.round(e.now.w);
-          if (fbkResult(e) === 'worse') {
-            d.textContent = STR.fbk.mineWorse(tn, wa, wb); d.className = 'crz-swtry'; d.setAttribute('role', 'button');
-            (function (id, day) { d.addEventListener('click', function (ev) { if (ev && ev.stopPropagation) ev.stopPropagation(); choiceAsk = { id: id, day: day }; d.className = 'crz-swtry on'; snd('select'); emitUI('tryAnother', { id: id }); }); })(e.id, s.day | 0);
-          } else d.textContent = STR.fbk.mine(tn, wa, wb, ch.w1);
-        } else d.textContent = STR.fbk.line(fbkToolName(e.tool), Math.round(e.w), Math.round(e.now.w));
+        d.textContent = t.text;
+        if (t.tryIt) {
+          d.className = 'crz-swtry'; d.setAttribute('role', 'button');
+          (function (id, day, dd) { dd.addEventListener('click', function (ev) { if (ev && ev.stopPropagation) ev.stopPropagation(); choiceAsk = { id: id, day: day }; dd.className = 'crz-swtry on'; snd('select'); emitUI('tryAnother', { id: id }); }); })(l.id, s.day | 0, d);
+        }
         watchLineEl.appendChild(d); n++;
+        if (t.why) { var dw = el('div', 'crz-swhy'); dw.textContent = t.why; watchLineEl.appendChild(dw); }
+      }
+      if (A.length > 2) {
+        // 'and N more: tap a crossing to see': o toque na linha abaixa o resumo por alguns segundos e acende os cruzamentos de
+        // que ela fala; o toque num deles diz a linha dele (o resumo cobre o mapa, como no chip 'N new crossings')
+        var dm = el('div', 'crz-swhy crz-swmore'); dm.textContent = STR.fbk.more(A.length - 2); dm.setAttribute('role', 'button');
+        (function (ids) {
+          dm.addEventListener('click', function (ev) {
+            if (ev && ev.stopPropagation) ev.stopPropagation();
+            var w = game.world, first = null;
+            snd('select');
+            ids.forEach(function (id) { var nd = w && w.nodes ? w.nodes[id] : null; if (!nd) return; if (!first) first = nd; addPulse(nd.x, nd.y); later(function () { addPulse(nd.x, nd.y); }, 900); });
+            if (first) { try { if (render && render.focus) camByUser(function () { render.focus(first.x, first.y, focusZoom(), !reducedMotion()); }); } catch (e) { warnOnce('render.focus', e); } }
+            sumEl.classList.add('crz-peek');
+            if (peekT) root.clearTimeout(peekT);
+            peekT = later(function () { sumEl.classList.remove('crz-peek'); peekT = 0; }, 6000);
+            emitUI('sumMore', { ids: ids });
+          });
+        })(A.slice(2).map(function (x) { return x.id; }));
+        watchLineEl.appendChild(dm);
       }
       watchLineEl.classList.toggle('gone', !n);
       var why = whyCause(s, CFG);

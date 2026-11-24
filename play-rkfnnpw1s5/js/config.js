@@ -393,7 +393,10 @@
     // w_choice: o cartao da escolha do sinal (game.choiceFor, ui.js). Mostra o que o 'e se' mediu, nao muda nenhuma regra.
     // rise: s a mais que a rua mais quieta passa a esperar para a linha dizer 'side street waits N s'; quiet: a rua
     // mais quieta leva no maximo essa fracao dos carros da mais cheia; minCars: carros da rua quieta para valer
-    signCard: { rise: 2, quiet: 0.5, minCars: 3 },
+    // w_choice2: a faixa prometida ('13 s -> 2 to 9 s') vai do menor ao maior numero das repeticoes (1x e hi x os carros do 'e se',
+    // e as repeticoes do Yield); loMul e hiMul alargam as pontas (menor x loMul, maior x hiMul) e se afinam sem mexer em codigo.
+    // payGap: s de diferenca entre a rua acesa e as outras para a linha 'this road 4 s . the other 12 s'
+    signCard: { rise: 2, quiet: 0.5, minCars: 3, loMul: 0.8, hiMul: 1.25, payGap: 2 },
     // v2 (v2/economia.md 3.2 e 6.2, v2/sistemas.md 4): Road crew, a troca entre hoje e depois. Nas manhas de fromDay a
     // toDay o plano oferece: pagar cost pontos hoje e receber perDay ponto toda manha pelos proximos days dias (a
     // partir de amanha). No maximo maxActive ao mesmo tempo. Paga-se no 4o dia (cost / perDay) e rende +6. days e a

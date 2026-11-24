@@ -800,6 +800,12 @@ body.crz-modal #hud .crz-confirm, body.crz-modal #hud .crz-confirm * { pointer-e
 .crz-scbar i { display: block; height: 100%; background: var(--ink-2); border-radius: var(--r-sm); }
 .crz-scrow.good .crz-scbar i { background: var(--green); }
 .crz-scrow.bad .crz-scbar i { background: var(--red); }
+.crz-scbar b { position: absolute; top: 0; height: 100%; background: var(--ink-2); opacity: .35; border-radius: var(--r-sm); }
+.crz-scrow.good .crz-scbar b { background: var(--green); }
+.crz-scrow.bad .crz-scbar b { background: var(--red); }
+.crz-scpay { font-size: var(--fs-sm); line-height: 1.25; color: var(--ink); font-variant-numeric: tabular-nums; }
+.crz-scnote.crz-sclost { color: var(--red); }
+.crz-scpts { font-size: var(--fs-sm); line-height: 1.3; color: var(--ink-2); text-align: center; margin-top: -2px; }
 .crz-scbar u { position: absolute; top: -3px; bottom: -3px; width: 2px; margin-left: -1px; background: var(--ink); text-decoration: none; }
 .crz-scnum { flex: none; min-width: 78px; text-align: right; font-size: var(--fs-sm); font-weight: var(--fw-bold); font-variant-numeric: tabular-nums; }
 .crz-scrow.good .crz-scnum { color: var(--green-text); }
@@ -810,6 +816,7 @@ body.crz-modal #hud .crz-confirm, body.crz-modal #hud .crz-confirm * { pointer-e
 .crz-scleave { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; min-height: var(--h-btn); padding: 0 16px; background: transparent; border: var(--bw) solid var(--ink); border-radius: var(--r-pill); }
 .crz-scleave .crz-scnum { min-width: 0; }
 /* resumo: a linha do vigiado que piorou convida a tentar outra peca */
+.crz-swmore { text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 .crz-swtry { text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 .crz-swtry.on { text-decoration: none; }
 /* dias 1 a 3, corrida: raio com carga pulsa de leve (do dia 4 em diante so com anel) */

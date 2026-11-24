@@ -292,6 +292,10 @@
       kinds: {},
       // w_choice: a promessa do cartao da escolha por cruzamento { day, tool, w0, w1 } (vai no save, opcional)
       choice: {},
+      // w_choice2: a linha do dia seguinte para toda peca posta ou movida. yday = a espera mais longa e os carros de cada
+      // cruzamento no ultimo dia jogado ({ day, nodes: { id: { w, n } } }); planTools = as pecas ao comecar o plano de hoje;
+      // marks = o que mudou de peca no plano de hoje num cruzamento que teve carros ontem ({ day, list: [{ id, tool, w, n, now }] })
+      yday: null, planTools: null, marks: null,
       // v2: forma da cidade (CFG.archetypes, v2/nivel.md 3.2): 'classic' | 'river' | 'park'
       archetype: 'classic',
       // v2: Road crew (CFG.crew). active = dias que faltam de cada equipe; income = pontos que entraram hoje;
@@ -384,6 +388,26 @@
       var p = world.params || {}, pd = CFG.patienceDay && CFG.patienceDay[st.day - 1];
       return (n.stress || 0) * CFG.patience * (pd > 0 ? pd : 1) * (p.patienceMul > 0 ? p.patienceMul : 1);
     }
+    // w_choice2: a peca de cada cruzamento agora (id -> peca) e a lista do que mudou desde o comeco do plano num cruzamento que teve
+    // carros ontem (vai para st.marks quando o dia comeca; recordDay poe o 'now')
+    function toolsNow() { var o = {}, ids = sortedIds(world.nodes); for (var i = 0; i < ids.length; i++) { var t = world.nodes[ids[i]].tool; if (t) o[ids[i]] = t; } return o; }
+    function marksNow() {
+      var out = { day: st.day, list: [] }, y = st.yday && st.yday.day === st.day - 1 ? st.yday.nodes : null, pt = st.planTools;
+      if (!y || !pt) return out;
+      var ids = sortedIds(world.nodes);
+      for (var i = 0; i < ids.length && out.list.length < 12; i++) {
+        var nd = world.nodes[ids[i]], yy = y[ids[i]];
+        if (!nd || !nd.tool || !WATCH_TOOLS[nd.tool] || nd.tool === 'upgrade' || pt[ids[i]] === nd.tool || !yy || !(yy.n > 0)) continue;
+        out.list.push({ id: ids[i], tool: nd.tool, w: yy.w, n: yy.n });
+      }
+      // Two lanes posta pelo cartao: a linha de amanha fala do cruzamento da escolha
+      if (st.choice) for (var ck in st.choice) {
+        var cc = own(st.choice, ck) ? st.choice[ck] : null, cy = cc && y[ck];
+        if (!cc || cc.tool !== 'upgrade' || cc.day !== st.day || !cy || !(cy.n > 0) || out.list.length >= 12) continue;
+        if (!out.list.some(function (m) { return m.id === +ck; })) out.list.push({ id: +ck, tool: 'upgrade', w: cy.w, n: cy.n });
+      }
+      return out;
+    }
     // fim do dia: o registro de hoje (cruzamentos com anel e os vigiados) e o resultado de cada vigiado
     function recordDay() {
       var rec = {}, wid = {}, L = st.watch && st.watch.day === st.day ? st.watch.list : [], ids = sortedIds(world.nodes), i;
@@ -394,6 +418,14 @@
         if (pk >= HOT_MIN || wid[id]) rec[id] = { p: Math.round(pk * 100) / 100, t: r1(runAt[id] || 0), w: r1(wt), n: runPass[id] | 0, s: (runTrace[id] || []).slice() };
       }
       st.trouble = { day: st.day, len: st.dayLen, nodes: rec };
+      // w_choice2: a espera e os carros de todo cruzamento de 3+ ruas que teve carro (nao so os que acenderam o anel)
+      var yd = {};
+      for (i = 0; i < ids.length; i++) {
+        var yn = world.nodes[ids[i]], yw = Math.max(runWait[ids[i]] || 0, yn ? waitNow(ids[i], yn) : 0), yc = runPass[ids[i]] | 0;
+        if (yn && !yn.portal && degree(yn) >= 3 && (yc > 0 || yw > 0)) yd[ids[i]] = { w: r1(yw), n: yc };
+      }
+      if (st.marks && st.marks.day === st.day) for (i = 0; i < st.marks.list.length; i++) { var mk = st.marks.list[i], yy = yd[mk.id]; mk.now = { w: yy ? yy.w : 0, n: yy ? yy.n : 0 }; }
+      st.yday = { day: st.day, nodes: yd };
       for (i = 0; i < L.length; i++) {
         var r = rec[L[i].id] || { p: 0, w: 0, n: 0 };
         L[i].now = { p: r.p, w: r.w, n: r.n };
@@ -667,6 +699,7 @@
       // vigiados de ontem viram watchPrev (a manha confere o anel); hoje comeca sem nenhum
       st.watchPrev = st.watch && st.watch.day === day - 1 && st.watch.list.length ? st.watch : null;
       st.watch = { day: day, list: [] };
+      st.marks = null; st.planTools = toolsNow();   // w_choice2
       if (st.choice) for (var ck in st.choice) if (own(st.choice, ck) && !(st.choice[ck] && st.choice[ck].day >= day)) delete st.choice[ck];   // w_choice: a promessa de ontem ja foi conferida
       st.freeJams = 0;
       refresh();
@@ -809,6 +842,17 @@
       var pool = CFG.cards.filter(function (cd) {
         if (cd.offer === false || !oldOk(cd)) return false;
         if (cd.id === 'patient' && !ringEver) return false;
+        // 2026-11-23 (dono): 'Free light' com todos os semaforos da cidade em uso nao dava para usar: a escolha era
+        // queimada. So entra na oferta se amanha houver vaga (teto de amanha maior que os do mapa mais os da mao)
+        if (cd.id === 'freeLight') {
+          var LCf = CFG.lightCap, capT = Infinity;
+          if (LCf && LCf.byDay) {
+            capT = 0;
+            for (var ci = 0; ci < LCf.byDay.length; ci++) if (nextDay >= LCf.byDay[ci][0]) capT = LCf.byDay[ci][1];
+            capT += LCf.perkPlus ? (st.perks && st.perks.freePower | 0) * LCf.perkPlus : 0;
+          }
+          if (lightsUsed() + (st.lightHand | 0) >= capT) return false;
+        }
         return true;
       }), out = [];
       var draws = Math.min(3, pool.length), burn = Math.min(3, oldN) - draws;
@@ -1704,7 +1748,7 @@
     // em passos (branchOpen, branchStep) e a UI chama job.run(ms, agora) entre quadros. Os ramos sao os mesmos, na mesma
     // ordem, de saves iguais, sem nada compartilhado entre eles: o resultado nao depende de como as fatias caem.
     // g.whatIf (sincrono, robos e testes) roda o mesmo trabalho de uma vez.
-    function branchOpen(save, id, tool, mul, salt, collectLocks) {
+    function branchOpen(save, id, tool, mul, salt, collectLocks, lane) {
       var lc = CFG.lightCap, br = null;
       BRANCHING = true;
       try {
@@ -1713,6 +1757,7 @@
         bw.armTrack = true;   // w_choice: espera por aproximacao (sim.js armsOf), so neste ramo
         CFG.lightCap = null;
         if ((nd.tool || null) !== tool) bw.setTool(id, tool);
+        if (lane !== undefined && lane !== null && typeof bw.setLanes === 'function' && bw.edges[lane]) bw.setLanes(lane, 2);   // w_choice2: Two lanes na rua mais cheia
         // salt: o mesmo dia com outra sorte de chegada (a semente do dia do Sim muda; cidade, pecas e carros/min iguais)
         if (salt) bw.seed = (bw.seed ^ Math.imul(salt, 0x9E3779B1)) >>> 0;
         b.startDay();
@@ -1740,15 +1785,20 @@
           for (var nid in bw.nodes) if (bw.nodes[nid].locked) br.locks[nid] = 1;
           if (sm.lock && sm.lock.nodeId != null) br.locks[sm.lock.nodeId] = 1;
           br.all = { nodes: (b.state.trouble && b.state.trouble.nodes) || {}, locks: br.locks, failed: !!sm.failed, arms: {} };
-          if (typeof bw.armsOf === 'function') for (var an in bw.nodes) { var aa = bw.armsOf(+an); if (aa && aa.length >= 3) br.all.arms[an] = aa; }
+          br.all.one = {};
+          if (typeof bw.armsOf === 'function') for (var an in bw.nodes) { var aa = bw.armsOf(+an); if (aa && aa.length >= 3) { br.all.arms[an] = aa; br.all.one[an] = oneLane(bw, aa); } }
         }
         if (typeof bw.armsOf === 'function') arms = bw.armsOf(id);
         br.out = { w: tr ? tr.w : 0, p: tr ? tr.p : 0, lock: br.lock, cut: !!sm.failed && !br.lock };
-        if (arms) br.out.a = arms;   // w_choice: campo extra [[arco, espera, carros]]; w, p, lock e cut seguem iguais
+        // w_choice: campo extra [[arco, espera, carros]]; w, p, lock e cut seguem iguais. w_choice2: v = a espera mais longa das
+        // aproximacoes (o numero de verdade mesmo sem anel no ramo, onde w e 0) e one = as aproximacoes de uma faixa so
+        if (arms) { br.out.a = arms; br.out.v = armV(arms); br.out.one = oneLane(bw, arms); }
       } catch (e) { br.out = null; } finally { BRANCHING = false; }
       br.b = br.bw = null;
       return true;
     }
+    function armV(a) { var m = 0; for (var j = 0; a && j < a.length; j++) if (a[j][1] > m) m = a[j][1]; return Math.round(m * 10) / 10; }
+    function oneLane(bw, a) { var o = []; for (var j = 0; a && j < a.length; j++) { var e = bw.edges[a[j][0]]; if (e && (e.lanes || 1) < 2) o.push(a[j][0]); } return o; }
     var WI_TOOLS = ['stop', 'yield', 'light', 'round'];
     // a peca a ganha da peca c no numero do resumo (espera mais longa w): nao trava onde c nao travou, nao sobe o anel
     // mais que pTol, baixa w em gain (fracao) e minS s (ou destrava)
@@ -1764,11 +1814,15 @@
     // Fim: job.done, job.r (o resultado, guardado em st.whatIf; null se o ramo de hoje quebrou)
     function wiJob(id, prune) {
       var n = world.nodes[id]; if (!n || n.portal || degree(n) < 3) return null;
-      var cur = n.tool || null, d1 = st.day + 1, room = cur === 'light' || lightsUsed() < capAt(d1);
+      // w_choice2: o mesmo trabalho pode comecar na manha seguinte (toque num anel sem 'e se' guardado): o dia jogado de novo e o
+      // de ontem (morning.day) e a peca de ontem sai do save da manha de ontem, nao do mapa de hoje
+      var inPlan = st.phase === 'plan', day0 = inPlan ? morning.day : st.day, curTool = n.tool || null;
+      if (inPlan) { var m0 = null; BRANCHING = true; try { m0 = CRZ.Game.load(morning.save); curTool = m0 && m0.world.nodes[id] ? m0.world.nodes[id].tool || null : null; } catch (e) { m0 = null; } finally { BRANCHING = false; } if (!m0) return null; }
+      var cur = curTool, d1 = day0 + 1, room = cur === 'light' || lightsUsed() < capAt(d1);
       // duas medidas por peca: o dia de ontem como foi e o mesmo dia com hi vezes os carros (a cidade cresce: a peca
       // mandada precisa ganhar nos dois, senao o numero de amanha desmente o conselho)
       var A = CFG.advice || {}, hi = A.hi || 1.2;
-      var save = morning.save, mBase = morning.base || (morning.base = {}), day = st.day, r = { day: day, tool: cur, cur: null, curHi: null, alt: {}, altHi: {} }, base = {};
+      var save = morning.save, mBase = morning.base || (morning.base = {}), day = day0, r = { day: day, tool: cur, cur: null, curHi: null, alt: {}, altHi: {} }, base = {};
       function bKey(mul, s) { return (mul === 1 ? '1' : String(mul)) + ':' + (s || 0); }
       var m = prune && st.adv && st.adv[id], kd = m && st.kinds && st.kinds[id];
       var followed = !!(m && m.tool && cur === m.tool && m.from !== m.tool);
@@ -1779,7 +1833,8 @@
         q.push({ k: 'curHi', t: cur, mul: hi, bk: bKey(hi, 0) });
         for (var i = 0; i < WI_TOOLS.length; i++) {
           var t = WI_TOOLS[i];
-          if (t === cur || !openAt(t, d1) || (t === 'light' && !room)) continue;
+          if (t === cur || !openAt(t, d1)) continue;
+          if (t === 'light' && !room) { if (!prune) q.push({ k: 'altC', t: t, mul: 1 }); continue; }   // w_choice2: o cartao mostra o numero do semaforo mesmo sem vaga (fora do conselho)
           if (prune && (tried.indexOf(t) >= 0 || (onlyTool && t !== onlyTool))) continue;
           q.push({ k: 'alt', t: t, mul: 1 });
         }
@@ -1815,10 +1870,21 @@
       var job = { id: id, day: day, done: false, r: null, br: null, i: 0, branches: 0 };
       function settle(task, out) {
         job.i++;
-        if (task.k === 'cur' || task.k === 'curHi') { r[task.k] = out; if (!out) { job.done = true; job.r = null; } return; }
+        if (task.k === 'cur' || task.k === 'curHi') {
+          r[task.k] = out; if (!out) { job.done = true; job.r = null; return; }
+          // w_choice2: Two lanes na rua mais cheia (de uma faixa so) que chega ao cruzamento: duas medidas, como as outras pecas
+          if (task.k === 'cur' && !prune && out.a && out.one && out.one.length && openAt('upgrade', d1)) {
+            var le = null, lc = -1; for (var li = 0; li < out.a.length; li++) if (out.one.indexOf(out.a[li][0]) >= 0 && out.a[li][2] > lc) { lc = out.a[li][2]; le = out.a[li][0]; }
+            if (le !== null) { r.laneEdge = le; q.splice(job.i, 0, { k: 'lane', t: cur, mul: 1, lane: le }, { k: 'laneHi', t: cur, mul: hi, lane: le }); }
+          }
+          return;
+        }
+        if (task.k === 'lane' || task.k === 'laneHi') { if (out) r[task.k] = { w: out.w, p: out.p, lock: out.lock, cut: out.cut, v: out.v, a: out.a }; return; }
+        if (task.k === 'altC' || task.k === 'altCHi') { if (out) { (r[task.k === 'altC' ? 'cap' : 'capHi'] = r[task.k === 'altC' ? 'cap' : 'capHi'] || {})[task.t] = out; if (task.k === 'altC') q.splice(job.i, 0, { k: 'altCHi', t: task.t, mul: hi }); } return; }
+        if (task.k === 'altX') { if (out) r.altHi[task.t] = out; return; }
         if (task.k === 'rep') {
           var e = r.rep[task.rt][task.s - 1];
-          if (out && out.a) { out = { w: out.w, p: out.p, lock: out.lock, cut: out.cut }; }   // as repeticoes nao levam as aproximacoes (o save fica menor)
+          if (out && out.a) { out = { w: out.w, p: out.p, lock: out.lock, cut: out.cut, v: out.v }; }   // as repeticoes nao levam as aproximacoes (o save fica menor); w_choice2: levam v, a espera de verdade (sem anel no ramo w e 0)
           e[task.f] = out;
           if (task.f === 'ch' && e.a && e.c && e.ah && e.ch) {
             var stR = repState[task.rt];
@@ -1830,7 +1896,7 @@
         if (task.k === 'alt') {
           if (out) {
             if (wiWins(out, r.cur, minGain)) { base[task.t] = out; q.splice(job.i, 0, { k: 'altHi', t: task.t, mul: hi }); }
-            else r.alt[task.t] = out;
+            else { r.alt[task.t] = out; if (!prune) q.splice(job.i, 0, { k: 'altX', t: task.t, mul: hi }); }   // w_choice2: o cartao mostra a faixa de todas as pecas, nao so das que ganham
           }
           return;
         }
@@ -1851,11 +1917,11 @@
           if (!job.br && task.bk && mBase[task.bk]) {
             var hit = mBase[task.bk], htr = hit.nodes[id], hlk = !!hit.locks[id];
             var hout = { w: htr ? htr.w : 0, p: htr ? htr.p : 0, lock: hlk, cut: hit.failed && !hlk };
-            if (hit.arms && hit.arms[id]) hout.a = hit.arms[id];
+            if (hit.arms && hit.arms[id]) { hout.a = hit.arms[id]; hout.v = armV(hout.a); if (hit.one && hit.one[id]) hout.one = hit.one[id]; }
             settle(task, hout);
             continue;
           }
-          if (!job.br) { job.br = branchOpen(save, id, task.t, task.mul, task.s, !!task.bk); job.branches++; if (!job.br) { settle(task, null); continue; } }
+          if (!job.br) { job.br = branchOpen(save, id, task.t, task.mul, task.s, !!task.bk, task.lane); job.branches++; if (!job.br) { settle(task, null); continue; } }
           else if (branchStep(job.br, now ? 45 : Infinity)) {
             if (task.bk && job.br.all) mBase[task.bk] = job.br.all;
             settle(task, job.br.out); job.br = null;
@@ -1884,11 +1950,14 @@
     };
     // g.whatIfJob(id): o mesmo 'e se' em fatias (job.run(ms, now) ate job.done; job.r). Ja guardado: job pronto.
     // null fora do resumo, sem a manha de hoje na memoria (um reload no resumo) ou num cruzamento sem 'e se'
-    g.whatIfJob = function (id, prune) {
+    // w_choice2: fromPlan (so o cartao da escolha) deixa o trabalho comecar de manha, no toque num anel sem 'e se' guardado: o
+    // dia jogado de novo e o de ontem (morning), e o resultado vai para st.whatIf como o do resumo
+    g.whatIfJob = function (id, prune, fromPlan) {
       id = +id;
       var C = wiCached(id);
       if (C) return { id: id, day: C.day, done: true, r: C, branches: 0, run: function () { return true; } };
-      if (st.phase !== 'summary' || !morning || morning.day !== st.day || BRANCHING) return null;
+      if (BRANCHING || !morning) return null;
+      if (!(st.phase === 'summary' && morning.day === st.day) && !(fromPlan && !prune && st.phase === 'plan' && morning.day === st.day - 1)) return null;
       return wiJob(id, prune);
     };
     // g.adviceFor(id): a peca que o conselho manda para o cruzamento amanha, decidida pelo 'e se':
@@ -1953,6 +2022,11 @@
       return { cost: c, hand: fromHand, capped: capped, afford: st.budget + refund >= c };
     }
     // skeleton (a UI, com o 'e se' do cruzamento ainda andando em fatias): as mesmas linhas sem numero (pending: true)
+    // w_choice2: cada linha traz a faixa (lo, hi, s inteiros) feita das medidas a 1x e a hi x os carros (e das repeticoes do Yield),
+    // com os dois multiplicadores de CFG.signCard (loMul, hiMul); quem paga (pay: { me, other }) quando as ruas diferem 2 s ou mais;
+    // a linha de Two lanes (tool 'upgrade', edge) para a rua mais cheia; as pecas da mao e o semaforo sem vaga tambem levam numero
+    // a espera de verdade de uma medida: w, ou, sem anel no ramo (w = 0), v / a mais lenta das aproximacoes
+    function waitV(res) { if (!res) return null; if (res.w > 0) return res.w; if (res.v != null) return res.v; return res.a ? armV(res.a) : res.w; }
     g.choiceFor = function (id, skeleton) {
       id = +id;
       var n = world.nodes[id]; if (!n || n.portal || degree(n) < 3) return null;
@@ -1967,40 +2041,68 @@
         for (i = 0; i < arms.length; i++) { if (arms[i][2] > maxC) { maxC = arms[i][2]; busy = arms[i]; } if (arms[i][1] > 0 && (!loud || arms[i][1] > loud[1])) loud = arms[i]; }
         for (i = 0; i < arms.length; i++) if (arms[i][2] >= (K.minCars || 3) && arms[i][2] <= (K.quiet || 0.5) * maxC && (!quiet || arms[i][2] < quiet[2])) quiet = arms[i];
       }
-      // o ramo sem anel (calmo) nao guarda registro do no (w = 0): a espera que existe e a das aproximacoes
-      function waitOf2(res) { if (!res) return null; if (res.w > 0 || !res.a) return res.w; var m = 0; for (var j = 0; j < res.a.length; j++) if (res.a[j][1] > m) m = res.a[j][1]; return m; }
       function armW(res, edge) { if (!res || !res.a) return null; for (var j = 0; j < res.a.length; j++) if (res.a[j][0] === edge) return res.a[j][1]; return null; }
-      var before = pend ? null : waitOf2(r.cur), bShow = Math.round(before), rows = [], capNow = lightCap();
+      // quem paga: a espera da rua acesa (a que mais esperou ontem) contra a mais longa das outras, com a peca
+      function payOf(res) {
+        if (!loud || !res || !res.a) return null;
+        var me = armW(res, loud[0]), ot = null;
+        if (me === null) return null;
+        for (var j = 0; j < res.a.length; j++) if (res.a[j][0] !== loud[0] && (ot === null || res.a[j][1] > ot)) ot = res.a[j][1];
+        if (ot === null || Math.abs(Math.round(me) - Math.round(ot)) < (K.payGap || 2)) return null;
+        return { me: Math.round(me), other: Math.round(ot) };
+      }
+      // a faixa: o menor e o maior dos numeros das medidas, com os multiplicadores; sempre com o ponto dentro
+      function rangeOf(point, runs) {
+        var lo = point, hi = point, j;
+        for (j = 0; j < runs.length; j++) if (runs[j] !== null && runs[j] !== undefined) { if (runs[j] < lo) lo = runs[j]; if (runs[j] > hi) hi = runs[j]; }
+        var a = Math.min(Math.round(lo * (K.loMul > 0 ? K.loMul : 1)), Math.round(point)), b = Math.max(Math.round(hi * (K.hiMul > 0 ? K.hiMul : 1)), Math.round(point));
+        return { lo: Math.max(0, a), hi: b };
+      }
+      var before = pend ? null : waitV(r.cur), bShow = Math.round(before), rows = [], capNow = lightCap();
+      function fillRow(row, t, x, xh, L) {
+        var wv = waitV(x), repBad = false, runs = [xh ? waitV(xh) : null];
+        if (L && L.length && (A.noisy || []).indexOf(t) >= 0) {
+          var ws = [wv], k = 0; L.forEach(function (e) { ws.push(waitV(e.a)); runs.push(waitV(e.a), waitV(e.ah)); k += (wiWins(e.a, e.c, gain) ? 1 : 0) + (wiWins(e.ah, e.ch, gain) ? 1 : 0); });
+          wv = medianOf(ws); repBad = k < Math.ceil((A.repWin || 0.625) * 2 * L.length - 1e-9);
+        }
+        row.w = wv; row.p = x.p; row.lock = !!x.lock;
+        var rg = rangeOf(wv, runs.concat([waitV(x)])); row.lo = rg.lo; row.hi = rg.hi;
+        var aShow = Math.round(wv), newLock = !!x.lock && !r.cur.lock;
+        row.flat = Math.abs(wv - before) < 1;
+        row.res = newLock || aShow > bShow ? 'worse' : (aShow < bShow ? 'better' : 'same');
+        row.pay = payOf(x);
+        return { repBad: repBad, newLock: newLock };
+      }
       for (i = 0; i < CFG.toolOrder.length; i++) {
         var t = CFG.toolOrder[i];
         if (WI_TOOLS.indexOf(t) < 0 || !inMatch(t) || !isUnlocked(t) || t === have) continue;
-        var x = pend ? null : (t === r.tool ? r.cur : (own(r.alt, t) ? r.alt[t] : null)), xh = t === r.tool ? r.curHi : (r.altHi && own(r.altHi, t) ? r.altHi[t] : null);
-        var pc = placeCheck(id, t), row = { tool: t, cost: pc.cost, hand: pc.hand, afford: pc.afford, capped: pc.capped, w: null, p: null, lock: false, res: null, note: null, nv: 0 };
+        var capped0 = t === r.tool ? null : (r.cap && own(r.cap, t) ? r.cap[t] : null);
+        var x = pend ? null : (t === r.tool ? r.cur : (own(r.alt, t) ? r.alt[t] : capped0)), xh = t === r.tool ? r.curHi : (r.altHi && own(r.altHi, t) ? r.altHi[t] : (r.capHi && own(r.capHi, t) ? r.capHi[t] : null));
+        var pc = placeCheck(id, t), row = { tool: t, cost: pc.cost, hand: pc.hand, afford: pc.afford, capped: pc.capped, w: null, lo: null, hi: null, p: null, lock: false, res: null, note: null, nv: 0, pay: null };
         if (x) {
-          var wv = waitOf2(x), L = r.rep && r.rep[t], repBad = false;
-          if (L && L.length && (A.noisy || []).indexOf(t) >= 0) {
-            var ws = [wv], k = 0; L.forEach(function (e) { ws.push(e.a.w); k += (wiWins(e.a, e.c, gain) ? 1 : 0) + (wiWins(e.ah, e.ch, gain) ? 1 : 0); });
-            wv = medianOf(ws); repBad = k < Math.ceil((A.repWin || 0.625) * 2 * L.length - 1e-9);
-          }
-          row.w = wv; row.p = x.p; row.lock = !!x.lock;
-          var aShow = Math.round(wv), newLock = !!x.lock && !r.cur.lock;
-          row.flat = Math.abs(wv - before) < 1;
-          row.res = newLock || aShow > bShow ? 'worse' : (aShow < bShow ? 'better' : 'same');
+          var L = r.rep && r.rep[t], fr = fillRow(row, t, x, xh, L), newLock = fr.newLock, repBad = fr.repBad;
           var qb, win = t !== r.tool && wiWins(x, r.cur, gain), qa = quiet ? armW(x, quiet[0]) : null;
           if (t !== r.tool) {
             if (newLock) row.note = 'jam';
             else if (pc.capped) row.note = 'lightsFull';
             else if (t === 'round' && deg === 3) { row.note = 'weak3'; row.nv = deg; }
             else if (t === 'light' && lightsUsed(id) + 1 >= capNow) row.note = 'lastLight';
-            else if (qa !== null && qa - quiet[1] >= (K.rise || 2)) { row.note = 'side'; row.nv = Math.round(qa); }
-            else if (busy && (qb = armW(x, busy[0])) !== null && qb - busy[1] >= (K.rise || 2)) { row.note = 'main'; row.nv = Math.round(qb); }
+            else if (!row.pay && qa !== null && qa - quiet[1] >= (K.rise || 2)) { row.note = 'side'; row.nv = Math.round(qa); }
+            else if (!row.pay && busy && (qb = armW(x, busy[0])) !== null && qb - busy[1] >= (K.rise || 2)) { row.note = 'main'; row.nv = Math.round(qb); }
             else if (win && r.curHi && xh && !wiWins(xh, r.curHi, gain)) row.note = 'busy';
             else if (repBad) row.note = 'varies';
           }
         } else if (pc.capped) row.note = 'lightsFull';
         rows.push(row);
       }
-      var lw = pend ? null : (have === r.tool ? before : (have && own(r.alt, have) ? waitOf2(r.alt[have]) : (have ? null : before)));
+      // Two lanes na rua mais cheia que chega aqui (a de uma faixa com mais carros ontem): o mesmo gesto da bandeja (g.upgradeRoad)
+      var le = r.laneEdge !== undefined && r.laneEdge !== null ? world.edges[r.laneEdge] : null;
+      if (!pend && le && (le.lanes || 1) < 2 && r.lane && inMatch('upgrade') && isUnlocked('upgrade') && (le.a === id || le.b === id)) {
+        var uc = costOf('upgrade'), lrow = { tool: 'upgrade', edge: r.laneEdge, cost: uc, hand: handOf('upgrade') > 0, afford: st.budget >= uc, capped: false, w: null, lo: null, hi: null, p: null, lock: false, res: null, note: null, nv: 0, pay: null };
+        fillRow(lrow, 'upgrade', r.lane, r.laneHi, null);
+        rows.push(lrow);
+      }   // sem o 'e se' ainda: a linha de Two lanes entra assim que a rua mais cheia se conhece (a lista se refaz)
+      var lw = pend ? null : (have === r.tool ? before : (have && own(r.alt, have) ? waitV(r.alt[have]) : (have ? null : before)));
       return { id: id, day: r.day, pending: pend, tool: r.tool, have: have, deg: deg, before: before, loud: loud ? loud[0] : null, rows: rows,
                leave: { tool: have, w: lw, before: before, same: have === r.tool || (!have && !r.tool) } };
     };
@@ -2009,14 +2111,19 @@
     // keepPromise guarda quando a peca esta no cruzamento. Sem numero na linha do cartao: null
     g.promiseFor = function (id, tool) {
       var c = g.choiceFor(id); if (!c) return null;
-      for (var i = 0; i < c.rows.length; i++) if (c.rows[i].tool === tool && c.rows[i].w !== null) return { day: st.day, tool: tool, w0: Math.round(c.before), w1: Math.round(c.rows[i].w) };
+      for (var i = 0; i < c.rows.length; i++) if (c.rows[i].tool === tool && c.rows[i].w !== null) {
+        var rw = c.rows[i];
+        return { day: st.day, tool: tool, w0: Math.round(c.before), w1: Math.round(rw.w), lo: rw.lo, hi: rw.hi };
+      }
       return null;
     };
     g.keepPromise = function (id, rec) {
       id = +id; var n = world.nodes[id];
-      if (!rec || !n || n.tool !== rec.tool || rec.day !== st.day) return false;
+      if (!rec || !n || rec.day !== st.day) return false;
+      if (rec.tool === 'upgrade') { var two = false; for (var j = 0; j < n.edges.length; j++) { var ed = world.edges[idOf(n.edges[j])]; if (ed && ed.lanes === 2) two = true; } if (!two) return false; }
+      else if (n.tool !== rec.tool) return false;
       if (!st.choice) st.choice = {};
-      st.choice[id] = { day: rec.day, tool: rec.tool, w0: rec.w0, w1: rec.w1 };
+      st.choice[id] = { day: rec.day, tool: rec.tool, w0: rec.w0, w1: rec.w1, lo: rec.lo, hi: rec.hi };
       return true;
     };
     // efeito de uma carta (copia de CFG.cardEffects) com active = vale hoje; null para id desconhecido
@@ -2409,6 +2516,7 @@
       if (st.phase !== 'plan') return fail('phase');
       // v2x: a manha de hoje (so na memoria) para o 'e se' do resumo (g.whatIf): o mesmo dia, outra peca num cruzamento
       if (!BRANCHING) { morning = saveCore(); delete morning.undo; morning = { day: st.day, save: morning, base: {} }; }
+      st.marks = marksNow();   // w_choice2: as pecas postas ou movidas hoje onde ontem passaram carros (a linha do dia seguinte)
       // oferta sem resposta ao comecar o dia: passou (nada aplicado). So face usada ou sem escolha mexe no dia
       if (st.dieState === 'offer') { st.dieState = 'passed'; dieEvent(); }
       var o = (dieLive() && st.die.effect) || {};
@@ -2691,6 +2799,7 @@
         whatIf: st.whatIf || undefined, adv: st.adv || undefined,
         // w_choice: a promessa do cartao da escolha (campo opcional: save sem ele carrega igual)
         choice: st.choice && Object.keys(st.choice).length ? st.choice : undefined,
+        yday: st.yday || undefined, planTools: st.planTools || undefined, marks: st.marks || undefined,   // w_choice2 (campos opcionais)
         // w_modes: so fora do jogo de sempre (save antigo e save do jogo livre seguem iguais)
         mode: st.mode !== 'free' ? st.mode : undefined, date: st.mode === 'daily' ? st.date : undefined
       });
@@ -2744,6 +2853,7 @@
       if (isObjL(saved.whatIf) && fin(saved.whatIf.day) && isObjL(saved.whatIf.nodes)) st.whatIf = saved.whatIf;
       if (isObjL(saved.adv)) st.adv = saved.adv;
       st.choice = choiceNorm(saved.choice);
+      st.yday = ydayNorm(saved.yday); st.planTools = planToolsNorm(saved.planTools); st.marks = marksNorm(saved.marks);   // w_choice2
       if (isObjL(saved.perks)) st.perks = { round: saved.perks.round === true, freePower: nat(saved.perks.freePower) ? saved.perks.freePower : 0, chosen: typeof saved.perks.chosen === 'string' ? saved.perks.chosen : undefined };
       st.mode = modeOk(saved.mode) ? saved.mode : 'free'; st.date = st.mode === 'daily' && dateOk(saved.date) ? saved.date : null;
       if (typeof saved.archetype === 'string' && CFG.archetypes && own(CFG.archetypes, saved.archetype)) st.archetype = saved.archetype;
@@ -3148,9 +3258,40 @@
     for (var id in C) {
       if (!Object.prototype.hasOwnProperty.call(C, id) || !/^\d+$/.test(id)) continue;
       var x = C[id];
-      if (!x || typeof x !== 'object' || !PLACEABLE[x.tool] || !Object.prototype.hasOwnProperty.call(PLACEABLE, x.tool)) continue;
+      if (!x || typeof x !== 'object' || !(x.tool === 'upgrade' || (PLACEABLE[x.tool] && Object.prototype.hasOwnProperty.call(PLACEABLE, x.tool)))) continue;
       if (!(fin(x.day) && x.day >= 1 && x.day <= 999 && fin(x.w0) && x.w0 >= 0 && x.w0 <= 9999 && fin(x.w1) && x.w1 >= 0 && x.w1 <= 9999)) continue;
       out[id] = { day: Math.floor(x.day), tool: x.tool, w0: Math.floor(x.w0), w1: Math.floor(x.w1) };
+      // w_choice2: a faixa prometida (opcional: save de antes carrega sem ela e a linha cai no numero unico)
+      if (fin(x.lo) && fin(x.hi) && x.lo >= 0 && x.hi >= x.lo && x.hi <= 9999) { out[id].lo = Math.floor(x.lo); out[id].hi = Math.floor(x.hi); }
+    }
+    return out;
+  }
+  // w_choice2: yday, planTools e marks sao opcionais; o que tem forma estranha e descartado (o save carrega igual)
+  function ydayNorm(Y) {
+    if (!Y || typeof Y !== 'object' || !fin(Y.day) || !Y.nodes || typeof Y.nodes !== 'object' || Array.isArray(Y.nodes)) return null;
+    var out = { day: Math.floor(Y.day), nodes: {} };
+    for (var id in Y.nodes) {
+      if (!Object.prototype.hasOwnProperty.call(Y.nodes, id) || !/^\d+$/.test(id)) continue;
+      var x = Y.nodes[id];
+      if (x && typeof x === 'object' && fin(x.w) && x.w >= 0 && x.w <= 9999 && fin(x.n) && x.n >= 0 && x.n <= 99999) out.nodes[id] = { w: x.w, n: Math.floor(x.n) };
+    }
+    return out;
+  }
+  function planToolsNorm(P) {
+    if (!P || typeof P !== 'object' || Array.isArray(P)) return null;
+    var out = {};
+    for (var id in P) if (Object.prototype.hasOwnProperty.call(P, id) && /^\d+$/.test(id) && typeof P[id] === 'string' && P[id].length < 12) out[id] = P[id];
+    return out;
+  }
+  function marksNorm(M) {
+    if (!M || typeof M !== 'object' || !fin(M.day) || !Array.isArray(M.list)) return null;
+    var out = { day: Math.floor(M.day), list: [] };
+    for (var i = 0; i < M.list.length && out.list.length < 12; i++) {
+      var x = M.list[i];
+      if (!x || typeof x !== 'object' || !fin(x.id) || typeof x.tool !== 'string' || ['stop', 'yield', 'light', 'round', 'cross'].indexOf(x.tool) < 0 || !fin(x.w) || x.w < 0 || !fin(x.n) || x.n < 0) continue;
+      var o = { id: Math.floor(x.id), tool: x.tool, w: x.w, n: Math.floor(x.n) };
+      if (x.now && typeof x.now === 'object' && fin(x.now.w) && x.now.w >= 0 && fin(x.now.n) && x.now.n >= 0) o.now = { w: x.now.w, n: Math.floor(x.now.n) };
+      out.list.push(o);
     }
     return out;
   }
