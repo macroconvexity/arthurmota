@@ -596,25 +596,34 @@
       leave: 'Leave it', leaveAria: 'Leave this crossing as it is',
       free: 'free', pts: function (c) { return c + (c === 1 ? ' point' : ' points'); },
       wait: function (a, b) { return a + ' s \u2192 ' + b + ' s'; }, one: function (a) { return a + ' s'; },
-      // w_choice2: o depois e uma faixa ('2 to 9 s') feita das repeticoes a 1x e a 1,2x os carros; sem faixa, o numero
-      waitR: function (a, lo, hi) { return a + ' s \u2192 ' + (hi > lo ? lo + ' to ' + hi : lo) + ' s'; },
-      pay: function (me, other) { return 'this road ' + me + ' s \u00b7 the other ' + other + ' s'; },
+      // w_choice3: a linha diz uma palavra, nao segundos (a faixa em s nao se sustentou: medido em v2/_scripts/sinais/veredito.js).
+      // Cortes em CFG.signCard.verdict (game.verdictFor). A linha 'this road 4 s . the other 12 s' saiu: a direcao acertava ~65%
+      verdict: { better: 'better', same: 'about the same', worse: 'worse' },
       points: function (n) { return 'You have ' + n + (n === 1 ? ' point.' : ' points.'); },
       replaces: function (n, name) { return 'replaces your ' + name + ': ' + n + (n === 1 ? ' point' : ' points') + ' lost'; },
       pending: '\u2026', none: '', flat: 'no change here',
       placed: function (name) { return name + ' placed. Tomorrow you will see if it worked.'; },
       note: {
         jam: 'ends in a jam', lightsFull: 'all lights in use', weak3: function (n) { return 'weak with ' + n + ' roads'; }, lastLight: 'uses your last light',
-        main: function (n) { return 'main road waits ' + n + ' s'; },
-        side: function (n) { return 'side street waits ' + n + ' s'; }, busy: 'fills up on busy days', varies: 'varies from day to day'
+        main: function (n) { return 'main road waits more'; },   // w_choice3: sem segundos na linha da peca
+        side: function (n) { return 'side street waits more'; }, busy: 'fills up on busy days', varies: 'varies from day to day'
       },
       aria: function (name, price, nums, note) { return name + ', ' + price + '. ' + nums + (note ? '. ' + note : '') + '.'; }
     },
     fbk: {
       watchFirst: 'Watch this crossing today.',
       // w_choice: o vigiado que veio do cartao: o numero prometido ao lado do que aconteceu (s inteiros, como o cartao)
-      mine: function (t, a, b, e, hi) { return 'Your ' + t + ' here: ' + a + ' s \u2192 ' + b + ' s. (Expected ' + (hi > e ? e + ' to ' + hi : e) + ' s.)'; },
-      mineWorse: function (t, a, b, e, hi) { return 'Your ' + t + ' here: ' + a + ' s \u2192 ' + b + ' s. ' + (e !== undefined ? '(Expected ' + (hi > e ? e + ' to ' + hi : e) + ' s.) ' : '') + 'Tap to try another.'; },
+      // w_choice3: o dia seguinte fala a lingua do cartao (a palavra) e mostra os segundos de verdade (fatos, nao promessa)
+      mine: {
+        better: function (t, a, b) { return 'Your ' + t + ' here: better, as expected. ' + a + ' s \u2192 ' + b + ' s.'; },
+        same: function (t, a, b) { return 'Your ' + t + ' here: about the same, as expected. ' + a + ' s \u2192 ' + b + ' s.'; },
+        worse: function (t, a, b) { return 'Your ' + t + ' here: worse, as expected. ' + a + ' s \u2192 ' + b + ' s. Tap to try another.'; },
+        noBetter: function (t, a, b) { return 'Your ' + t + ' here: no better than before. ' + a + ' s \u2192 ' + b + ' s. Tap to try another.'; },
+        worseThanBefore: function (t, a, b) { return 'Your ' + t + ' here: worse than before. ' + a + ' s \u2192 ' + b + ' s. Tap to try another.'; },
+        betterThan: function (t, a, b) { return 'Your ' + t + ' here: better than expected. ' + a + ' s \u2192 ' + b + ' s.'; },
+        noWorse: function (t, a, b) { return 'Your ' + t + ' here: no worse than expected. ' + a + ' s \u2192 ' + b + ' s.'; },
+        worseThan: function (t, a, b) { return 'Your ' + t + ' here: worse than expected. ' + a + ' s \u2192 ' + b + ' s. Tap to try another.'; }
+      },
       // w_choice2: a linha do dia seguinte de uma peca posta fora do cartao (sem promessa) e o motivo de ter saido da faixa
       placed: function (t, a, b) { return 'Your ' + t + ' here: ' + a + ' s \u2192 ' + b + ' s.'; },
       moreCars: function (n, y) { return 'More cars today: ' + n + ', yesterday ' + y + '.'; },
@@ -6253,25 +6262,22 @@
     // preco fica cinza quando faltam pontos. lost: pontos que a troca faz perder (Roundabout trocada), dito na linha antes do toque
     function choiceRow(r, c, M, lost) {
       var C = STR.choice, name = STR.tools[r.tool] || r.tool, price = r.cost > 0 ? C.pts(r.cost) : C.free;
-      var b = el('button', 'crz-scrow' + (r.flat ? '' : r.res === 'worse' ? ' bad' : (r.res === 'better' ? ' good' : '')) + (r.afford ? '' : ' poor') + (r.capped ? ' capped' : ''), '');
+      var vd = r.verdict || r.res || 'same', b = el('button', 'crz-scrow' + (vd === 'worse' ? ' bad' : (vd === 'better' ? ' good' : '')) + (r.afford ? '' : ' poor') + (r.capped ? ' capped' : ''), '');
       b.setAttribute('data-tool', r.tool);
       var ico = el('span', 'crz-scico', toolIcon(r.tool)), body = el('span', 'crz-scbody'), top = el('span', 'crz-sctop');
       var nm = el('span', 'crz-scname'); nm.textContent = name;
       var pr = el('span', 'crz-scprice'); pr.textContent = price;
       top.appendChild(nm); top.appendChild(pr); body.appendChild(top);
-      var nums, lo = r.lo !== null && r.lo !== undefined ? r.lo : Math.round(r.w), hi = r.hi !== null && r.hi !== undefined ? r.hi : lo;
-      if (c.pending) nums = C.pending; else if (r.w === null) nums = C.none; else nums = r.flat ? C.flat : C.waitR(Math.round(c.before), lo, hi);
+      var nums = c.pending ? C.pending : (r.w === null ? C.none : C.verdict[vd]);
       var mid = el('span', 'crz-scmid'), bar = el('span', 'crz-scbar'), num = el('span', 'crz-scnum');
-      if (!c.pending && r.w !== null && !r.flat) {
+      if (!c.pending && r.w !== null) {
+        // a barra: a espera de ontem e a barra inteira; o trecho cheio e o que a peca deve deixar, com a ponta suave (aproximado)
         var fill = el('i'), mark = el('u');
-        fill.style.width = Math.max(2, Math.round(100 * lo / M)) + '%'; mark.style.left = Math.min(100, Math.round(100 * c.before / M)) + '%';
-        bar.appendChild(fill);
-        if (hi > lo) { var seg = el('b'); seg.style.left = Math.max(2, Math.round(100 * lo / M)) + '%'; seg.style.width = Math.max(1, Math.round(100 * (hi - lo) / M)) + '%'; bar.appendChild(seg); }
-        bar.appendChild(mark);
+        fill.style.width = Math.max(4, Math.min(100, Math.round(100 * r.w / M))) + '%'; mark.style.left = Math.min(100, Math.round(100 * c.before / M)) + '%';
+        bar.appendChild(fill); bar.appendChild(mark);
       }
       num.textContent = nums; mid.appendChild(bar); mid.appendChild(num); body.appendChild(mid);
       var noteTxt = '', payTxt = '', lostTxt = '';
-      if (!c.pending && r.pay) { payTxt = C.pay(r.pay.me, r.pay.other); var py = el('span', 'crz-scpay'); py.textContent = payTxt; body.appendChild(py); }
       if (r.note) noteTxt = typeof C.note[r.note] === 'function' ? C.note[r.note](r.nv) : C.note[r.note];
       if (noteTxt) { var nt = el('span', 'crz-scnote'); nt.textContent = noteTxt; body.appendChild(nt); }
       if (lost > 0) { lostTxt = C.replaces(lost, String(STR.tools[c.have] || c.have).toLowerCase()); var ls = el('span', 'crz-scnote crz-sclost'); ls.textContent = lostTxt; body.appendChild(ls); }
@@ -6282,7 +6288,7 @@
     }
     function paintChoice(c) {
       var C = STR.choice, M = Math.max(1, c.before || 0), i;
-      for (i = 0; i < c.rows.length; i++) { var rw = c.rows[i]; if (rw.w !== null && rw.w > M) M = rw.w; if (rw.hi > M) M = rw.hi; }
+      for (i = 0; i < c.rows.length; i++) { var rw = c.rows[i]; if (rw.w !== null && rw.w > M) M = rw.w; }
       if (c.leave && c.leave.w !== null && c.leave.w > M) M = c.leave.w;
       var lit = c.loud !== null && c.loud !== undefined && render && typeof render.highlightRoad === 'function';
       scTitle.textContent = c.pending ? C.titleWait : (lit ? C.titleRoad : C.title)(Math.max(1, Math.round(c.before)));
@@ -6294,7 +6300,7 @@
       var lv = c.leave, ln;
       scLeave.innerHTML = '';
       var lt = el('span', 'crz-scname'); lt.textContent = C.leave; scLeave.appendChild(lt);
-      if (!c.pending && lv && lv.w !== null) { ln = el('span', 'crz-scnum'); ln.textContent = lv.same ? C.one(Math.round(lv.w)) : C.wait(Math.round(lv.before), Math.round(lv.w)); scLeave.appendChild(ln); }
+      if (!c.pending && lv && lv.w !== null) { ln = el('span', 'crz-scnum'); ln.textContent = C.one(Math.round(lv.before)); scLeave.appendChild(ln); }   // w_choice3: Leave it fica com o numero de ontem
       scPts.textContent = C.points(game.state.budget | 0);
     }
     function openChoice(s, n) {
@@ -7085,14 +7091,17 @@
       var cn = game.world && game.world.nodes ? game.world.nodes[l.id] : null, ch = s.choice && s.choice[l.id], tn = lc(fbkToolName(l.tool)), r = { text: '', why: '', tryIt: false };
       var mine = ch && ch.day === s.day && ch.tool === l.tool && cn && (l.tool === 'upgrade' || cn.tool === ch.tool);
       if (!mine) { r.text = STR.fbk.line(fbkToolName(l.tool), l.a, l.b); return r; }
-      var lo = ch.lo !== undefined ? ch.lo : ch.w1, hi = ch.hi !== undefined ? ch.hi : ch.w1;
-      if (fbkResult(l.e) === 'worse') { r.text = STR.fbk.mineWorse(tn, l.a, l.b, lo, hi); r.tryIt = true; }
-      else r.text = STR.fbk.mine(tn, l.a, l.b, lo, hi);
-      // fora da faixa: o motivo que o estado mostra (os carros que cruzaram aqui hoje contra ontem), senao nenhum
+      var M2 = STR.fbk.mine, rk = { worse: 0, same: 1, better: 2 }, pv = ch.v || game.verdictFor(ch.w0, ch.w1), rv = game.verdictFor(l.a, l.b), T = fbkToolName(l.tool);
+      if (rv === pv) { r.text = M2[rv](T, l.a, l.b); r.tryIt = rv === 'worse'; }
+      else if (pv === 'better') { r.text = (rv === 'worse' ? M2.worseThanBefore : M2.noBetter)(T, l.a, l.b); r.tryIt = true; }
+      else if (rv === 'better') r.text = M2.betterThan(T, l.a, l.b);
+      else if (pv === 'worse') r.text = M2.noWorse(T, l.a, l.b);
+      else { r.text = M2.worseThan(T, l.a, l.b); r.tryIt = true; }
+      // verdade errada: o motivo que o estado mostra (os carros que cruzaram aqui hoje contra ontem), senao nenhum
       var n0 = l.n0, n1 = l.n1;
       if (typeof n0 === 'number' && typeof n1 === 'number') {
-        if (l.b > hi && n1 >= n0 * 1.15 && n1 - n0 >= 3) r.why = STR.fbk.moreCars(n1, n0);
-        else if (l.b < lo && n1 <= n0 * 0.85 && n0 - n1 >= 3) r.why = STR.fbk.fewerCars(n1, n0);
+        if (rk[rv] < rk[pv] && n1 >= n0 * 1.15 && n1 - n0 >= 3) r.why = STR.fbk.moreCars(n1, n0);
+        else if (rk[rv] > rk[pv] && n1 <= n0 * 0.85 && n0 - n1 >= 3) r.why = STR.fbk.fewerCars(n1, n0);
       }
       return r;
     }

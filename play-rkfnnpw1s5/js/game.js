@@ -2027,6 +2027,16 @@
     // a linha de Two lanes (tool 'upgrade', edge) para a rua mais cheia; as pecas da mao e o semaforo sem vaga tambem levam numero
     // a espera de verdade de uma medida: w, ou, sem anel no ramo (w = 0), v / a mais lenta das aproximacoes
     function waitV(res) { if (!res) return null; if (res.w > 0) return res.w; if (res.v != null) return res.v; return res.a ? armV(res.a) : res.w; }
+    // w_choice3: o veredito em palavras (CFG.signCard.verdict, medido em v2/_scripts/sinais/veredito.js): de dois numeros inteiros, a
+    // espera de antes e a de depois, 'better' | 'same' | 'worse'. O mesmo corte vale para a promessa do cartao e para o dia seguinte
+    g.verdictFor = function (before, after) {
+      var V = (CFG.signCard || {}).verdict || {}, B = V.better || { sec: 4, pct: 0.25 }, W = V.worse || { sec: 2, pct: 0 };
+      before = Math.round(before); after = Math.round(after);
+      var d = before - after, q = d / Math.max(1, before);
+      if (d >= B.sec && q >= B.pct) return 'better';
+      if (-d >= W.sec && -q >= W.pct) return 'worse';
+      return 'same';
+    };
     g.choiceFor = function (id, skeleton) {
       id = +id;
       var n = world.nodes[id]; if (!n || n.portal || degree(n) < 3) return null;
@@ -2070,6 +2080,7 @@
         var aShow = Math.round(wv), newLock = !!x.lock && !r.cur.lock;
         row.flat = Math.abs(wv - before) < 1;
         row.res = newLock || aShow > bShow ? 'worse' : (aShow < bShow ? 'better' : 'same');
+        row.verdict = newLock ? 'worse' : g.verdictFor(bShow, aShow);
         row.pay = payOf(x);
         return { repBad: repBad, newLock: newLock };
       }
@@ -2078,7 +2089,7 @@
         if (WI_TOOLS.indexOf(t) < 0 || !inMatch(t) || !isUnlocked(t) || t === have) continue;
         var capped0 = t === r.tool ? null : (r.cap && own(r.cap, t) ? r.cap[t] : null);
         var x = pend ? null : (t === r.tool ? r.cur : (own(r.alt, t) ? r.alt[t] : capped0)), xh = t === r.tool ? r.curHi : (r.altHi && own(r.altHi, t) ? r.altHi[t] : (r.capHi && own(r.capHi, t) ? r.capHi[t] : null));
-        var pc = placeCheck(id, t), row = { tool: t, cost: pc.cost, hand: pc.hand, afford: pc.afford, capped: pc.capped, w: null, lo: null, hi: null, p: null, lock: false, res: null, note: null, nv: 0, pay: null };
+        var pc = placeCheck(id, t), row = { tool: t, cost: pc.cost, hand: pc.hand, afford: pc.afford, capped: pc.capped, w: null, lo: null, hi: null, p: null, lock: false, res: null, verdict: null, note: null, nv: 0, pay: null };
         if (x) {
           var L = r.rep && r.rep[t], fr = fillRow(row, t, x, xh, L), newLock = fr.newLock, repBad = fr.repBad;
           var qb, win = t !== r.tool && wiWins(x, r.cur, gain), qa = quiet ? armW(x, quiet[0]) : null;
@@ -2098,7 +2109,7 @@
       // Two lanes na rua mais cheia que chega aqui (a de uma faixa com mais carros ontem): o mesmo gesto da bandeja (g.upgradeRoad)
       var le = r.laneEdge !== undefined && r.laneEdge !== null ? world.edges[r.laneEdge] : null;
       if (!pend && le && (le.lanes || 1) < 2 && r.lane && inMatch('upgrade') && isUnlocked('upgrade') && (le.a === id || le.b === id)) {
-        var uc = costOf('upgrade'), lrow = { tool: 'upgrade', edge: r.laneEdge, cost: uc, hand: handOf('upgrade') > 0, afford: st.budget >= uc, capped: false, w: null, lo: null, hi: null, p: null, lock: false, res: null, note: null, nv: 0, pay: null };
+        var uc = costOf('upgrade'), lrow = { tool: 'upgrade', edge: r.laneEdge, cost: uc, hand: handOf('upgrade') > 0, afford: st.budget >= uc, capped: false, w: null, lo: null, hi: null, p: null, lock: false, res: null, verdict: null, note: null, nv: 0, pay: null };
         fillRow(lrow, 'upgrade', r.lane, r.laneHi, null);
         rows.push(lrow);
       }   // sem o 'e se' ainda: a linha de Two lanes entra assim que a rua mais cheia se conhece (a lista se refaz)
@@ -2113,7 +2124,7 @@
       var c = g.choiceFor(id); if (!c) return null;
       for (var i = 0; i < c.rows.length; i++) if (c.rows[i].tool === tool && c.rows[i].w !== null) {
         var rw = c.rows[i];
-        return { day: st.day, tool: tool, w0: Math.round(c.before), w1: Math.round(rw.w), lo: rw.lo, hi: rw.hi };
+        return { day: st.day, tool: tool, w0: Math.round(c.before), w1: Math.round(rw.w), lo: rw.lo, hi: rw.hi, v: rw.verdict };
       }
       return null;
     };
@@ -2123,7 +2134,7 @@
       if (rec.tool === 'upgrade') { var two = false; for (var j = 0; j < n.edges.length; j++) { var ed = world.edges[idOf(n.edges[j])]; if (ed && ed.lanes === 2) two = true; } if (!two) return false; }
       else if (n.tool !== rec.tool) return false;
       if (!st.choice) st.choice = {};
-      st.choice[id] = { day: rec.day, tool: rec.tool, w0: rec.w0, w1: rec.w1, lo: rec.lo, hi: rec.hi };
+      st.choice[id] = { day: rec.day, tool: rec.tool, w0: rec.w0, w1: rec.w1, lo: rec.lo, hi: rec.hi, v: rec.v };
       return true;
     };
     // efeito de uma carta (copia de CFG.cardEffects) com active = vale hoje; null para id desconhecido
@@ -3263,6 +3274,8 @@
       out[id] = { day: Math.floor(x.day), tool: x.tool, w0: Math.floor(x.w0), w1: Math.floor(x.w1) };
       // w_choice2: a faixa prometida (opcional: save de antes carrega sem ela e a linha cai no numero unico)
       if (fin(x.lo) && fin(x.hi) && x.lo >= 0 && x.hi >= x.lo && x.hi <= 9999) { out[id].lo = Math.floor(x.lo); out[id].hi = Math.floor(x.hi); }
+      // w_choice3: o veredito prometido (opcional: save de antes calcula de w0 e w1)
+      if (x.v === 'better' || x.v === 'same' || x.v === 'worse') out[id].v = x.v;
     }
     return out;
   }

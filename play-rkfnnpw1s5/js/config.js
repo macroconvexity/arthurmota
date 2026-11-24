@@ -396,7 +396,11 @@
     // w_choice2: a faixa prometida ('13 s -> 2 to 9 s') vai do menor ao maior numero das repeticoes (1x e hi x os carros do 'e se',
     // e as repeticoes do Yield); loMul e hiMul alargam as pontas (menor x loMul, maior x hiMul) e se afinam sem mexer em codigo.
     // payGap: s de diferenca entre a rua acesa e as outras para a linha 'this road 4 s . the other 12 s'
-    signCard: { rise: 2, quiet: 0.5, minCars: 3, loMul: 0.8, hiMul: 1.25, payGap: 2 },
+    // w_choice3: o veredito em palavras no lugar dos segundos (medido em v2/_scripts/sinais/veredito.js, 1.320 trocas de sinal de
+    // calibra.csv). better: a espera cai pelo menos sec s e pct da de ontem; worse: sobe pelo menos sec s; o resto e 'same'. O mesmo corte
+    // classifica o dia seguinte (game.verdictFor). 'much better' nao se separa de 'better' (acerto de direcao 85% e 79%): um so
+    signCard: { rise: 2, quiet: 0.5, minCars: 3, loMul: 0.8, hiMul: 1.25, payGap: 2,
+      verdict: { better: { sec: 4, pct: 0.25 }, worse: { sec: 2, pct: 0 } } },
     // v2 (v2/economia.md 3.2 e 6.2, v2/sistemas.md 4): Road crew, a troca entre hoje e depois. Nas manhas de fromDay a
     // toDay o plano oferece: pagar cost pontos hoje e receber perDay ponto toda manha pelos proximos days dias (a
     // partir de amanha). No maximo maxActive ao mesmo tempo. Paga-se no 4o dia (cost / perDay) e rende +6. days e a
