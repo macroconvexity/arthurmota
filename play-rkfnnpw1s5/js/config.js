@@ -31,6 +31,7 @@
     maxRoadLen: 260,
     minNodeSpacing: 56,   // distancia minima entre dois nos
     nodePickRadius: 26,   // raio de toque em px de tela
+    camIdleMs: 600,       // o mapa nao reenquadra sozinho com um dedo na tela (mapa ou botao) nem por este tempo depois do ultimo toque
     worldRadius: 900,     // o crescimento automatico da cidade nunca passa disso a partir do centro
     buildRadius: 1500,    // ruas do jogador podem ir ate aqui (folga para crescer para todos os lados)
     minLinkLen: 40,       // rua que liga a um no ou estrada existente pode ser mais curta que minRoadLen

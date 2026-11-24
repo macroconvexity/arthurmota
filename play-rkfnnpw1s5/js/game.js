@@ -606,6 +606,10 @@
       }
       return true;
     }
+    // w_fix8: face cujo custo ou ganho cai em 'amanha' (debt: o Loan cobra amanha; eventMul: o evento de amanha) nao serve no
+    // ultimo dia: nao ha amanha, o Loan viraria pontos de graca. Os numeros vem de CFG.dice.defs, nada fixo aqui
+    function needsTomorrow(id) { var df = faceDef(id); return !!df && (df.debt > 0 || df.eventMul > 0); }
+    function faceUsable(id, day) { return !(needsTomorrow(id) && (day | 0) >= CFG.maxDays); }
     // faces do sorteio de hoje: o pool da faixa sem as que pedem um sistema que nao existe (valor = casa no d6)
     function poolOf(day) {
       var t = tierOf(day), P = (DC().pools || {})[t] || [], out = [];
@@ -613,7 +617,7 @@
         var df = faceDef(P[i]);
         // v2x (playtest cego 5: o 4 dava '+1 build point' num dia e 'Quiet day' no outro): a face mostra o numero fixo da
         // oferta (CFG.dice.defs[id].pip), o mesmo a partida inteira; sem pip, a posicao no sorteio como antes
-        if (df && (!df.needs || diceFeature(df.needs, day))) out.push({ id: P[i], value: df.pip > 0 ? df.pip : i + 1 });
+        if (df && faceUsable(P[i], day) && (!df.needs || diceFeature(df.needs, day))) out.push({ id: P[i], value: df.pip > 0 ? df.pip : i + 1 });
       }
       return out;
     }
@@ -2541,7 +2545,7 @@
       var t = tierOf(st.day);
       return { tier: t, chapter: chapterOfDay(st.day), state: st.dieState, canRoll: needPlan() && !!t && st.dieState === 'none',
         offers: !!t && t !== 'gift', canKeep: st.dieState === 'offer' && canKeepToday(), kept: st.kept ? clone(st.kept) : null,
-        canPlayKept: needPlan() && !!t && st.dieState === 'none' && !!st.kept, debtPaid: st.debtPaid || 0, debt: st.debt || 0,
+        canPlayKept: needPlan() && !!t && st.dieState === 'none' && !!st.kept && faceUsable(st.kept.id, st.day), debtPaid: st.debtPaid || 0, debt: st.debt || 0,
         keepFrom: DC().keepFrom, firstOffer: DC().firstOffer, costFrom: DC().costFrom };
     };
     // toque do jogador: sorteia a face (semente + dia), guarda e devolve. Face sem escolha ja vale; oferta espera
@@ -2571,7 +2575,7 @@
     // a face do bolso no lugar de rolar: vale na hora (a escolha foi feita quando guardou)
     g.playKept = function () {
       if (!needPlan()) return fail('phase');
-      if (!tierOf(st.day) || st.dieState !== 'none' || !st.kept) return fail('state');
+      if (!tierOf(st.day) || st.dieState !== 'none' || !st.kept || !faceUsable(st.kept.id, st.day)) return fail('state');
       st.die = makeFace(st.kept.id, st.kept.value, st.day);
       st.kept = null; st.dieState = 'used'; st.dieFromKept = true;
       st.tally.kept++;

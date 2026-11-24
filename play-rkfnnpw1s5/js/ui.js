@@ -26,7 +26,8 @@
       swap: function (to) { return 'Next time, a ' + to + ' there moves more cars.'; },
       lane: 'Next time, give its busiest road a second lane.',
       road: 'Next time, build a road around it to spread cars.',
-      boost: 'Next time, Boost it before the red ring fills.'
+      boost: 'Next time, Boost it before the red ring fills.',
+      card: 'Next time, tap its ring and compare.'
     },
     // blind3 4: o delta so quando e ganho ('(+11)'); dia pior que ontem: so o numero de ontem
     yesterday: function (prev, delta) { return 'Yesterday ' + prev + (delta > 0 ? ' (+' + delta + ')' : ''); },
@@ -53,7 +54,7 @@
     // w_chap: o comeco do capitulo (cartao das manhas 11 e 21) e o rotulo do HUD. O nome diz a fase da cidade
     chapterName: ['Small town', 'Growing city', 'Full city'],
     chTitle: function (c) { var n = STR.chapterName[c - 1]; return 'Chapter ' + c + (n ? ': ' + n : ''); },
-    chDays: function (a, b) { return 'Days ' + a + ' to ' + b + ': the dots at the top.'; },
+    chDays: function (a, b) { return 'The row of dots at the top is days ' + a + ' to ' + b + '.'; },
     chSaved: 'Progress saved: if you run out of strikes, you come back to this morning.',
     chSavedFrom: function (d) { return 'Progress saved: from day ' + d + ', running out of strikes brings you back to this morning.'; },
     chNoRestart: 'This chapter never starts over: the last strike is forgiven.',
@@ -61,6 +62,8 @@
     // w_place: o Pare passa a engasgar em cruzamento cheio (CFG.junction.stop.late.fromDay); o cartao do capitulo diz uma vez
     chStopLate: function (d) { return 'From day ' + d + ', a stop is slow where 3 or more roads are busy.'; },
     chNewLead: 'New: ', chCars: 'more cars', chWait: 'drivers wait less',
+    // w_fix8: o teto de lugares (CFG.trafficBalance.places.max) que sobe de um capitulo para o outro
+    chPlaces: function (n) { return 'more places to drive to (up to ' + n + ')'; },
     lblChapter: function (c, n) { return 'Chapter ' + c + ' of ' + n; },
     chapterStop: 'A good place to stop: your game is saved.',
     // v2 strikes (D9): dias livres, perdao, volta ao capitulo, vitoria com voltas
@@ -427,6 +430,8 @@
       boostRunning: 'Boost is already working here. Try another crossing.',
       // v2 recusa: toda recusa diz o motivo e o que serve (REFUSALS.md)
       tileRun: 'Tools work before the day starts. Wait for the next morning.',
+      tapNone: function (tool) { return 'Nothing placed. Tap a crossing to place the ' + tool + '.'; },
+      tapMoving: 'The map was moving. Tap again.',
       // w_tiles: com a ferramenta, diz o que ela e e quando chega (a Roundabout chega pela escolha do dia 19)
       tileLocked: function (d, id, cfg) {
         var t = id && cfg && cfg.tools && cfg.tools[id], what = id && STR.toolWhat && STR.toolWhat[id];
@@ -483,6 +488,8 @@
       wiNew: function (to) { return 'Red ring at a crossing: a ' + to + ' cuts the wait here.'; },
       wiMain: ' The lit road is the main road.',
       wiBest: 'This crossing is doing its best. Try a new road nearby.',
+      // w_fix8: com o cartao da escolha (replay de ontem) para o no, nenhuma dica recomenda peca: so aponta para ele
+      compare: 'Tap it to compare.',
       unlocksTomorrow: function (name) { return ' New tool tomorrow: ' + name + '.'; },
       dirs: { n: 'north', s: 'south', e: 'east', w: 'west' }
     },
@@ -565,8 +572,8 @@
     },
     nextCh: {
       lead: 'Next: ',
-      evStart: function (n) { return 'Events begin, ' + n + ' in all.'; },
-      evMore: function (n) { return 'More events, ' + n + ' in all.'; },
+      evStart: function (n) { return 'Events begin, ' + n + ' this chapter.'; },
+      evMore: function (n) { return 'More events, ' + n + ' this chapter.'; },
       keep: function (d) { return 'Day ' + d + ': keep a roll for later.'; },
       lights: function (d, n) { return 'Day ' + d + ': the city powers ' + n + ' lights.'; },
       crew: function (d) { return 'Day ' + d + ': a road crew offer.'; }
@@ -574,7 +581,9 @@
     winWhy: function (t, signs) {
       var p = [];
       if (t.fixed > 0) p.push('fixed ' + t.fixed + (t.fixed === 1 ? ' trouble spot' : ' trouble spots'));
-      if (t.prepared > 0) p.push('prepared for ' + t.prepared + (t.prepared === 1 ? ' event' : ' events'));
+      // w_fix8: com eventos que passaram sem preparo, a conta diz 'P of N' (a marca 'Every event prepared' fica apagada)
+      var evN = t.events | 0;
+      if (t.prepared > 0) p.push('prepared for ' + t.prepared + (evN > t.prepared ? ' of ' + evN : '') + ((evN > t.prepared ? evN : t.prepared) === 1 ? ' event' : ' events'));
       if (p.length) return 'You ' + p.join(' and ') + '.';
       return signs > 0 ? 'Your ' + signs + (signs === 1 ? ' sign kept' : ' signs kept') + ' the cars moving.' : '';
     },
@@ -870,7 +879,14 @@
     o.text = t; return o;
   }
   function advise(n, day, cfg, world, heat, ctx) {
-    return labelAdvice(adviseRaw(n, day, cfg, world, heat, ctx), n, heat);
+    var a = adviseRaw(n, day, cfg, world, heat, ctx);
+    // w_fix8: ctx.card = o no tem dados de replay no cartao da escolha: o cartao e quem compara as pecas, a dica so aponta
+    // para ele (pecas: sinais, segunda faixa, semaforo a mover, par de semaforos; Boost e rua nova nao sao linhas do cartao)
+    if (a && ctx && ctx.card && recommendsTool(a)) a = { key: 'card', tool: 'card', wi: true, text: STR.jam.compare };
+    return labelAdvice(a, n, heat);
+  }
+  function recommendsTool(a) {
+    return !!a && (a.key.indexOf('sign:') === 0 || a.key.indexOf('fit:') === 0 || a.key.indexOf('pair:') === 0 || a.key === 'full' || a.tool === 'upgrade');
   }
   function adviseRaw(n, day, cfg, world, heat, ctx) {
     if (!n) return null;
@@ -1160,6 +1176,7 @@
     var cause = STR.loseCause(day | 0, n.tool ? T[n.tool] : '');
     var a = advise(n, (day | 0) + 1, cfg, world, heat, ctx), next;
     if (a && a.key.indexOf('sign:') === 0) next = n.tool && STR.tools[n.tool] ? N.swap(T[a.tool]) : N.sign(T[a.tool]);
+    else if (a && a.key === 'card') next = N.card;
     else if (a && a.tool === 'upgrade') next = N.lane;
     else if (a && a.tool === 'road') next = N.road;
     else next = N.boost;
@@ -2147,8 +2164,10 @@
     // final check 7: valid (opcional) diz se a dica ainda vale; quando a condicao some (o sinal ja foi posto),
     // o aviso guardado nao sai e o que esta na tela some
     var sayValid = null;
+    var sayN = 0;   // cada fala pedida (inclusive a que espera o balao): o toque com ferramenta confere se foi respondido
     function say(text, ms, valid) {
       if (!text) return;
+      sayN++;
       denyPend = false;
       sayEl.classList.remove('crz-saytop');   // w_chap: so a explicacao da marca tocada passa por cima da tela do fim
       sayValid = typeof valid === 'function' ? valid : null;
@@ -2329,7 +2348,9 @@
       // v2x: o 'e se' do dia que acabou (resumo: calcula; manha seguinte: le o que o resumo guardou)
       var wi = null;
       if (n && typeof game.adviceFor === 'function' && (tomorrow || s.phase === 'plan')) { try { wi = game.adviceFor(n.id, true); } catch (e) { warnOnce('game.adviceFor', e); } }
-      return { budget: s.budget | 0, fresh: fresh, boost: boost, kind: (s.kinds && n && s.kinds[n.id]) || null, lightRoom: room, lightCap: lt && lt.cap != null ? lt.cap : 0, wi: wi };
+      var card = false;
+      try { card = !!(n && typeof game.choiceFor === 'function' && game.choiceFor(n.id)); } catch (e) { warnOnce('game.choiceFor', e); }
+      return { card: card, budget: s.budget | 0, fresh: fresh, boost: boost, kind: (s.kinds && n && s.kinds[n.id]) || null, lightRoom: room, lightCap: lt && lt.cap != null ? lt.cap : 0, wi: wi };
     }
     function nodeAdvice(s, n, day) {
       var d = day != null ? day : (s.day | 0), h = function (o) { return heatOf(s, o); };
@@ -2688,7 +2709,7 @@
         emitUI('roadPickHint', {});
       },
       zoom: function (f, cx, cy) { userMoved = true; camFreeze = false; render.zoomAt(f, cx, cy); },
-      tap: onTap,
+      tap: onTapAnswered,
       // lupa: arrasto de rua a partir de um ponto ambiguo so aproxima, ao soltar (ver magPlan)
       magAt: function (x, y) { return !tapInCamAnim && !!magPlan(x, y, true); },
       magTap: function (x, y) { var mp = magPlan(x, y, true); if (mp) magZoom(x, y, mp); },
@@ -3807,6 +3828,21 @@
       emitUI('magZoom', { zoom: mp.z });
       if (!seen('mag')) { markSeen('mag'); say(STR.magZoom, MAG_SAY_MS); magSayUntil = nowMs() + MAG_SAY_MS; }
     }
+    // Toque no mapa com ferramenta na mao sempre responde: poe a peca, ou a faixa diz por que nao. Confere depois do
+    // onTap (qualquer caminho): nada mudou, nada foi dito, a camera nao foi pedida e nenhum pedido ficou aberto
+    function tapSnap() {
+      var w = game.world, k, n, o = '';
+      if (w && w.nodes) for (k in w.nodes) if (w.nodes.hasOwnProperty(k) && w.nodes[k]) { n = w.nodes[k]; o += (n.tool || '-') + (n.pair == null ? '' : n.pair) + ','; }
+      return o + '|' + (w && w.edges ? Object.keys(w.edges).length : 0) + '|' + (game.state.budget | 0) + '|' + sayN + '|' + magUntil + '|' + (swapAsk ? 1 : 0) + (lightArm ? 1 : 0) + (sel || '');
+    }
+    function onTapAnswered(sx, sy) {
+      var s = game.state, armed = s.phase === 'plan' && !!sel && sel !== 'road' && !modal(), moving = tapInCamAnim, was = armed ? tapSnap() : '';
+      onTap(sx, sy);
+      if (!armed || tapSnap() !== was) return;
+      snd('deny');
+      say(moving ? STR.deny.tapMoving : STR.deny.tapNone(STR.tools[sel] || sel), 2600);
+      emitUI('tapUnanswered', { tool: sel, moving: moving });
+    }
     function onTap(sx, sy) {
       var s = game.state;
       // camera andando por pedido da jogadora (lupa, enquadrar, chip; CAM_MS = 450 ms no render) quando o dedo desceu:
@@ -3852,7 +3888,7 @@
           snd('select'); addPulse(rn.x, rn.y);
           var ra = sel === 'upgrade' ? nodeAdvice(s, rn) : null;
           if (ra) showAdviceRoad(ra);
-          say(ra && ra.tool === 'upgrade' && ra.dir ? STR.ringEdgeLane(ra.dir) : ra ? ra.text : STR.ringEdgeTool);
+          say(ra && ra.key === 'card' ? STR.ringEdgeTool : ra && ra.tool === 'upgrade' && ra.dir ? STR.ringEdgeLane(ra.dir) : ra ? ra.text : STR.ringEdgeTool);
           emitUI('ringTap', { id: rn.id, tool: sel });
           return;
         }
@@ -4104,10 +4140,12 @@
     on(doc, 'pointerdown', unlockAudio, true);
     on(doc, 'pointerdown', function () {
       lastTouchAt = nowMs();
+      if (render && render.touchNote) render.touchNote();   // botao do HUD: o mapa tambem nao reenquadra sozinho sob esse toque
       // faixa de dica do tutorial: some no primeiro toque
       if (stripOn && sayUntil) { stripOn = false; sayUntil = 0; sayEl.classList.remove('show'); }
     }, true);
     on(doc, 'pointerup', unlockAudio, true);
+    on(doc, 'pointerup', function () { if (render && render.touchNote) render.touchNote(); }, true);
     on(doc, 'click', unlockAudio, true);
     on(doc, 'touchend', unlockAudio, true);
     // um listener de touchstart (vazio) e o que faz o :active funcionar no Safari iOS
@@ -5539,7 +5577,7 @@
       // derrota com causa: qual cruzamento travou e o que tentar (sem no travado: frase antiga)
       var lockN = win ? null : lockedNodeOf(s, game.world);
       overSub.textContent = win ? (stk === 0 ? STR.winFlawless : stk === 1 ? STR.winOne(days | 0) : STR.winMany(stk | 0))
-        : (lockN ? loseText(lockN, days, CFG, lockN.edges ? game.world : null, function (o) { return heatOf(s, o); }, { budget: s.budget | 0 }) : (STR.loseSub1 + (days | 0) + STR.loseSub2));
+        : (lockN ? loseText(lockN, days, CFG, lockN.edges ? game.world : null, function (o) { return heatOf(s, o); }, { budget: s.budget | 0, card: !!(lockN.edges && typeof game.choiceFor === 'function' && game.choiceFor(lockN.id)) }) : (STR.loseSub1 + (days | 0) + STR.loseSub2));
       var oc = win && (days | 0) >= CFG.maxDays ? (f.lastFailed ? STR.closingJam : STR.closing(days | 0, deliv | 0)) : (overRetry ? STR.retryLine(overRetry.day | 0, overRetry.chapter | 0) : '');
       overClose.textContent = oc; overClose.classList.toggle('gone', !oc);
       // melhor dia (do historico; senao do final) e pior momento (so se houve strike)
@@ -6093,6 +6131,8 @@
       var P = CFG.difficulties && CFG.difficulties[CFG.difficultyName], cx = P && P.chapter && P.chapter[c], out = [], G = CRZ.Game;
       if (cx && cx.spawn > 1) out.push(STR.chCars);
       if (cx && cx.patience > 0 && cx.patience < 1) out.push(STR.chWait);
+      var PA = CFG.placeAt, pNow = PA ? PA((c - 1) * CH_LEN + 1) : null, pOld = PA && c > 1 ? PA((c - 2) * CH_LEN + 1) : null;
+      if (pNow && pOld && pOld.max > 0 && pNow.max > pOld.max) out.push(STR.chPlaces(pNow.max | 0));
       var lead = out.length ? STR.chNewLead + out.join(', ') + '.' : '';
       var nx = G && G.nextChapter ? nextChText(G.nextChapter(s, c - 1)).replace(STR.nextCh.lead, '') : '';
       var SL = CFG.junction && CFG.junction.stop && CFG.junction.stop.late, a0 = (c - 1) * CH_LEN + 1;
@@ -6394,7 +6434,7 @@
         // peca no lugar: o cartao fecha, a faixa diz a promessa (a frase da troca, com os pontos que voltam, fica)
         choiceClose(); setSel(null, true);
         // (o Yield da bandeja diz a dica do cruzamento cheio; pelo cartao a faixa e a promessa)
-        if (!had && (sayEl.textContent === STR.placed(STR.tools[tool] || tool) || (tool === 'yield' && /^Busy crossing: /.test(sayEl.textContent)))) { sayUntil = 0; say(STR.choice.placed(STR.tools[tool] || tool), 4500); }
+        if (!had && (sayEl.textContent === STR.placed(STR.tools[tool] || tool) || (tool === 'yield' && (!sayEl.textContent || /^Busy crossing: /.test(sayEl.textContent))))) { sayUntil = 0; say(STR.choice.placed(STR.tools[tool] || tool), 4500); }
         return;
       }
       // pergunta pendente (segundo toque da troca para baixo, ou o semaforo que vem de outro lugar): o cartao sai da frente e a

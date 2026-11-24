@@ -520,7 +520,7 @@
     // ponteiro no canvas (vale mesmo quando a UI nao chama hold). Dedo que pousa durante uma animacao automatica:
     // a camera para onde esta e o resto volta a ficar guardado. Pedido explicito da jogadora (botao de enquadrar,
     // chip): r.byUser(fn) passa direto. Gesto (pan, pinca) descarta o guardado: a jogadora tomou a camera.
-    var CAM_IDLE_MS = 600;
+    var CAM_IDLE_MS = CFG.camIdleMs > 0 ? CFG.camIdleMs : 600;
     var held = { on: false, moved: false, pend: false, x: 0, y: 0, z: 1 };
     var touch = { ids: {}, n: 0, last: -1e9 }, userReq = 0;
     var clkF = null;   // relogio injetavel so para testes (r._camClock)
@@ -557,6 +557,8 @@
       canvas.addEventListener('lostpointercapture', onUp, cap);
     }
     r.byUser = function (fn) { userReq++; try { return fn(); } finally { userReq--; } };
+    // toque em botao do HUD (DOM, fora do canvas): conta como toque da jogadora para o relogio acima (a UI chama)
+    r.touchNote = function () { touch.last = clk(); };
     r.camIdle = function () { return !busy(); };   // so para testes e para a UI
     r.camPending = function () { return !!held.pend; };
     r.hold = function (on) {

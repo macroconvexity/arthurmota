@@ -516,9 +516,13 @@
 
   // texto do CRZ.UI.advise para o no (dia de amanha: e quando se constroi); null sem ui.js, sem no, sem texto
   // curto (ate 14 palavras) ou com 'tomorrow'. Nao recomenda Boost (o balao fixo ja cobre)
+  // w_fix8: no com cartao da escolha (replay de ontem): nenhuma dica fora do cartao recomenda peca
+  function hasCard(c, n) {
+    try { return !!(n && c.game && typeof c.game.choiceFor === 'function' && c.game.choiceFor(n.id)); } catch (e) { return false; }
+  }
   function adviseText(c, n, s) {
     var U = CRZ.UI, a;
-    if (!n || !U || typeof U.advise !== 'function') return null;
+    if (!n || !U || typeof U.advise !== 'function' || hasCard(c, n)) return null;
     try { a = U.advise(n, (s.day || 1) + 1, CRZ.CFG, c.game && c.game.world); } catch (e) { return null; }
     if (!a || typeof a.text !== 'string' || !a.text || a.tool === 'clear') return null;
     if (words(a.text) > 14 || /tomorrow/i.test(a.text)) return null;
@@ -593,7 +597,7 @@
         cu.data.text = n && n.portal && deg(n) < 2
             ? (lastDay ? STR.ringEndLast : unlocked(c, 'upgrade') ? STR.ringEndLane : STR.ringEnd)
           : (s.speed || 1) > 1 ? STR.ringFast
-          : charges(c) > 0 ? (unlocked(c, 'stop') && !lastDay ? STR.ringStop : STR.ringBoost) : STR.ringLock;
+          : charges(c) > 0 ? (unlocked(c, 'stop') && !lastDay && !hasCard(c, n) ? STR.ringStop : STR.ringBoost) : STR.ringLock;
         // recomendador unico da UI (mesmo texto do toque no anel): ferramenta liberada para amanha, sem 'tomorrow'
         c.advEdge = null;
         var adv = lastDay ? null : adviseText(c, n, s);
