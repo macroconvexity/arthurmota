@@ -780,12 +780,16 @@
       }
       if (tool === 'stop') {
         if (t < ns.busy) return;
+        // w_ag7 (J.stop.late, opcional): do dia late.fromDay, cada entrada ocupada alem de 2 soma multiApproachPenalty s por
+        // carro (o Pare de 4 lados que todo mundo para e mais lento que o de 3). Sem o bloco, como antes
+        var SL = J.stop.late && w.day >= J.stop.late.fromDay && J.stop.late.multiApproachPenalty > 0 ? J.stop.late : null;
+        var so = SL ? occupiedApproaches() : 0, sserve = J.stop.serve + (so >= 3 ? SL.multiApproachPenalty * (so - 2) : 0);
         if (bf) {
           var fs = J.stop.fullStop / ns.bmul;
-          if (releaseRR(n, ns, function (c) { return c.wait >= fs; })) ns.busy = t + J.stop.serve / ns.bmul;
+          if (releaseRR(n, ns, function (c) { return c.wait >= fs; })) ns.busy = t + sserve / ns.bmul;
           return;
         }
-        if (releaseRR(n, ns, function (c) { return c.wait >= J.stop.fullStop; })) ns.busy = t + J.stop.serve;
+        if (releaseRR(n, ns, function (c) { return c.wait >= J.stop.fullStop; })) ns.busy = t + sserve;
         return;
       }
       if (tool === 'yield') {
@@ -968,6 +972,8 @@
       // o total fica o mesmo e se espalha por todos os ramos. Portais do jogador (rate < 1) somam por fora.
       // So vale com w.portalNorm (o Game liga); mundo criado direto pelo Sim gera como antes.
       var cityN = 0, ref = (w.portalNorm && CFG.portalRef) ? CFG.portalRef(w.day) : Infinity;
+      // w_far: os lugares (CFG.isPlaceRate) SOMAM carros: geram rate x a carga de uma ponta cheia, por fora da divisao da cidade
+      var IP = CFG.isPlaceRate && CFG.trafficBalance && CFG.trafficBalance.places ? CFG.isPlaceRate : function () { return false; };
       for (var j = 0; j < portalList.length; j++) if (!(portalList[j].rate > 0 && portalList[j].rate < 1)) cityN++;
       var cityMul = cityN > ref ? ref / cityN : 1;
       // w_cars (CFG.trafficBalance.playerEmitMax): as pontas do jogador somadas geram no maximo isto (em pontas cheias);

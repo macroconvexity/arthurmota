@@ -13,7 +13,7 @@
     // primeiro dia daquele capitulo (checkpoint gravado no save), sem zerar a partida.
     chapterDays: 10,
     panLockDays: 3,       // dias 1 a 3: um dedo no vazio nao move o mapa (so dois dedos); do dia 4 um dedo move (ui.js, textos de ajuda)
-    maxStrikes: 3,        // strikes por capitulo (difficulty.js troca: Easy 4, Normal 3)
+    maxStrikes: 3,        // strikes por capitulo (difficulty.js troca: Easy 4, Normal 4)
     strikeGraceUntil: 5,  // dias 1 a 5: o cruzamento trava e aparece como sempre, mas nao conta strike nem encerra o dia
     graceUnlockSeconds: 4, // dias livres: o cruzamento travado destrava sozinho depois disso (s de jogo); o Boost tambem destrava
     graceRelief: 0.4,     // estresse que sai do cruzamento quando ele destrava sozinho num dia livre
@@ -161,7 +161,11 @@
       //  Rotatoria: 1 vaga em T (perde do Pare), 2 vagas com 4+ entradas: a melhor em estrela de 4 eixos (x1.5)
       //  Faixa de pedestre: capacidade baixa, mas o estresse do no sobe 30% mais devagar; numa reta/curva so
       //    segura os carros na vez do pedestre
-      stop:  { serve: 0.9, fullStop: 0.8 },
+      // w_ag7 (2026-11-24, dono: "punha Stop em tudo sem pensar" e chegava ao dia 27 sem strike): do dia 11, o Pare com 3 ou 4
+      // entradas ocupadas solta cada carro 0,3 s (uma alem de 2) ou 0,6 s (duas) mais devagar: todo mundo para, a cruz movimentada
+      // engasga (anel e a linha "Too busy from every side for a stop"); o T segue como era. 40 sementes (web/dev/review/w_ag7/REPORT.md):
+      // Easy stopAll limpo 73% -> 13% com aware 95%; capitulo 1 igual (fromDay 11)
+      stop:  { serve: 0.9, fullStop: 0.8, late: { fromDay: 11, multiApproachPenalty: 0.3 } },
       // v2 (v2/sistemas.md 7 regra 3): minorMaxWait 7 -> 12. A lateral so forca a vez depois de 12 s: o Yield trava
       // quando as duas ruas tem o mesmo movimento (cruz equilibrada), e segue o melhor no T de rua principal.
       yield: { serve: 0.6, minorServe: 1.1, minorMaxWait: 12, batch: 0 },
@@ -221,13 +225,32 @@
     //   movePortal: do dia N, a rua que estica uma ponta leva a ponta junto (game.js buildRoad).
     //   playerEmitMax: as pontas do jogador somadas geram no maximo isto em pontas cheias (sem teto de pontas: sem beco).
     trafficBalance: { usefulGrowth: false, usefulMin: 1, destDistK: 2, destFromDay: 4,
-      destAttract: { weak: 1, player: 1 }, destTripK: 1.5, via: { p: 0.35, slack: 0.5, fromDay: 4 }, movePortal: 4, playerEmitMax: 2 },
+      destAttract: { weak: 1, player: 1 }, destTripK: 1.5, via: { p: 0.35, slack: 0.5, fromDay: 4 }, movePortal: 4, playerEmitMax: 2,
+      // w_far: lugares. A rua que o Sim espera com menos de minRel x a mediana de fluxo (ou menos de minCars carros por dia) ganha um no de
+      // 2 ruas (ou o meio dela) como ponta fraca. POR CAPITULO (indice 0 = capitulo 1): max = lugares na cidade, rate = taxa deles
+      // (distinta de growPortal.weakRate 0.5 e builtPortalRate 0.2: o Sim e o Game os reconhecem pela taxa), perDay = novos por manha.
+      // Os lugares SOMAM carros (rate x a carga de uma ponta cheia), nao dividem o orcamento da cidade. Por dificuldade: difficulty.js
+      // (places: { max, rate, perDay }); na linha de comando: --set trafficBalance.places.max.2=12
+      places: { fromDay: 4, minRel: 0.5, minCars: 6, junction: true, max: [0, 5, 9], rate: [0.3, 0.3, 0.4], perDay: [0, 2, 3] } },
+      // w_ag7: [0,6,12] / [0.3,0.35,0.55] / [0,3,3] levava o novato curioso do Easy a repetir o capitulo 3 em 55% e o aware do Normal a 25%
+      // limpo; com estes, 25% e 80% (REPORT.md de w_ag7), e os carros dos dias 11 a 30 ficam ~10% acima de main
     // w_cars: teto de pontas criadas por ruas do jogador (era 10 fixo no game.js; acima dele a rua nova virava beco, a
     // ponta com traco que nunca recebe carro). Alto de proposito: toda ponta solta e ponta de verdade (ui.js le o mesmo)
     playerPortalCap: 40,
     // acima de portalRef(dia) portais da cidade, a taxa de cada um cai na proporcao (total constante)
     // w_cars: o teto sobe com a cidade (portalRefMax, era 8): a cidade de 17 pontas do capitulo 3 manda carro como 12
     portalRefMax: 12,
+    // w_far: valores dos lugares no dia (capitulo de chapterDays dias; depois do ultimo vale o ultimo) e se uma taxa e de lugar
+    placeAt: function (day) {
+      var P = CRZ.CFG.trafficBalance && CRZ.CFG.trafficBalance.places; if (!P) return null;
+      var ch = Math.max(0, Math.ceil(day / (CRZ.CFG.chapterDays || 10)) - 1);
+      function pick(a) { return Array.isArray(a) ? (a[Math.min(ch, a.length - 1)] || 0) : (a || 0); }
+      return { fromDay: P.fromDay || 1, minRel: P.minRel, minCars: P.minCars, junction: P.junction, max: pick(P.max), rate: pick(P.rate), perDay: pick(P.perDay) };
+    },
+    isPlaceRate: function (r) {
+      var P = CRZ.CFG.trafficBalance && CRZ.CFG.trafficBalance.places, a = P && P.rate;
+      return r > 0 && (Array.isArray(a) ? a.indexOf(r) >= 0 : a === r);
+    },
     portalRef: function (day) { return Math.min(CRZ.CFG.portalRefMax || 8, 2 + Math.floor((day + 1) / 2)); },
 
     // Velocidade como decisao (desde o dia 1): o jogador escolhe 1x, 2x ou 4x a qualquer momento do dia.

@@ -1458,6 +1458,103 @@
       return false;
     }
 
+    // w_far (CFG.trafficBalance.places): toda rua tem de estar no caminho de alguem. Fluxo esperado por rua (a mesma conta
+    // do Sim: cada ponta gera pela taxa, o destino pesa como em spawnDest, o carro segue o caminho mais curto). A rua que
+    // espera menos que minRel x a mediana ganha um LUGAR: um no de 2 ruas dessa rua (ou o meio dela) vira ponta fraca
+    // (circulo, taxa places.rate), de onde carros saem e para onde vao. Idempotente; sem rng. Devolve os ids criados.
+    function expectedFlow(day) {
+      var ids = sortedIds(world.nodes), eids = sortedIds(world.edges), adj = {}, i, P = [];
+      for (i = 0; i < ids.length; i++) adj[ids[i]] = [];
+      for (i = 0; i < eids.length; i++) {
+        var e = world.edges[eids[i]], a = world.nodes[e.a], b = world.nodes[e.b], L = e.len || dist(a.x, a.y, b.x, b.y);
+        adj[e.a].push({ to: e.b, len: L, edge: e.id }); adj[e.b].push({ to: e.a, len: L, edge: e.id });
+      }
+      var TB = CFG.trafficBalance || {}, dk = TB.destDistK > 0 ? TB.destDistK / CFG.worldRadius : 0, tk = TB.destTripK > 0 ? TB.destTripK / CFG.worldRadius : 0;
+      // emissao como em Sim.spawn: pontas cheias dividem a cidade (cityMul), lugares somam rate, pontas do jogador somam no maximo playerEmitMax
+      var cityN = 0, ref = CFG.portalRef ? CFG.portalRef(day) : Infinity, pSum = 0;
+      for (i = 0; i < ids.length; i++) {
+        var pn = world.nodes[ids[i]];
+        if (!pn.portal) continue;
+        P.push(pn);
+        if (CFG.isPlaceRate && CFG.isPlaceRate(pn.rate)) continue; else if (pn.rate === CFG.builtPortalRate) pSum += pn.rate; else if (!(pn.rate > 0 && pn.rate < 1)) cityN++;
+      }
+      var cityMul = cityN > ref ? ref / cityN : 1, flow = {}, playMul = TB.playerEmitMax > 0 && pSum > TB.playerEmitMax ? TB.playerEmitMax / pSum : 1;
+      for (i = 0; i < eids.length; i++) flow[eids[i]] = 0;
+      for (i = 0; i < P.length; i++) {
+        var p = P[i], gen = p.rate > 0 && p.rate < 1 ? p.rate * (p.rate === CFG.builtPortalRate ? playMul : 1) : cityMul;
+        var d = {}, par = {}, done = {}, order = [];
+        d[p.id] = 0;
+        for (;;) {
+          var u = null;
+          for (var key in d) if (!done[key] && (u === null || d[key] < d[u] || (d[key] === d[u] && +key < +u))) u = key;
+          if (u === null) break;
+          done[u] = true; order.push(u);
+          for (var q = 0; q < adj[u].length; q++) { var x = adj[u][q], nd = d[u] + x.len; if (d[x.to] === undefined || nd < d[x.to] - 1e-9) { d[x.to] = nd; par[x.to] = { from: u, edge: x.edge }; } }
+        }
+        var wq = {}, tot = 0, j;
+        for (j = 0; j < P.length; j++) {
+          var t = P[j]; if (t === p || d[t.id] === undefined) continue;
+          var qr = t.rate > 0 && t.rate < 1 ? Math.max(t.rate, TB.destAttract ? ((t.rate === CFG.builtPortalRate ? TB.destAttract.player : TB.destAttract.weak) || 0) : 0) : 1;
+          wq[t.id] = qr * (dk ? 1 + dk * Math.sqrt(t.x * t.x + t.y * t.y) : 1) * (tk ? 1 + tk * dist(t.x, t.y, p.x, p.y) : 1); tot += wq[t.id];
+        }
+        if (!tot) continue;
+        var acc = {};
+        for (j = order.length - 1; j >= 0; j--) {
+          var nid = order[j], mine = (acc[nid] || 0) + (wq[nid] ? gen * wq[nid] / tot : 0);
+          if (nid !== String(p.id) && par[nid]) { flow[par[nid].edge] += mine; acc[par[nid].from] = (acc[par[nid].from] || 0) + mine; }
+        }
+      }
+      return flow;
+    }
+    function ensurePlaces(day) {
+      var PL = CFG.placeAt && CFG.placeAt(day), made = [];
+      if (!PL || day < PL.fromDay || typeof world.setPortal !== 'function') return made;
+      var have = 0, ids0 = sortedIds(world.nodes), i;
+      for (i = 0; i < ids0.length; i++) {
+        var pn0 = world.nodes[ids0[i]];
+        if (pn0.portal && CFG.isPlaceRate(pn0.rate)) { have++; if (pn0.rate !== PL.rate && PL.rate > 0) world.setPortal(pn0.id, true, PL.rate); }   // a taxa segue o capitulo
+      }
+      if (!(PL.perDay > 0)) return made;
+      var skip = {}, cpd = CFG.spawnRate(day) * (CFG.dayLen[day - 1] || 45);   // carros por dia de uma ponta cheia
+      while (made.length < PL.perDay && have < PL.max) {
+        var flow = expectedFlow(day), eids = sortedIds(world.edges), vals = [], lo = null;
+        for (i = 0; i < eids.length; i++) vals.push(flow[eids[i]]);
+        vals.sort(function (x, y) { return x - y; });
+        var med = vals[Math.floor(vals.length / 2)] || 0;
+        for (i = 0; i < eids.length; i++) {
+          var e = world.edges[eids[i]];
+          if (skip[e.id] || !(flow[e.id] < PL.minRel * med || flow[e.id] * cpd < PL.minCars)) continue;
+          if (lo === null || flow[e.id] < flow[lo.id] - 1e-12) lo = e;
+        }
+        if (!lo) break;
+        skip[lo.id] = true;
+        var cand = [world.nodes[lo.a], world.nodes[lo.b]].filter(function (n) { return n && !n.portal && !n.tool && degree(n) === 2; });
+        var nid = null;
+        if (cand.length) nid = cand.sort(function (x, y) { return dist(x.x, x.y, 0, 0) - dist(y.x, y.y, 0, 0) || x.id - y.id; })[cand.length - 1].id;   // o de fora
+        else if (lo.len >= 2 * CFG.minNodeSpacing) {
+          var a = world.nodes[lo.a], b = world.nodes[lo.b], ts = [0.5, 0.4, 0.6, 0.33, 0.67];
+          for (var ti = 0; ti < ts.length && nid === null; ti++) {
+            var px = r1(a.x + (b.x - a.x) * ts[ti]), py = r1(a.y + (b.y - a.y) * ts[ti]), near = false;
+            var nowIds = sortedIds(world.nodes), nowE = sortedIds(world.edges), ei;
+            for (i = 0; i < nowIds.length && !near; i++) { var on = world.nodes[nowIds[i]]; if (on && dist(on.x, on.y, px, py) < CFG.minNodeSpacing) near = true; }   // longe de qualquer no (o save recusa nos a menos de minNodeSpacing / 2)
+            for (ei = 0; ei < nowE.length && !near; ei++) {   // e de qualquer outra rua
+              var oe = world.edges[nowE[ei]]; if (oe.id === lo.id) continue;
+              if (ptSegDist(px, py, world.nodes[oe.a].x, world.nodes[oe.a].y, world.nodes[oe.b].x, world.nodes[oe.b].y) < CFG.minNodeSpacing / 2) near = true;
+            }
+            if (!near) { nid = idOf(world.splitEdge(lo.id, px, py)); if (nid === undefined) nid = null; }
+          }
+        }
+        if (nid === null && PL.junction) {   // rua curta entre dois cruzamentos: o cruzamento de fora (sem sinal) vira o lugar (aro duplo, ja existe)
+          var js = [world.nodes[lo.a], world.nodes[lo.b]].filter(function (n) { return n && !n.portal && !n.tool && degree(n) === 3; });
+          if (js.length) nid = js.sort(function (x, y) { return dist(x.x, x.y, 0, 0) - dist(y.x, y.y, 0, 0) || x.id - y.id; })[js.length - 1].id;
+        }
+        if (nid === null) continue;
+        world.setPortal(nid, true, PL.rate);
+        made.push(nid); have++;
+      }
+      return made;
+    }
+
     function teesOf() {
       var out = [], ids = sortedIds(world.nodes);
       for (var i = 0; i < ids.length; i++) { var n = world.nodes[ids[i]]; if (!n.portal && degree(n) >= 3) out.push(n); }
@@ -1701,6 +1798,7 @@
       st.draft = null;
       var nd = st.day + 1;
       grow(nd);
+      ensurePlaces(nd);   // w_far: lugares nas ruas sem carro esperado
       enterPlan(nd, left);
     }
 
@@ -2526,6 +2624,7 @@
     g.startDay = function () {
       if (st.phase !== 'plan') return fail('phase');
       // v2x: a manha de hoje (so na memoria) para o 'e se' do resumo (g.whatIf): o mesmo dia, outra peca num cruzamento
+      ensurePlaces(st.day);   // w_far: ruas que o jogador ligou hoje tambem ganham lugar (antes do 'e se' guardar a manha)
       if (!BRANCHING) { morning = saveCore(); delete morning.undo; morning = { day: st.day, save: morning, base: {} }; }
       st.marks = marksNow();   // w_choice2: as pecas postas ou movidas hoje onde ontem passaram carros (a linha do dia seguinte)
       // oferta sem resposta ao comecar o dia: passou (nada aplicado). So face usada ou sem escolha mexe no dia

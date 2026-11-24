@@ -15,7 +15,7 @@
     // e o no travava em 8 s. Easy: lock 1.7 (13,6 s com o anel cheio ate travar) e dias 7 a 10 a 0.9. Normal: o
     // jogador medio vencia 79% (alvo 45 a 60%), dias 10 a 12 voltam a 1.0, 1.0, 0.95. Robos headless, 60 sementes:
     // Easy preguicoso 42 -> 62%, curioso 83 -> 93%, cuidadoso 95 -> 98%; Normal curioso 58 -> 47%, cuidadoso 70 -> 58%.
-    // strikes: por capitulo de CFG.chapterDays dias (v2, D9): Easy 4, Normal 3, repostos nos dias 11 e 21.
+    // strikes: por capitulo de CFG.chapterDays dias (v2, D9): Easy 4, Normal 4 (era 3 ate w_ag7), repostos nos dias 11 e 21.
     // lock (opcional): fator sobre CFG.lockSeconds. patienceDay (opcional): fator de paciencia por dia.
     // assist (opcional, lido por ui.js): chipAt/chipOff = estresse que liga/desliga o chip do Boost ao lado do Play;
     // playConfirm = "Start anyway?" no Play com anel sem sinal; newJunctionTip = dica "New junction" no plano;
@@ -42,10 +42,12 @@
               latePatience: 1.2, budgetAdd: [0, -1, -1],
               restartFrom: 21,
               assist: { chipAt: 0.45, chipOff: 0.3, playConfirm: true, newJunctionTip: true, newMark: true, jamBalloonAt: 0.3 } },
-    normal: { label: 'Normal', spawn: 0.85, patience: 1.1,  strikes: 3,
+    // w_ag7 (2026-11-24): com o Pare lento na cruz cheia e os lugares, o aware do Normal caia a ~45% limpo (alvo 70 a 85%): 4 strikes
+    // (eram 3) e motoristas 1,5x mais pacientes do dia 5 (era 1,3). 40 sementes: aware 55% (main) -> 80%, Stop em tudo 3% -> 0% (web/dev/review/w_ag7)
+    normal: { label: 'Normal', spawn: 0.85, patience: 1.1,  strikes: 4,
               // w_cars: x1,3 do dia 5 (CFG.patienceLate). 40 sementes: aware limpo 80% (antes 82), lightsUp 85% (80), smart 35%
               // (42), spendAll 30% (40); com 1,25 o aware caia para 65% e o smart para 18%
-              latePatience: 1.3,
+              latePatience: 1.5,   // w_ag7: era 1.3 (acima)
               spawnDay: [1, 1, 0.9],    // v2 (v2/economia.md 6.2: spawnDay sai); dia ausente vale 1
               assist: { chipAt: 0.45, chipOff: 0.3, playConfirm: false, newJunctionTip: false, newMark: true, jamBalloonAt: 0.3 } }
   };
@@ -97,6 +99,9 @@
   if (p.patienceDay) CFG.patienceDay = p.patienceDay;   // lido por sim.js (stress)
   // latePatience (opcional, w_cars): fator de paciencia do dia CFG.patienceLate.fromDay em diante (sim.js patNow)
   if (p.latePatience > 0 && CFG.patienceLate) CFG.patienceLate.mul = p.latePatience;
+  // places (opcional, w_far): { max: [..], rate: [..], perDay: [..] } por capitulo, por cima de CFG.trafficBalance.places (so os campos dados)
+  var ptune = tune && tune.places ? tune.places : p.places;
+  if (ptune && CFG.trafficBalance && CFG.trafficBalance.places) for (var pk in ptune) if (ptune.hasOwnProperty(pk)) CFG.trafficBalance.places[pk] = ptune[pk];
   CFG.maxStrikes = p.strikes;
   // restartFrom (opcional): primeiro dia em que gastar os strikes manda de volta (CFG.noRestartBeforeDay; antes dele o
   // ultimo strike so avisa, como no capitulo 1). Os textos leem {restartDay}
