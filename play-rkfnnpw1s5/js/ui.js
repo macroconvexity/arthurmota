@@ -249,6 +249,14 @@
     capTile: function (used, cap) { return used + ' of ' + cap; },
     // semaforo, Stop, Yield e Two lanes na mao (mover e de graca)
     lightMoveAsk: 'Tap the light you want to move here.',
+    // w_where: a escolha entre cruzamentos (game.lightMoveFor): o semaforo que sai sem perda, pelo 'e se' dos dois cruzamentos
+    lightMoveFrom: function (t) { return 'Tap the pulsing light to move it here. A ' + t + ' does better there.'; },
+    // h: o sinal que estava no anel e foi para a mao (nome), ou nada
+    lightMovedPut: function (t, h) {
+      if (!h) return 'Light moved. Free. Put a ' + t + ' where it was.';
+      return h === t ? 'Light moved. Put your ' + t + ' where it was: it is in your hand.' : 'Light moved. Put a ' + t + ' where it was. Your ' + h + ' is in your hand.';
+    },
+    whereAm: 'All lights in use. One would help more at the pulsing ring. Tap it.',
     lightPicked: 'Light picked up. Tap a crossing to place it. Free.',
     lightMoved: 'Light moved. Free.',
     lightToHand: 'The light is in your hand: pick Light and tap a crossing. Free.',
@@ -4049,7 +4057,15 @@
             if (tn && tn.tool !== 'light') {
               var mr = game.moveLight(n.id, tn.id);
               toolResult(mr, tn.x, tn.y, 'place', 'light');
-              if (mr && mr.ok) { addPulse(tn.x, tn.y); say(mr.toHand ? handStr('ToHand', mr.toHand) : STR.lightMoved, mr.toHand ? 4000 : 2600); emitUI('lightMoved', { from: n.id, to: tn.id }); }
+              if (mr && mr.ok) {
+                keepCardPromise(tn, 'light');   // w_where: a luz que veio pelo cartao leva a promessa dele (o dia seguinte confere)
+                addPulse(tn.x, tn.y);
+                // w_where: veio do semaforo que o jogo apontou: a faixa diz a peca que deixa o cruzamento antigo como estava
+                var put = larm.from === n.id && larm.tool && STR.tools[larm.tool] ? larm.tool : null;
+                if (put) { addPulse(n.x, n.y); whereAm.put = { id: n.id, tool: put, day: game.state.day | 0 }; }
+                say(put ? STR.lightMovedPut(STR.tools[put], mr.toHand && STR.tools[mr.toHand] ? STR.tools[mr.toHand] : null) : (mr.toHand ? handStr('ToHand', mr.toHand) : STR.lightMoved), mr.toHand || put ? 5000 : 2600);
+                emitUI('lightMoved', { from: n.id, to: tn.id, put: put });
+              }
               return;
             }
             var pr = game.removeTool(n.id);
@@ -4058,9 +4074,21 @@
             return;
           }
           if (lcap && !(lcap.hand > 0) && isFinite(lcap.cap) && lcap.used >= lcap.cap && lcap.used > 0 && (n.edges ? n.edges.length : 0) >= 3) {
-            lightArm = { to: n.id, until: nowMs() + LIGHT_ARM_MS };
-            snd('select'); addPulse(n.x, n.y); pulseLights();
-            say(STR.lightMoveAsk, LIGHT_ARM_MS); emitUI('lightMoveAsk', { to: n.id });
+            // w_where: o 'e se' diz de qual cruzamento o semaforo sai sem perda (game.lightMoveFor): so ele pulsa, e a faixa diz a peca
+            var mv = null; try { mv = typeof game.lightMoveFor === 'function' ? game.lightMoveFor(n.id) : null; } catch (e) { warnOnce('game.lightMoveFor', e); }
+            var mvN = mv && game.world.nodes[mv.from] && STR.tools[mv.tool] ? game.world.nodes[mv.from] : null;
+            lightArm = { to: n.id, until: nowMs() + LIGHT_ARM_MS, from: mvN ? mvN.id : null, tool: mvN ? mv.tool : null };
+            snd('select');
+            if (!mvN) addPulse(n.x, n.y);   // w_where: com o semaforo apontado, so ele pulsa ('Tap the pulsing light')
+            if (mvN) {
+              // o semaforo apontado fora da area livre (atras da faixa ou fora da tela): a camera vai ate ele, como no 'feed' do cartao
+              var under = false;
+              try { var sr = sayEl.getBoundingClientRect ? sayEl.getBoundingClientRect() : null, sp = render.toScreen(mvN.x, mvN.y); under = !!(sr && sr.bottom > 0 && sp.y < sr.bottom + 28 + (sr.bottom - sr.top)); } catch (e) { under = false; }
+              if (render && render.focus && render.toScreen && (under || !onFree(mvN))) { try { camFree(function () { camByUser(function () { render.focus(mvN.x, mvN.y, undefined, !reducedMotion()); }); }); } catch (e) { warnOnce('render.focus', e); } }
+              addPulse(mvN.x, mvN.y); say(STR.lightMoveFrom(STR.tools[mv.tool]), LIGHT_ARM_MS);
+            }
+            else { pulseLights(); say(STR.lightMoveAsk, LIGHT_ARM_MS); }
+            emitUI('lightMoveAsk', { to: n.id, from: mvN ? mvN.id : null });
             return;
           }
         }
@@ -7300,10 +7328,63 @@
         fbkAm.tool0 = tn.tool || null; fbkAm.pulseUntil = now + FBK.pulseMs; fbkAm.nextPulse = now;
       }
     }
+    // w_where: a escolha entre cruzamentos. Todas as vagas de semaforo em uso e um anel cujo cartao diz Light 'better': o 'e se'
+    // dos cruzamentos que tem semaforo (fila em fatias, como o toque) diz se um deles fica igual ou melhor com uma peca mais simples
+    // (game.lightMoveFor). So entao, uma vez por dia e depois da linha do problema do dia, a faixa diz uma linha e o anel pulsa ate
+    // ser tocado. E um fato da vaga, nao ensino: vale com Guidance off. Depois da mudanca (placeNodeTool), o cruzamento de onde o
+    // semaforo saiu pulsa ate receber uma peca ou o plano acabar.
+    var whereAm = { day: -1 }, WHERE_RINGS = 3;
+    function whereTick(s, now) {
+      if (s.phase !== 'plan') { whereAm = { day: -1 }; return; }
+      var w = game.world, d = s.day | 0, k;
+      if (whereAm.day !== d) whereAm = { day: d, queued: false, done: fbkSeen('where.' + d), y: null, pulseUntil: 0, nextPulse: 0, put: null };
+      var P = whereAm.put, pn = P && P.day === d ? w.nodes[P.id] : null;
+      if (pn && !pn.tool && now >= (whereAm.putPulse || 0)) { addPulse(pn.x, pn.y); whereAm.putPulse = now + PULSE_LIFE; }
+      if (whereAm.pulseUntil && now < whereAm.pulseUntil && now >= whereAm.nextPulse) {
+        var yn = w.nodes[whereAm.y];
+        if (yn && yn.tool !== 'light' && !(choiceOpen() && scId === yn.id)) { addPulse(yn.x, yn.y); whereAm.nextPulse = now + PULSE_LIFE; } else whereAm.pulseUntil = 0;
+      }
+      if (typeof game.lightMoveFor !== 'function' || !game.lightCap) return;
+      if (!whereAm.t0) whereAm.t0 = now;
+      if (now - (whereAm.at || 0) < 250) return;   // a leitura dos cartoes (choiceFor) 4 vezes por segundo, nao por quadro
+      whereAm.at = now;
+      var lc = game.lightCap(); if (!lc || !isFinite(lc.cap) || lc.hand > 0 || lc.used < lc.cap || lc.used < 1) return;
+      var hot = s.hot || {}, rings = [], mv = null;
+      for (k in hot) if (hot.hasOwnProperty(k) && w.nodes[k] && !w.nodes[k].portal && degOf(w.nodes[k]) >= 3 && +hot[k] >= HOT_TAP && w.nodes[k].tool !== 'light') rings.push(+k);
+      rings.sort(function (a, b) { return (+hot[b] - +hot[a]) || (a - b); });
+      rings = rings.slice(0, WHERE_RINGS);
+      // o cartao aberto agora tambem conta (o toque no semaforo apontado precisa do 'e se' dos semaforos antes do toque na linha)
+      var open = choiceOpen() && scId !== null && w.nodes[scId] && w.nodes[scId].tool !== 'light' ? scId : null;
+      if (open !== null && rings.indexOf(open) < 0) rings.unshift(open);
+      var want = false, miss = [];
+      for (k = 0; k < rings.length && !mv; k++) {
+        var c = null; try { c = game.choiceFor(rings[k]); } catch (e) { warnOnce('game.choiceFor', e); }
+        if (!c) { if (rings[k] !== open) miss.push(rings[k]); continue; }
+        if (c.pending || !c.rows.some(function (r) { return r.tool === 'light' && r.verdict === 'better'; })) continue;
+        want = true;
+        try { mv = game.lightMoveFor(rings[k]); } catch (e) { warnOnce('game.lightMoveFor', e); }
+      }
+      // os aneis mais fortes sem 'e se' (o reload nao guarda a fila do resumo) entram na fila, uma vez; depois, so se um anel quer
+      // o semaforo, o 'e se' de cada cruzamento com semaforo (uma vez). Sem ninguem querendo, nada mais roda
+      if (!mv && miss.length && !whereAm.qRings) { whereAm.qRings = true; miss.forEach(function (id) { wiAdd(id); }); }
+      if (!mv && want && !whereAm.queued) { whereAm.queued = true; for (k in w.nodes) if (w.nodes.hasOwnProperty(k) && w.nodes[k] && w.nodes[k].tool === 'light') wiAdd(+k); }
+      // a linha da manha: uma vez por dia, depois da linha do problema do dia; sem resposta em 2 x FBK.morningMax, desiste
+      if (whereAm.done || fbkAm.day !== d || !(fbkAm.stage >= 2 || (fbkAm.stage === 1 && fbkAm.skip))) return;
+      if (!mv) { if (now - whereAm.t0 > 2 * FBK.morningMax) whereAm.done = true; return; }
+      var ready = !growPend && bootFrames < 0 && !fbkBusy() && !tutorScript() && !sayUntil && !fbkCur && !choiceOpen() && !(lightArm && now < lightArm.until);
+      if (!ready) return;
+      whereAm.done = true; fbkMark('where.' + d);
+      var tn = w.nodes[mv.to]; if (!tn) return;
+      fbkAm.pulseUntil = 0;   // um anel pulsa por vez
+      say(STR.whereAm, 5000);
+      whereAm.y = tn.id; whereAm.pulseUntil = now + FBK.pulseMs; whereAm.nextPulse = now;
+      emitUI('whereAm', { to: mv.to, from: mv.from, tool: mv.tool });
+    }
     function fbkTick(s, now) {
       fbkBalloonTick(now);
       fbkRunTick(s, now);
       fbkMorningTick(s, now);
+      whereTick(s, now);
       evPlanTick(s, now);
       if (fbkWatchPend && s.phase === 'plan' && !sayUntil && !swapUndoUntil && !fbkBusy()) { fbkWatchPend = 0; say(STR.fbk.watchFirst, 3000); }
       else if (fbkWatchPend && (s.phase !== 'plan' || now - fbkWatchPend > 8000)) fbkWatchPend = 0;

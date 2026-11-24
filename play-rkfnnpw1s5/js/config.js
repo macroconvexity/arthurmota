@@ -417,6 +417,10 @@
     // v2m: quantos semaforos a cidade liga ("2 of 3" no cartao). byDay: [dia, N] em ordem (o ultimo que ja chegou vale).
     // perkPlus: cada escolha da carta Free power soma +1 vaga. Tirar um semaforo e gratis (sem reembolso) e libera a vaga.
     lightCap: { byDay: [[5, 1], [10, 2], [16, 3], [24, 4]], perkPlus: 1 },   // w_light: medido em v2/_scripts/w_light (SEMAFORO_PARA_DECIDIR.md)
+    // w_where: mover um semaforo de onde ele faz menos para o anel que o quer (game.lightMoveFor). So quando a peca que fica no lugar
+    // dele e 'better' la (com 'about the same' o cruzamento de origem piorou no dia seguinte em 49% das vezes) e o semaforo tira pelo
+    // menos minGain s no anel (com todos os ganhos, 'better' se cumpriu em 82%; com minGain 6, 86%). Medido em web/dev/review/w_where
+    lightMove: { enabled: true, minGain: 6 },
     // v2x (playtest cego 5): o conselho da manha joga o dia de ontem de novo com cada peca (game.whatIf) e so manda a peca
     // que baixa a espera mais longa do resumo em gain (fracao) e minS s, sem travar e sem subir o anel mais que pTol.
     // Depois de seguido, outra peca so com mudanca material (tipo mudou ou carros/min mais que material) e gainChanged

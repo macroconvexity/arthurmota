@@ -2428,6 +2428,38 @@
       if (rec.q) st.choice[id].q = rec.q;
       return true;
     };
+    // w_where: a escolha ENTRE cruzamentos. Com todas as vagas de semaforo em uso e o cartao de y dizendo Light 'better', o
+    // semaforo que pode sair de outro cruzamento x sem perda: o cartao de x (o mesmo 'e se', ja guardado) diz que outra peca
+    // ali fica 'better', sem recorte (qual) e sem trava, e cabe nos pontos; e o semaforo tira pelo menos CFG.lightMove.minGain s em y. Leitura pura, so
+    // de choiceFor: sem 'e se' guardado para x, x nao conta (nada e prometido sem repeticao). Entre varios x: o que fica
+    // melhor com a peca (menor espera com ela contra a de ontem), depois o mais barato, depois o id.
+    // null ou { to, from, tool (a peca para x), v (o veredito dela em x), gain (s que o semaforo tira em y, na repeticao) }
+    g.lightMoveFor = function (toId) {
+      var MV = CFG.lightMove || {}; if (MV.enabled === false || !CFG.lightCap || !CFG.lightCap.byDay) return null;
+      toId = +toId;
+      var y = world.nodes[toId]; if (!y || y.tool === 'light' || st.phase !== 'plan') return null;
+      if ((st.lightHand | 0) > 0 || lightsUsed() < lightCap()) return null;   // ha vaga: nao e uma escolha entre cruzamentos
+      var cy = null; try { cy = g.choiceFor(toId); } catch (e) { cy = null; }
+      if (!cy || cy.pending) return null;
+      var ry = null; for (var i = 0; i < cy.rows.length; i++) if (cy.rows[i].tool === 'light') ry = cy.rows[i];
+      if (!ry || ry.w === null || ry.verdict !== 'better' || ry.lock || cy.before - ry.w < (MV.minGain || 0)) return null;
+      var best = null, ks = sortedIds(world.nodes);
+      for (var k = 0; k < ks.length; k++) {
+        var x = world.nodes[ks[k]]; if (!x || x.tool !== 'light' || x.id === toId) continue;
+        var cx = null; try { cx = g.choiceFor(x.id); } catch (e) { cx = null; }
+        if (!cx || cx.pending || cx.before === null || cx.have !== 'light') continue;
+        for (var j = 0; j < cx.rows.length; j++) {
+          var r = cx.rows[j];
+          if (r.tool === 'light' || r.tool === 'upgrade' || r.w === null || r.lock || r.qual || r.note === 'jam') continue;
+          if (r.verdict !== 'better') continue;   // 'about the same' na origem nao se sustentou no dia seguinte (CFG.lightMove)
+          var price = r.hand ? 0 : r.cost; if (price > st.budget) continue;
+          var d = r.w - cx.before;
+          if (!best || d < best.d - 1e-9 || (Math.abs(d - best.d) < 1e-9 && price < best.price)) best = { d: d, price: price, from: x.id, tool: r.tool, v: r.verdict };
+        }
+      }
+      if (!best) return null;
+      return { to: toId, from: best.from, tool: best.tool, v: best.v, gain: Math.round(cy.before - ry.w) };
+    };
     // efeito de uma carta (copia de CFG.cardEffects) com active = vale hoje; null para id desconhecido
     g.cardInfo = function (id) {
       if (!CFG.cardEffects || !own(CFG.cardEffects, id)) return null;
