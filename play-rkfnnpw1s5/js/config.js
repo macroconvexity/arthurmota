@@ -453,7 +453,12 @@
       // entre dois dos vizinhos de mais carros (contorna o cruzamento), feed = a melhor peca no vizinho que mais manda carros. Two lanes na
       // rua que mais esperou saiu: 'better' em 1% dos cartoes mortos (web/dev/review/w_noopt/TABLE_raw.md). maxBranches: teto de ramos por cruzamento;
       // rows: linhas a mais; pairs: os vizinhos das pairs ruas de mais carros entram nos pares da rua
-      relief: { kinds: ['road', 'feed'], maxBranches: 5, rows: 2, pairs: 3 } },
+      // w_noopt2: a linha do vizinho (kind 'feed') esta DESLIGADA: seguida, saiu 'better' no dia seguinte em 46% (318 cruzamentos; com a barra
+      // abaixo, 59% em 93) contra 69% da rua e 17% sem fazer nada; para ligar, 'feed' volta a kinds. maxCross = no maximo de cruzamentos novos (sem sinal) que a rua sugerida pode criar; o cartao diz quantos
+      relief: { kinds: ['road'], maxBranches: 5, rows: 2, pairs: 3, maxCross: 1,
+        // w_noopt2: barra mais alta so para a linha do vizinho: seguida, ela saia 'better' no dia seguinte em 46% (rua: 69%), com ganho de 8 s e 40% em 67%
+        // (web/dev/review/w_noopt2/runs/table5.md); fica o ganho minimo em s e em fracao da espera de ontem
+        bar: { feed: { sec: 8, pct: 0.4 } } } },
     // v2 (v2/economia.md 3.2 e 6.2, v2/sistemas.md 4): Road crew, a troca entre hoje e depois. Nas manhas de fromDay a
     // toDay o plano oferece: pagar cost pontos hoje e receber perDay ponto toda manha pelos proximos days dias (a
     // partir de amanha). No maximo maxActive ao mesmo tempo. Paga-se no 4o dia (cost / perDay) e rende +6. days e a

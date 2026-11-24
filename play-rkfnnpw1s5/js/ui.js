@@ -651,11 +651,21 @@
       },
       // w_pick: com duas ou mais linhas 'better', a etiqueta de uma (game.choiceFor tagRows) e quem paga em cada linha 'better'
       // (ate 5 palavras: a rua que mais espera com a peca, medida na repeticao)
-      tag: { fastest: 'Fastest', cheapest: 'Cheapest' },
+      tag: { fastest: 'Fastest', cheapest: 'Cheapest', pick: 'Your pick' },
+      // w_place: o cartao aberto pela peca da bandeja (a linha dela marcada), a mesma peca no proprio cruzamento, a peca que entra
+      // direto (a repeticao a diz 'better') e o cruzamento novo, sem nada para comparar
+      pickHelp: 'Your pick is marked. Tap it to place it, or pick another.',
+      keepHelp: function (name) { return 'To move this ' + name + ', tap Leave it, then tap the ' + name + ' again.'; },
+      placedBetter: function (name) { return name + ' placed: better here. Yesterday\'s cars would have waited less.'; },
+      newCross: 'New crossing: no traffic to compare yet.',
       payer: { side: 'side street waits', main: 'main road waits', all: 'everyone waits a little' },
       // w_noopt: nenhuma peca 'better' (o cruzamento cheio): ate 2 linhas a mais, so as que o 'e se' diz 'better' (game.choiceFor extra)
       extra: { road: 'Road around it', feed: 'Fix the crossing that feeds it' },
-      extraNote: { road: 'cars go around', feed: function (t) { return 'a ' + t + ' there'; } },
+      extraNote: { road: function (t, n) { return n > 0 ? 'cars go around, adds ' + n + (n === 1 ? ' crossing' : ' crossings') : 'cars go around'; }, feed: function (t) { return 'a ' + t + ' there'; } },
+      // w_noopt2: o cartao do vizinho aberto pela linha 'Fix the crossing that feeds it': o veredito das linhas e da espera DO VIZINHO e a peca
+      // prometida ajuda o cruzamento de antes (medido em web/dev/review/w_noopt2/REPORT.md: ali ela sai 'better' em 12% e 'worse' em 72%). A linha
+      // dela leva a etiqueta e a nota cinza, e nao leva o 'worse' em vermelho (so a palavra some; a barra e o numero de antes seguem)
+      nextDoor: { tag: 'Next door', note: 'helps the crossing next door' },
       noOption: 'Too many cars for any piece. Boost it during the day.', noOptionNoBoost: 'Too many cars for any piece.',
       roadSug: 'Tap the dashed road to build it, or drag your own.',
       noData: 'Trouble here yesterday.',
@@ -685,6 +695,8 @@
       more: function (k) { return 'and ' + k + ' more: tap a crossing to see'; },
       // nome curto da ferramenta no balao e na linha do resumo ('Traffic light' estourava as 6 palavras)
       tool: { stop: 'Stop', yield: 'Yield', light: 'Light', round: 'Roundabout', cross: 'Crosswalk', upgrade: 'Two lanes' },
+      // w_noopt2: o nome das linhas a mais do cartao na linha do dia seguinte (fora de tool: o balao 'Your X work' so conhece pecas)
+      extraTool: { road: 'road around it', feed: 'fix next door' },
       good: function (t) { return /\s/.test(t) ? 'Calm today. Your ' + t + ' work.' : 'Calm here today. Your ' + t + ' works.'; },
       bad: 'Busy again. Tap ⚡︎ to help.',
       // sem carga de Boost (ou Boost ainda bloqueado): o balao nao manda tocar no que nao funciona
@@ -1764,7 +1776,7 @@
     var a = Math.round(e.w), b = Math.round(e.now.w), gap = Math.max(2, a * 0.2);
     return b <= a - gap ? 'better' : (b >= a + gap ? 'worse' : 'same');
   }
-  function fbkToolName(t) { return STR.fbk.tool[t] || STR.tools[t] || t; }
+  function fbkToolName(t) { return STR.fbk.tool[t] || STR.fbk.extraTool[t] || STR.tools[t] || t; }
   function dieFx(id, day, cfg) {
     var D = cfg && cfg.dice; if (!D || typeof id !== 'string') return {};
     // dado v2: as faces de CFG.dice.defs (o history so guarda a face que valeu no dia: usada ou sem escolha)
@@ -2410,6 +2422,9 @@
       if (n && typeof game.adviceFor === 'function' && (tomorrow || s.phase === 'plan')) { try { wi = game.adviceFor(n.id, true); } catch (e) { warnOnce('game.adviceFor', e); } }
       var card = false;
       try { card = !!(n && typeof game.choiceFor === 'function' && game.choiceFor(n.id)); } catch (e) { warnOnce('game.choiceFor', e); }
+      // w_place (cego 11, dia 14, bug 3: 'A stop fits here' mandou a um Stop pior): a repeticao que o toque ainda vai calcular tambem
+      // conta; a dica que nomeia uma peca so aponta para o cartao
+      if (!card && n) { try { card = typeof game.canReplay === 'function' && game.canReplay(n.id); } catch (e) { warnOnce('game.canReplay', e); } }
       return { card: card, budget: s.budget | 0, fresh: fresh, boost: boost, kind: (s.kinds && n && s.kinds[n.id]) || null, lightRoom: room, lightCap: lt && lt.cap != null ? lt.cap : 0, wi: wi };
     }
     function nodeAdvice(s, n, day) {
@@ -2455,26 +2470,29 @@
       else { q.t0 = nowMs(); q.cap = 6000; }
       // o anel que a jogadora tocou passa a frente da fila (os jobs andam em fatias e guardam o proprio estado): antes ele esperava
       // todos os da fila do resumo e os ramos a mais, e o cartao ficava ~3 s em 'Replaying yesterday here...' (cego 11, dia 26)
-      for (k = q.i; k < q.jobs.length; k++) if (q.jobs[k].id === id && !q.jobs[k].relief) { if (k > q.i) q.jobs.splice(q.i, 0, q.jobs.splice(k, 1)[0]); return true; }
+      for (k = q.i; k < q.jobs.length; k++) if (q.jobs[k].id === id && !q.jobs[k].relief) { qFront(q, k); return true; }
       q.jobs.splice(q.i, 0, j); wiKick();
       return true;
     }
+    // w_noopt2: o trabalho k da fila passa para o lugar do que roda agora (os trabalhos sao independentes: cada um guarda seu estado)
+    function qFront(q, k) { if (k > q.i) { var jb = q.jobs.splice(k, 1)[0]; q.jobs.splice(q.i, 0, jb); } }
     // w_noopt: os ramos a mais (game.reliefJob) de um cruzamento cujo cartao nao tem peca 'better'; no maximo um por cruzamento na fila
-    function reliefQueue(q, id) {
+    function reliefQueue(q, id, front) {
       if (typeof game.reliefJob !== 'function' || typeof game.choiceFor !== 'function') return false;
       var c = null, j = null, k;
       try { c = game.choiceFor(id); } catch (e) { warnOnce('game.choiceFor', e); }
       if (!c || !c.dead || c.relief !== 'pending') return false;
-      for (k = q.i; k < q.jobs.length; k++) if (q.jobs[k].id === id && q.jobs[k].relief) return true;
+      for (k = q.i; k < q.jobs.length; k++) if (q.jobs[k].id === id && q.jobs[k].relief) { if (front) qFront(q, k); return true; }
       try { j = game.reliefJob(id); } catch (e) { warnOnce('game.reliefJob', e); }
       if (!j || j.done) return !!j;
-      j.relief = true; q.jobs.push(j);
+      j.relief = true;
+      if (front) q.jobs.splice(q.i, 0, j); else q.jobs.push(j);
       return true;
     }
     function reliefAdd(id) {
       var q = wiQ;
-      if (!q || q.done) { q = { day: (game.state.day | 0) - 1, jobs: [], i: 0, t0: nowMs(), t1: 0, done: false, stop: null, kicked: false, slices: 0, maxSlice: 0, fresh: false, cap: 6000 }; if (!reliefQueue(q, id) || !q.jobs.length) return false; wiQ = q; }
-      else { if (!reliefQueue(q, id)) return false; q.t0 = nowMs(); q.cap = 6000; }
+      if (!q || q.done) { q = { day: (game.state.day | 0) - 1, jobs: [], i: 0, t0: nowMs(), t1: 0, done: false, stop: null, kicked: false, slices: 0, maxSlice: 0, fresh: false, cap: 6000 }; if (!reliefQueue(q, id, true) || !q.jobs.length) return false; wiQ = q; }
+      else { if (!reliefQueue(q, id, true)) return false; q.t0 = nowMs(); q.cap = 6000; }
       wiKick();
       return true;
     }
@@ -2496,7 +2514,7 @@
         // a memoria do conselho (state.adv) sai agora, como no resumo de antes
         try { if (jb.r && !jb.relief) game.adviceFor(jb.id, true); } catch (e) { warnOnce('game.adviceFor', e); }
         // w_noopt: cartao sem peca 'better': os ramos a mais entram na mesma fila (a manha ja sabe se o anel tem o que oferecer)
-        if (jb.r && !jb.relief) reliefQueue(q, jb.id);
+        if (jb.r && !jb.relief) reliefQueue(q, jb.id, choiceOpen() && scId === jb.id);
       }
       if (q.i >= q.jobs.length) wiEnd(null);
     }
@@ -3932,7 +3950,7 @@
     function tapSnap() {
       var w = game.world, k, n, o = '';
       if (w && w.nodes) for (k in w.nodes) if (w.nodes.hasOwnProperty(k) && w.nodes[k]) { n = w.nodes[k]; o += (n.tool || '-') + (n.pair == null ? '' : n.pair) + ','; }
-      return o + '|' + (w && w.edges ? Object.keys(w.edges).length : 0) + '|' + (game.state.budget | 0) + '|' + sayN + '|' + magUntil + '|' + (swapAsk ? 1 : 0) + (lightArm ? 1 : 0) + (sel || '');
+      return o + '|' + (w && w.edges ? Object.keys(w.edges).length : 0) + '|' + (game.state.budget | 0) + '|' + sayN + '|' + magUntil + '|' + (swapAsk ? 1 : 0) + (lightArm ? 1 : 0) + (sel || '') + (choiceOpen() ? '|card' : '');   // w_place: o cartao aberto pela peca na mao e uma resposta
     }
     function onTapAnswered(sx, sy) {
       var s = game.state, armed = s.phase === 'plan' && !!sel && sel !== 'road' && !modal(), moving = tapInCamAnim, was = armed ? tapSnap() : '';
@@ -3978,7 +3996,13 @@
         // de um no de 3+ ruas, o toque e nele (antes respondia 'Stops, yields and lights need a crossing')
         if (!askN && (!n || (!n.portal && (n.edges ? n.edges.length : 0) < (sel === 'cross' ? 2 : 3)))) n = nearJunction(sx, sy) || n;
         if (!n) { if (render.pickEdge(sx, sy)) snd('deny'); say(STR.deny.notJunction); var wp0 = render.toWorld ? render.toWorld(sx, sy) : { x: sx, y: sy }; pulseValid(sel, wp0.x, wp0.y); return; }
-        placeNodeTool(n, sel, s);
+        newCmp = null;
+        if (!placeGate(n, sel, s)) {
+          placeNodeTool(n, sel, s);
+          // w_place: a primeira peca num cruzamento sem repeticao de ontem: a faixa diz por que nao houve comparacao (uma vez)
+          if (newCmp === n.id && n.tool === sel && !seen('newNoCmp') && sayEl.textContent !== handStr('Moved', sel) && sayEl.textContent !== STR.paired) { markSeen('newNoCmp'); sayUntil = 0; say(STR.choice.newCross, 4000); emitUI('newNoCompare', { id: n.id }); }
+          newCmp = null;
+        }
         return;
       }
       // ferramenta de rua (faixas, mao unica) e toque num anel de dica (vermelho ou o tracejado de ontem):
@@ -3988,6 +4012,8 @@
       if (sel === 'upgrade' || sel === 'oneway') {
         var rn = render.pickNode(sx, sy), rpk = render.pickEdge(sx, sy);
         if (rn && rpk && !onDot(rn, sx, sy)) rn = null;
+        // w_place (cego 11, dias 11 e 14: Lanes na mao, o anel so dava a dica): com o 'e se' de ontem, o anel abre o cartao
+        if (rn && heatOf(s, rn) >= HOT_TAP && !tutorScript() && hasReplay(rn) && openChoice(s, rn, { pick: sel === 'upgrade' ? 'upgrade' : null })) { snd('select'); emitUI('ringTap', { id: rn.id, tool: sel, card: true }); return; }
         if (rn && heatOf(s, rn) >= HOT_TAP) {
           snd('select'); addPulse(rn.x, rn.y);
           var ra = sel === 'upgrade' ? nodeAdvice(s, rn) : null;
@@ -4048,7 +4074,9 @@
       if (armed && n.id === armed.from) { pairArm = null; pairRep = null; say(STR.pairCancel); syncSelectedNode(); }
       fbkTap(n.id);
       // anel: o cartao da escolha (w_choice) com o que o 'e se' mediu; sem 'e se' guardado, a frase de sempre (e qual rua)
+      // w_place (cego 11, dia 5): sem anel, o cruzamento com o 'e se' de ontem tambem abre o cartao no primeiro toque
       if (heatOf(s, n) >= HOT_TAP) { if (!openChoice(s, n)) say(tapAdvice(s, n)); }
+      else if (!tutorScript() && hasReplay(n) && openChoice(s, n)) { /* o cartao */ }
       else if (isDeadEnd(n)) say(STR.deadEndTap);
       else if ((n.tool === 'light' || n.tool === 'stop' || n.tool === 'yield') && s.phase === 'plan' && tiles[n.tool]) say(handStr('TapMove', n.tool));
       if (n.tool === 'light') {
@@ -4058,6 +4086,55 @@
         syncSelectedNode();
       } else { pairFirst = null; hidePairChip(); syncSelectedNode(); snd('select'); }
     }
+      // w_place: a regra numa frase: com a peca na mao, num cruzamento que levou carros ontem, a peca entra direto so quando a
+      // repeticao de ontem a diz 'better' ali e nada sai do lugar; senao o cartao abre com ela marcada (um toque na linha poe).
+      // Cruzamento novo (sem repeticao): direto, e a faixa diz uma vez por que nao ha comparacao. Tutorial roteirizado: como sempre
+      function hasReplay(n) {
+        try { return !!(n && degOf(n) >= 3 && typeof game.canReplay === 'function' && game.canReplay(n.id)); } catch (e) { warnOnce('game.canReplay', e); return false; }
+      }
+      var pickAsk = null, PICK_ASK_MS = 60000, newCmp = null;
+      // a linha 'New crossing' so faz sentido para quem ja pode ver cartoes: algum cruzamento do mapa tem a repeticao de ontem
+      function cardsLive() {
+        var w = game.world, k;
+        if (!w || !w.nodes || typeof game.canReplay !== 'function') return false;
+        for (k in w.nodes) if (w.nodes.hasOwnProperty(k) && w.nodes[k] && degOf(w.nodes[k]) >= 3) { try { if (game.canReplay(+k)) return true; } catch (e) { return false; } }
+        return false;
+      }   // {id, tool, until}: a mesma peca no proprio cruzamento, depois do cartao, pega a peca
+      function placeGate(n, tool, s) {
+        if (!(tool === 'stop' || tool === 'yield' || tool === 'light' || tool === 'round') || s.phase !== 'plan') return false;
+        if (tutorScript() || modal() || choiceOpen()) return false;
+        if (swapAsk && swapAsk.id === n.id && swapAsk.tool === tool) return false;   // segundo toque de uma troca ja pedida
+        if (tool === 'light' && n.tool === 'light' && lightArm && nowMs() < lightArm.until) return false;   // o semaforo que vem para ca
+        var same = n.tool === tool, pa = pickAsk;
+        pickAsk = null;
+        if (same && pa && pa.id === n.id && pa.tool === tool && nowMs() < pa.until) return false;   // ja viu o cartao: pega
+        if (same && tool === 'round') return false;   // a recusa de sempre
+        if (!hasReplay(n)) {
+          newCmp = !n.tool && !seen('newNoCmp') && !tutorTalking() && cardsLive() ? n.id : null;
+          return false;
+        }
+        var c = choiceData(n.id); if (!c && wiAdd(n.id)) c = choiceData(n.id);
+        if (!c) return false;
+        var row = null, i;
+        for (i = 0; i < c.rows.length; i++) if (c.rows[i].tool === tool) row = c.rows[i];
+        if (!same && !row) return false;
+        if (!same && !n.tool && !c.pending && row.w !== null && row.verdict === 'better' && !row.qual && row.afford && !row.capped) {
+          var rec = null;
+          try { rec = typeof game.promiseFor === 'function' ? game.promiseFor(n.id, tool) : null; } catch (e) { warnOnce('game.promiseFor', e); }
+          cardPick = rec ? { id: n.id, tool: tool, rec: rec, until: nowMs() + 8000 } : null;
+          placeNodeTool(n, tool, s);
+          if (n.tool === tool) {
+            // nada saiu do lugar (sem troca): a faixa do veredito vence a do retorno ('Stop placed here.', a dica do Yield, o mover da mao)
+            sayUntil = 0; say(STR.choice.placedBetter(STR.tools[tool] || tool), 4500);
+            emitUI('placeVerdict', { id: n.id, tool: tool, verdict: row.verdict });
+          }
+          return true;
+        }
+        if (!openChoice(s, n, same ? { pick: null, keep: tool } : { pick: tool })) return false;
+        if (same) pickAsk = { id: n.id, tool: tool, until: nowMs() + PICK_ASK_MS };
+        emitUI('placeCard', { id: n.id, tool: tool, same: same, verdict: row ? row.verdict : null });
+        return true;
+      }
       // w_choice: o miolo de 'ferramenta de cruzamento na mao + toque no no', o mesmo codigo para o toque no mapa e para
       // uma linha do cartao da escolha (assim custo, recusa, troca, mao, teto de semaforos e Undo sao os mesmos)
       function placeNodeTool(n, sel, s) {
@@ -6487,6 +6564,8 @@
     // UMA consequencia. Cada numero vem de game.choiceFor; nada aqui e conta. Abre so no toque da jogadora e segura
     // body.crz-modal enquanto aberto (nada mais abre por cima: o dado, a Road crew, o balao do tutorial esperam).
     // Colocar usa placeNodeTool, o mesmo codigo do toque com a peca da bandeja (custo, recusa, troca, mao, teto, Undo).
+    var scPick = null, scArm = null;   // w_place: a peca da bandeja que abriu o cartao (linha marcada) e a ferramenta na mao
+    var scFrom = null;   // w_noopt2: { node, tool }: o cartao do vizinho aberto pela linha 'Fix the crossing that feeds it'; a peca prometida e a linha marcada
     var scEl = tut(el('div', 'crz-confirm crz-choice gone'), 'choice-card'), scId = null, scSig = '', scHlEdge = null, cardPick = null, choiceAsk = null, scAt = -1e9, SC_GHOST_MS = 450;
     scEl.setAttribute('role', 'dialog'); scEl.setAttribute('aria-modal', 'true');
     var scBox = el('div', 'crz-cbox'); scBox.setAttribute('data-scroll', '');
@@ -6507,7 +6586,7 @@
       if (!choiceOpen()) return;
       scEl.classList.add('gone'); modalReg().set(doc.body, 'choice', false);
       if (scHlEdge !== null && render && typeof render.highlightRoad === 'function') { try { render.highlightRoad(scHlEdge, 1); } catch (e) {} }
-      scHlEdge = null; scId = null; scSig = '';
+      scHlEdge = null; scId = null; scSig = ''; scFrom = null; scPick = null; scArm = null;
     }
     // a linha de uma peca: icone, nome, preco, barra e numero, quem paga, consequencia. Barra: o traco e a espera de ontem; o
     // preenchimento escuro vai ate o menor numero da faixa e o trecho claro ate o maior (w_choice2); vermelho quando piora. O
@@ -6516,15 +6595,17 @@
       var C = STR.choice, name = STR.tools[r.tool] || r.tool, price = r.cost > 0 ? C.pts(r.cost) : C.free;
       // light cap reached: this row moves a light you already have (the tap asks which one), so it is free and never buys
       var moves = r.tool === 'light' && r.capped && !r.hand; if (moves) price = C.moveHere;
-      var vd = r.verdict || r.res || 'same', b = el('button', 'crz-scrow' + (vd === 'worse' ? ' bad' : (vd === 'better' ? ' good' : '')) + (r.afford || moves ? '' : ' poor') + (r.capped ? ' capped' : ''), '');
+      var vd = r.verdict || r.res || 'same', mk = !!scFrom && scFrom.node === c.id && scFrom.tool === r.tool, nd = mk && vd === 'worse';
+      var b = el('button', 'crz-scrow' + (!nd && vd === 'worse' ? ' bad' : (vd === 'better' ? ' good' : '')) + (r.afford || moves ? '' : ' poor') + (r.capped ? ' capped' : ''), '');
       b.setAttribute('data-tool', r.tool);
       var ico = el('span', 'crz-scico', toolIcon(r.tool)), body = el('span', 'crz-scbody'), top = el('span', 'crz-sctop');
       var nm = el('span', 'crz-scname'); nm.textContent = name;
-      var tagTxt = !c.pending && r.tag && C.tag[r.tag] ? C.tag[r.tag] : '';
+      // w_place + w_noopt2: uma marca por linha; 'Next door' (o vizinho prometido) vence 'Your pick' (o cartao do vizinho nao abre pela bandeja)
+      var tagTxt = mk ? C.nextDoor.tag : (scPick === r.tool ? C.tag.pick : (!c.pending && r.tag && C.tag[r.tag] ? C.tag[r.tag] : ''));
       if (tagTxt) { var tg = el('i', 'crz-ctag'); tg.textContent = tagTxt; nm.appendChild(tg); }
       var pr = el('span', 'crz-scprice'); pr.textContent = price;
       top.appendChild(nm); top.appendChild(pr); body.appendChild(top);
-      var nums = c.pending ? C.pending : (r.w === null ? C.none : C.verdict[vd]);
+      var nums = c.pending ? C.pending : (r.w === null || nd ? C.none : C.verdict[vd]);
       var mid = el('span', 'crz-scmid'), bar = el('span', 'crz-scbar'), num = el('span', 'crz-scnum');
       if (!c.pending && r.w !== null) {
         // a barra: a espera de ontem e a barra inteira; o trecho cheio e o que a peca deve deixar, com a ponta suave (aproximado)
@@ -6533,16 +6614,17 @@
         bar.appendChild(fill); bar.appendChild(mark);
       }
       num.textContent = nums; mid.appendChild(bar); mid.appendChild(num); body.appendChild(mid);
-      var noteTxt = '', payTxt = '', lostTxt = '';
+      var noteTxt = '', payTxt = '', lostTxt = '', ndTxt = '';
+      if (mk) { ndTxt = C.nextDoor.note; var nn = el('span', 'crz-scnote'); nn.textContent = ndTxt; body.appendChild(nn); }
       if (!c.pending && vd === 'better' && r.payer && C.payer[r.payer]) { payTxt = C.payer[r.payer]; var py = el('span', 'crz-scnote crz-scpay'); py.textContent = payTxt; body.appendChild(py); }
       // w_pick: com quem paga na linha, a consequencia de lado (side/main) diria o mesmo: sai
-      if (r.note && !(payTxt && (r.note === 'side' || r.note === 'main')) && !(r.note === 'busy' && r.qual)) noteTxt = typeof C.note[r.note] === 'function' ? C.note[r.note](r.nv) : C.note[r.note];
+      if (r.note && !nd && !(payTxt && (r.note === 'side' || r.note === 'main')) && !(r.note === 'busy' && r.qual)) noteTxt = typeof C.note[r.note] === 'function' ? C.note[r.note](r.nv) : C.note[r.note];
       var qualTxt = !c.pending && vd === 'better' && r.qual && C.qualNote[r.qual] ? C.qualNote[r.qual] : '';
       if (qualTxt) { var qn = el('span', 'crz-scnote'); qn.textContent = qualTxt; body.appendChild(qn); }
       if (noteTxt) { var nt = el('span', 'crz-scnote'); nt.textContent = noteTxt; body.appendChild(nt); }
       if (lost > 0) { lostTxt = C.replaces(lost, String(STR.tools[c.have] || c.have).toLowerCase()); var ls = el('span', 'crz-scnote crz-sclost'); ls.textContent = lostTxt; body.appendChild(ls); }
       b.appendChild(ico); b.appendChild(body);
-      b.setAttribute('aria-label', C.aria(name + (tagTxt ? ' (' + tagTxt + ')' : ''), price, nums, [payTxt, qualTxt, noteTxt, lostTxt].filter(Boolean).join('. ')));
+      b.setAttribute('aria-label', C.aria(name + (tagTxt ? ' (' + tagTxt + ')' : ''), price, nums, [ndTxt, payTxt, qualTxt, noteTxt, lostTxt].filter(Boolean).join('. ')));
       b.addEventListener('click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); if (nowMs() - scAt < SC_GHOST_MS) return; choicePick(r.tool, r.edge); });
       return b;
     }
@@ -6558,7 +6640,7 @@
       var mid = el('span', 'crz-scmid'), bar = el('span', 'crz-scbar'), num = el('span', 'crz-scnum'), fill = el('i'), mark = el('u');
       fill.style.width = Math.max(4, Math.min(100, Math.round(100 * x.w / M))) + '%'; mark.style.left = Math.min(100, Math.round(100 * c.before / M)) + '%';
       bar.appendChild(fill); bar.appendChild(mark); num.textContent = C.verdict.better; mid.appendChild(bar); mid.appendChild(num); body.appendChild(mid);
-      var nt = C.extraNote[x.kind], noteTxt = typeof nt === 'function' ? nt(STR.fbk.tool[x.tool] || STR.tools[x.tool] || x.tool) : (nt || '');
+      var nt = C.extraNote[x.kind], noteTxt = typeof nt === 'function' ? nt(x.kind === 'road' ? x.cross | 0 : (STR.fbk.tool[x.tool] || STR.tools[x.tool] || x.tool), x.cross | 0) : (nt || '');
       if (noteTxt) { var ns = el('span', 'crz-scnote'); ns.textContent = noteTxt; body.appendChild(ns); }
       b.appendChild(ico); b.appendChild(body);
       b.setAttribute('aria-label', C.aria(name, price, C.verdict.better, noteTxt));
@@ -6574,7 +6656,9 @@
       var lit = c.loud !== null && c.loud !== undefined && render && typeof render.highlightRoad === 'function';
       scShape.textContent = !c.pending && c.shape ? C.shape(c.shape) : '';
       // w_noopt: o 'e se' dos ramos a mais acabou e nada serve: a linha cinza diz (Boost so quando a jogadora o tem)
-      if (c.dead && c.relief === 'done' && !ex.length) { var bu = game.state.clear && game.state.clear.unlocked; scShape.textContent = (scShape.textContent ? scShape.textContent + ' ' : '') + (bu ? C.noOption : C.noOptionNoBoost); }
+      // w_place: o cartao agora abre tambem sem anel (cruzamento calmo): ali 'Too many cars' seria falso; a linha so vale com anel
+      var scN = game.world.nodes ? game.world.nodes[c.id] : null;
+      if (c.dead && c.relief === 'done' && !ex.length && scN && heatOf(game.state, scN) >= HOT_TAP) { var bu = game.state.clear && game.state.clear.unlocked; scShape.textContent = (scShape.textContent ? scShape.textContent + ' ' : '') + (bu ? C.noOption : C.noOptionNoBoost); }
       if (c.noData) scShape.textContent = c.tip || '';   // w_noopt: sem 'e se' possivel, a dica de uma linha vai na linha cinza do cartao
       scShape.classList.toggle('gone', !scShape.textContent);
       scTitle.textContent = c.noData ? C.noData : c.pending ? C.titleWait : (lit ? C.titleRoad : C.title)(Math.max(1, Math.round(c.before)));
@@ -6590,7 +6674,7 @@
       if (!c.pending && lv && lv.w !== null) { ln = el('span', 'crz-scnum'); ln.textContent = C.one(Math.round(lv.before)); scLeave.appendChild(ln); }   // w_choice3: Leave it fica com o numero de ontem
       scPts.textContent = C.points(game.state.budget | 0);
     }
-    function openChoice(s, n) {
+    function openChoice(s, n, opt) {
       if (s.phase !== 'plan' || modal() || choiceOpen() || degOf(n) < 3) return false;   // w_noopt: o portal que virou cruzamento (cego 10, dia 24) tambem
       var c = choiceData(n.id);
       if (c && c.pending) wiFront(n.id);
@@ -6604,11 +6688,15 @@
       if (c.dead && c.relief === 'pending') reliefAdd(n.id);
       scId = n.id; scSig = ''; scAt = nowMs(); scMsg.classList.add('gone'); scMsg.textContent = '';
       var first = gOn() && !seen('choiceHelp');
-      scHelp.textContent = STR.choice.help; scHelp.classList.toggle('gone', !first); if (first) markSeen('choiceHelp');
+      scPick = opt && opt.pick ? opt.pick : null; scArm = sel || null;
+      // w_place: aberto pela peca da bandeja, a linha que diz o que fazer vale sempre (mesmo com Guidance off): o toque nao pos nada
+      if (opt && opt.keep) { scHelp.textContent = STR.choice.keepHelp(String(STR.tools[opt.keep] || opt.keep).toLowerCase()); scHelp.classList.remove('gone'); }
+      else if (scPick) { scHelp.textContent = STR.choice.pickHelp; scHelp.classList.remove('gone'); }
+      else { scHelp.textContent = STR.choice.help; scHelp.classList.toggle('gone', !first); if (first) markSeen('choiceHelp'); }
       paintChoice(c);
       // w_place: um Pare em cruzamento de 3+ ruas, do dia em que ele engasga (CFG.junction.stop.late): o cartao diz o motivo
       var SLc = CFG.junction && CFG.junction.stop && CFG.junction.stop.late;
-      if (c.have === 'stop' && SLc && SLc.multiApproachPenalty > 0 && (s.day | 0) >= SLc.fromDay) { scHelp.textContent = STR.chStopLate(SLc.fromDay); scHelp.classList.remove('gone'); } scSig = JSON.stringify(c) + '|' + (s.budget | 0);
+      if (c.have === 'stop' && SLc && SLc.multiApproachPenalty > 0 && (s.day | 0) >= SLc.fromDay && !(opt && opt.keep)) { scHelp.textContent = STR.chStopLate(SLc.fromDay); scHelp.classList.remove('gone'); } scSig = JSON.stringify(c) + '|' + (s.budget | 0);
       scEl.classList.remove('gone'); modalReg().set(doc.body, 'choice', true);
       try { if (scLeave.focus) scLeave.focus(); } catch (e) {}
       emitUI('choiceOpen', { id: n.id, rows: c.rows.length, pending: !!c.pending });
@@ -6636,7 +6724,7 @@
     }
     // w_choice2: a linha Two lanes do cartao: o mesmo gesto da bandeja (game.upgradeRoad na rua mais cheia que chega aqui)
     function choiceLane(n, edgeId, rec) {
-      var s = game.state, E = game.world.edges && game.world.edges[edgeId];
+      var arm = scArm, s = game.state, E = game.world.edges && game.world.edges[edgeId];
       if (!E || s.phase !== 'plan') { choiceClose(); return; }
       var a = game.world.nodes[E.a], b = game.world.nodes[E.b], px = a && b ? (a.x + b.x) / 2 : n.x, py = a && b ? (a.y + b.y) / 2 : n.y;
       sayUntil = 0; sayEl.textContent = '';
@@ -6647,7 +6735,7 @@
         fbkPlaced(ur, ur.watchId != null && game.world.nodes ? game.world.nodes[ur.watchId] : null, false);
         if (rec && typeof game.keepPromise === 'function') { try { game.keepPromise(n.id, rec); } catch (e) { warnOnce('game.keepPromise', e); } }
         if (ur.fromHand) say(STR.upgradeMoved, 2600); else say(STR.choice.placed(STR.tools.upgrade), 4500);
-        choiceClose(); setSel(null, true);
+        choiceClose(); setSel(arm, true);
         return;
       }
       scMsg.textContent = sayEl.textContent || ''; scMsg.classList.toggle('gone', !scMsg.textContent);
@@ -6673,7 +6761,7 @@
         choiceClose();
         if (!a || !b) return;
         setSel('road', true);
-        roadSug = { from: x.from, to: x.to, id: n.id, day: s.day | 0 };
+        roadSug = { from: x.from, to: x.to, id: n.id, day: s.day | 0, w0: Math.round(x.before), w1: Math.round(x.w) };
         ghost = { fromId: x.from, x: b.x, y: b.y, ok: true, why: '', reason: '', nodeId: x.to, edgeId: null, cross: null, capped: false, reach: null, deadEnd: false, tip: '' };
         var o = ov(); if (o) { o.ghostRoad = ghost; o.finger = null; }
         sayUntil = 0; say(STR.choice.roadSug, 6000);
@@ -6686,7 +6774,8 @@
         choiceClose();
         if (!nb) return;
         if (render && render.focus) { try { camFree(function () { camByUser(function () { render.focus(nb.x, nb.y, undefined, !reducedMotion()); }); }); } catch (e) { warnOnce('render.focus', e); } }
-        openChoice(s, nb);
+        scFrom = { node: nb.id, tool: x.tool, from: n.id, w0: Math.round(x.before), w1: Math.round(x.w) };
+        if (!openChoice(s, nb)) scFrom = null;
       }
     }
     function onFree(nd) {
@@ -6707,14 +6796,18 @@
       if (segDist(sx, sy, pa.x, pa.y, pb.x, pb.y) > rr) return false;
       sayUntil = 0; sayEl.textContent = '';
       var br = game.buildRoad(R.from, b.x, b.y);
-      if (result(br, b.x, b.y, 'build', 'road')) { emitUI('roadBuilt', { suggested: true }); }
+      if (result(br, b.x, b.y, 'build', 'road')) {
+        emitUI('roadBuilt', { suggested: true });
+        // w_noopt2: a promessa da linha 'Road around it' vai para o dia seguinte (a linha do resumo fala do cruzamento original)
+        if (typeof game.keepPromise === 'function') { try { game.keepPromise(R.id, { day: R.day, tool: 'road', from: R.from, to: R.to, w0: R.w0, w1: R.w1, v: 'better' }); } catch (e) { warnOnce('game.keepPromise', e); } }
+      }
       else say(roadSayText(br && (br.reason === 'budget' || br.reason === 'phase' ? br.reason : (br.why || br.reason))));
       return true;
     }
     function choicePick(tool, edgeId) {
       var s = game.state, n = scId !== null && game.world.nodes ? game.world.nodes[scId] : null;
       if (!n || s.phase !== 'plan') { choiceClose(); return; }
-      var rec = null, had = n.tool || null;
+      var rec = null, had = n.tool || null, arm = scArm;
       try { rec = typeof game.promiseFor === 'function' ? game.promiseFor(n.id, tool) : null; } catch (e) { warnOnce('game.promiseFor', e); }
       if (tool === 'upgrade') { choiceLane(n, edgeId, rec); return; }
       cardPick = rec ? { id: n.id, tool: tool, rec: rec, until: nowMs() + 8000 } : null;
@@ -6724,7 +6817,9 @@
       emitUI('choicePick', { id: n.id, tool: tool, ok: n.tool === tool });
       if (n.tool === tool) {
         // peca no lugar: o cartao fecha, a faixa diz a promessa (a frase da troca, com os pontos que voltam, fica)
-        choiceClose(); setSel(null, true);
+        // w_noopt2: a peca prometida pela linha 'Fix the crossing that feeds it': a promessa do cruzamento original vai para o dia seguinte
+        if (scFrom && scFrom.node === n.id && scFrom.tool === tool && typeof game.keepPromise === 'function') { try { game.keepPromise(scFrom.from, { day: s.day | 0, tool: 'feed', node: n.id, piece: tool, w0: scFrom.w0, w1: scFrom.w1, v: 'better' }); } catch (e) { warnOnce('game.keepPromise', e); } }
+        choiceClose(); setSel(arm, true);   // w_place: a peca que estava na mao segue na mao
         // (o Yield da bandeja diz a dica do cruzamento cheio; pelo cartao a faixa e a promessa)
         if (!had && (sayEl.textContent === STR.placed(STR.tools[tool] || tool) || (tool === 'yield' && (!sayEl.textContent || /^Busy crossing: /.test(sayEl.textContent))))) { sayUntil = 0; say(STR.choice.placed(STR.tools[tool] || tool), 4500); }
         return;
@@ -6733,7 +6828,7 @@
       // peca fica na mao, como na bandeja
       if (swapAsk || (lightArm && nowMs() < lightArm.until)) { choiceClose(); return; }
       // recusa: o texto de sempre (a faixa) tambem dentro do cartao, que fica aberto para olhar as outras linhas
-      setSel(null, true);
+      setSel(arm, true);
       scMsg.textContent = sayEl.textContent || ''; scMsg.classList.toggle('gone', !scMsg.textContent);
     }
     on(scLeave, 'click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); if (nowMs() - scAt < SC_GHOST_MS) return; choiceClose(); snd('select'); emitUI('choiceLeave', { id: scId }); });
@@ -6796,6 +6891,8 @@
       var tu = CRZ.app && CRZ.app.tutorial, tutOn = tutBalloonOn() || tutorScript();
       // a frase da mao unica ('Tap the arrow to flip it.') fica: o aviso do primeiro gasto espera o proximo gasto
       if (sayUntil && /^One-way: /.test(sayEl.textContent)) tutOn = true;
+      // w_place: o veredito da peca que entrou direto (ou 'New crossing') fica: o aviso espera o proximo gasto
+      if (sayUntil && (/ placed: better here\. /.test(sayEl.textContent) || sayEl.textContent === STR.choice.newCross)) tutOn = true;
       if (b < spendBudget && gOn() && !seen('firstSpend') && !tutOn) { markSeen('firstSpend'); say(STR.firstSpend(spendBudget - b, lastDayOf(s))); }
       spendBudget = b;
     }
@@ -7511,7 +7608,7 @@
     // o texto de uma linha: { text, why, tryIt }
     function sumText(s, l) {
       var cn = game.world && game.world.nodes ? game.world.nodes[l.id] : null, ch = s.choice && s.choice[l.id], tn = lc(fbkToolName(l.tool)), r = { text: '', why: '', tryIt: false };
-      var mine = ch && ch.day === s.day && ch.tool === l.tool && cn && (l.tool === 'upgrade' || cn.tool === ch.tool);
+      var mine = ch && ch.day === s.day && ch.tool === l.tool && cn && (l.tool === 'upgrade' || l.tool === 'road' || l.tool === 'feed' || cn.tool === ch.tool);
       if (!mine) { r.text = STR.fbk.line(fbkToolName(l.tool), l.a, l.b); return r; }
       var M2 = STR.fbk.mine, rk = { worse: 0, same: 1, better: 2 }, pv = ch.v || game.verdictFor(ch.w0, ch.w1), rv = game.verdictFor(l.a, l.b), T = fbkToolName(l.tool);
       if (rv === pv) { r.text = M2[rv](T, l.a, l.b); r.tryIt = rv === 'worse'; }
@@ -7594,7 +7691,7 @@
     function wiState() {
       var q = wiQ; if (!q) return { done: true, n: 0 };
       var b = 0; for (var i = 0; i < q.jobs.length; i++) b += q.jobs[i].branches | 0;
-      return { done: q.done, stop: q.stop, n: q.jobs.length, next: q.jobs[q.i] ? q.jobs[q.i].id : null, slices: q.slices, maxSlice: Math.round(q.maxSlice * 10) / 10, branches: b, ms: q.done ? Math.round(q.t1 - q.t0) : null };
+      return { done: q.done, stop: q.stop, n: q.jobs.length, next: q.jobs[q.i] ? q.jobs[q.i].id : null, order: q.jobs.slice(q.i).map(function (j) { return j.id + (j.relief ? 'r' : ''); }), slices: q.slices, maxSlice: Math.round(q.maxSlice * 10) / 10, branches: b, ms: q.done ? Math.round(q.t1 - q.t0) : null };
     }
     return { update: update, destroy: destroy, _wiState: wiState, getSelectedTool: getSelectedTool, isSheetOpen: isSheetOpen, isHolding: isHolding, boostChip: boostChip, boostNode: boostNode, timeScale: timeScale,
              openGuide: openGuide, closeGuide: closeGuide, isGuideOpen: function () { return !!guideEl; },

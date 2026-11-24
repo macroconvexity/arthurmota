@@ -405,8 +405,8 @@
       // Two lanes posta pelo cartao: a linha de amanha fala do cruzamento da escolha
       if (st.choice) for (var ck in st.choice) {
         var cc = own(st.choice, ck) ? st.choice[ck] : null, cy = cc && y[ck];
-        if (!cc || cc.tool !== 'upgrade' || cc.day !== st.day || !cy || !(cy.n > 0) || out.list.length >= 12) continue;
-        if (!out.list.some(function (m) { return m.id === +ck; })) out.list.push({ id: +ck, tool: 'upgrade', w: cy.w, n: cy.n });
+        if (!cc || (cc.tool !== 'upgrade' && cc.tool !== 'road' && cc.tool !== 'feed') || cc.day !== st.day || !cy || !(cy.n > 0) || out.list.length >= 12) continue;
+        if (!out.list.some(function (m) { return m.id === +ck; })) out.list.push({ id: +ck, tool: cc.tool, w: cy.w, n: cy.n });
       }
       return out;
     }
@@ -2065,6 +2065,7 @@
       var q = wd.canAddEdge(from, b.x, b.y);
       return q && q.ok && q.nodeId === to && !q.capped ? q : null;
     }
+    function crossOk(q, RL) { return !!q && !(RL.maxCross >= 0 && (q.cross ? q.cross.length : 0) > RL.maxCross); }
     function reliefPlan(id, r, wd) {
       var RL = (CFG.signCard || {}).relief || {}, K = RL.kinds || [], arms = r.cur && r.cur.a ? r.cur.a.slice() : [], plan = [], i, j;
       if (arms.length < 3) return plan;
@@ -2078,7 +2079,8 @@
           pairs.sort(function (p, q) { return (q[0][2] + q[1][2]) - (p[0][2] + p[1][2]); });
           for (i = 0; i < pairs.length; i++) {
             var A = otherEnd(wd, pairs[i][0][0], id), B = otherEnd(wd, pairs[i][1][0], id), ends = [[A, B], [B, A]], got = null;
-            for (j = 0; j < 2 && !got; j++) if (ends[j][0] !== null && ends[j][1] !== null && roadOk(wd, ends[j][0], ends[j][1]) && roadOk(world, ends[j][0], ends[j][1])) got = ends[j];
+            // w_noopt2: a rua nova que corta ruas cria cruzamentos sem sinal; so entra a que cria no maximo RL.maxCross (o ramo ja a joga sem sinal)
+            for (j = 0; j < 2 && !got; j++) if (ends[j][0] !== null && ends[j][1] !== null && crossOk(roadOk(wd, ends[j][0], ends[j][1]), RL) && crossOk(roadOk(world, ends[j][0], ends[j][1]), RL)) got = ends[j];
             if (got) { plan.push({ k: 'road', from: got[0], to: got[1] }); break; }
           }
         } else if (kind === 'feed') {
@@ -2390,9 +2392,13 @@
         for (i = 0; i < kinds.length && extra.length < (RL.rows > 0 ? RL.rows : 2); i++) {
           var kx = kinds[i], x2 = RX[kx], ok2 = false, er = null;
           if (!x2 || x2.w === null || x2.w === undefined || vOf(x2) !== 'better') continue;
+          // w_noopt2: a barra mais alta de cada linha a mais (RL.bar[kind] = { sec, pct }): o dia seguinte confirma a promessa so quando o ganho e grande
+          var bar = RL.bar && RL.bar[kx], gain = bShow - Math.round(x2.w);
+          if (bar && (gain < (bar.sec || 0) || gain < bShow * (bar.pct || 0))) continue;
           if (kx === 'road') {
-            ok2 = isUnlocked('road') && !!roadOk(world, x2.from, x2.to);
-            if (ok2) { var rc = costOf('road'); er = { kind: 'road', tool: 'road', from: x2.from, to: x2.to, cost: rc, hand: !!st.free.road, afford: st.budget >= rc }; }
+            var rq = isUnlocked('road') ? roadOk(world, x2.from, x2.to) : null;
+            ok2 = crossOk(rq, RL);
+            if (ok2) { var rc = costOf('road'); er = { kind: 'road', tool: 'road', from: x2.from, to: x2.to, cost: rc, hand: !!st.free.road, afford: st.budget >= rc, cross: rq.cross ? rq.cross.length : 0 }; }
           } else if (kx === 'feed') {
             var fn = world.nodes[x2.node]; ok2 = !!fn && !fn.portal && degree(fn) >= 3 && (fn.tool || null) !== x2.tool && isUnlocked(x2.tool);
             if (ok2) { var fc = placeCheck(x2.node, x2.tool); if (fc.capped) ok2 = false; else er = { kind: 'feed', tool: x2.tool, node: x2.node, cost: fc.cost, hand: fc.hand, afford: fc.afford }; }
@@ -2404,6 +2410,17 @@
       }
       return { id: id, day: r.day, pending: pend, tool: r.tool, have: have, deg: deg, shape: shape, before: before, loud: loud ? loud[0] : null, rows: rows,
                leave: { tool: have, w: lw, before: before, same: have === r.tool || (!have && !r.tool) }, dead: dead, relief: rel, extra: extra };
+    };
+    // w_place: o cruzamento tem (ou pode ter, no toque) o 'e se' de ontem: ja guardado, ou com a manha de ontem na memoria e
+    // carros ali ontem (st.kinds: 3+ ruas e transito medido). Cruzamento novo (nao existia ou nao levou carro): false. Leitura pura
+    g.canReplay = function (id) {
+      id = +id;
+      var n = world.nodes[id]; if (!n || degree(n) < 3) return false;   // a ponta de rua que virou cruzamento tambem (como choiceFor)
+      var C = wiCached(id); if (C) return !!C.cur;
+      if (BRANCHING || !morning) return false;
+      var ok = (st.phase === 'summary' && morning.day === st.day) || (st.phase === 'plan' && morning.day === st.day - 1);
+      var kd = st.kinds && st.kinds[id];
+      return !!(ok && kd && kd.v >= 1);
     };
     // a promessa da escolha: o que o cartao mostrou para a peca (antes e depois, s inteiros), guardado em st.choice (vai no
     // save) para o fim do dia dizer se a peca cumpriu. promiseFor le ANTES de a peca entrar (depois, o cartao ja nao a lista);
@@ -2422,6 +2439,10 @@
       id = +id; var n = world.nodes[id];
       if (!rec || !n || rec.day !== st.day) return false;
       if (rec.tool === 'upgrade') { var two = false; for (var j = 0; j < n.edges.length; j++) { var ed = world.edges[idOf(n.edges[j])]; if (ed && ed.lanes === 2) two = true; } if (!two) return false; }
+      // w_noopt2: as linhas a mais do cartao: a rua sugerida (tool 'road', from/to) e a peca no vizinho (tool 'feed', node/piece); a linha do dia
+      // seguinte fala do cruzamento original
+      else if (rec.tool === 'road') { if (!world.nodes[rec.from] || !world.nodes[rec.to] || !linkedIn(world, rec.from, rec.to)) return false; }
+      else if (rec.tool === 'feed') { var fnd = world.nodes[rec.node]; if (!fnd || fnd.tool !== rec.piece) return false; }
       else if (n.tool !== rec.tool) return false;
       if (!st.choice) st.choice = {};
       st.choice[id] = { day: rec.day, tool: rec.tool, w0: rec.w0, w1: rec.w1, lo: rec.lo, hi: rec.hi, v: rec.v };
@@ -3620,7 +3641,7 @@
     for (var id in C) {
       if (!Object.prototype.hasOwnProperty.call(C, id) || !/^\d+$/.test(id)) continue;
       var x = C[id];
-      if (!x || typeof x !== 'object' || !(x.tool === 'upgrade' || (PLACEABLE[x.tool] && Object.prototype.hasOwnProperty.call(PLACEABLE, x.tool)))) continue;
+      if (!x || typeof x !== 'object' || !(x.tool === 'upgrade' || x.tool === 'road' || x.tool === 'feed' || (PLACEABLE[x.tool] && Object.prototype.hasOwnProperty.call(PLACEABLE, x.tool)))) continue;
       if (!(fin(x.day) && x.day >= 1 && x.day <= 999 && fin(x.w0) && x.w0 >= 0 && x.w0 <= 9999 && fin(x.w1) && x.w1 >= 0 && x.w1 <= 9999)) continue;
       out[id] = { day: Math.floor(x.day), tool: x.tool, w0: Math.floor(x.w0), w1: Math.floor(x.w1) };
       // w_choice2: a faixa prometida (opcional: save de antes carrega sem ela e a linha cai no numero unico)
@@ -3653,7 +3674,7 @@
     var out = { day: Math.floor(M.day), list: [] };
     for (var i = 0; i < M.list.length && out.list.length < 12; i++) {
       var x = M.list[i];
-      if (!x || typeof x !== 'object' || !fin(x.id) || typeof x.tool !== 'string' || ['stop', 'yield', 'light', 'round', 'cross'].indexOf(x.tool) < 0 || !fin(x.w) || x.w < 0 || !fin(x.n) || x.n < 0) continue;
+      if (!x || typeof x !== 'object' || !fin(x.id) || typeof x.tool !== 'string' || ['stop', 'yield', 'light', 'round', 'cross', 'road', 'feed'].indexOf(x.tool) < 0 || !fin(x.w) || x.w < 0 || !fin(x.n) || x.n < 0) continue;
       var o = { id: Math.floor(x.id), tool: x.tool, w: x.w, n: Math.floor(x.n) };
       if (x.now && typeof x.now === 'object' && fin(x.now.w) && x.now.w >= 0 && fin(x.now.n) && x.now.n >= 0) o.now = { w: x.now.w, n: Math.floor(x.now.n) };
       out.list.push(o);
