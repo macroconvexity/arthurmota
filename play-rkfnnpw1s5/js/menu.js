@@ -36,11 +36,11 @@
     choiceDay: function (d) { return 'A choice on day ' + d; },
     tools: {
       road: ['Road', 'Connects two spots with a new road.'],
-      stop: ['Stop', 'Cheap. Cars take turns. Good where three or four quiet roads meet.'],
-      yield: ['Yield', 'Main road never stops. Best where a busy road meets a quiet side street; weak when every road is busy.'],
-      light: ['Traffic light', 'For crossings busy from every side; quiet streets wait on red. Two lights on one road pair up by themselves. Your city powers only a few lights, more as it grows; removing one is free.'],
+      stop: ['Stop', 'Cheap. Cars take turns. Good where three quiet roads meet; slow when busy.'],
+      yield: ['Yield', 'Main road never stops. Best where one busy road meets a quiet side street; weak when all roads are busy.'],
+      light: ['Traffic light', 'Best on busy crossings, most of all one busy road with side streets; quiet streets wait on red. Two lights on one road pair up by themselves. Your city powers only a few lights, more as it grows; removing one is free.'],
       upgrade: ['Two lanes', 'Adds a second lane: a longer line fits. Best on a Stop with one long line: both lanes go at once.'],
-      round: ['Roundabout', 'Cars go around without stopping. Best where four or more roads meet; weak with only three.'],
+      round: ['Roundabout', 'Cars go around without stopping. Best where four or more roads meet; weak with only three, and fills up when very busy.'],
       oneway: ['One-way', 'Cars drive away from the half of the road you tap. Tap the arrow to flip it (free), again for two-way. A car with no route waits, then counts as lost.']
     },
     pts: function (c) { return c + (c === 1 ? ' build point' : ' build points'); },

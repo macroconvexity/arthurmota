@@ -147,12 +147,12 @@
     toolUseLine: {
       road: 'Drag from a circled road end or a crossing to build a road.',
       // v2m: uma linha por peca: onde ela e boa e onde ela atrapalha (o territorio de cada uma)
-      stop: 'Cars take turns. Good on small crossings, slow on a main road.',
-      yield: 'Busy road keeps going. Best where it meets a quiet side street.',
-      light: 'For crossings busy from every side. Quiet streets wait on red.',
+      stop: 'Cars take turns. Good on 3 quiet roads, slow when busy.',
+      yield: 'Busy road never stops. Best: one busy road, quiet side street.',
+      light: 'Best on busy crossings, most with one busy road. Quiet streets wait.',
       upgrade: 'Best on a Stop with one long line: both lanes go at once.',
       cross: 'Drivers wait longer before the ring turns red. Replaces the sign.',
-      round: 'Cars go around without stopping. Good where 4 roads meet; jams when packed.',
+      round: 'Cars go around. Best on 4+ roads, weak on 3, can fill up.',
       oneway: 'Tap a road: cars drive away from the half you tap.'
     },
     toolWorks: {
@@ -606,6 +606,12 @@
       title: function (w) { return 'Cars waited ' + w + ' s here yesterday.'; },
       titleRoad: function (w) { return 'Cars on the lit road waited ' + w + ' s here yesterday.'; },
       titleWait: 'Replaying yesterday here\u2026',
+      // w_shape: a forma do cruzamento de ontem (a classe da matriz, CFG.signCard.shape), nas palavras das linhas das pecas
+      shape: function (h) {
+        var r = h.roads + ' roads';
+        if (h.main) return h.vol === 'low' ? r + '. One road has most cars, quiet.' : r + '. One busy road, ' + (h.roads === 3 ? 'one quiet side street.' : 'quiet side streets.');
+        return r + ', ' + (h.vol === 'low' ? 'quiet.' : (h.vol === 'high' ? 'all busy.' : 'fairly busy.'));
+      },
       help: 'Each row replays yesterday with that sign here. Tap one to place it.',
       leave: 'Leave it', leaveAria: 'Leave this crossing as it is',
       free: 'free', pts: function (c) { return c + (c === 1 ? ' point' : ' points'); },
@@ -613,6 +619,10 @@
       // w_choice3: a linha diz uma palavra, nao segundos (a faixa em s nao se sustentou: medido em v2/_scripts/sinais/veredito.js).
       // Cortes em CFG.signCard.verdict (game.verdictFor). A linha 'this road 4 s . the other 12 s' saiu: a direcao acertava ~65%
       verdict: { better: 'better', same: 'about the same', worse: 'worse' },
+      // w_verd: o veredito 'better' que a medida mostra que falha em dois casos (CFG.signCard.qualify; game.choiceFor row.qual)
+      // a palavra fica 'better'; o recorte vai na linha de consequencia (a frase inteira nao cabe na linha do numero a 375 px)
+      qual: { event: 'better on a day like yesterday', busy: 'better, but not on a busy day' },
+      qualNote: { event: 'only on a day like yesterday', busy: 'but not on a busy day' },
       points: function (n) { return 'You have ' + n + (n === 1 ? ' point.' : ' points.'); },
       replaces: function (n, name) { return 'replaces your ' + name + ': ' + n + (n === 1 ? ' point' : ' points') + ' lost'; },
       pending: '\u2026', none: '', flat: 'no change here',
@@ -637,6 +647,9 @@
         same: function (t, a, b) { return 'Your ' + t + ' here: about the same, as expected. ' + a + ' s \u2192 ' + b + ' s.'; },
         worse: function (t, a, b) { return 'Your ' + t + ' here: worse, as expected. ' + a + ' s \u2192 ' + b + ' s. Tap to try another.'; },
         noBetter: function (t, a, b) { return 'Your ' + t + ' here: no better than before. ' + a + ' s \u2192 ' + b + ' s. Tap to try another.'; },
+        qualEvent: function (t, a, b) { return 'Your ' + t + ' here: better only on a day like yesterday. ' + a + ' s \u2192 ' + b + ' s.'; },
+        qualBusy: function (t, a, b) { return 'Your ' + t + ' here: better on a quiet day only. ' + a + ' s \u2192 ' + b + ' s.'; },
+        littleBetter: function (t, a, b) { return 'Your ' + t + ' here: a little better. ' + a + ' s \u2192 ' + b + ' s. Tap to try another.'; },
         worseThanBefore: function (t, a, b) { return 'Your ' + t + ' here: worse than before. ' + a + ' s \u2192 ' + b + ' s. Tap to try another.'; },
         betterThan: function (t, a, b) { return 'Your ' + t + ' here: better than expected. ' + a + ' s \u2192 ' + b + ' s.'; },
         noWorse: function (t, a, b) { return 'Your ' + t + ' here: no worse than expected. ' + a + ' s \u2192 ' + b + ' s.'; },
@@ -4895,13 +4908,30 @@
       rollClose();
       return true;
     }
+    // w_shape (teste cego 9): o navegador leva o 'click' de um toque que caiu entre dois botoes ao botao mais perto (Chrome ajusta o toque),
+    // e o dado era aplicado por um toque que a jogadora mirou fora (dia 27: +10% de carros que ela nao escolheu). O pointerdown cru
+    // diz onde o dedo caiu: fora do botao, o 'click' nao escolhe; os botoes so pulsam. Sem pointerdown (teclado, teste), vale o click
+    var rawDown = { x: 0, y: 0, t: -1e9 };
+    function recDown(e) { if (e && typeof e.clientX === 'number') rawDown = { x: e.clientX, y: e.clientY, t: nowMs() }; }
+    function strayTap(btn) {
+      if (!btn || nowMs() - rawDown.t > 1500 || !btn.getBoundingClientRect) return false;
+      var r = btn.getBoundingClientRect(); if (!(r.width > 0)) return false;
+      return rawDown.x < r.left || rawDown.x > r.right || rawDown.y < r.top || rawDown.y > r.bottom;
+    }
+    function rollPulse() {
+      [rollPass, rollGo, rollKeep].forEach(function (b) { if (b.classList.contains('gone')) return; b.classList.remove('crz-rollbtnpulse'); void b.offsetWidth; b.classList.add('crz-rollbtnpulse'); });
+      later(function () { [rollPass, rollGo, rollKeep].forEach(function (b) { b.classList.remove('crz-rollbtnpulse'); }); }, 420);
+    }
+    on(rollEl, 'pointerdown', recDown, true);
+    on(cardsEl, 'pointerdown', recDown, true);
     on(rollGo, 'click', function (e) {
       if (e && e.stopPropagation) e.stopPropagation();
+      if (rollChoosing() && strayTap(rollGo)) { rollPulse(); return; }
       if (rollChoosing()) { rollChoose(function () { return game.useDie(); }, 'place', 'use'); return; }
       rollClose();
     });
-    on(rollPass, 'click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); rollChoose(function () { return game.passDie(); }, 'select', 'pass'); });
-    on(rollKeep, 'click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); rollChoose(function () { return game.keepDie(); }, 'select', 'keep'); });
+    on(rollPass, 'click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); if (strayTap(rollPass)) { rollPulse(); return; } rollChoose(function () { return game.passDie(); }, 'select', 'pass'); });
+    on(rollKeep, 'click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); if (strayTap(rollKeep)) { rollPulse(); return; } rollChoose(function () { return game.keepDie(); }, 'select', 'keep'); });
     // a face guardada no lugar de rolar: vale na hora; o cartao mostra a face aberta com Continue
     on(rollKept, 'click', function (e) {
       if (e && e.stopPropagation) e.stopPropagation();
@@ -5034,6 +5064,7 @@
     on(cardsEl, 'click', function (e) {
       var b = upTo(e && e.target, cardsEl, 'data-card');
       if (!b || picked) return;
+      if (strayTap(b)) return;   // w_shape: o toque caiu fora da carta (o navegador levou o click a mais perto): nao escolhe
       if (!sumGate(b)) return;
       var idx = +b.getAttribute('data-card');
       picked = true;
@@ -6310,11 +6341,11 @@
     var scEl = tut(el('div', 'crz-confirm crz-choice gone'), 'choice-card'), scId = null, scSig = '', scHlEdge = null, cardPick = null, choiceAsk = null, scAt = -1e9, SC_GHOST_MS = 450;
     scEl.setAttribute('role', 'dialog'); scEl.setAttribute('aria-modal', 'true');
     var scBox = el('div', 'crz-cbox'); scBox.setAttribute('data-scroll', '');
-    var scTitle = el('div', 'crz-ctxt crz-sctitle'), scHelp = el('div', 'crz-schelp gone'), scRows = el('div', 'crz-scrows'), scMsg = el('div', 'crz-scmsg gone'), scPts = el('div', 'crz-scpts');
+    var scTitle = el('div', 'crz-ctxt crz-sctitle'), scHelp = el('div', 'crz-schelp gone'), scShape = el('div', 'crz-scshape gone'), scRows = el('div', 'crz-scrows'), scMsg = el('div', 'crz-scmsg gone'), scPts = el('div', 'crz-scpts');
     scTitle.id = 'crz-choice-title'; scEl.setAttribute('aria-labelledby', 'crz-choice-title');
     var scLeave = tut(el('button', 'crz-scleave'), 'choice-leave');
     scLeave.setAttribute('aria-label', STR.choice.leaveAria);
-    scBox.appendChild(scTitle); scBox.appendChild(scHelp); scBox.appendChild(scRows); scBox.appendChild(scMsg); scBox.appendChild(scLeave); scBox.appendChild(scPts);
+    scBox.appendChild(scTitle); scBox.appendChild(scShape); scBox.appendChild(scHelp); scBox.appendChild(scRows); scBox.appendChild(scMsg); scBox.appendChild(scLeave); scBox.appendChild(scPts);
     scEl.appendChild(scBox); ui.appendChild(scEl);
     function choiceOpen() { return !scEl.classList.contains('gone'); }
     function choiceData(id) {
@@ -6354,11 +6385,13 @@
       var noteTxt = '', payTxt = '', lostTxt = '';
       if (!c.pending && vd === 'better' && r.payer && C.payer[r.payer]) { payTxt = C.payer[r.payer]; var py = el('span', 'crz-scnote crz-scpay'); py.textContent = payTxt; body.appendChild(py); }
       // w_pick: com quem paga na linha, a consequencia de lado (side/main) diria o mesmo: sai
-      if (r.note && !(payTxt && (r.note === 'side' || r.note === 'main'))) noteTxt = typeof C.note[r.note] === 'function' ? C.note[r.note](r.nv) : C.note[r.note];
+      if (r.note && !(payTxt && (r.note === 'side' || r.note === 'main')) && !(r.note === 'busy' && r.qual === 'busy')) noteTxt = typeof C.note[r.note] === 'function' ? C.note[r.note](r.nv) : C.note[r.note];
+      var qualTxt = !c.pending && vd === 'better' && r.qual && C.qualNote[r.qual] ? C.qualNote[r.qual] : '';
+      if (qualTxt) { var qn = el('span', 'crz-scnote'); qn.textContent = qualTxt; body.appendChild(qn); }
       if (noteTxt) { var nt = el('span', 'crz-scnote'); nt.textContent = noteTxt; body.appendChild(nt); }
       if (lost > 0) { lostTxt = C.replaces(lost, String(STR.tools[c.have] || c.have).toLowerCase()); var ls = el('span', 'crz-scnote crz-sclost'); ls.textContent = lostTxt; body.appendChild(ls); }
       b.appendChild(ico); b.appendChild(body);
-      b.setAttribute('aria-label', C.aria(name + (tagTxt ? ' (' + tagTxt + ')' : ''), price, nums, [payTxt, noteTxt, lostTxt].filter(Boolean).join('. ')));
+      b.setAttribute('aria-label', C.aria(name + (tagTxt ? ' (' + tagTxt + ')' : ''), price, nums, [payTxt, qualTxt, noteTxt, lostTxt].filter(Boolean).join('. ')));
       b.addEventListener('click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); if (nowMs() - scAt < SC_GHOST_MS) return; choicePick(r.tool, r.edge); });
       return b;
     }
@@ -6367,6 +6400,7 @@
       for (i = 0; i < c.rows.length; i++) { var rw = c.rows[i]; if (rw.w !== null && rw.w > M) M = rw.w; }
       if (c.leave && c.leave.w !== null && c.leave.w > M) M = c.leave.w;
       var lit = c.loud !== null && c.loud !== undefined && render && typeof render.highlightRoad === 'function';
+      scShape.textContent = !c.pending && c.shape ? C.shape(c.shape) : ''; scShape.classList.toggle('gone', !scShape.textContent);
       scTitle.textContent = c.pending ? C.titleWait : (lit ? C.titleRoad : C.title)(Math.max(1, Math.round(c.before)));
       if (lit && scHlEdge !== c.loud) { try { if (render.highlightRoad(c.loud, 60000)) scHlEdge = c.loud; } catch (e) { warnOnce('render.highlightRoad', e); } }
       // a Roundabout trocada perde os pontos dela (a de hoje e reembolsada): o preco aparece na linha de cada troca, antes do toque
@@ -7176,7 +7210,8 @@
       if (!mine) { r.text = STR.fbk.line(fbkToolName(l.tool), l.a, l.b); return r; }
       var M2 = STR.fbk.mine, rk = { worse: 0, same: 1, better: 2 }, pv = ch.v || game.verdictFor(ch.w0, ch.w1), rv = game.verdictFor(l.a, l.b), T = fbkToolName(l.tool);
       if (rv === pv) { r.text = M2[rv](T, l.a, l.b); r.tryIt = rv === 'worse'; }
-      else if (pv === 'better') { r.text = (rv === 'worse' ? M2.worseThanBefore : M2.noBetter)(T, l.a, l.b); r.tryIt = true; }
+      else if (pv === 'better' && rv === 'same' && ch.q && M2[ch.q === 'event' ? 'qualEvent' : 'qualBusy']) { r.text = M2[ch.q === 'event' ? 'qualEvent' : 'qualBusy'](T, l.a, l.b); r.tryIt = true; }
+      else if (pv === 'better') { r.text = (rv === 'worse' ? M2.worseThanBefore : (l.b < l.a ? M2.littleBetter : M2.noBetter))(T, l.a, l.b); r.tryIt = true; }
       else if (rv === 'better') r.text = M2.betterThan(T, l.a, l.b);
       else if (pv === 'worse') r.text = M2.noWorse(T, l.a, l.b);
       else { r.text = M2.worseThan(T, l.a, l.b); r.tryIt = true; }

@@ -2160,13 +2160,15 @@
     // no 'about the same' da primeira: verdictFor(segunda, primeira) nao e 'better') e, se for outra, a mais barata das 'better'
     // leva 'cheapest' (sem etiqueta se o menor preco empata). Preco: 0 com a peca na mao. A ordem das linhas nao muda.
     // payer so nas linhas 'better'; com a consequencia de lado ('side'/'main') ele e a mesma rua (a UI mostra so o payer)
-    function tagRows(rows) {
+    function tagRows(rows, shape) {
       var good = rows.filter(function (r) { return r.verdict === 'better' && r.w !== null; }), i;
       rows.forEach(function (r) { r.tag = null; if (r.verdict !== 'better') r.payer = null; else if (r.note === 'side' || r.note === 'main') r.payer = r.note; });
       if (good.length < 2) return;
+      // w_shape: com volume alto a Roundabout perto do limite nao leva 'fastest' (a matriz: ali ela deixa de ser a melhor)
+      // w_verd: a linha qualificada (row.qual) nunca leva 'fastest'; se ela e a mais rapida, ninguem leva
       var byW = good.slice().sort(function (a, b) { return a.w - b.w; }), fast = byW[0];
       if (g.verdictFor(byW[1].w, fast.w) !== 'better') return;
-      fast.tag = 'fastest';
+      if (!fast.qual && !(fast.tool === 'round' && fast.near && shape && shape.vol === 'high')) fast.tag = 'fastest';
       function price(r) { return r.hand ? 0 : r.cost; }
       var low = Infinity, cheap = [];
       for (i = 0; i < good.length; i++) { var p = price(good[i]); if (p < low) { low = p; cheap = [good[i]]; } else if (p === low) cheap.push(good[i]); }
@@ -2226,6 +2228,7 @@
         row.res = newLock || aShow > bShow ? 'worse' : (aShow < bShow ? 'better' : 'same');
         row.verdict = newLock ? 'worse' : g.verdictFor(bShow, aShow);
         row.pay = payOf(x);
+        row.near = !!(x.lock || x.p >= (K.shape || {}).nearP || (xh && (xh.lock || xh.p >= (K.shape || {}).nearP)));   // w_shape: a repeticao com a peca ficou perto do limite
         row.payer = payerOf(x);
         return { repBad: repBad, newLock: newLock };
       }
@@ -2245,7 +2248,7 @@
             else if (t === 'light' && lightsUsed(id) + 1 >= capNow) row.note = 'lastLight';
             else if (!row.pay && qa !== null && qa - quiet[1] >= (K.rise || 2)) { row.note = 'side'; row.nv = Math.round(qa); }
             else if (!row.pay && busy && (qb = armW(x, busy[0])) !== null && qb - busy[1] >= (K.rise || 2)) { row.note = 'main'; row.nv = Math.round(qb); }
-            else if (win && r.curHi && xh && !wiWins(xh, r.curHi, gain)) row.note = 'busy';
+            else if (row.near && row.verdict === 'better') row.note = 'busy';
             else if (repBad) row.note = 'varies';
           }
         } else if (pc.capped) row.note = 'lightsFull';
@@ -2258,9 +2261,34 @@
         fillRow(lrow, 'upgrade', r.lane, r.laneHi, null);
         rows.push(lrow);
       }   // sem o 'e se' ainda: a linha de Two lanes entra assim que a rua mais cheia se conhece (a lista se refaz)
-      if (!pend) tagRows(rows);
+      // w_shape: a forma de ontem (a classe da matriz): ruas, rua principal ou equilibrado, volume baixo/medio/alto; null sem dados
+      // w_verd: a linha 'better' que a medida mostra que falha (CFG.signCard.qualify): evento hoje aqui/ao lado, ou Stop/Yield pesado
+      var Q = K.qualify || {}, QE = Q.event || {}, QB = Q.busy || {}, SLq = CFG.junction && CFG.junction.stop && CFG.junction.stop.late;
+      function eventNear() {
+        var L = st.events && st.events.list, E = world.edges, j, ev, e2;
+        if (!L || !EV() || (EV().enabled && !EV().enabled())) return false;
+        for (var q = 0; q < L.length; q++) {
+          ev = L[q]; if (ev.day !== st.day) continue;
+          if (ev.edge !== null && ev.edge !== undefined && E[ev.edge]) { if (E[ev.edge].a === id || E[ev.edge].b === id) return true; continue; }
+          if (ev.node === null || ev.node === undefined) continue;
+          if (ev.node === id) return true;
+          var nb = world.nodes[ev.node]; if (!nb) continue;
+          for (j = 0; j < nb.edges.length; j++) { e2 = E[idOf(nb.edges[j])]; if (e2 && (e2.a === id || e2.b === id)) return true; }
+        }
+        return false;
+      }
+      var evHere = !pend && eventNear();
+      rows.forEach(function (rw) {
+        rw.qual = null;
+        if (rw.verdict !== 'better') return;
+        if (evHere && (QE.tools || []).indexOf(rw.tool) >= 0) rw.qual = 'event';
+        else if ((QB.tools || []).indexOf(rw.tool) >= 0 && SLq && st.day >= SLq.fromDay && (deg >= (QB.minRoads || 99) || (QB.replaces || []).indexOf(have) >= 0)) rw.qual = 'busy';
+      });
+      var kdS = st.kinds && st.kinds[id], SH = K.shape || {}, shape = null;
+      if (kdS && SH.mainShare > 0) shape = { roads: deg, main: kdS.share > SH.mainShare, vol: kdS.v <= SH.lowMax ? 'low' : (kdS.v > SH.highMin ? 'high' : 'mid') };
+      if (!pend) tagRows(rows, shape);
       var lw = pend ? null : (have === r.tool ? before : (have && own(r.alt, have) ? waitV(r.alt[have]) : (have ? null : before)));
-      return { id: id, day: r.day, pending: pend, tool: r.tool, have: have, deg: deg, before: before, loud: loud ? loud[0] : null, rows: rows,
+      return { id: id, day: r.day, pending: pend, tool: r.tool, have: have, deg: deg, shape: shape, before: before, loud: loud ? loud[0] : null, rows: rows,
                leave: { tool: have, w: lw, before: before, same: have === r.tool || (!have && !r.tool) } };
     };
     // a promessa da escolha: o que o cartao mostrou para a peca (antes e depois, s inteiros), guardado em st.choice (vai no
@@ -2270,7 +2298,9 @@
       var c = g.choiceFor(id); if (!c) return null;
       for (var i = 0; i < c.rows.length; i++) if (c.rows[i].tool === tool && c.rows[i].w !== null) {
         var rw = c.rows[i];
-        return { day: st.day, tool: tool, w0: Math.round(c.before), w1: Math.round(rw.w), lo: rw.lo, hi: rw.hi, v: rw.verdict };
+        var rec = { day: st.day, tool: tool, w0: Math.round(c.before), w1: Math.round(rw.w), lo: rw.lo, hi: rw.hi, v: rw.verdict };
+        if (rw.qual) rec.q = rw.qual;   // w_verd: o veredito prometido era qualificado
+        return rec;
       }
       return null;
     };
@@ -2281,6 +2311,7 @@
       else if (n.tool !== rec.tool) return false;
       if (!st.choice) st.choice = {};
       st.choice[id] = { day: rec.day, tool: rec.tool, w0: rec.w0, w1: rec.w1, lo: rec.lo, hi: rec.hi, v: rec.v };
+      if (rec.q) st.choice[id].q = rec.q;
       return true;
     };
     // efeito de uma carta (copia de CFG.cardEffects) com active = vale hoje; null para id desconhecido
@@ -3435,6 +3466,7 @@
       if (fin(x.lo) && fin(x.hi) && x.lo >= 0 && x.hi >= x.lo && x.hi <= 9999) { out[id].lo = Math.floor(x.lo); out[id].hi = Math.floor(x.hi); }
       // w_choice3: o veredito prometido (opcional: save de antes calcula de w0 e w1)
       if (x.v === 'better' || x.v === 'same' || x.v === 'worse') out[id].v = x.v;
+      if (x.q === 'event' || x.q === 'busy') out[id].q = x.q;   // w_verd: a promessa era qualificada
     }
     return out;
   }

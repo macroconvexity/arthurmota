@@ -431,7 +431,16 @@
     // calibra.csv). better: a espera cai pelo menos sec s e pct da de ontem; worse: sobe pelo menos sec s; o resto e 'same'. O mesmo corte
     // classifica o dia seguinte (game.verdictFor). 'much better' nao se separa de 'better' (acerto de direcao 85% e 79%): um so
     signCard: { rise: 2, quiet: 0.5, minCars: 3, loMul: 0.8, hiMul: 1.25, payGap: 2,
-      verdict: { better: { sec: 4, pct: 0.25 }, worse: { sec: 2, pct: 0 } } },
+      verdict: { better: { sec: 4, pct: 0.25 }, worse: { sec: 2, pct: 0 } },
+      // w_shape: a forma do cruzamento de ontem com a mesma classe da matriz (v2/_scripts/sinais/matriz.js, w_ag5): main = a rua (eixo) mais
+      // cheia leva mais que mainShare dos carros; volume em carros/min: ate lowMax baixo, acima de highMin alto (tercis de Easy 66.9/90,
+      // Normal 63.1/86.4). nearP: pico do anel (0 a 1) da repeticao com a peca no lugar a partir do qual a linha diz 'fills up'
+      shape: { mainShare: 0.6, lowMax: 65, highMin: 88, nearP: 0.6 },
+      // w_verd: linhas 'better' que a medida (w_verd/tables_current.md, 12.327 escolhas) mostra que falham: o veredito vira 'better on a day like
+      // yesterday' (event: evento de hoje neste cruzamento ou ao lado; o 'e se' e de ontem, sem o evento) ou 'better, but not on a busy day'
+      // (busy: Stop/Yield do dia junction.stop.late.fromDay em diante, com minRoads ruas ou mais ou no lugar de um semaforo/rotatoria). Os cortes
+      // do veredito (4 s, 25%) nao mudam. Linha qualificada nunca leva 'fastest'
+      qualify: { event: { tools: ['stop', 'yield', 'round'] }, busy: { tools: ['stop', 'yield'], minRoads: 4, replaces: ['light', 'round'] } } },
     // v2 (v2/economia.md 3.2 e 6.2, v2/sistemas.md 4): Road crew, a troca entre hoje e depois. Nas manhas de fromDay a
     // toDay o plano oferece: pagar cost pontos hoje e receber perDay ponto toda manha pelos proximos days dias (a
     // partir de amanha). No maximo maxActive ao mesmo tempo. Paga-se no 4o dia (cost / perDay) e rende +6. days e a

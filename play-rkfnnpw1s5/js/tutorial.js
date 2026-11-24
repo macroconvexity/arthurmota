@@ -58,12 +58,12 @@
       yield: 'Yield, {c}: best where a busy road meets a quiet side street.',
       // v2m: a manutencao saiu (CFG.upkeep.perLight 0); o custo do semaforo e a vaga (CFG.lightCap, '1 of 2' no ladrilho)
       // w_light: o cartao sai no dia do semaforo e diz a vaga desse dia ({lc}, de CFG.lightCap) na primeira vez
-      light: 'Traffic light, {c}: busy every side. Your city powers {lc} for now.',
+      light: 'Traffic light, {c}: best when busy. Your city powers {lc} for now.',
       upgrade: 'Two lanes, {c}: best on a Stop with one long line.',
       // o motivo do "pouco": a faixa para carros por pedestres (o cartao passa de 10 palavras por isso)
       cross: 'Crosswalk, {c}: cars stay calm longer, so rings show up later.',
       // w_tiles: diz o que a rotatoria FAZ (antes so onde usar), nas palavras da linha da bandeja
-      round: 'Roundabout, {c}: cars go around without stopping. Best where four roads meet.',
+      round: 'Roundabout, {c}: cars go around, no stopping. Best on 4+ roads.',
       oneway: 'One-way, {c}: cars drive away from the half you tap.'
     },
     // vocabulario do anel igual a cor do render: {R}/{L}/{E} viram o nivel do no na hora (ringSay):
