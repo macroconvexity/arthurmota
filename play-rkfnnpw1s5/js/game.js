@@ -219,6 +219,7 @@
     // needCp: falta um (save antigo, checkpoint recusado): o proximo plano grava um. graceT: no -> s ate destravar
     var checkpoint = null, needCp = false, graceT = {};
     var placed = {};            // nodeId -> custo pago hoje por tool
+    var paid = {};              // w_paid: nodeId -> preco pago pela peca que perde pontos na troca (Roundabout), de qualquer dia
     // mao unica de hoje por rua (edgeId -> { c, f, m }): c = pago hoje (volta ao tirar), f = 1 se ja virou desde que
     // entrou, m = 1 se a rua ja era mao unica de manha (tirar e repor na mesma manha nao cobra de novo)
     var owDay = {};
@@ -1816,12 +1817,19 @@
 
     // ----- desfazer -----
     function capture() {
-      return { layout: world.cloneLayout(), budget: st.budget, placed: clone(placed), ow: clone(owDay),
+      return { layout: world.cloneLayout(), budget: st.budget, placed: clone(placed), paid: clone(paid), ow: clone(owDay),
                free: { road: st.free.road, light: st.free.light }, lightHand: st.lightHand | 0, hand: handNorm(st.hand),
                die: st.die ? clone(st.die) : null, rerolled: st.rerolled,
                watch: st.watch && st.watch.day === st.day ? clone(st.watch.list) : [], crew: clone(st.crew) };
     }
     function fail(reason) { return { ok: false, reason: reason }; }
+    // w_paid: pecas que vao para a mao (semaforo, Stop, Yield) nao perdem pontos na troca: nao guardam preco pago
+    var PAID_OFF = { light: 1, stop: 1, yield: 1 };
+    function paidForSave() {
+      var out = {}, k, any = false;
+      for (k in paid) if (own(paid, k) && world.nodes[k] && world.nodes[k].tool && !PAID_OFF[world.nodes[k].tool]) { out[k] = paid[k]; any = true; }
+      return any ? out : undefined;
+    }
     // id vindo de fora: so numero (ou string numerica) que seja chave propria; barra '__proto__', 'constructor', etc.
     function validKey(id) {
       return (typeof id === 'number' && isFinite(id)) || (typeof id === 'string' && /^\d+$/.test(id));
@@ -2354,6 +2362,7 @@
       if (toHand) addHand(toHand, 1);
       st.budget = st.budget + refund - c;
       placed[nodeId] = c;
+      if (PAID_OFF[tool]) delete paid[nodeId]; else paid[nodeId] = c;   // w_paid: o preco pago, para o texto da troca
       undoStack.push(entry);
       refresh();
       emit({ type: 'built', x: n.x, y: n.y, kind: tool });
@@ -2379,7 +2388,7 @@
       // As outras pecas seguem a regra de antes: o pago hoje volta
       if (toHand) addHand(was, 1);
       else st.budget += placed[nodeId] || 0;
-      delete placed[nodeId];
+      delete placed[nodeId]; delete paid[nodeId];
       undoStack.push(entry);
       syncWatch();
       refresh();
@@ -2587,6 +2596,13 @@
       return res;
     };
 
+    // o que o jogador pagou pela peca deste cruzamento (qualquer dia); sem registro (save antigo): o preco do capitulo 1
+    g.paidOf = function (nodeId) {
+      var n = getNode(nodeId), t = n && n.tool;
+      if (!t || !own(CFG.tools, t)) return 0;
+      var v = own(paid, String(n.id)) ? paid[n.id] : undefined;
+      return fin(v) && v >= 0 ? v : CFG.tools[t].cost;
+    };
     g.canUndo = function () { return st.phase === 'plan' && undoStack.length > 0; };
     g.undo = function () {
       if (!g.canUndo()) return { ok: false };
@@ -2595,6 +2611,7 @@
       world.day = st.day;
       st.budget = e.budget;
       placed = e.placed;
+      if (isObj(e.paid)) paid = e.paid;   // w_paid: entrada de save antigo sem o campo deixa o mapa como esta
       owDay = owNorm(e.ow);
       st.free.road = e.free.road;
       st.free.light = e.free.light;
@@ -2989,7 +3006,7 @@
           // eventos de lugar (v2e): calendario, lugares, tamanho (face Big game) e o que ja foi visto
           events: EVM() && st.events ? EVM().forSave(g) : undefined
         },
-        cards: activeCards, placed: placed, ow: st.phase === 'plan' && Object.keys(owDay).length ? owDay : undefined, hot: hot, hotMap: hotForSave(), undo: undoForSave(),
+        cards: activeCards, placed: placed, paid: paidForSave(), ow: st.phase === 'plan' && Object.keys(owDay).length ? owDay : undefined, hot: hot, hotMap: hotForSave(), undo: undoForSave(),
         // v2c: manutencao, escolhas da partida, forma da cidade, dia da mudanca por dentro e Road crew
         upkeep: st.upkeep, perks: st.perks, archetype: st.archetype, shiftDay: shiftDay, crew: st.crew,
         // v2m: forma de cada cruzamento (calm, main, even, heavy) que o conselho da manha le
@@ -3035,10 +3052,11 @@
       else { st.chapterCars0 = 0; (st.history || []).forEach(function (h) { if (h && h.day < chapterFirst(st.chapter) && nat(h.delivered)) st.chapterCars0 += h.delivered; }); }
       activeCards = saved.cards || []; st.cards = activeCards.slice();
       placed = saved.placed || {}; hot = saved.hot || {};
+      paid = isObj(saved.paid) ? saved.paid : {};   // w_paid: save antigo sem o campo: preco do capitulo 1 (g.paidOf)
       owDay = st.phase === 'plan' ? owNorm(saved.ow) : {};
       // Undo do plano de hoje (Game.load ja conferiu ou tirou d.undo): mesmas fotos, mesma ordem, mesmos reembolsos
       undoStack = (saved.undo && st.phase === 'plan') ? saved.undo.list.map(function (e) {
-        return { layout: e.layout, budget: e.budget, placed: e.placed, ow: owNorm(e.ow), free: { road: e.free.road, light: e.free.light }, lightHand: e.lightHand, hand: handNorm(e.hand),
+        return { layout: e.layout, budget: e.budget, placed: e.placed, paid: isObj(e.paid) ? e.paid : undefined, ow: owNorm(e.ow), free: { road: e.free.road, light: e.free.light }, lightHand: e.lightHand, hand: handNorm(e.hand),
                  die: normDie(e.die, st.day), rerolled: e.rerolled, watch: Array.isArray(e.watch) ? e.watch : undefined, crew: e.crew };
       }) : [];
       st.hot = saved.hotMap || {};
@@ -3296,6 +3314,11 @@
     for (i = 0; i < cards.length; i++) if (!cardOk(cards[i])) return false;
     // gratuidade: so de carta ou do dado de hoje (free 'light' vira 'road' antes do semaforo)
     if (!freeOk(s.free, s.phase === 'plan' ? s.die : null, s.day, cards)) return false;
+    if (d.paid !== undefined) {   // w_paid: campo opcional; estragado sai em silencio
+      var pk2, pbad = !isObj(d.paid);
+      if (!pbad) for (pk2 in d.paid) if (!/^\d+$/.test(pk2) || !nat(d.paid[pk2]) || d.paid[pk2] > 400) pbad = true;
+      if (pbad) delete d.paid;
+    }
     var maps = [d.placed, d.hot, d.hotMap], m, k;
     for (m = 0; m < 3; m++) {
       if (maps[m] === undefined) continue;

@@ -3752,6 +3752,11 @@
     // (para cima) pedia confirmacao como se fosse para baixo (passeio humano 2026-11-09)
     // w_price: o preco de tabela e o do capitulo de hoje (CRZ.toolPrice); a Roundabout trocada 'perde' o que custaria hoje
     function listCost(t) { return CFG.tools && CFG.tools[t] ? listPrice(t) : 0; }
+    // w_paid: o que o jogador pagou pela peca deste cruzamento (nao o preco de hoje): o texto da troca diz esse numero
+    function paidFor(id, t) {
+      try { if (typeof game.paidOf === 'function') return game.paidOf(id) | 0; } catch (e) { warnOnce('game.paidOf', e); }
+      return CFG.tools && CFG.tools[t] ? CFG.tools[t].cost | 0 : 0;
+    }
     function swapDown(from, to) {
       var a = SIGN_TIER[from] || 0, b = SIGN_TIER[to] || 0;
       return b < a || (b === a && listCost(to) < listCost(from));
@@ -4031,7 +4036,7 @@
         var was = n.tool && n.tool !== sel && NODE_TOOLS[n.tool] && swapAllowed(s, n, sel) ? n.tool : null;
         // pontos perdidos = preco de tabela do antigo (com o semaforo gratis hoje, toolCost('light') e 0 e a troca
         // para baixo de um semaforo antigo passava sem pedir)
-        var paid = was ? paidToday(n.id) : false, lost = was && !paid && !(was === 'light' || was === 'stop' || was === 'yield') ? listCost(was) : 0;   // peca da mao trocada vai para a mao
+        var paid = was ? paidToday(n.id) : false, lost = was && !paid && !(was === 'light' || was === 'stop' || was === 'yield') ? paidFor(n.id, was) : 0;   // peca da mao trocada vai para a mao
         var askFor = swapAsk && swapAsk.id === n.id && swapAsk.tool === sel;
         if (was && lost > 0 && swapDown(was, sel) && !askFor) {
           swapAsk = { id: n.id, tool: sel, free: freeNow(sel), text: STR.swapAsk(STR.tools[was], lost) };
@@ -5108,6 +5113,16 @@
         return;
       }
       setSel(id); snd('select');
+      priceSay(id, info, s);
+    }
+    // w_paid: na primeira manha do capitulo, o primeiro toque numa peca que subiu de preco repete a linha do cartao do capitulo
+    // ('Lights now cost 6.'): quem fechou o cartao depressa ve o preco novo dito uma vez. Peca na mao ou de graca: calada
+    var priceSaid = {};
+    function priceSay(id, info, s) {
+      var d = s.day | 0, a = Math.floor((d - 1) / CH_LEN) * CH_LEN + 1, key = id + '@' + d;
+      if (d < 2 || d !== a || priceSaid[key] || !STR.chPrice[id] || !info || info.unlocked === false || info.hand > 0 || !(info.cost > 0)) return;
+      if (listPrice(id, a) <= listPrice(id, a - 1)) return;
+      priceSaid[key] = 1; say(STR.chPrice[id](listPrice(id, a)), 3200);
     }
     // ferramentas liberadas iguais as do ultimo quadro? compara id a id, sem montar string
     function trayChanged(s) {
@@ -6426,7 +6441,7 @@
       scTitle.textContent = c.pending ? C.titleWait : (lit ? C.titleRoad : C.title)(Math.max(1, Math.round(c.before)));
       if (lit && scHlEdge !== c.loud) { try { if (render.highlightRoad(c.loud, 60000)) scHlEdge = c.loud; } catch (e) { warnOnce('render.highlightRoad', e); } }
       // a Roundabout trocada perde os pontos dela (a de hoje e reembolsada): o preco aparece na linha de cada troca, antes do toque
-      var lostPts = c.have === 'round' && !paidToday(c.id) ? listCost('round') : 0;
+      var lostPts = c.have === 'round' && !paidToday(c.id) ? paidFor(c.id, 'round') : 0;
       scRows.innerHTML = '';
       for (i = 0; i < c.rows.length; i++) scRows.appendChild(choiceRow(c.rows[i], c, M, c.rows[i].tool === 'upgrade' ? 0 : lostPts));
       var lv = c.leave, ln;
