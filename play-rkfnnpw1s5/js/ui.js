@@ -291,6 +291,8 @@
     owOff: function (back) { return 'Two-way again' + (back > 0 ? ' (+' + back + (back === 1 ? ' point)' : ' points)') : '') + '.'; },
     // J: pontos que sobram
     carryOver: function (n) { return 'Saved for tomorrow: ' + n; },
+    // w_plus2: pontos acima do teto, uma vez por capitulo no resumo
+    carryLost: function (n, cap) { return n + (n === 1 ? ' unspent point lost. ' : ' unspent points lost. ') + 'You keep at most ' + cap + '.'; },
     // K: dia 3 a 4x
     day3Fast: 'Day 3 runs at 4\u00d7. Faster = more bonus score, but drivers wait less.',
     sentOther: 'That end was full: the extra car left from the next road end.',
@@ -641,6 +643,12 @@
       // (ate 5 palavras: a rua que mais espera com a peca, medida na repeticao)
       tag: { fastest: 'Fastest', cheapest: 'Cheapest' },
       payer: { side: 'side street waits', main: 'main road waits', all: 'everyone waits a little' },
+      // w_noopt: nenhuma peca 'better' (o cruzamento cheio): ate 2 linhas a mais, so as que o 'e se' diz 'better' (game.choiceFor extra)
+      extra: { road: 'Road around it', feed: 'Fix the crossing that feeds it' },
+      extraNote: { road: 'cars go around', feed: function (t) { return 'a ' + t + ' there'; } },
+      noOption: 'Too many cars for any piece. Boost it during the day.', noOptionNoBoost: 'Too many cars for any piece.',
+      roadSug: 'Tap the dashed road to build it, or drag your own.',
+      noData: 'Trouble here yesterday.',
       aria: function (name, price, nums, note) { return name + ', ' + price + '. ' + nums + (note ? '. ' + note : '') + '.'; }
     },
     fbk: {
@@ -2439,6 +2447,25 @@
       q.jobs.push(j); wiKick();
       return true;
     }
+    // w_noopt: os ramos a mais (game.reliefJob) de um cruzamento cujo cartao nao tem peca 'better'; no maximo um por cruzamento na fila
+    function reliefQueue(q, id) {
+      if (typeof game.reliefJob !== 'function' || typeof game.choiceFor !== 'function') return false;
+      var c = null, j = null, k;
+      try { c = game.choiceFor(id); } catch (e) { warnOnce('game.choiceFor', e); }
+      if (!c || !c.dead || c.relief !== 'pending') return false;
+      for (k = q.i; k < q.jobs.length; k++) if (q.jobs[k].id === id && q.jobs[k].relief) return true;
+      try { j = game.reliefJob(id); } catch (e) { warnOnce('game.reliefJob', e); }
+      if (!j || j.done) return !!j;
+      j.relief = true; q.jobs.push(j);
+      return true;
+    }
+    function reliefAdd(id) {
+      var q = wiQ;
+      if (!q || q.done) { q = { day: (game.state.day | 0) - 1, jobs: [], i: 0, t0: nowMs(), t1: 0, done: false, stop: null, kicked: false, slices: 0, maxSlice: 0, fresh: false, cap: 6000 }; if (!reliefQueue(q, id) || !q.jobs.length) return false; wiQ = q; }
+      else { if (!reliefQueue(q, id)) return false; q.t0 = nowMs(); q.cap = 6000; }
+      wiKick();
+      return true;
+    }
     function wiPending(id) {
       if (!wiQ || wiQ.done) return false;
       for (var i = wiQ.i; i < wiQ.jobs.length; i++) if (wiQ.jobs[i].id === id) return true;
@@ -2450,7 +2477,9 @@
         var jb = q.jobs[q.i++];
         if (jb.branches) q.fresh = true;
         // a memoria do conselho (state.adv) sai agora, como no resumo de antes
-        try { if (jb.r) game.adviceFor(jb.id, true); } catch (e) { warnOnce('game.adviceFor', e); }
+        try { if (jb.r && !jb.relief) game.adviceFor(jb.id, true); } catch (e) { warnOnce('game.adviceFor', e); }
+        // w_noopt: cartao sem peca 'better': os ramos a mais entram na mesma fila (a manha ja sabe se o anel tem o que oferecer)
+        if (jb.r && !jb.relief) reliefQueue(q, jb.id);
       }
       if (q.i >= q.jobs.length) wiEnd(null);
     }
@@ -2756,6 +2785,7 @@
       magAt: function (x, y) { return !tapInCamAnim && !!magPlan(x, y, true); },
       magTap: function (x, y) { var mp = magPlan(x, y, true); if (mp) magZoom(x, y, mp); },
       roadStart: function (node) {
+        roadSug = null;   // w_noopt: arrastar desenha outra rua no lugar da sugerida
         roadFrom = node.id; ghost = null; snd('select');
         // unico reenquadramento da Rua: a origem do arrasto esta fora da area util (sob o HUD ou rente a borda).
         // Anda o minimo, sem animacao, para ela aparecer (reveal com force: vale mesmo com a camera segura no gesto)
@@ -3901,6 +3931,7 @@
       // som nem carga. Movimento automatico (inicio da corrida, abertura do plano) nao chega aqui: o render o para
       // no pointerdown e o toque age no mapa parado. Botoes do HUD sao DOM e nao passam por aqui.
       if (tapInCamAnim) { tapInCamAnim = false; return; }
+      if (s.phase === 'plan' && sel === 'road' && roadSug && roadSugTap(sx, sy)) return;   // w_noopt: a rua sugerida vem antes da lupa
       if (s.phase === 'plan') { var mp = magPlan(sx, sy, false); if (mp) { magZoom(sx, sy, mp); return; } }
       // plano, mao vazia: a curva comum (2 ruas, sem sinal nem anel) nao responde ao toque; um ponto que responde
       // ao lado dela (ate 14 px mais longe, regra do pickNode) ganha
@@ -5466,7 +5497,10 @@
       var firstSum = gOn() && !seen('sumInfo'); if (firstSum) markSeen('sumInfo');
       for (i = 0; i < infoRows.length; i++) setInfo(infoRows[i], firstSum);
       var carryN = lastDayOf(s) ? 0 : Math.min(s.budget | 0, CFG.carryCap != null ? CFG.carryCap : 3);
-      carryEl.textContent = carryN > 0 ? STR.carryOver(carryN) : '';
+      var carryCapN = CFG.carryCap != null ? CFG.carryCap : 3, pointsLostN = lastDayOf(s) ? 0 : Math.max(0, (s.budget | 0) - carryCapN), lostCh = Math.ceil((s.day | 0) / (CFG.chapterDays || 10));
+      if ((s.day | 0) <= 1) carryLostShown = {};
+      if (pointsLostN > 0 && (!carryLostShown[lostCh] || carryLostShown[lostCh] === s.day)) { carryLostShown[lostCh] = s.day; carryEl.textContent = STR.carryLost(pointsLostN, carryCapN); }
+      else carryEl.textContent = carryN > 0 ? STR.carryOver(carryN) : '';
       carryEl.classList.toggle('gone', !(carryN > 0));
       bonusEl.classList.toggle('lost', !(sm.speedBonus > 0));
       // v2int: o 'e se' ja anda em fatias desde o fim do dia (wiStart em onPhase). A linha do pior ponto (escondida no
@@ -6053,6 +6087,7 @@
       var s = game.state;
       return (s.budget | 0) < minToolCost(s) && !freeLeft(s);
     }
+    var carryLostShown = {};   // capitulo -> dia em que o resumo disse 'N unspent points lost' (w_plus2): uma vez por capitulo
     // pontos que se perdem no Play (acima do teto de carry-over): aviso e confirmacao com o 2o toque (Easy e Normal)
     var carryAsking = { day: -1, on: false };
     function carryAsk(s) {
@@ -6453,7 +6488,7 @@
       var noteTxt = '', payTxt = '', lostTxt = '';
       if (!c.pending && vd === 'better' && r.payer && C.payer[r.payer]) { payTxt = C.payer[r.payer]; var py = el('span', 'crz-scnote crz-scpay'); py.textContent = payTxt; body.appendChild(py); }
       // w_pick: com quem paga na linha, a consequencia de lado (side/main) diria o mesmo: sai
-      if (r.note && !(payTxt && (r.note === 'side' || r.note === 'main')) && !(r.note === 'busy' && r.qual === 'busy')) noteTxt = typeof C.note[r.note] === 'function' ? C.note[r.note](r.nv) : C.note[r.note];
+      if (r.note && !(payTxt && (r.note === 'side' || r.note === 'main')) && !(r.note === 'busy' && r.qual)) noteTxt = typeof C.note[r.note] === 'function' ? C.note[r.note](r.nv) : C.note[r.note];
       var qualTxt = !c.pending && vd === 'better' && r.qual && C.qualNote[r.qual] ? C.qualNote[r.qual] : '';
       if (qualTxt) { var qn = el('span', 'crz-scnote'); qn.textContent = qualTxt; body.appendChild(qn); }
       if (noteTxt) { var nt = el('span', 'crz-scnote'); nt.textContent = noteTxt; body.appendChild(nt); }
@@ -6463,18 +6498,44 @@
       b.addEventListener('click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); if (nowMs() - scAt < SC_GHOST_MS) return; choicePick(r.tool, r.edge); });
       return b;
     }
+    // w_noopt: uma linha a mais (game.choiceFor extra: so as 'better'), no mesmo estilo das linhas das pecas, depois delas
+    function choiceExtraRow(x, c, M) {
+      var C = STR.choice, name = C.extra[x.kind] || x.kind, price = x.cost > 0 ? C.pts(x.cost) : C.free;
+      var b = el('button', 'crz-scrow good' + (x.afford ? '' : ' poor'), '');
+      b.setAttribute('data-tool', x.tool); b.setAttribute('data-kind', x.kind);
+      var ico = el('span', 'crz-scico', toolIcon(x.tool)), body = el('span', 'crz-scbody'), top = el('span', 'crz-sctop');
+      var nm = el('span', 'crz-scname'); nm.textContent = name;
+      var pr = el('span', 'crz-scprice'); pr.textContent = price;
+      top.appendChild(nm); top.appendChild(pr); body.appendChild(top);
+      var mid = el('span', 'crz-scmid'), bar = el('span', 'crz-scbar'), num = el('span', 'crz-scnum'), fill = el('i'), mark = el('u');
+      fill.style.width = Math.max(4, Math.min(100, Math.round(100 * x.w / M))) + '%'; mark.style.left = Math.min(100, Math.round(100 * c.before / M)) + '%';
+      bar.appendChild(fill); bar.appendChild(mark); num.textContent = C.verdict.better; mid.appendChild(bar); mid.appendChild(num); body.appendChild(mid);
+      var nt = C.extraNote[x.kind], noteTxt = typeof nt === 'function' ? nt(STR.fbk.tool[x.tool] || STR.tools[x.tool] || x.tool) : (nt || '');
+      if (noteTxt) { var ns = el('span', 'crz-scnote'); ns.textContent = noteTxt; body.appendChild(ns); }
+      b.appendChild(ico); b.appendChild(body);
+      b.setAttribute('aria-label', C.aria(name, price, C.verdict.better, noteTxt));
+      b.addEventListener('click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); if (nowMs() - scAt < SC_GHOST_MS) return; choiceExtra(x); });
+      return b;
+    }
     function paintChoice(c) {
       var C = STR.choice, M = Math.max(1, c.before || 0), i;
       for (i = 0; i < c.rows.length; i++) { var rw = c.rows[i]; if (rw.w !== null && rw.w > M) M = rw.w; }
       if (c.leave && c.leave.w !== null && c.leave.w > M) M = c.leave.w;
+      var ex = !c.pending && c.extra ? c.extra : [];
+      for (i = 0; i < ex.length; i++) if (ex[i].w > M) M = ex[i].w;
       var lit = c.loud !== null && c.loud !== undefined && render && typeof render.highlightRoad === 'function';
-      scShape.textContent = !c.pending && c.shape ? C.shape(c.shape) : ''; scShape.classList.toggle('gone', !scShape.textContent);
-      scTitle.textContent = c.pending ? C.titleWait : (lit ? C.titleRoad : C.title)(Math.max(1, Math.round(c.before)));
+      scShape.textContent = !c.pending && c.shape ? C.shape(c.shape) : '';
+      // w_noopt: o 'e se' dos ramos a mais acabou e nada serve: a linha cinza diz (Boost so quando a jogadora o tem)
+      if (c.dead && c.relief === 'done' && !ex.length) { var bu = game.state.clear && game.state.clear.unlocked; scShape.textContent = (scShape.textContent ? scShape.textContent + ' ' : '') + (bu ? C.noOption : C.noOptionNoBoost); }
+      if (c.noData) scShape.textContent = c.tip || '';   // w_noopt: sem 'e se' possivel, a dica de uma linha vai na linha cinza do cartao
+      scShape.classList.toggle('gone', !scShape.textContent);
+      scTitle.textContent = c.noData ? C.noData : c.pending ? C.titleWait : (lit ? C.titleRoad : C.title)(Math.max(1, Math.round(c.before)));
       if (lit && scHlEdge !== c.loud) { try { if (render.highlightRoad(c.loud, 60000)) scHlEdge = c.loud; } catch (e) { warnOnce('render.highlightRoad', e); } }
       // a Roundabout trocada perde os pontos dela (a de hoje e reembolsada): o preco aparece na linha de cada troca, antes do toque
       var lostPts = c.have === 'round' && !paidToday(c.id) ? paidFor(c.id, 'round') : 0;
       scRows.innerHTML = '';
       for (i = 0; i < c.rows.length; i++) scRows.appendChild(choiceRow(c.rows[i], c, M, c.rows[i].tool === 'upgrade' ? 0 : lostPts));
+      for (i = 0; i < ex.length; i++) scRows.appendChild(choiceExtraRow(ex[i], c, M));
       var lv = c.leave, ln;
       scLeave.innerHTML = '';
       var lt = el('span', 'crz-scname'); lt.textContent = C.leave; scLeave.appendChild(lt);
@@ -6482,12 +6543,16 @@
       scPts.textContent = C.points(game.state.budget | 0);
     }
     function openChoice(s, n) {
-      if (s.phase !== 'plan' || modal() || choiceOpen() || degOf(n) < 3 || n.portal) return false;
+      if (s.phase !== 'plan' || modal() || choiceOpen() || degOf(n) < 3) return false;   // w_noopt: o portal que virou cruzamento (cego 10, dia 24) tambem
       var c = choiceData(n.id);
       // w_choice2: anel sem 'e se' guardado: o toque comeca o trabalho (as linhas vem com '...' e se enchem); sem a manha de
       // ontem na memoria (reload), nao ha o que medir e vale a frase de sempre
       if (!c && wiAdd(n.id)) c = choiceData(n.id);
-      if (!c || !c.rows.length) return false;
+      // w_noopt (cego 10, dia 24: tres toques num anel so deram a dica de uma linha): sem 'e se' possivel o cartao abre assim mesmo, com
+      // as pecas e o preco, e a dica vai na linha cinza
+      if (!c || !c.rows.length) c = scNoData = choiceNoData(s, n); else scNoData = null;
+      if (!c) return false;
+      if (c.dead && c.relief === 'pending') reliefAdd(n.id);
       scId = n.id; scSig = ''; scAt = nowMs(); scMsg.classList.add('gone'); scMsg.textContent = '';
       var first = gOn() && !seen('choiceHelp');
       scHelp.textContent = STR.choice.help; scHelp.classList.toggle('gone', !first); if (first) markSeen('choiceHelp');
@@ -6538,6 +6603,65 @@
       }
       scMsg.textContent = sayEl.textContent || ''; scMsg.classList.toggle('gone', !scMsg.textContent);
     }
+    // w_noopt: o cartao sem numeros (sem a manha de ontem para jogar de novo, ou o 'e se' quebrou): as linhas das pecas sem veredito
+    // (tocar uma poe a peca, como sempre) e a dica de uma linha na linha cinza. null so fora de um cruzamento
+    function choiceNoData(s, n) {
+      var c = null;
+      try { c = typeof game.choiceFor === 'function' ? game.choiceFor(n.id, true) : null; } catch (e) { warnOnce('game.choiceFor', e); }
+      if (!c || !c.rows.length) return null;
+      c.pending = false; c.noData = true; c.tip = tapAdvice(s, n);
+      return c;
+    }
+    // w_noopt: as linhas a mais. road: a Rua fica na mao e a rua sugerida aparece como o fantasma do arrasto; um toque nela constroi (a
+    // jogadora confirma), um arrasto desenha outra. feed: fecha este cartao e abre o do vizinho, centrado nele
+    var roadSug = null, scNoData = null;
+    function choiceExtra(x) {
+      var s = game.state, n = scId !== null && game.world.nodes ? game.world.nodes[scId] : null;
+      if (!n || s.phase !== 'plan') { choiceClose(); return; }
+      emitUI('choiceExtra', { id: n.id, kind: x.kind });
+      if (x.kind === 'road') {
+        var a = game.world.nodes[x.from], b = game.world.nodes[x.to];
+        choiceClose();
+        if (!a || !b) return;
+        setSel('road', true);
+        roadSug = { from: x.from, to: x.to, id: n.id, day: s.day | 0 };
+        ghost = { fromId: x.from, x: b.x, y: b.y, ok: true, why: '', reason: '', nodeId: x.to, edgeId: null, cross: null, capped: false, reach: null, deadEnd: false, tip: '' };
+        var o = ov(); if (o) { o.ghostRoad = ghost; o.finger = null; }
+        sayUntil = 0; say(STR.choice.roadSug, 6000);
+        // a camera so anda se uma das pontas esta fora da area livre (o toque de confirmar nao cai num mapa em movimento)
+        if (render && render.focus && render.toScreen && !(onFree(a) && onFree(b))) { try { camFree(function () { camByUser(function () { render.focus((a.x + b.x) / 2, (a.y + b.y) / 2, undefined, !reducedMotion()); }); }); } catch (e) { warnOnce('render.focus', e); } }
+        return;
+      }
+      if (x.kind === 'feed') {
+        var nb = game.world.nodes[x.node];
+        choiceClose();
+        if (!nb) return;
+        if (render && render.focus) { try { camFree(function () { camByUser(function () { render.focus(nb.x, nb.y, undefined, !reducedMotion()); }); }); } catch (e) { warnOnce('render.focus', e); } }
+        openChoice(s, nb);
+      }
+    }
+    function onFree(nd) {
+      var p = render.toScreen(nd.x, nd.y), m = render.margins || {}, W = render.width || 0, H = render.height || 0;
+      return !!(W && H && p.x > (m.left || 0) + 16 && p.x < W - (m.right || 0) - 16 && p.y > (m.top || 0) + 16 && p.y < H - (m.bottom || 0) - 16);
+    }
+    // a rua sugerida: o toque nela (ou numa das pontas) constroi; outro toque, outra ferramenta ou o fim do plano a tiram
+    function roadSugClear() {
+      if (!roadSug) return;
+      roadSug = null;
+      if (roadFrom === null) { ghost = null; var o = ov(); if (o) { o.ghostRoad = null; o.finger = null; } }
+    }
+    function roadSugTap(sx, sy) {
+      var R = roadSug, w = game.world, a = R && w.nodes[R.from], b = R && w.nodes[R.to];
+      roadSugClear();
+      if (!a || !b || !render.toScreen) return false;
+      var pa = render.toScreen(a.x, a.y), pb = render.toScreen(b.x, b.y), rr = (render.pickRadius ? render.pickRadius() : CFG.nodePickRadius) * 1.2;
+      if (segDist(sx, sy, pa.x, pa.y, pb.x, pb.y) > rr) return false;
+      sayUntil = 0; sayEl.textContent = '';
+      var br = game.buildRoad(R.from, b.x, b.y);
+      if (result(br, b.x, b.y, 'build', 'road')) { emitUI('roadBuilt', { suggested: true }); }
+      else say(roadSayText(br && (br.reason === 'budget' || br.reason === 'phase' ? br.reason : (br.why || br.reason))));
+      return true;
+    }
     function choicePick(tool, edgeId) {
       var s = game.state, n = scId !== null && game.world.nodes ? game.world.nodes[scId] : null;
       if (!n || s.phase !== 'plan') { choiceClose(); return; }
@@ -6569,6 +6693,7 @@
     on(doc, 'keydown', function (e) { if (e && e.key === 'Escape' && choiceOpen()) choiceClose(); });
     // por quadro: fecha se o plano acabou; as linhas se refazem quando o 'e se' em fatias termina ou os pontos mudam
     function choiceTick(s) {
+      if (roadSug && (s.phase !== 'plan' || sel !== 'road' || (s.day | 0) !== roadSug.day)) roadSugClear();
       // 'Tap to try another' (a linha do resumo que a jogadora tocou): o cartao do mesmo cruzamento abre quando a manha esta livre
       // (a mesma espera da oferta da Road crew), nunca antes das outras camadas e nunca sem aquele toque
       if (choiceAsk && !choiceOpen()) {
@@ -6582,7 +6707,9 @@
       if (!choiceOpen()) return;
       var n = scId !== null && game.world.nodes ? game.world.nodes[scId] : null;
       if (s.phase !== 'plan' || !n) { choiceClose(); return; }
-      var c = choiceData(scId); if (!c || !c.rows.length) { choiceClose(); return; }
+      var c = choiceData(scId); if (!c || !c.rows.length) c = scNoData && scNoData.id === scId ? scNoData : (scNoData = choiceNoData(s, n));
+      if (!c) { choiceClose(); return; }
+      if (c.dead && c.relief === 'pending' && !wiPending(scId)) reliefAdd(scId);
       var sig = JSON.stringify(c) + '|' + (s.budget | 0);
       if (sig !== scSig) { scSig = sig; paintChoice(c); }
     }
@@ -7124,6 +7251,12 @@
     // manha: (1) 'Fixed.' no cruzamento vigiado ontem que ficou sem anel; (2) o problema do dia: o anel tracejado mais
     // forte pulsa (o mesmo pulso do proximo passo) e a faixa diz uma linha. Sem anel: nada. Uma vez por dia (o reload
     // nao repete). Espera o dado, o crescimento, o tutorial e outra faixa; depois de FBK.morningMax sem vez, desiste
+    // w_noopt: o cartao deste anel ja sabe que nada serve (nenhuma peca nem linha a mais 'better'): a manha nao chama para ele
+    function noOffer(id) {
+      var c = null;
+      try { c = typeof game.choiceFor === 'function' ? game.choiceFor(id) : null; } catch (e) { warnOnce('game.choiceFor', e); }
+      return !!(c && c.dead && c.relief === 'done' && !(c.extra && c.extra.length));
+    }
     function fbkMorningTick(s, now) {
       if (s.phase !== 'plan') { fbkAm = { day: -1 }; if (fbkCur && fbkCur.kind === 'fixed') fbkHide(); return; }
       var w = game.world, hot = s.hot || {}, k;
@@ -7131,12 +7264,12 @@
         var fx = null, best = null, bv = 0;
         var P = s.watchPrev && s.watchPrev.day === s.day - 1 ? s.watchPrev.list || [] : [];
         for (k = 0; k < P.length && !fx; k++) { var pn = w.nodes[P[k].id]; if (pn && !(+hot[P[k].id] >= HOT_TAP)) fx = pn.id; }
-        for (k in hot) if (hot.hasOwnProperty(k) && w.nodes[k] && +hot[k] >= HOT_TAP && +hot[k] > bv) { bv = +hot[k]; best = w.nodes[k].id; }
+        for (k in hot) if (hot.hasOwnProperty(k) && w.nodes[k] && +hot[k] >= HOT_TAP && +hot[k] > bv && !noOffer(+k)) { bv = +hot[k]; best = w.nodes[k].id; }
         fbkAm = { day: s.day, at: now, readyAt: 0, stage: 0, fixedId: fx, hotId: best, pulseUntil: 0, nextPulse: 0, skip: false };
         if (fx === null || fbkSeen('fixed.' + s.day)) fbkAm.stage = 1;
         // w_risk: ontem passou perto de travar (summary.close): o cruzamento dele e o problema do dia, com a frase propria
         var lh = s.history && s.history[s.history.length - 1], sc = s.summary || {}, clId = sc.close && lh && lh.day === s.day - 1 && sc.lockNode != null && w.nodes[sc.lockNode] ? w.nodes[sc.lockNode].id : null;
-        if (clId !== null) { best = clId; fbkAm.hotId = clId; fbkAm.close = true; }
+        if (clId !== null && !noOffer(clId)) { best = clId; fbkAm.hotId = clId; fbkAm.close = true; }
         if (best === null || fbkSeen('trouble.' + s.day)) fbkAm.skip = true;
       }
       // o tutorial apresenta os aneis tracejados hoje (tip:hot): ele ja aponta o anel mais forte; a faixa nao repete

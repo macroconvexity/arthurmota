@@ -1640,13 +1640,13 @@
     var hudCache = null, hudAt = 0;
     function hudBand(vs) {
       var now = Date.now();
-      if (hudCache && now - hudAt < 400) return hudCache;
+      if (hudCache && hudCache.w === vs.w && hudCache.h === vs.h && now - hudAt < 50) return hudCache;
       var top = 0, bottom = vs.h, sels = ['.crz-bottom', '[data-tut="fit"]', '.crzm-pausebtn.show', '.crz-clear', '.crz-legend', '.crz-guidebtn'], i, r;
       r = visibleQ('.crz-top'); if (r) top = r.y + r.h;
       // nv7: o aviso preto NAO empurra mais o balao (ele pulava 66 px quando o aviso sumia); com balao aberto a UI
       // segura o aviso ate o balao fechar
       for (i = 0; i < sels.length; i++) { r = visibleQ(sels[i]); if (r && r.y < bottom && r.y > vs.h * 0.4) bottom = r.y; }
-      hudCache = { top: top, bottom: bottom }; hudAt = now;
+      hudCache = { top: top, bottom: bottom, w: vs.w, h: vs.h }; hudAt = now;
       return hudCache;
     }
     function visibleQ(q) { var e = null; try { e = doc.querySelector(q); } catch (x) {} return visible(e); }
@@ -1711,9 +1711,11 @@
       box.className = 'crz-tut-box on';
       frame(inf);
     }
+    var lastVsW = 0, lastVsH = 0;
     function frame(inf) {
-      if (dirty) { readSafe(); rectCache = {}; hudCache = null; }   // tela mudou: mede tudo de novo
       var vs = vsize(), r;
+      if (vs.w !== lastVsW || vs.h !== lastVsH) { lastVsW = vs.w; lastVsH = vs.h; dirty = true; }
+      if (dirty) { readSafe(); rectCache = {}; hudCache = null; }   // tela mudou: mede tudo de novo
       revealTarget(inf.target);
       curInf = inf;
       r = inf.target === undefined ? null : resolve(inf.target, inf.mode === 'act');

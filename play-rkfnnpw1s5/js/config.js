@@ -443,7 +443,13 @@
       // yesterday' (event: evento de hoje neste cruzamento ou ao lado; o 'e se' e de ontem, sem o evento) ou 'better, but not on a busy day'
       // (busy: Stop/Yield do dia junction.stop.late.fromDay em diante, com minRoads ruas ou mais ou no lugar de um semaforo/rotatoria). Os cortes
       // do veredito (4 s, 25%) nao mudam. Linha qualificada nunca leva 'fastest'
-      qualify: { event: { tools: ['stop', 'yield', 'round'] }, busy: { tools: ['stop', 'yield'], minRoads: 4, replaces: ['light', 'round'] } } },
+      qualify: { event: { tools: ['stop', 'yield', 'round'] }, busy: { tools: ['stop', 'yield'], minRoads: 4, replaces: ['light', 'round'] } },
+      // w_noopt: cartao sem nenhuma peca 'better' (o cruzamento cheio): o 'e se' tenta o que um engenheiro faria, cada um um ramo a mais do
+      // mesmo dia de ontem, e o cartao mostra so os que saem 'better' pelo mesmo corte (verdict). kinds na ordem das linhas: road = uma rua
+      // entre dois dos vizinhos de mais carros (contorna o cruzamento), feed = a melhor peca no vizinho que mais manda carros. Two lanes na
+      // rua que mais esperou saiu: 'better' em 1% dos cartoes mortos (web/dev/review/w_noopt/TABLE_raw.md). maxBranches: teto de ramos por cruzamento;
+      // rows: linhas a mais; pairs: os vizinhos das pairs ruas de mais carros entram nos pares da rua
+      relief: { kinds: ['road', 'feed'], maxBranches: 5, rows: 2, pairs: 3 } },
     // v2 (v2/economia.md 3.2 e 6.2, v2/sistemas.md 4): Road crew, a troca entre hoje e depois. Nas manhas de fromDay a
     // toDay o plano oferece: pagar cost pontos hoje e receber perDay ponto toda manha pelos proximos days dias (a
     // partir de amanha). No maximo maxActive ao mesmo tempo. Paga-se no 4o dia (cost / perDay) e rende +6. days e a

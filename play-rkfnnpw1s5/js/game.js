@@ -1866,7 +1866,7 @@
     // em passos (branchOpen, branchStep) e a UI chama job.run(ms, agora) entre quadros. Os ramos sao os mesmos, na mesma
     // ordem, de saves iguais, sem nada compartilhado entre eles: o resultado nao depende de como as fatias caem.
     // g.whatIf (sincrono, robos e testes) roda o mesmo trabalho de uma vez.
-    function branchOpen(save, id, tool, mul, salt, collectLocks, lane) {
+    function branchOpen(save, id, tool, mul, salt, collectLocks, lane, mod) {
       var lc = CFG.lightCap, br = null;
       BRANCHING = true;
       try {
@@ -1878,6 +1878,7 @@
         if (lane !== undefined && lane !== null && typeof bw.setLanes === 'function' && bw.edges[lane]) bw.setLanes(lane, 2);   // w_choice2: Two lanes na rua mais cheia
         // salt: o mesmo dia com outra sorte de chegada (a semente do dia do Sim muda; cidade, pecas e carros/min iguais)
         if (salt) bw.seed = (bw.seed ^ Math.imul(salt, 0x9E3779B1)) >>> 0;
+        if (mod && !mod(b, bw)) return null;   // w_noopt: o ramo com uma mudanca a mais (rua, faixa, peca no vizinho); false = nao deu
         b.startDay();
         CFG.lightCap = lc;
         if (mul > 0 && mul !== 1 && bw.params) bw.params.spawnMul = (bw.params.spawnMul > 0 ? bw.params.spawnMul : 1) * mul;
@@ -1931,7 +1932,7 @@
     // adviceFor. job.run(ms, now): anda ate ms de relogio (now() em ms); sem now, ate o fim.
     // Fim: job.done, job.r (o resultado, guardado em st.whatIf; null se o ramo de hoje quebrou)
     function wiJob(id, prune) {
-      var n = world.nodes[id]; if (!n || n.portal || degree(n) < 3) return null;
+      var n = world.nodes[id]; if (!n || degree(n) < 3) return null;   // w_noopt: ponta de rua que virou cruzamento (3+ ruas) tambem tem cartao
       // w_choice2: o mesmo trabalho pode comecar na manha seguinte (toque num anel sem 'e se' guardado): o dia jogado de novo e o
       // de ontem (morning.day) e a peca de ontem sai do save da manha de ontem, nao do mapa de hoje
       var inPlan = st.phase === 'plan', day0 = inPlan ? morning.day : st.day, curTool = n.tool || null;
@@ -2052,6 +2053,85 @@
       };
       return job;
     }
+    // w_noopt: o cruzamento onde nenhuma peca sai 'better' (cheio demais para trocar o sinal). Ramos a mais do mesmo dia de ontem, um por
+    // gesto que tira carros dali (CFG.signCard.relief): road = uma rua entre dois dos vizinhos de mais carros (a mais curta que da: uma
+    // rua reta de vizinho a vizinho, legal no mapa de ontem e no de hoje), feed = cada peca no vizinho que mais manda carros (fica a melhor). O numero e a
+    // espera mais longa aqui, como nas linhas das pecas. Resultado em r.relief (vai no save com o 'e se'); leitura em choiceFor
+    function otherEnd(wd, eid, id) { var e = wd.edges[eid]; return e ? (e.a === id ? e.b : e.a) : null; }
+    function linkedIn(wd, a, b) { var n = wd.nodes[a]; if (!n) return false; for (var j = 0; j < n.edges.length; j++) { var e = wd.edges[idOf(n.edges[j])]; if (e && (e.a === b || e.b === b)) return true; } return false; }
+    function roadOk(wd, from, to) {
+      var a = wd.nodes[from], b = wd.nodes[to];
+      if (!a || !b || (a.portal && degree(a) <= 1) || linkedIn(wd, from, to)) return null;
+      var q = wd.canAddEdge(from, b.x, b.y);
+      return q && q.ok && q.nodeId === to && !q.capped ? q : null;
+    }
+    function reliefPlan(id, r, wd) {
+      var RL = (CFG.signCard || {}).relief || {}, K = RL.kinds || [], arms = r.cur && r.cur.a ? r.cur.a.slice() : [], plan = [], i, j;
+      if (arms.length < 3) return plan;
+      var byCars = arms.slice().sort(function (p, q) { return q[2] - p[2] || p[0] - q[0]; });
+      var d1 = (r.day | 0) + 1;
+      for (var kk = 0; kk < K.length; kk++) {
+        var kind = K[kk];
+        if (kind === 'road' && isUnlocked('road')) {
+          var top = byCars.slice(0, Math.max(2, RL.pairs | 0)), pairs = [];
+          for (i = 0; i < top.length; i++) for (j = i + 1; j < top.length; j++) pairs.push([top[i], top[j]]);
+          pairs.sort(function (p, q) { return (q[0][2] + q[1][2]) - (p[0][2] + p[1][2]); });
+          for (i = 0; i < pairs.length; i++) {
+            var A = otherEnd(wd, pairs[i][0][0], id), B = otherEnd(wd, pairs[i][1][0], id), ends = [[A, B], [B, A]], got = null;
+            for (j = 0; j < 2 && !got; j++) if (ends[j][0] !== null && ends[j][1] !== null && roadOk(wd, ends[j][0], ends[j][1]) && roadOk(world, ends[j][0], ends[j][1])) got = ends[j];
+            if (got) { plan.push({ k: 'road', from: got[0], to: got[1] }); break; }
+          }
+        } else if (kind === 'feed') {
+          var nb = null, nd = null, tn = null;
+          for (j = 0; j < byCars.length && nb === null; j++) {
+            var q0 = otherEnd(wd, byCars[j][0], id), qd = q0 !== null ? wd.nodes[q0] : null, qt = q0 !== null ? world.nodes[q0] : null;
+            if (qd && qt && !qd.portal && !qt.portal && degree(qd) >= 3 && degree(qt) >= 3) { nb = q0; nd = qd; tn = qt; }
+          }
+          if (nb === null) continue;
+          for (i = 0; i < WI_TOOLS.length; i++) if (WI_TOOLS[i] !== (nd.tool || null) && openAt(WI_TOOLS[i], d1)) plan.push({ k: 'feed', node: nb, t: WI_TOOLS[i] });
+        }
+      }
+      return plan.slice(0, RL.maxBranches > 0 ? RL.maxBranches : plan.length);
+    }
+    function reliefJob(id, r) {
+      var inPlan = st.phase === 'plan', m0 = null;
+      if (inPlan) { BRANCHING = true; try { m0 = CRZ.Game.load(morning.save); } catch (e) { m0 = null; } finally { BRANCHING = false; } if (!m0) return null; }
+      var wd = inPlan ? m0.world : world, plan = reliefPlan(id, r, wd), save = morning.save, out = { day: r.day, road: null, feed: null, n: plan.length };
+      var job = { id: id, day: r.day, done: false, r: null, br: null, i: 0, branches: 0 };
+      function mk(task) {
+        if (task.k === 'road') return function (b) { b.state.budget = 999; var q = b.buildRoad(task.from, b.world.nodes[task.to].x, b.world.nodes[task.to].y); return !!(q && q.ok); };
+        if (task.k === 'feed') return function (b, bw) { bw.setTool(task.node, task.t); return true; };
+        return null;
+      }
+      function keep(task, o) {
+        if (!o) return;
+        var x = { w: waitV(o), lock: !!o.lock, cut: !!o.cut };
+        if (task.k === 'road') { x.from = task.from; x.to = task.to; out.road = x; }
+        else if (task.k === 'feed' && !x.lock && !x.cut && (!out.feed || x.w < out.feed.w)) { x.node = task.node; x.tool = task.t; out.feed = x; }
+      }
+      job.run = function (ms, now) {
+        var t0 = now ? now() : 0;
+        while (!job.done) {
+          var task = plan[job.i];
+          if (!task) { job.done = true; job.r = out; r.relief = out; break; }
+          if (!job.br) { job.br = branchOpen(save, id, r.tool, 1, 0, false, null, mk(task)); job.branches++; if (!job.br) { job.i++; continue; } }
+          else if (branchStep(job.br, now ? 45 : Infinity)) { keep(task, job.br.out); job.br = null; job.i++; }
+          if (now && now() - t0 >= ms) break;
+        }
+        return job.done;
+      };
+      return job;
+    }
+    // g.reliefJob(id): os ramos a mais de um cruzamento com o 'e se' guardado (o mesmo run(ms, now) do whatIfJob). Ja medido: job pronto.
+    // null sem o 'e se' do cruzamento ou sem a manha que ele jogou de novo
+    g.reliefJob = function (id) {
+      id = +id;
+      var r = wiCached(id); if (!r || !r.cur) return null;
+      if (r.relief) return { id: id, day: r.day, done: true, r: r.relief, branches: 0, run: function () { return true; } };
+      if (BRANCHING || !morning || morning.day !== r.day) return null;
+      if (!(st.phase === 'summary' && morning.day === st.day) && !(st.phase === 'plan' && morning.day === st.day - 1)) return null;
+      return reliefJob(id, r);
+    };
     // w_pick: as ruas que chegam ao cruzamento (ids em ordem). A cidade cresce de noite: uma rua nova no cruzamento (ou uma
     // rua cortada por um cruzamento novo) faz o dia de ontem jogado de novo nao descrever mais o de amanha
     function roadsAt(wd, id) { var nd = wd && wd.nodes[id]; return nd ? nd.edges.map(idOf).sort(function (a, b) { return a - b; }).join(',') : ''; }
@@ -2184,7 +2264,7 @@
     }
     g.choiceFor = function (id, skeleton) {
       id = +id;
-      var n = world.nodes[id]; if (!n || n.portal || degree(n) < 3) return null;
+      var n = world.nodes[id]; if (!n || degree(n) < 3) return null;   // w_noopt: ponta de rua que virou cruzamento (3+ ruas) tambem tem cartao
       var r = wiCached(id), pend = false; if (r && !r.cur) r = null;
       if (!r) {
         if (!skeleton) return null;
@@ -2272,11 +2352,11 @@
       // w_shape: a forma de ontem (a classe da matriz): ruas, rua principal ou equilibrado, volume baixo/medio/alto; null sem dados
       // w_verd: a linha 'better' que a medida mostra que falha (CFG.signCard.qualify): evento hoje aqui/ao lado, ou Stop/Yield pesado
       var Q = K.qualify || {}, QE = Q.event || {}, QB = Q.busy || {}, SLq = CFG.junction && CFG.junction.stop && CFG.junction.stop.late;
-      function eventNear() {
+      function eventNear(dd) {
         var L = st.events && st.events.list, E = world.edges, j, ev, e2;
         if (!L || !EV() || (EV().enabled && !EV().enabled())) return false;
         for (var q = 0; q < L.length; q++) {
-          ev = L[q]; if (ev.day !== st.day) continue;
+          ev = L[q]; if (ev.day !== dd) continue;
           if (ev.edge !== null && ev.edge !== undefined && E[ev.edge]) { if (E[ev.edge].a === id || E[ev.edge].b === id) return true; continue; }
           if (ev.node === null || ev.node === undefined) continue;
           if (ev.node === id) return true;
@@ -2285,19 +2365,45 @@
         }
         return false;
       }
-      var evHere = !pend && eventNear();
+      var evHere = !pend && eventNear(st.day);
+      // w_noopt: o evento de amanha ja anunciado (a marca 'tomorrow' do mapa) aqui ou ao lado: a linha 'better' perto do limite (near) leva o
+      // mesmo recorte do evento de hoje ('only on a day like yesterday'); a peca posta hoje fica no dia do evento
+      var evNext = !pend && !evHere && eventNear(st.day + 1);
       rows.forEach(function (rw) {
         rw.qual = null;
         if (rw.verdict !== 'better') return;
         if (evHere && (QE.tools || []).indexOf(rw.tool) >= 0) rw.qual = 'event';
         else if ((QB.tools || []).indexOf(rw.tool) >= 0 && SLq && st.day >= SLq.fromDay && (deg >= (QB.minRoads || 99) || (QB.replaces || []).indexOf(have) >= 0)) rw.qual = 'busy';
+        else if (evNext && rw.near) rw.qual = 'event';
       });
       var kdS = st.kinds && st.kinds[id], SH = K.shape || {}, shape = null;
       if (kdS && SH.mainShare > 0) shape = { roads: deg, main: kdS.share > SH.mainShare, vol: kdS.v <= SH.lowMax ? 'low' : (kdS.v > SH.highMin ? 'high' : 'mid') };
       if (!pend) tagRows(rows, shape);
       var lw = pend ? null : (have === r.tool ? before : (have && own(r.alt, have) ? waitV(r.alt[have]) : (have ? null : before)));
+      // w_noopt: nenhuma linha 'better' (dead): as linhas a mais que o 'e se' dos ramos a mais diz 'better' aqui (no maximo relief.rows, na
+      // ordem de relief.kinds), cada uma ainda valida no mapa de hoje. relief: null (ha linha 'better' ou ainda sem numeros), 'pending'
+      // (ramos por rodar), 'done' (extra diz o que serve; vazio = nada serve)
+      var dead = !pend && rows.some(function (rw) { return rw.w !== null; }) && !rows.some(function (rw) { return rw.verdict === 'better'; }), extra = [], RL = K.relief || {}, rel = dead ? (r.relief ? 'done' : 'pending') : null;
+      if (dead && r.relief) {
+        var RX = r.relief, kinds = RL.kinds || [];
+        var vOf = function (x) { return x.lock && !r.cur.lock ? 'worse' : (x.cut ? 'worse' : g.verdictFor(bShow, Math.round(x.w))); };
+        for (i = 0; i < kinds.length && extra.length < (RL.rows > 0 ? RL.rows : 2); i++) {
+          var kx = kinds[i], x2 = RX[kx], ok2 = false, er = null;
+          if (!x2 || x2.w === null || x2.w === undefined || vOf(x2) !== 'better') continue;
+          if (kx === 'road') {
+            ok2 = isUnlocked('road') && !!roadOk(world, x2.from, x2.to);
+            if (ok2) { var rc = costOf('road'); er = { kind: 'road', tool: 'road', from: x2.from, to: x2.to, cost: rc, hand: !!st.free.road, afford: st.budget >= rc }; }
+          } else if (kx === 'feed') {
+            var fn = world.nodes[x2.node]; ok2 = !!fn && !fn.portal && degree(fn) >= 3 && (fn.tool || null) !== x2.tool && isUnlocked(x2.tool);
+            if (ok2) { var fc = placeCheck(x2.node, x2.tool); if (fc.capped) ok2 = false; else er = { kind: 'feed', tool: x2.tool, node: x2.node, cost: fc.cost, hand: fc.hand, afford: fc.afford }; }
+          }
+          if (!er) continue;
+          er.w = x2.w; er.verdict = 'better'; er.before = before;
+          extra.push(er);
+        }
+      }
       return { id: id, day: r.day, pending: pend, tool: r.tool, have: have, deg: deg, shape: shape, before: before, loud: loud ? loud[0] : null, rows: rows,
-               leave: { tool: have, w: lw, before: before, same: have === r.tool || (!have && !r.tool) } };
+               leave: { tool: have, w: lw, before: before, same: have === r.tool || (!have && !r.tool) }, dead: dead, relief: rel, extra: extra };
     };
     // a promessa da escolha: o que o cartao mostrou para a peca (antes e depois, s inteiros), guardado em st.choice (vai no
     // save) para o fim do dia dizer se a peca cumpriu. promiseFor le ANTES de a peca entrar (depois, o cartao ja nao a lista);
