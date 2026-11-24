@@ -18,7 +18,7 @@
     // vocabulario fixo: "ring" = qualquer anel, "busy crossing" = anel ambar (0,3-0,6),
     // "red ring" = anel vermelho (acima de 0,6), "locked" = travou
     lockedSay: 'This crossing jammed: 1 strike.',
-    // v2x: a regra numa linha, com o limite da dificuldade em jogo (CFG.maxStrikes: Easy 4, Normal 3)
+    // v2x: a regra numa linha, com o limite da dificuldade em jogo (CFG.maxStrikes: Easy 4, Normal 4)
     lockedFirst: function (n) { return 'This crossing jammed: 1 strike. ' + n + ' in a chapter: replay it.'; },
     loseCause: function (d, sign) { return 'Day ' + d + ': ' + (sign ? 'the crossing with a ' + sign : 'a crossing with no sign') + ' jammed.'; },
     loseNext: {
@@ -58,6 +58,8 @@
     chSavedFrom: function (d) { return 'Progress saved: from day ' + d + ', running out of strikes brings you back to this morning.'; },
     chNoRestart: 'This chapter never starts over: the last strike is forgiven.',
     chRetry: function (d) { return 'You are back at the morning of day ' + d + ', city as it was.'; },
+    // w_place: o Pare passa a engasgar em cruzamento cheio (CFG.junction.stop.late.fromDay); o cartao do capitulo diz uma vez
+    chStopLate: function (d) { return 'From day ' + d + ', a stop is slow where 3 or more roads are busy.'; },
     chNewLead: 'New: ', chCars: 'more cars', chWait: 'drivers wait less',
     lblChapter: function (c, n) { return 'Chapter ' + c + ' of ' + n; },
     chapterStop: 'A good place to stop: your game is saved.',
@@ -214,6 +216,8 @@
     boostsFixed: 'From today: {charges} boosts a day.',
     // v2: cidade no teto (CFG.growth.afterCap): uma ponta passa a mandar e receber mais carros
     shiftUp: 'The city changed: more cars use this road end now.',
+    // w_place: lugares novos (CFG.trafficBalance.places) na manha em que aparecem: onde e por que
+    placesNew: function (n) { return n === 1 ? 'A quiet road got a road end: cars start and end here.' : n + ' quiet roads got a road end each: cars start and end here.'; },
     // v2: arquetipo (CFG.archetypes), uma linha no primeiro plano da partida
     archLine: {
       river: 'River town: roads cross the water only at a bridge.',
@@ -5665,6 +5669,7 @@
       else if (ev.type === 'grow') { onGrow(); growPend = { ids: (ev.nodeIds || []).slice() }; }
       // dado v2: rolou ou escolheu: grava na hora (recarregar volta na mesma face ou na mesma escolha pendente)
       else if (ev.type === 'die' && game.state.phase === 'plan' && ev.die) saveNow();
+      else if (ev.type === 'places') placesPend = { ids: (ev.nodeIds || []).slice(), day: (game.state.day | 0) + 1 };
       else if (ev.type === 'shift') shiftPend = { up: ev.up, day: (game.state.day | 0) + 1 };
       // invisivel 5: carga do raio que voltou (dias 1 a 3): pop na bolinha e um som curto
       else if (ev.type === 'boostReady') { snd('charge'); boltPopAt = nowMs(); }
@@ -6090,8 +6095,10 @@
       if (cx && cx.patience > 0 && cx.patience < 1) out.push(STR.chWait);
       var lead = out.length ? STR.chNewLead + out.join(', ') + '.' : '';
       var nx = G && G.nextChapter ? nextChText(G.nextChapter(s, c - 1)).replace(STR.nextCh.lead, '') : '';
-      if (!lead && nx) return STR.chNewLead + nx;
-      return lead + (lead && nx ? ' ' + nx : '');
+      var SL = CFG.junction && CFG.junction.stop && CFG.junction.stop.late, a0 = (c - 1) * CH_LEN + 1;
+      var sl = SL && SL.multiApproachPenalty > 0 && SL.fromDay >= a0 && SL.fromDay < a0 + CH_LEN ? STR.chStopLate(SL.fromDay) : '';
+      if (!lead && nx) return STR.chNewLead + nx + (sl ? ' ' + sl : '');
+      return lead + (lead && nx ? ' ' + nx : '') + (sl ? (lead || nx ? ' ' : STR.chNewLead) + sl : '');
     }
     // strikes do capitulo anterior (dias com strike depois dos livres); numa volta, todos (acabaram)
     function chPrevUsed(s, c) {
@@ -6150,7 +6157,19 @@
       }
     }
     // v2: manutencao do semaforo de manha (game.state.upkeep): uma faixa por dia; a primeira vez diz a regra antes
-    var upkeepSaid = -1, shiftPend = null;
+    var upkeepSaid = -1, shiftPend = null, placesPend = null;
+    // w_place: cada lugar novo pulsa 3 vezes e uma faixa diz o que ele e (mesmo gesto das pontas novas da cidade)
+    function placesTick(s) {
+      if (!placesPend || s.phase !== 'plan') return;
+      if (placesPend.day !== s.day) { placesPend = null; return; }
+      if (roll.open || growPend || bootFrames >= 0 || modal() || tutBalloonOn() || sayUntil || confirmOpen() || chCardOpen() || sayEl.classList.contains('show')) return;
+      var w = game.world, ns = [], i;
+      for (i = 0; i < placesPend.ids.length; i++) { var n = w.nodes[placesPend.ids[i]]; if (n && n.portal) ns.push(n); }
+      placesPend = null;
+      if (!ns.length || !sayShown(STR.placesNew(ns.length), 4200)) return;
+      ns.forEach(function (n) { addPulse(n.x, n.y); later(function () { addPulse(n.x, n.y); }, 700); later(function () { addPulse(n.x, n.y); }, 1400); });
+      try { if (render && render.reveal) render.reveal(ns[0].x, ns[0].y, true); } catch (e) {}
+    }
     // v2: cidade no teto muda por dentro: a ponta que ficou cheia pulsa com uma linha (o que nao se ve nao existe)
     function shiftTick(s) {
       if (!shiftPend || s.phase !== 'plan') return;
@@ -6313,7 +6332,10 @@
       scId = n.id; scSig = ''; scAt = nowMs(); scMsg.classList.add('gone'); scMsg.textContent = '';
       var first = !seen('choiceHelp');
       scHelp.textContent = STR.choice.help; scHelp.classList.toggle('gone', !first); if (first) markSeen('choiceHelp');
-      paintChoice(c); scSig = JSON.stringify(c) + '|' + (s.budget | 0);
+      paintChoice(c);
+      // w_place: um Pare em cruzamento de 3+ ruas, do dia em que ele engasga (CFG.junction.stop.late): o cartao diz o motivo
+      var SLc = CFG.junction && CFG.junction.stop && CFG.junction.stop.late;
+      if (c.have === 'stop' && SLc && SLc.multiApproachPenalty > 0 && (s.day | 0) >= SLc.fromDay) { scHelp.textContent = STR.chStopLate(SLc.fromDay); scHelp.classList.remove('gone'); } scSig = JSON.stringify(c) + '|' + (s.budget | 0);
       scEl.classList.remove('gone'); modalReg().set(doc.body, 'choice', true);
       try { if (scLeave.focus) scLeave.focus(); } catch (e) {}
       emitUI('choiceOpen', { id: n.id, rows: c.rows.length, pending: !!c.pending });
@@ -6532,6 +6554,7 @@
       chapterTick(s);
       archTick(s);
       shiftTick(s);
+      placesTick(s);
       upkeepTick(s);
       crewTick(s);
       choiceTick(s);

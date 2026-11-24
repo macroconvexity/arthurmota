@@ -199,7 +199,8 @@
     world.portalNorm = true;   // o Sim divide o trafego da cidade entre os portais (CFG.portalRef); mundos soltos dos testes nao
     var base = CRZ.rng(seed);
     var rngCalls = 0;
-    var morning = null;   // v2x: save da manha de hoje (so memoria), base do g.whatIf
+    var morning = null;   // v2x: save da manha de hoje (memoria; o da manha de ontem vai no save na manha, campo morn), base do g.whatIf
+    var prevMorning = null;   // w_reload: a manha de ontem, que o cartao da escolha ainda le enquanto o dia de hoje corre
     function R() { rngCalls++; return base(); }
     function Rint(lo, hi) { return lo + Math.floor(R() * (hi - lo + 1)); }
     function Rweighted(weights) {
@@ -899,7 +900,7 @@
     }
     // ----- checkpoint (v2, D9) -----
     function takeCheckpoint() {
-      checkpoint = saveCore();
+      checkpoint = saveCore(true);
       delete checkpoint.undo;
       needCp = false;
       st.checkpointDay = checkpoint.st.day;
@@ -1798,7 +1799,8 @@
       st.draft = null;
       var nd = st.day + 1;
       grow(nd);
-      ensurePlaces(nd);   // w_far: lugares nas ruas sem carro esperado
+      var madePl = ensurePlaces(nd);   // w_far: lugares nas ruas sem carro esperado
+      if (madePl.length) emit({ type: 'places', nodeIds: madePl.slice() });   // w_place: a UI avisa na manha (faixa + pulso)
       enterPlan(nd, left);
     }
 
@@ -2625,7 +2627,7 @@
       if (st.phase !== 'plan') return fail('phase');
       // v2x: a manha de hoje (so na memoria) para o 'e se' do resumo (g.whatIf): o mesmo dia, outra peca num cruzamento
       ensurePlaces(st.day);   // w_far: ruas que o jogador ligou hoje tambem ganham lugar (antes do 'e se' guardar a manha)
-      if (!BRANCHING) { morning = saveCore(); delete morning.undo; morning = { day: st.day, save: morning, base: {} }; }
+      if (!BRANCHING) { prevMorning = morning; morning = saveCore(true); delete morning.undo; morning = { day: st.day, save: morning, base: {} }; }
       st.marks = marksNow();   // w_choice2: as pecas postas ou movidas hoje onde ontem passaram carros (a linha do dia seguinte)
       // oferta sem resposta ao comecar o dia: passou (nada aplicado). So face usada ou sem escolha mexe no dia
       if (st.dieState === 'offer') { st.dieState = 'passed'; dieEvent(); }
@@ -2875,7 +2877,17 @@
       return d;
     };
     g.retryChapter = function () { var d = g.retrySave(); return d ? CRZ.Game.load(d) : null; };
-    function saveCore() {
+    // w_reload: a manha de ontem (o que o 'e se' do cartao da escolha rejoga) vai no save enquanto a manha de hoje corre (plano, ou o dia
+    // jogando, que o save volta ao plano). Sem o 'e se' e sem o conselho (o ramo nao os le): so a cidade e o estado da manha. Fora disso,
+    // nada (o resumo e o fim do jogo seguem como eram)
+    function mornForSave() {
+      if (st.phase !== 'plan' && st.phase !== 'run') return undefined;
+      var m = morning && morning.day === st.day - 1 ? morning : (prevMorning && prevMorning.day === st.day - 1 ? prevMorning : null);
+      if (!m) return undefined;
+      var c = clone(m.save); delete c.whatIf; delete c.adv;
+      return c;
+    }
+    function saveCore(bare) {
       var snap = world.snapshot();
       // corrida: o save volta a manha do dia; os semaforos apagados hoje voltam a ser semaforos na foto
       if (darkNow.length) snap.nodes.forEach(function (sn) { if (darkNow.indexOf(sn.id) >= 0 && !sn.tool) sn.tool = 'light'; });
@@ -2910,6 +2922,7 @@
         // w_choice: a promessa do cartao da escolha (campo opcional: save sem ele carrega igual)
         choice: st.choice && Object.keys(st.choice).length ? st.choice : undefined,
         yday: st.yday || undefined, planTools: st.planTools || undefined, marks: st.marks || undefined,   // w_choice2 (campos opcionais)
+        morn: bare ? undefined : mornForSave(),   // w_reload (campo opcional: save sem ele carrega igual)
         // w_modes: so fora do jogo de sempre (save antigo e save do jogo livre seguem iguais)
         mode: st.mode !== 'free' ? st.mode : undefined, date: st.mode === 'daily' ? st.date : undefined
       });
@@ -2995,6 +3008,7 @@
       st.tally = { fixed: nat(ty.fixed) && ty.fixed < 1e5 ? ty.fixed : 0, kept: nat(ty.kept) && ty.kept < 1e5 ? ty.kept : 0 };
       // checkpoint (Game.load ja conferiu ou tirou): sem ele, a manha de hoje (plano) ou a proxima vira o checkpoint
       checkpoint = isObjL(saved.checkpoint) && !CFG.ironMode ? clone(saved.checkpoint) : null;
+      if (isObjL(saved.morn) && st.phase === 'plan') morning = { day: saved.morn.st.day, save: clone(saved.morn), base: {} };   // w_reload (Game.load ja conferiu ou tirou)
       st.checkpointDay = checkpoint ? checkpoint.st.day : null;
       needCp = !checkpoint && !CFG.ironMode;
       if (st.phase === 'over') st.final = finalOf(st.strikes < strikeCap());
@@ -3479,6 +3493,20 @@
     return validSave(c);
   }
 
+  // w_reload: a manha de ontem do save (campo morn): um save da mesma partida, de uma manha (plano) do dia anterior, sem undo, sem
+  // checkpoint e sem outra morn, que passa pelas regras do save e nunca esta a frente dele. So vale com o save no plano
+  function mornOk(d) {
+    var c = d.morn;
+    if (!isObj(c) || c.checkpoint !== undefined || c.undo !== undefined || c.morn !== undefined || !isObj(d.st) || d.st.phase !== 'plan') return false;
+    if (c.seed !== d.seed || c.diff !== d.diff || c.fmt !== d.fmt || !isObj(c.st)) return false;
+    var cs = c.st, s = d.st;
+    if (cs.phase !== 'plan' || !nat(cs.day) || cs.day !== s.day - 1) return false;
+    if (!nat(c.rngCalls) || c.rngCalls > d.rngCalls) return false;
+    c = clone(c);
+    normSave(c);
+    return validSave(c);
+  }
+
   function watchFixedOf(e, hotMin) {
     if (!e || !e.now) return false;
     if (!fin(e.w)) return fin(e.now.p) && e.now.p < hotMin;
@@ -3612,6 +3640,7 @@
         if (d.undo !== undefined) { var uOk = false; try { uOk = undoOk(d); } catch (e2) { uOk = false; } if (!uOk) delete d.undo; }
         // checkpoint (v2): opcional e conferido a parte; recusado sai em silencio e o jogo grava outro na proxima manha
         if (d.checkpoint !== undefined) { var cOk = false; try { cOk = checkpointOk(d); } catch (e3) { cOk = false; } if (!cOk) delete d.checkpoint; }
+        if (d.morn !== undefined) { var mOk = false; try { mOk = mornOk(d); } catch (e4) { mOk = false; } if (!mOk) delete d.morn; }   // w_reload: opcional, recusado sai em silencio
         return build(d.seed, d);
       } catch (e) { return null; }
     }
