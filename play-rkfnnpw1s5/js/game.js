@@ -297,7 +297,7 @@
       // w_choice2: a linha do dia seguinte para toda peca posta ou movida. yday = a espera mais longa e os carros de cada
       // cruzamento no ultimo dia jogado ({ day, nodes: { id: { w, n } } }); planTools = as pecas ao comecar o plano de hoje;
       // marks = o que mudou de peca no plano de hoje num cruzamento que teve carros ontem ({ day, list: [{ id, tool, w, n, now }] })
-      yday: null, planTools: null, marks: null,
+      yday: null, planTools: null, marks: null, planLanes: null,   // w_bugs12: planLanes = id -> faixas de cada rua ao comecar o plano
       // v2: forma da cidade (CFG.archetypes, v2/nivel.md 3.2): 'classic' | 'river' | 'park'
       archetype: 'classic',
       // v2: Road crew (CFG.crew). active = dias que faltam de cada equipe; income = pontos que entraram hoje;
@@ -393,6 +393,8 @@
     // w_choice2: a peca de cada cruzamento agora (id -> peca) e a lista do que mudou desde o comeco do plano num cruzamento que teve
     // carros ontem (vai para st.marks quando o dia comeca; recordDay poe o 'now')
     function toolsNow() { var o = {}, ids = sortedIds(world.nodes); for (var i = 0; i < ids.length; i++) { var t = world.nodes[ids[i]].tool; if (t) o[ids[i]] = t; } return o; }
+    // w_bugs12: as faixas de cada rua agora (id -> 1|2). Rua posta ou alargada no plano, sem cartao, tambem ganha a linha do dia seguinte
+    function lanesNow() { var o = {}, ids = sortedIds(world.edges); for (var i = 0; i < ids.length; i++) o[ids[i]] = world.edges[ids[i]].lanes === 2 ? 2 : 1; return o; }
     function marksNow() {
       var out = { day: st.day, list: [] }, y = st.yday && st.yday.day === st.day - 1 ? st.yday.nodes : null, pt = st.planTools;
       if (!y || !pt) return out;
@@ -407,6 +409,20 @@
         var cc = own(st.choice, ck) ? st.choice[ck] : null, cy = cc && y[ck];
         if (!cc || (cc.tool !== 'upgrade' && cc.tool !== 'road' && cc.tool !== 'feed') || cc.day !== st.day || !cy || !(cy.n > 0) || out.list.length >= 12) continue;
         if (!out.list.some(function (m) { return m.id === +ck; })) out.list.push({ id: +ck, tool: cc.tool, w: cy.w, n: cy.n });
+      }
+      // w_bugs12: rua nova ou alargada hoje (por toque ou arrasto, sem cartao): a linha vai para a ponta que teve carros ontem (a de mais espera)
+      var pl = st.planLanes;
+      if (pl) {
+        var eids = sortedIds(world.edges);
+        for (var ei = 0; ei < eids.length && out.list.length < 12; ei++) {
+          var ed = world.edges[eids[ei]], was = pl[eids[ei]], kind = was === undefined ? 'road' : (ed.lanes === 2 && was < 2 ? 'upgrade' : null);
+          if (!ed || !kind) continue;
+          var ea = y[ed.a], eb = y[ed.b], pick = null;
+          if (ea && ea.n > 0 && degree(world.nodes[ed.a]) >= 3) pick = ed.a;
+          if (eb && eb.n > 0 && degree(world.nodes[ed.b]) >= 3 && (pick === null || eb.w > ea.w)) pick = ed.b;
+          if (pick === null || out.list.some(function (m) { return m.id === pick; })) continue;
+          out.list.push({ id: pick, tool: kind, w: y[pick].w, n: y[pick].n });
+        }
       }
       return out;
     }
@@ -705,7 +721,7 @@
       // vigiados de ontem viram watchPrev (a manha confere o anel); hoje comeca sem nenhum
       st.watchPrev = st.watch && st.watch.day === day - 1 && st.watch.list.length ? st.watch : null;
       st.watch = { day: day, list: [] };
-      st.marks = null; st.planTools = toolsNow();   // w_choice2
+      st.marks = null; st.planTools = toolsNow(); st.planLanes = lanesNow();   // w_choice2; w_bugs12
       if (st.choice) for (var ck in st.choice) if (own(st.choice, ck) && !(st.choice[ck] && st.choice[ck].day >= day)) delete st.choice[ck];   // w_choice: a promessa de ontem ja foi conferida
       st.freeJams = 0;
       refresh();
@@ -3174,7 +3190,7 @@
         whatIf: st.whatIf || undefined, adv: st.adv || undefined,
         // w_choice: a promessa do cartao da escolha (campo opcional: save sem ele carrega igual)
         choice: st.choice && Object.keys(st.choice).length ? st.choice : undefined,
-        yday: st.yday || undefined, planTools: st.planTools || undefined, marks: st.marks || undefined,   // w_choice2 (campos opcionais)
+        yday: st.yday || undefined, planTools: st.planTools || undefined, planLanes: st.planLanes || undefined, marks: st.marks || undefined,   // w_choice2 (campos opcionais)
         morn: bare ? undefined : mornForSave(),   // w_reload (campo opcional: save sem ele carrega igual)
         // w_modes: so fora do jogo de sempre (save antigo e save do jogo livre seguem iguais)
         mode: st.mode !== 'free' ? st.mode : undefined, date: st.mode === 'daily' ? st.date : undefined
@@ -3230,7 +3246,7 @@
       if (isObjL(saved.whatIf) && fin(saved.whatIf.day) && isObjL(saved.whatIf.nodes)) st.whatIf = saved.whatIf;
       if (isObjL(saved.adv)) st.adv = saved.adv;
       st.choice = choiceNorm(saved.choice);
-      st.yday = ydayNorm(saved.yday); st.planTools = planToolsNorm(saved.planTools); st.marks = marksNorm(saved.marks);   // w_choice2
+      st.yday = ydayNorm(saved.yday); st.planTools = planToolsNorm(saved.planTools); st.planLanes = planLanesNorm(saved.planLanes); st.marks = marksNorm(saved.marks);   // w_choice2
       if (isObjL(saved.perks)) st.perks = { round: saved.perks.round === true, freePower: nat(saved.perks.freePower) ? saved.perks.freePower : 0, chosen: typeof saved.perks.chosen === 'string' ? saved.perks.chosen : undefined };
       st.mode = modeOk(saved.mode) ? saved.mode : 'free'; st.date = st.mode === 'daily' && dateOk(saved.date) ? saved.date : null;
       if (typeof saved.archetype === 'string' && CFG.archetypes && own(CFG.archetypes, saved.archetype)) st.archetype = saved.archetype;
@@ -3669,12 +3685,18 @@
     for (var id in P) if (Object.prototype.hasOwnProperty.call(P, id) && /^\d+$/.test(id) && typeof P[id] === 'string' && P[id].length < 12) out[id] = P[id];
     return out;
   }
+  function planLanesNorm(P) {
+    if (!P || typeof P !== 'object' || Array.isArray(P)) return null;
+    var out = {};
+    for (var id in P) if (Object.prototype.hasOwnProperty.call(P, id) && /^\d+$/.test(id) && (P[id] === 1 || P[id] === 2)) out[id] = P[id];
+    return out;
+  }
   function marksNorm(M) {
     if (!M || typeof M !== 'object' || !fin(M.day) || !Array.isArray(M.list)) return null;
     var out = { day: Math.floor(M.day), list: [] };
     for (var i = 0; i < M.list.length && out.list.length < 12; i++) {
       var x = M.list[i];
-      if (!x || typeof x !== 'object' || !fin(x.id) || typeof x.tool !== 'string' || ['stop', 'yield', 'light', 'round', 'cross', 'road', 'feed'].indexOf(x.tool) < 0 || !fin(x.w) || x.w < 0 || !fin(x.n) || x.n < 0) continue;
+      if (!x || typeof x !== 'object' || !fin(x.id) || typeof x.tool !== 'string' || ['stop', 'yield', 'light', 'round', 'cross', 'road', 'feed', 'upgrade'].indexOf(x.tool) < 0 || !fin(x.w) || x.w < 0 || !fin(x.n) || x.n < 0) continue;
       var o = { id: Math.floor(x.id), tool: x.tool, w: x.w, n: Math.floor(x.n) };
       if (x.now && typeof x.now === 'object' && fin(x.now.w) && x.now.w >= 0 && fin(x.now.n) && x.now.n >= 0) o.now = { w: x.now.w, n: Math.floor(x.now.n) };
       out.list.push(o);

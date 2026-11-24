@@ -3326,7 +3326,8 @@
       return s.phase === 'run' && ((s.day | 0) >= ASSIST_DAY || jamTeach) && (!s.paused || jamTeach) && !modal() && !holdUntil &&
         !!(cl && cl.unlocked) && !!(render && render.toScreen);
     }
-    function chipWanted(s) { return chipScene(s) && ((s.clear.charges | 0) > 0); }
+    // w_bugs12: the floating Boost chip points at where to tap (teaching): Guidance Off has none (the crossing still takes the tap)
+    function chipWanted(s) { return gOn() && chipScene(s) && ((s.clear.charges | 0) > 0); }
     // tempo de jogo que falta basta para 3 s reais de chip: a rampa da velocidade (~0,5 s de parede ainda rapidos)
     // mais CHIP_TAIL s a 1x. A cena do dia 2 espera a fila (jamHold no game): sem corte
     function chipTimeOk(s) {
@@ -3983,6 +3984,13 @@
       if (swapAsk && !(hitN && hitN.id === swapAsk.id && sel === swapAsk.tool)) endSwapAsk('tap');
       var gn = s.phase === 'run' ? chipGhostNode(sx, sy) : null;
       if (gn) hitN = gn;
+      // w_bugs12: a tap on a note over the map never does nothing. The Boost chip takes a tap a little off its centre (it hops
+      // between crossings); the retorno balloon (it ignores touches) is dismissed by a tap on it
+      if (s.phase === 'run' && !hitN && !modal()) {
+        var cr = bchip.id !== null && !bchipEl.classList.contains('gone') ? rectOf(bchipEl) : null, fr = fbkEl.classList.contains('on') ? rectOf(fbkEl) : null, M = 14;
+        if (cr && sx >= cr.l - M && sx <= cr.r + M && sy >= cr.t - M && sy <= cr.b + M) { chipTap(); emitUI('noteTap', { kind: 'chip' }); return; }
+        if (fr && sx >= fr.l && sx <= fr.r && sy >= fr.t && sy <= fr.b) { snd('select'); fbkHide(); emitUI('noteTap', { kind: 'balloon' }); return; }
+      }
       if (hitN) emitUI('nodeTap', { id: hitN.id });
       if (s.phase === 'run') { runTap(s, hitN, sx, sy, false, !!gn); return; }
       // w_choice2: no resumo, o toque num cruzamento com linha do dia seguinte (a que 'and N more' manda ver) a diz na faixa
@@ -5676,7 +5684,7 @@
       skipBtn.classList.toggle('only', !nShown);
       var pk = Math.max(+sm.peak || 0, wh);
       var cctx = { day: s.day | 0, cfg: CFG, pairs: pairCount(game.world), dieFreeLight: dieFL };
-      var pick = suggestCard(dr, pk, worst, cctx);
+      var pick = gOn() ? suggestCard(dr, pk, worst, cctx) : null;   // w_bugs12: 'Good pick' (and the dark card) is teaching: Guidance Off shows none
       // botao principal do resumo = uma carta (a sugerida, senao a primeira que faz sentido); pular fica secundario
       // carta escura = recomendada = com o selo 'Good pick' (sempre juntos); sem recomendada, nenhuma escura
       var mainIdx = pick && shownCard(pick) ? dr.indexOf(pick) : -1;
@@ -6564,6 +6572,7 @@
     // UMA consequencia. Cada numero vem de game.choiceFor; nada aqui e conta. Abre so no toque da jogadora e segura
     // body.crz-modal enquanto aberto (nada mais abre por cima: o dado, a Road crew, o balao do tutorial esperam).
     // Colocar usa placeNodeTool, o mesmo codigo do toque com a peca da bandeja (custo, recusa, troca, mao, teto, Undo).
+    var scEvText = '';   // w_bugs12: the event line of a marker on the crossing whose card just opened (goes on the grey line)
     var scPick = null, scArm = null;   // w_place: a peca da bandeja que abriu o cartao (linha marcada) e a ferramenta na mao
     var scFrom = null;   // w_noopt2: { node, tool }: o cartao do vizinho aberto pela linha 'Fix the crossing that feeds it'; a peca prometida e a linha marcada
     var scEl = tut(el('div', 'crz-confirm crz-choice gone'), 'choice-card'), scId = null, scSig = '', scHlEdge = null, cardPick = null, choiceAsk = null, scAt = -1e9, SC_GHOST_MS = 450;
@@ -6586,7 +6595,7 @@
       if (!choiceOpen()) return;
       scEl.classList.add('gone'); modalReg().set(doc.body, 'choice', false);
       if (scHlEdge !== null && render && typeof render.highlightRoad === 'function') { try { render.highlightRoad(scHlEdge, 1); } catch (e) {} }
-      scHlEdge = null; scId = null; scSig = ''; scFrom = null; scPick = null; scArm = null;
+      scHlEdge = null; scId = null; scSig = ''; scFrom = null; scPick = null; scArm = null; scEvText = '';
     }
     // a linha de uma peca: icone, nome, preco, barra e numero, quem paga, consequencia. Barra: o traco e a espera de ontem; o
     // preenchimento escuro vai ate o menor numero da faixa e o trecho claro ate o maior (w_choice2); vermelho quando piora. O
@@ -6660,6 +6669,7 @@
       var scN = game.world.nodes ? game.world.nodes[c.id] : null;
       if (c.dead && c.relief === 'done' && !ex.length && scN && heatOf(game.state, scN) >= HOT_TAP) { var bu = game.state.clear && game.state.clear.unlocked; scShape.textContent = (scShape.textContent ? scShape.textContent + ' ' : '') + (bu ? C.noOption : C.noOptionNoBoost); }
       if (c.noData) scShape.textContent = c.tip || '';   // w_noopt: sem 'e se' possivel, a dica de uma linha vai na linha cinza do cartao
+      if (scEvText) scShape.textContent = (scShape.textContent ? scShape.textContent + ' ' : '') + scEvText;
       scShape.classList.toggle('gone', !scShape.textContent);
       scTitle.textContent = c.noData ? C.noData : c.pending ? C.titleWait : (lit ? C.titleRoad : C.title)(Math.max(1, Math.round(c.before)));
       if (lit && scHlEdge !== c.loud) { try { if (render.highlightRoad(c.loud, 60000)) scHlEdge = c.loud; } catch (e) { warnOnce('render.highlightRoad', e); } }
@@ -7554,8 +7564,15 @@
       if (!m) return false;
       var text = CRZ.Events.explain(game, m);
       if (!text) return false;
+      var wn = game.world.nodes[m.nodeId], st0 = game.state;
+      // w_bugs12: a crossing that is both an event marker and trouble from yesterday: the card comes first and the event line rides on its grey line
+      if (st0.phase === 'plan' && wn && (m.edgeId === null || m.edgeId === undefined) && !tutorScript() && !modal() && !choiceOpen() &&
+          (heatOf(st0, wn) >= HOT_TAP || hasReplay(wn))) {
+        scEvText = text;
+        if (openChoice(st0, wn)) { snd('select'); emitUI('eventTap', { key: m.key, kind: m.type, text: text, card: true }); return true; }
+        scEvText = '';
+      }
       snd('select');
-      var wn = game.world.nodes[m.nodeId];
       var anchor = (m.edgeId === null || m.edgeId === undefined) && wn ? wn : { id: 'ev:' + m.key, x: m.x, y: m.y };
       if (sayUntil) { sayUntil = 0; sayEl.classList.remove('show'); }
       fbkHide();
@@ -7602,14 +7619,16 @@
         seen[m.id] = 1; out.push({ id: m.id, tool: m.tool, e: { id: m.id, tool: m.tool, w: m.w, now: { w: m.now.w } }, n0: m.n, n1: m.now.n });
       }
       for (i = 0; i < out.length; i++) { out[i].a = Math.round(out[i].e.w); out[i].b = Math.round(out[i].e.now.w); out[i].score = Math.abs(out[i].b - out[i].a); }
-      out.sort(function (x, y) { return (y.score - x.score) || (x.id - y.id); });
+      // w_bugs12: a change that made things worse always wins the line (then the biggest change, then the id)
+      for (i = 0; i < out.length; i++) out[i].bad = game.verdictFor(out[i].a, out[i].b) === 'worse' ? 0 : 1;
+      out.sort(function (x, y) { return (x.bad - y.bad) || (y.score - x.score) || (x.id - y.id); });
       return out;
     }
     // o texto de uma linha: { text, why, tryIt }
     function sumText(s, l) {
       var cn = game.world && game.world.nodes ? game.world.nodes[l.id] : null, ch = s.choice && s.choice[l.id], tn = lc(fbkToolName(l.tool)), r = { text: '', why: '', tryIt: false };
       var mine = ch && ch.day === s.day && ch.tool === l.tool && cn && (l.tool === 'upgrade' || l.tool === 'road' || l.tool === 'feed' || cn.tool === ch.tool);
-      if (!mine) { r.text = STR.fbk.line(fbkToolName(l.tool), l.a, l.b); return r; }
+      if (!mine) { r.text = STR.fbk.line(l.tool === 'road' ? STR.tools.road : fbkToolName(l.tool), l.a, l.b); return r; }   // w_bugs12: a plain built road is 'Road'
       var M2 = STR.fbk.mine, rk = { worse: 0, same: 1, better: 2 }, pv = ch.v || game.verdictFor(ch.w0, ch.w1), rv = game.verdictFor(l.a, l.b), T = fbkToolName(l.tool);
       if (rv === pv) { r.text = M2[rv](T, l.a, l.b); r.tryIt = rv === 'worse'; }
       else if (pv === 'better' && rv === 'same' && ch.q && M2[ch.q === 'event' ? 'qualEvent' : 'qualBusy']) { r.text = M2[ch.q === 'event' ? 'qualEvent' : 'qualBusy'](T, l.a, l.b); r.tryIt = true; }
