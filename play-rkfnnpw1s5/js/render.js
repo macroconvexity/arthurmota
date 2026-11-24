@@ -369,7 +369,7 @@
     var ghOff = new Float64Array(CAR_GHOSTS), ghT0 = new Float64Array(CAR_GHOSTS), ghOn = new Uint8Array(CAR_GHOSTS), ghLive = 0, ghNext = 0;
     var cfXY = new Float64Array(CAR_FADES * 8), cfAl = new Float64Array(CAR_FADES), cfN = 0;
     // fila apertada (zoom baixo): carros por rua, para cortar cada um no espaco ate o vizinho
-    var ebHead = new Int32Array(256), ebStamp = new Int32Array(256), cbNext = new Int32Array(1024);
+    var ebHead = new Int32Array(256), ebStamp = new Int32Array(256), cbNext = new Int32Array(1024), cbS = new Float64Array(1024), cbK = new Uint8Array(1024);
     var carDbg = { frac: 1, steps: 0, tracked: 0, ghosts: 0, fading: 0, tight: false, len: 0, wid: 0 };
     for (var csi = 0; csi < CAR_SLOTS; csi++) { csFree[csi] = CAR_SLOTS - 1 - csi; csKey[csi] = null; }
     csFreeN = CAR_SLOTS;
@@ -1725,13 +1725,14 @@
         var cj, oc, ds, sl, key;
         if (carTight) {
           // fila apertada: lista de carros por rua (cabecas por id de rua, carimbadas pelo quadro)
-          if (nCars > cbNext.length) cbNext = new Int32Array(nCars * 2);
+          if (nCars > cbNext.length) { cbNext = new Int32Array(nCars * 2); cbS = new Float64Array(nCars * 2); cbK = new Uint8Array(nCars * 2); }
           for (i = 0; i < nCars; i++) {
             oc = cars[i]; cj = oc ? oc.edgeId : -1;
             if (!(cj >= 0) || cj > 65535 || cj !== (cj | 0) || typeof oc.s !== 'number') { cbNext[i] = -2; continue; }
             if (cj >= ebHead.length) { ebHead = new Int32Array(cj * 2 + 2); ebStamp = new Int32Array(cj * 2 + 2); }
             if (ebStamp[cj] !== carFrame) { ebStamp[cj] = carFrame; ebHead[cj] = -1; }
             cbNext[i] = ebHead[cj]; ebHead[cj] = i;
+            cbS[i] = oc.s; cbK[i] = (oc.dir === 1 ? 1 : oc.dir === -1 ? 2 : 3) * 2 + (oc.lane ? 1 : 0);
           }
         }
         ctx.beginPath(); any = false;
@@ -1824,15 +1825,14 @@
           var hf = hl * sgK, hb = hl * sgK;
           if (carTight && cbNext[i] !== -2) {
             // meio caminho ate o carro da frente e o de tras na mesma rua, sentido e faixa (menos a fresta)
-            var ga = 1e9, gb = 1e9, cln = car.lane ? 1 : 0;
+            var ga = 1e9, gb = 1e9, cln = cbK[i], cs0 = cbS[i];
             cj = ebHead[car.edgeId];
             while (cj >= 0) {
               if (cj !== i) {
-                oc = cars[cj];
-                if (oc.dir === car.dir && (oc.lane ? 1 : 0) === cln) {
-                  ds = oc.s - car.s;
+                if (cbK[cj] === cln) {
+                  ds = cbS[cj] - cs0;
                   if (sgOn) {   // rampa do sinal: distancia entre as posicoes desenhadas (mesma rua e sentido)
-                    var so1 = oc.s < 0 ? 0 : (oc.s > SG.len ? SG.len : oc.s), so0 = car.s < 0 ? 0 : (car.s > SG.len ? SG.len : car.s);
+                    var so1 = cbS[cj] < 0 ? 0 : (cbS[cj] > SG.len ? SG.len : cbS[cj]), so0 = cs0 < 0 ? 0 : (cs0 > SG.len ? SG.len : cs0);
                     ds = (so1 - signShift(so1)) - (so0 - signShift(so0));
                   }
                   if (ds > 0) { if (ds < ga) ga = ds; } else if (-ds < gb) gb = -ds;
@@ -1857,7 +1857,7 @@
           ctx.lineTo(x1 - rx, y1 - ry);
           ctx.lineTo(x2 - rx, y2 - ry);
           ctx.lineTo(x2 + rx, y2 + ry);
-          ctx.closePath(); any = true;
+          any = true;   // sem closePath: o fill fecha cada subpath sozinho (mesmo resultado, uma chamada a menos por carro)
         }
         if (any) { ctx.fillStyle = CAR_COLOR; ctx.fill(); }
       }
