@@ -49,6 +49,9 @@
     patience: 22,         // s de espera para o anel de estresse encher
     stressSmooth: 0.6,    // s de suavizacao
     lockSeconds: 8,       // s com estresse >= 1 para travar o cruzamento
+    // barra do resumo e "Close call" (w_risk): o anel cheio so leva a barra ate ringMax; dali a barra e o relogio da trava.
+    // "Close call" so quando o pior cruzamento chegou a closeSecs s (ou menos) de travar
+    riskBar: { ringMax: 0.3, closeSecs: 4 },
 
     // dia
     // s a 1x (o dia roda a 4x por padrao; o jogador troca a velocidade). Dias 1 e 2 eram 22 e 32 (~5 s e 8 s

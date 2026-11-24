@@ -652,6 +652,7 @@
       line: function (t, a, b) { return 'Your ' + t + ': wait ' + a + ' s → ' + b + ' s.'; },
       fixed: 'Fixed. No ring here today.',
       trouble: 'Trouble here yesterday. Tap it.',
+      close: 'Close call here. Tap it.',
       // linha do porque: UMA causa do numero de hoje contra ontem, por prioridade (whyCause)
       why: {
         strike: 'A jam ended the day early.',
@@ -1261,7 +1262,8 @@
     if (!sm) return 0;
     var pk = Math.max(0, Math.min(1, +sm.peak || 0)), ln = Math.max(0, Math.min(1, +sm.lockNear || 0));
     if (sm.failed || ln >= 1) return 1;
-    return pk < 1 ? pk * JAM_RING_BAR : JAM_RING_BAR + (1 - JAM_RING_BAR) * Math.min(0.95, ln);
+    // w_risk: o anel cheio leva a barra so ate CFG.riskBar.ringMax; dali em diante e o relogio da trava (margem em segundos)
+    return Math.max(pk * ((CRZ.CFG && CRZ.CFG.riskBar && CRZ.CFG.riskBar.ringMax) || 0.3), Math.min(0.99, ln));
   }
   function kindTone(kind) {
     return kind === 'bad' ? 'red' : ((kind === 'good' || kind === 'great' || kind === 'jackpot') ? 'green' : 'ink');
@@ -7013,6 +7015,9 @@
         for (k in hot) if (hot.hasOwnProperty(k) && w.nodes[k] && +hot[k] >= HOT_TAP && +hot[k] > bv) { bv = +hot[k]; best = w.nodes[k].id; }
         fbkAm = { day: s.day, at: now, readyAt: 0, stage: 0, fixedId: fx, hotId: best, pulseUntil: 0, nextPulse: 0, skip: false };
         if (fx === null || fbkSeen('fixed.' + s.day)) fbkAm.stage = 1;
+        // w_risk: ontem passou perto de travar (summary.close): o cruzamento dele e o problema do dia, com a frase propria
+        var lh = s.history && s.history[s.history.length - 1], sc = s.summary || {}, clId = sc.close && lh && lh.day === s.day - 1 && sc.lockNode != null && w.nodes[sc.lockNode] ? w.nodes[sc.lockNode].id : null;
+        if (clId !== null) { best = clId; fbkAm.hotId = clId; fbkAm.close = true; }
         if (best === null || fbkSeen('trouble.' + s.day)) fbkAm.skip = true;
       }
       // o tutorial apresenta os aneis tracejados hoje (tip:hot): ele ja aponta o anel mais forte; a faixa nao repete
@@ -7038,7 +7043,7 @@
         fbkAm.stage = 2; fbkMark('trouble.' + s.day);
         var tn = w.nodes[fbkAm.hotId];
         if (!tn) return;
-        say(STR.fbk.trouble, 4000);
+        say(fbkAm.close ? STR.fbk.close : STR.fbk.trouble, 4000);
         // pulsa ate a jogadora tocar no anel ou mexer na ferramenta dele (tool0 = a de agora)
         fbkAm.tool0 = tn.tool || null; fbkAm.pulseUntil = now + FBK.pulseMs; fbkAm.nextPulse = now;
       }

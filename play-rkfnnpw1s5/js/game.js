@@ -228,7 +228,7 @@
     var runHot = {};            // estresse maximo visto no dia (nao vai para o Sim)
     // v2x: segundos seguidos com o anel cheio (relogio da trava) por no, e o maior do dia em fracao de CFG.lockSeconds.
     // O resumo mostra quanto faltou para o jam (summary.lockNear); anel cheio sozinho nao e jam
-    var runFull = {}, lockNear = 0;
+    var runFull = {}, lockNear = 0, lockNearId = 0;
     // retorno da escolha (v2, 2026-11-16): so contabilidade, nada disto muda regra, custo ou rng.
     // runAt = segundo do dia (st.dayTime) do pico de runHot; runWait = espera mais longa (s de jogo) de um carro
     // parado na fila do no; runPass = carros que cruzaram o no no dia (evento 'pass' do Sim)
@@ -964,8 +964,12 @@
       // +5 no minimo, e carros por segundo de dia 10% acima do melhor ritmo (um dia mais longo sozinho nao e recorde)
       var recordNow = rn > 0 && st.day >= RECORD.fromDay && delivered > prevBest && delivered - prevBest >= RECORD.minCars &&
         st.dayLen > 0 && delivered / st.dayLen >= prevRate * RECORD.rateMul;
+      // w_risk: 'Close call' so quando o pior cruzamento ficou a CFG.riskBar.closeSecs s de travar (antes: anel >= 0.7)
+      var lockSecsDay = (typeof world.lockSecs === 'function' && +world.lockSecs()) || CFG.lockSeconds || 8;
+      var marginS = lockNear > 0 ? Math.round(Math.max(0, lockSecsDay * (1 - lockNear)) * 10) / 10 : null;
+      var closeNow = !failed && gl === 0 && marginS !== null && marginS <= ((CFG.riskBar && CFG.riskBar.closeSecs) || 4);
       var headline = failed ? 'Locked!'
-        : peak >= 0.7 ? 'Close call'
+        : closeNow ? 'Close call'
         : recordNow ? 'New record'
         : (hn > 0 && delivered > 1.1 * prevSum / hn) ? 'Busy day'
         : 'Smooth day';
@@ -979,6 +983,8 @@
         tipCarry: Math.round(st.tipCarry * 100) / 100,
         // v2x: quanto o pior cruzamento chegou do jam (0 a 1; 1 = travou hoje, contando ou nao como strike)
         lockNear: failed || gl > 0 ? 1 : Math.round(Math.min(0.99, lockNear) * 100) / 100,
+        // w_risk: segundos que faltaram para o pior cruzamento travar (null = o anel nao encheu) e qual era; close = Close call
+        margin: failed || gl > 0 ? 0 : marginS, lockNode: lockNear > 0 ? lockNearId : null, close: closeNow,
         // carros perdidos no dia (portal sem rota, mao unica): o sim conta cada carro uma vez. Gravado no
         // resumo para o "Lost cars: N" sobreviver a save/load (o world.stats zera no load)
         lost: s.lost || 0
@@ -2671,7 +2677,7 @@
       syncModes(CFG.clear.charges);                // cargas renovadas a cada dia
       darkenLights();                              // v2: semaforos sem manutencao paga ficam apagados hoje
       undoStack = [];
-      acc = 0; stepCount = 0; dayFailed = false; runHot = {}; runFull = {}; lockNear = 0; st.hot = {};
+      acc = 0; stepCount = 0; dayFailed = false; runHot = {}; runFull = {}; lockNear = 0; lockNearId = 0; st.hot = {};
       runAt = {}; runWait = {}; runPass = {}; runTrace = {};
       graceT = {}; st.freeJams = 0;
       refresh();
@@ -2812,7 +2818,7 @@
           for (var j = 0; j < ids.length; j++) {
             var n = world.nodes[ids[j]];
             if ((n.stress || 0) > (runHot[ids[j]] || 0)) { runHot[ids[j]] = n.stress; runAt[ids[j]] = st.dayTime; }
-            if ((n.stress || 0) >= 1 && !n.locked) { runFull[ids[j]] = (runFull[ids[j]] || 0) + 10 * STEP; lockNear = Math.max(lockNear, runFull[ids[j]] / ((typeof world.lockSecs === 'function' && +world.lockSecs()) || CFG.lockSeconds || 8)); } else if (!n.locked) runFull[ids[j]] = 0;
+            if ((n.stress || 0) >= 1 && !n.locked) { runFull[ids[j]] = (runFull[ids[j]] || 0) + 10 * STEP; var lnj = runFull[ids[j]] / ((typeof world.lockSecs === 'function' && +world.lockSecs()) || CFG.lockSeconds || 8); if (lnj > lockNear) { lockNear = lnj; lockNearId = ids[j]; } } else if (!n.locked) runFull[ids[j]] = 0;
             var wq = waitNow(ids[j], n);
             if (wq > (runWait[ids[j]] || 0)) runWait[ids[j]] = wq;
             if (stepCount % TRACE_EVERY === 0) (runTrace[ids[j]] || (runTrace[ids[j]] = [])).push(Math.round(Math.min(1, n.stress || 0) * 100));
