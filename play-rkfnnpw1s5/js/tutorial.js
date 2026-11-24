@@ -422,7 +422,7 @@
     // Ponta sem lugar para o carro (useClear 'space'): o balao diz e aponta a proxima ponta ainda nao tentada
     // Got it sem pausar (o dia corre); sem tempo limite: so a acao ou o Got it avancam
     // os quadradinhos azuis sao carros (playtest as cegas: ninguem sabia); pausa e aponta um carro
-    { id: 'cars', win: at(1, 'run'), mode: 'nudge', btn: 'ok', strip: true, text: STR.cars,
+    { id: 'cars', win: at(1, 'run'), mode: 'nudge', btn: 'ok', strip: true, stripS: 3, text: STR.cars,
       wait: function (c) {
         var w = c.game && c.game.world;
         return c.clock - c.phaseAt < SHOW_AFTER || (!!(w && w.cars) && !firstCar(c.game) && c.clock - c.phaseAt < 6);
@@ -884,7 +884,7 @@
       if (isStrip(step) || (step.kind !== 'main' && modalCnt.n >= cap)) {
         cu.mode = 'strip';
         var u = uiOf(c), tx = textOf(cu);
-        try { if (u && typeof u.strip === 'function') u.strip(tx, STRIP_S * 1000); } catch (e) {}
+        try { if (u && typeof u.strip === 'function') u.strip(tx, (step.stripS || STRIP_S) * 1000); } catch (e) {}
         return true;
       }
       modalCnt.n++;
@@ -1028,7 +1028,7 @@
       if (cu && cu.mode === 'strip') {
         cu.t += dt;
         // a faixa sai sozinha em 6 s, no primeiro toque, ou quando a acao dela acontece
-        if (cu.t >= STRIP_S || c.touchAt > cu.at || (cu.step.done && cu.step.done(c))) finish();
+        if (cu.t >= (cu.step.stripS || STRIP_S) || c.touchAt > cu.at || (cu.step.done && cu.step.done(c))) finish();
         return;
       }
       if (cu) {
@@ -1148,7 +1148,10 @@
     // toque no corpo do balao nao fecha mais (tocar perto tirava a dica antes da leitura)
     function tap() {}
     // toque no escuro em volta do alvo: a maozinha aparece na hora (antes so depois de 15 s)
-    function dimTap() { if (c.cur && c.cur.mode === 'act' && c.cur.step.hand) c.cur.t = Math.max(c.cur.t, HAND_AFTER); }
+    function dimTap() {
+      if (c.cur && c.cur.mode === 'act' && c.cur.step.hand) c.cur.t = Math.max(c.cur.t, HAND_AFTER);
+      if (c.cur && c.cur.mode !== 'strip') { try { if (view.again) view.again(); } catch (e) {} }   // w_first: toque no escuro nunca fica mudo
+    }
     function skipTap() {
       if (c.clock < armedUntil) { skip(); return true; }
       armedUntil = c.clock + ARM_TIME;
