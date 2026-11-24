@@ -148,9 +148,9 @@
       road: 'Drag from a circled road end or a crossing to build a road.',
       // v2m: uma linha por peca: onde ela e boa e onde ela atrapalha (o territorio de cada uma)
       stop: 'Cars take turns. Good on small crossings, slow on a main road.',
-      yield: 'Main road keeps going, side road waits. Jams if all are busy.',
+      yield: 'Busy road keeps going. Best where it meets a quiet side street.',
       light: 'For crossings busy from every side. Quiet streets wait on red.',
-      upgrade: 'Longer line fits. Good where cars back up; the crossing is no faster.',
+      upgrade: 'Best on a Stop with one long line: both lanes go at once.',
       cross: 'Drivers wait longer before the ring turns red. Replaces the sign.',
       round: 'Cars go around without stopping. Good where 4 roads meet; jams when packed.',
       oneway: 'Tap a road: cars drive away from the half you tap.'
@@ -160,7 +160,7 @@
       stop: 'Goes on a crossing with 3 or more roads. Replaces the sign there.',
       yield: 'Goes on a crossing with 3 or more roads. Replaces the sign there.',
       light: 'Goes on a crossing with 3 or more roads. Replaces the sign there.',
-      upgrade: 'Works on any road. Best where a line backs up into a crossing.',
+      upgrade: 'Works on any road. Put it on the road with the long line.',
       cross: 'Goes where 2 or more roads meet. Replaces the sign there.',
       round: 'Goes on a crossing with 4 or more roads. Replaces the sign there.',
       oneway: 'Tap the arrow to flip it (free), again for two-way. A car with no route waits, then counts as lost.'
@@ -488,6 +488,7 @@
       wiNew: function (to) { return 'Red ring at a crossing: a ' + to + ' cuts the wait here.'; },
       wiMain: ' The lit road is the main road.',
       wiBest: 'This crossing is doing its best. Try a new road nearby.',
+      wiStale: 'New road here since yesterday. After today, tap it to compare pieces.',
       // w_fix8: com o cartao da escolha (replay de ontem) para o no, nenhuma dica recomenda peca: so aponta para ele
       compare: 'Tap it to compare.',
       unlocksTomorrow: function (name) { return ' New tool tomorrow: ' + name + '.'; },
@@ -621,6 +622,10 @@
         main: function (n) { return 'main road waits more'; },   // w_choice3: sem segundos na linha da peca
         side: function (n) { return 'side street waits more'; }, busy: 'fills up on busy days', varies: 'varies from day to day'
       },
+      // w_pick: com duas ou mais linhas 'better', a etiqueta de uma (game.choiceFor tagRows) e quem paga em cada linha 'better'
+      // (ate 5 palavras: a rua que mais espera com a peca, medida na repeticao)
+      tag: { fastest: 'Fastest', cheapest: 'Cheapest' },
+      payer: { side: 'side street waits', main: 'main road waits', all: 'everyone waits a little' },
       aria: function (name, price, nums, note) { return name + ', ' + price + '. ' + nums + (note ? '. ' + note : '') + '.'; }
     },
     fbk: {
@@ -903,6 +908,8 @@
     // espera mais longa (o numero do resumo) sem travar nem subir o anel; nada ganha: o cruzamento ja da o que pode
     var wi = ctx && ctx.wi;
     if (junction && wi && !fresh) {
+      // w_pick: rua nova no cruzamento desde ontem: o dia de ontem nao diz qual peca serve hoje (nenhuma e mandada)
+      if (!wi.tool && wi.stale) return { key: 'stale', tool: null, wi: true, text: J.wiStale };
       if (!wi.tool) return { key: 'best', tool: 'road', wi: true, text: J.wiBest };
       var me = wi.tool === 'yield' ? mainEdges(n, world) : null;
       return { key: 'sign:' + wi.tool, tool: wi.tool, wi: true, main: me,
@@ -1214,9 +1221,13 @@
   // carta recomendada do dia (uma so, ou nenhuma): fila alta pede calma; cruzamento quente pede semaforo
   // ctx (opcional) = {day, cfg, pairs}: nada de recomendar carta de ferramenta ainda nao liberada hoje
   // (o cartao dela nao foi visto) nem a onda verde sem semaforos pareados.
+  // w_pick (dono: o selo decidia pela jogadora em ~8 de 10 dias): so no capitulo 1 (dia ate CFG.chapterDays, aprendizado);
+  // do capitulo 2, nenhuma carta sugerida nem destacada: a jogadora escolhe
   function suggestCard(draft, peak, worst, ctx) {
     function hasC(id) { return draft && draft.indexOf(id) >= 0 && cardFits(id, peak, ctx); }
     if (!draft || !draft.length) return null;
+    var CDs = ctx && ctx.cfg && ctx.cfg.chapterDays > 0 ? ctx.cfg.chapterDays : 0;
+    if (CDs && (ctx.day | 0) > CDs) return null;
     if (peak >= 0.6 && hasC('patient')) return 'patient';
     if (peak >= 0.6 && worst && !isEnd(worst) && degOf(worst) >= 3 && !worst.tool && hasC('freeLight')) return 'freeLight';
     if (hasC('plus2')) return 'plus2';
@@ -6327,6 +6338,8 @@
       b.setAttribute('data-tool', r.tool);
       var ico = el('span', 'crz-scico', toolIcon(r.tool)), body = el('span', 'crz-scbody'), top = el('span', 'crz-sctop');
       var nm = el('span', 'crz-scname'); nm.textContent = name;
+      var tagTxt = !c.pending && r.tag && C.tag[r.tag] ? C.tag[r.tag] : '';
+      if (tagTxt) { var tg = el('i', 'crz-ctag'); tg.textContent = tagTxt; nm.appendChild(tg); }
       var pr = el('span', 'crz-scprice'); pr.textContent = price;
       top.appendChild(nm); top.appendChild(pr); body.appendChild(top);
       var nums = c.pending ? C.pending : (r.w === null ? C.none : C.verdict[vd]);
@@ -6339,11 +6352,13 @@
       }
       num.textContent = nums; mid.appendChild(bar); mid.appendChild(num); body.appendChild(mid);
       var noteTxt = '', payTxt = '', lostTxt = '';
-      if (r.note) noteTxt = typeof C.note[r.note] === 'function' ? C.note[r.note](r.nv) : C.note[r.note];
+      if (!c.pending && vd === 'better' && r.payer && C.payer[r.payer]) { payTxt = C.payer[r.payer]; var py = el('span', 'crz-scnote crz-scpay'); py.textContent = payTxt; body.appendChild(py); }
+      // w_pick: com quem paga na linha, a consequencia de lado (side/main) diria o mesmo: sai
+      if (r.note && !(payTxt && (r.note === 'side' || r.note === 'main'))) noteTxt = typeof C.note[r.note] === 'function' ? C.note[r.note](r.nv) : C.note[r.note];
       if (noteTxt) { var nt = el('span', 'crz-scnote'); nt.textContent = noteTxt; body.appendChild(nt); }
       if (lost > 0) { lostTxt = C.replaces(lost, String(STR.tools[c.have] || c.have).toLowerCase()); var ls = el('span', 'crz-scnote crz-sclost'); ls.textContent = lostTxt; body.appendChild(ls); }
       b.appendChild(ico); b.appendChild(body);
-      b.setAttribute('aria-label', C.aria(name, price, nums, [payTxt, noteTxt, lostTxt].filter(Boolean).join('. ')));
+      b.setAttribute('aria-label', C.aria(name + (tagTxt ? ' (' + tagTxt + ')' : ''), price, nums, [payTxt, noteTxt, lostTxt].filter(Boolean).join('. ')));
       b.addEventListener('click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); if (nowMs() - scAt < SC_GHOST_MS) return; choicePick(r.tool, r.edge); });
       return b;
     }

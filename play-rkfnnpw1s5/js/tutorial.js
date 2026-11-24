@@ -55,11 +55,11 @@
     // cartoes de ferramenta: {c} vira o custo do CFG ("1 build point"); ate 10 palavras ja com o custo
     tool: {
       stop: 'Stop, {c}: cheap. Cars take turns at quiet crossings.',
-      yield: 'Yield, {c}: the main road never stops. Best with three roads.',
+      yield: 'Yield, {c}: best where a busy road meets a quiet side street.',
       // v2m: a manutencao saiu (CFG.upkeep.perLight 0); o custo do semaforo e a vaga (CFG.lightCap, '1 of 2' no ladrilho)
       // w_light: o cartao sai no dia do semaforo e diz a vaga desse dia ({lc}, de CFG.lightCap) na primeira vez
       light: 'Traffic light, {c}: busy every side. Your city powers {lc} for now.',
-      upgrade: 'Two lanes, {c}: holds a longer line. The crossing is no faster.',
+      upgrade: 'Two lanes, {c}: best on a Stop with one long line.',
       // o motivo do "pouco": a faixa para carros por pedestres (o cartao passa de 10 palavras por isso)
       cross: 'Crosswalk, {c}: cars stay calm longer, so rings show up later.',
       // w_tiles: diz o que a rotatoria FAZ (antes so onde usar), nas palavras da linha da bandeja

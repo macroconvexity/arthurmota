@@ -752,6 +752,14 @@
       return best;
     }
 
+    // w_tools (J.stop.twoLanes, opcional): no Pare, a entrada de duas faixas que acabou de soltar um carro solta tambem a cabeca
+    // parada da outra faixa na mesma vez (a fila longa de um lado anda mais). extra: a vez dura extra x a mais quando os dois saem
+    // (0 = o dobro de carros, 1 = como sem a regra). Sem o bloco, como antes
+    function stopPair(n, ns, fs, hold) {
+      var TS = J.stop.twoLanes, ra = (ns.rr - 1 + ns.ap.length) % ns.ap.length;
+      if (TS && w.day >= (TS.fromDay || 1) && ns.ap[ra] && ns.ap[ra].e.lanes > 1 &&
+          releaseBest(n, ns, function (c) { return c.a === ra && c.wait >= fs; }) && TS.extra > 0) ns.busy += TS.extra * hold;
+    }
     function serveNode(n, ns) {
       if (!ns.ap.length) return;
       var t = w.time, tool = n.tool;
@@ -786,10 +794,12 @@
         var so = SL ? occupiedApproaches() : 0, sserve = J.stop.serve + (so >= 3 ? SL.multiApproachPenalty * (so - 2) : 0);
         if (bf) {
           var fs = J.stop.fullStop / ns.bmul;
-          if (releaseRR(n, ns, function (c) { return c.wait >= fs; })) ns.busy = t + sserve / ns.bmul;
+          if (releaseRR(n, ns, function (c) { return c.wait >= fs; })) { ns.busy = t + sserve / ns.bmul; stopPair(n, ns, fs, sserve / ns.bmul); }
           return;
         }
-        if (releaseRR(n, ns, function (c) { return c.wait >= J.stop.fullStop; })) ns.busy = t + sserve;
+        if (releaseRR(n, ns, function (c) { return c.wait >= J.stop.fullStop; })) {
+          ns.busy = t + sserve; stopPair(n, ns, J.stop.fullStop, sserve);
+        }
         return;
       }
       if (tool === 'yield') {

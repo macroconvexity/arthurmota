@@ -169,9 +169,13 @@
       // entradas ocupadas solta cada carro 0,3 s (uma alem de 2) ou 0,6 s (duas) mais devagar: todo mundo para, a cruz movimentada
       // engasga (anel e a linha "Too busy from every side for a stop"); o T segue como era. 40 sementes (web/dev/review/w_ag7/REPORT.md):
       // Easy stopAll limpo 73% -> 13% com aware 95%; capitulo 1 igual (fromDay 11)
-      stop:  { serve: 0.9, fullStop: 0.8, late: { fromDay: 11, multiApproachPenalty: 0.3 } },
+      // w_pick (dono: Two lanes e Yield sem lugar proprio): twoLanes liga a regra stopPair do sim.js. No Pare, as duas cabecas
+      // paradas de uma entrada de duas faixas saem na mesma vez: Two lanes e 'um Pare com uma fila longa'. 8 sementes
+      // (web/dev/review/w_tools): melhor linha do cartao 12/10% -> 17/15% (Easy/Normal), melhor em 27 a 35% das cruzes de Pare
+      stop:  { serve: 0.9, fullStop: 0.8, late: { fromDay: 11, multiApproachPenalty: 0.3 }, twoLanes: { fromDay: 1 } },
       // v2 (v2/sistemas.md 7 regra 3): minorMaxWait 7 -> 12. A lateral so forca a vez depois de 12 s: o Yield trava
       // quando as duas ruas tem o mesmo movimento (cruz equilibrada), e segue o melhor no T de rua principal.
+      // w_pick: testado 12 -> 5 (Yield vira a melhor linha em 13/18% dos cruzamentos), mas a dica da manha manda Yields que pioram (test_v2x_advice 11% no Easy, limite 5%); fica 12 ate a regra da dica mudar
       yield: { serve: 0.6, minorServe: 1.1, minorMaxWait: 12, batch: 0 },
       // v2m (2026-11-17, v2/_scripts/v2m): o semaforo atuado (pulava o eixo vazio e segurava o verde enquanto ninguem mais
       // esperava) era o melhor ou empatado em TODA situacao da bancada (out/bench_before.md): nunca tinha lado ruim.

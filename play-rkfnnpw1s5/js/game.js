@@ -1933,6 +1933,8 @@
       // mandada precisa ganhar nos dois, senao o numero de amanha desmente o conselho)
       var A = CFG.advice || {}, hi = A.hi || 1.2;
       var save = morning.save, mBase = morning.base || (morning.base = {}), day = day0, r = { day: day, tool: cur, cur: null, curHi: null, alt: {}, altHi: {} }, base = {};
+      // w_pick: as ruas do cruzamento no dia jogado de novo (o mapa de ontem: no resumo o de agora, de manha o do save de ontem)
+      r.roads = roadsAt(inPlan ? m0.world : world, id);
       function bKey(mul, s) { return (mul === 1 ? '1' : String(mul)) + ':' + (s || 0); }
       var m = prune && st.adv && st.adv[id], kd = m && st.kinds && st.kinds[id];
       var followed = !!(m && m.tool && cur === m.tool && m.from !== m.tool);
@@ -2042,6 +2044,9 @@
       };
       return job;
     }
+    // w_pick: as ruas que chegam ao cruzamento (ids em ordem). A cidade cresce de noite: uma rua nova no cruzamento (ou uma
+    // rua cortada por um cruzamento novo) faz o dia de ontem jogado de novo nao descrever mais o de amanha
+    function roadsAt(wd, id) { var nd = wd && wd.nodes[id]; return nd ? nd.edges.map(idOf).sort(function (a, b) { return a - b; }).join(',') : ''; }
     function wiCached(id) {
       var C = st.whatIf && st.whatIf.nodes ? st.whatIf.nodes[id] : null;
       return C && st.whatIf.day === (st.phase === 'summary' || st.phase === 'over' ? st.day : st.day - 1) ? C : null;
@@ -2080,6 +2085,10 @@
     g.adviceFor = function (id, lazy) {
       id = +id;
       var r = g.whatIf(id, lazy, true); if (!r) return null;
+      // w_pick (test_v2x_advice, Easy semente 12 dia 8): de noite a cidade ligou uma rua nova ao cruzamento (3 ruas -> 4). O 'e
+      // se' mediu o cruzamento de ontem; para o de hoje ele nao vale: nenhuma peca e mandada (a memoria do conselho fica como
+      // esta). Save de antes, sem r.roads: como antes
+      if (st.phase === 'plan' && r.roads && r.roads !== roadsAt(world, id)) return { tool: null, stale: true, from: r.tool, w0: r.cur ? r.cur.w : 0 };
       var A = CFG.advice || {}, n = world.nodes[id], kd = st.kinds && st.kinds[id];
       if (!st.adv) st.adv = {};
       var m = st.adv[id], dayK = r.day;
@@ -2147,6 +2156,22 @@
       if (-d >= W.sec && -q >= W.pct) return 'worse';
       return 'same';
     };
+    // w_pick: com duas ou mais linhas 'better', UMA leva 'fastest' (a menor espera da repeticao; sem etiqueta quando a segunda fica
+    // no 'about the same' da primeira: verdictFor(segunda, primeira) nao e 'better') e, se for outra, a mais barata das 'better'
+    // leva 'cheapest' (sem etiqueta se o menor preco empata). Preco: 0 com a peca na mao. A ordem das linhas nao muda.
+    // payer so nas linhas 'better'; com a consequencia de lado ('side'/'main') ele e a mesma rua (a UI mostra so o payer)
+    function tagRows(rows) {
+      var good = rows.filter(function (r) { return r.verdict === 'better' && r.w !== null; }), i;
+      rows.forEach(function (r) { r.tag = null; if (r.verdict !== 'better') r.payer = null; else if (r.note === 'side' || r.note === 'main') r.payer = r.note; });
+      if (good.length < 2) return;
+      var byW = good.slice().sort(function (a, b) { return a.w - b.w; }), fast = byW[0];
+      if (g.verdictFor(byW[1].w, fast.w) !== 'better') return;
+      fast.tag = 'fastest';
+      function price(r) { return r.hand ? 0 : r.cost; }
+      var low = Infinity, cheap = [];
+      for (i = 0; i < good.length; i++) { var p = price(good[i]); if (p < low) { low = p; cheap = [good[i]]; } else if (p === low) cheap.push(good[i]); }
+      if (cheap.length === 1 && cheap[0] !== fast) cheap[0].tag = 'cheapest';
+    }
     g.choiceFor = function (id, skeleton) {
       id = +id;
       var n = world.nodes[id]; if (!n || n.portal || degree(n) < 3) return null;
@@ -2171,6 +2196,15 @@
         if (ot === null || Math.abs(Math.round(me) - Math.round(ot)) < (K.payGap || 2)) return null;
         return { me: Math.round(me), other: Math.round(ot) };
       }
+      // w_pick: quem paga, em palavras, para a linha que melhora: a rua que mais espera com a peca. 'all' quando as ruas ficam a
+      // menos de payGap s umas das outras; 'main' quando e a rua que mais trouxe carros ontem; 'side' quando e outra
+      function payerOf(res) {
+        if (!busy || !res || !res.a || res.a.length < 2) return 'all';
+        var mx = null, mn = null;
+        for (var j = 0; j < res.a.length; j++) { var v = Math.round(res.a[j][1]); if (!mx || v > mx[1]) mx = [res.a[j][0], v]; if (mn === null || v < mn) mn = v; }
+        if (mx[1] - mn < (K.payGap || 2)) return 'all';
+        return mx[0] === busy[0] ? 'main' : 'side';
+      }
       // a faixa: o menor e o maior dos numeros das medidas, com os multiplicadores; sempre com o ponto dentro
       function rangeOf(point, runs) {
         var lo = point, hi = point, j;
@@ -2192,6 +2226,7 @@
         row.res = newLock || aShow > bShow ? 'worse' : (aShow < bShow ? 'better' : 'same');
         row.verdict = newLock ? 'worse' : g.verdictFor(bShow, aShow);
         row.pay = payOf(x);
+        row.payer = payerOf(x);
         return { repBad: repBad, newLock: newLock };
       }
       for (i = 0; i < CFG.toolOrder.length; i++) {
@@ -2199,7 +2234,7 @@
         if (WI_TOOLS.indexOf(t) < 0 || !inMatch(t) || !isUnlocked(t) || t === have) continue;
         var capped0 = t === r.tool ? null : (r.cap && own(r.cap, t) ? r.cap[t] : null);
         var x = pend ? null : (t === r.tool ? r.cur : (own(r.alt, t) ? r.alt[t] : capped0)), xh = t === r.tool ? r.curHi : (r.altHi && own(r.altHi, t) ? r.altHi[t] : (r.capHi && own(r.capHi, t) ? r.capHi[t] : null));
-        var pc = placeCheck(id, t), row = { tool: t, cost: pc.cost, hand: pc.hand, afford: pc.afford, capped: pc.capped, w: null, lo: null, hi: null, p: null, lock: false, res: null, verdict: null, note: null, nv: 0, pay: null };
+        var pc = placeCheck(id, t), row = { tool: t, cost: pc.cost, hand: pc.hand, afford: pc.afford, capped: pc.capped, w: null, lo: null, hi: null, p: null, lock: false, res: null, verdict: null, note: null, nv: 0, pay: null, payer: null, tag: null };
         if (x) {
           var L = r.rep && r.rep[t], fr = fillRow(row, t, x, xh, L), newLock = fr.newLock, repBad = fr.repBad;
           var qb, win = t !== r.tool && wiWins(x, r.cur, gain), qa = quiet ? armW(x, quiet[0]) : null;
@@ -2219,10 +2254,11 @@
       // Two lanes na rua mais cheia que chega aqui (a de uma faixa com mais carros ontem): o mesmo gesto da bandeja (g.upgradeRoad)
       var le = r.laneEdge !== undefined && r.laneEdge !== null ? world.edges[r.laneEdge] : null;
       if (!pend && le && (le.lanes || 1) < 2 && r.lane && inMatch('upgrade') && isUnlocked('upgrade') && (le.a === id || le.b === id)) {
-        var uc = costOf('upgrade'), lrow = { tool: 'upgrade', edge: r.laneEdge, cost: uc, hand: handOf('upgrade') > 0, afford: st.budget >= uc, capped: false, w: null, lo: null, hi: null, p: null, lock: false, res: null, verdict: null, note: null, nv: 0, pay: null };
+        var uc = costOf('upgrade'), lrow = { tool: 'upgrade', edge: r.laneEdge, cost: uc, hand: handOf('upgrade') > 0, afford: st.budget >= uc, capped: false, w: null, lo: null, hi: null, p: null, lock: false, res: null, verdict: null, note: null, nv: 0, pay: null, payer: null, tag: null };
         fillRow(lrow, 'upgrade', r.lane, r.laneHi, null);
         rows.push(lrow);
       }   // sem o 'e se' ainda: a linha de Two lanes entra assim que a rua mais cheia se conhece (a lista se refaz)
+      if (!pend) tagRows(rows);
       var lw = pend ? null : (have === r.tool ? before : (have && own(r.alt, have) ? waitV(r.alt[have]) : (have ? null : before)));
       return { id: id, day: r.day, pending: pend, tool: r.tool, have: have, deg: deg, before: before, loud: loud ? loud[0] : null, rows: rows,
                leave: { tool: have, w: lw, before: before, same: have === r.tool || (!have && !r.tool) } };
