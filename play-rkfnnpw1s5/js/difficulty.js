@@ -41,6 +41,9 @@
               // carros pesam primeiro no preguicoso (93% com carros x1,3/x1,15). web/dev/review/w_cars/NOTES.md
               latePatience: 1.2, budgetAdd: [0, -1, -1],
               restartFrom: 21,
+              // w_price (80 sementes, web/dev/review/w_price): no Easy so o semaforo sobe por capitulo (config: 4/6/8); qualquer subida
+              // da Roundabout (3/3/4 em diante) leva o curioso a repetir o capitulo 3 em 40 a 44% (alvo 20 a 35%; sem rampa 34%)
+              costByChapter: { round: [3, 3, 3] },
               assist: { chipAt: 0.45, chipOff: 0.3, playConfirm: true, newJunctionTip: true, newMark: true, jamBalloonAt: 0.3 } },
     // w_ag7 (2026-11-24): com o Pare lento na cruz cheia e os lugares, o aware do Normal caia a ~45% limpo (alvo 70 a 85%): 4 strikes
     // (eram 3) e motoristas 1,5x mais pacientes do dia 5 (era 1,3). 40 sementes: aware 55% (main) -> 80%, Stop em tudo 3% -> 0% (web/dev/review/w_ag7)
@@ -102,6 +105,9 @@
   // places (opcional, w_far): { max: [..], rate: [..], perDay: [..] } por capitulo, por cima de CFG.trafficBalance.places (so os campos dados)
   var ptune = tune && tune.places ? tune.places : p.places;
   if (ptune && CFG.trafficBalance && CFG.trafficBalance.places) for (var pk in ptune) if (ptune.hasOwnProperty(pk)) CFG.trafficBalance.places[pk] = ptune[pk];
+  // costByChapter (opcional, w_price): { light: [c1, c2, c3], round: [...] } por cima de CFG.tools.<id>.costByChapter (so as pecas dadas)
+  var ctune = tune && tune.costByChapter ? tune.costByChapter : p.costByChapter;
+  if (ctune && CFG.tools) for (var ck in ctune) if (ctune.hasOwnProperty(ck) && CFG.tools[ck] && Array.isArray(ctune[ck])) CFG.tools[ck].costByChapter = ctune[ck].slice();
   CFG.maxStrikes = p.strikes;
   // restartFrom (opcional): primeiro dia em que gastar os strikes manda de volta (CFG.noRestartBeforeDay; antes dele o
   // ultimo strike so avisa, como no capitulo 1). Os textos leem {restartDay}

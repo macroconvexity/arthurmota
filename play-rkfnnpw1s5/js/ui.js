@@ -61,6 +61,8 @@
     chRetry: function (d) { return 'You are back at the morning of day ' + d + ', city as it was.'; },
     // w_place: o Pare passa a engasgar em cruzamento cheio (CFG.junction.stop.late.fromDay); o cartao do capitulo diz uma vez
     chStopLate: function (d) { return 'From day ' + d + ', a stop is slow where 3 or more roads are busy.'; },
+    // w_price: a linha dos precos novos no cartao do capitulo (so as pecas que ja apareceram e cujo preco subiu)
+    chPrice: { light: function (n) { return 'Lights now cost ' + n + '.'; }, round: function (n) { return 'Roundabouts cost ' + n + '.'; } },
     chNewLead: 'New: ', chCars: 'more cars', chWait: 'drivers wait less',
     // w_fix8: o teto de lugares (CFG.trafficBalance.places.max) que sobe de um capitulo para o outro
     chPlaces: function (n) { return 'more places to drive to (up to ' + n + ')'; },
@@ -1930,6 +1932,11 @@
     var dotsEl = tut(el('div', 'crz-dots'), 'dots'), dotEls = [], i;
     // v2: as bolinhas sao as do capitulo de hoje (CFG.chapterDays, 10), o mesmo componente; o rotulo diz 'Day 14 of 30'
     var CH_LEN = (CFG.chapterDays | 0) > 0 ? Math.min(CFG.chapterDays | 0, CFG.maxDays) : CFG.maxDays;
+    // w_price: preco de tabela de hoje (sem mao nem gratuidade): CFG.tools.<id>.costByChapter pelo capitulo do dia
+    function listPrice(t, day) {
+      var d = day; if (!(d > 0)) { try { d = game.state.day | 0; } catch (e) { d = 1; } }
+      return CRZ.toolPrice ? CRZ.toolPrice(t, d) : (CFG.tools[t] ? CFG.tools[t].cost : 0);
+    }
     for (i = 0; i < CH_LEN; i++) { var d = el('span', 'crz-dot'); d.setAttribute('aria-label', 'Day ' + (i + 1)); dotsEl.appendChild(d); dotEls.push(d); }
     // rotulo 'Day N of 30' sob os pontinhos (o ponto vermelho e hoje)
     var dayLbl = el('span', 'crz-lbl crz-lbl-day'); dayLbl.setAttribute('aria-hidden', 'true'); dotsEl.appendChild(dayLbl);
@@ -2549,7 +2556,7 @@
       sec(STR.guideTools);
       for (i = 0; s.tools && i < s.tools.length; i++) {
         t = s.tools[i]; if (!t.unlocked) continue;   // ferramenta ainda nao apresentada nao aparece
-        var c = CFG.tools[t.id] ? CFG.tools[t.id].cost : t.cost;
+        var c = CFG.tools[t.id] ? listPrice(t.id) : t.cost;   // w_price: preco de tabela de hoje (capitulo)
         // 'Works best with Two lanes' so quando Two lanes ja existe
         var wk = STR.toolWorks[t.id];
         if (t.id === 'light' && !toolOpen(CFG, 'upgrade', s.day | 0)) wk = STR.toolWorksLightEarly;
@@ -2613,7 +2620,7 @@
     }
     function legendText(id) {
       var c; try { c = typeof game.cost === 'function' ? game.cost(id) : undefined; } catch (e) { warnOnce('game.cost', e); }
-      if (typeof c !== 'number') c = CFG.tools[id] ? CFG.tools[id].cost : 0;
+      if (typeof c !== 'number') c = CFG.tools[id] ? listPrice(id) : 0;
       return STR.legend(STR.tools[id] || id, c, STR.toolUseLine[id] || '');
     }
     function legendAfford(id) { try { return !game.canAfford || game.canAfford(id) !== false; } catch (e) { return true; } }
@@ -3743,7 +3750,8 @@
     // troca para baixo = a nova ferramenta e pior: camada menor, ou mesma camada e preco de tabela menor.
     // Preco de TABELA (CFG), nunca o de hoje: com o dado 'Free build' o semaforo custa 0 e Yield -> semaforo
     // (para cima) pedia confirmacao como se fosse para baixo (passeio humano 2026-11-09)
-    function listCost(t) { return CFG.tools && CFG.tools[t] ? CFG.tools[t].cost : 0; }
+    // w_price: o preco de tabela e o do capitulo de hoje (CRZ.toolPrice); a Roundabout trocada 'perde' o que custaria hoje
+    function listCost(t) { return CFG.tools && CFG.tools[t] ? listPrice(t) : 0; }
     function swapDown(from, to) {
       var a = SIGN_TIER[from] || 0, b = SIGN_TIER[to] || 0;
       return b < a || (b === a && listCost(to) < listCost(from));
@@ -3765,7 +3773,7 @@
     }
     function toolCost(t) {
       try { if (typeof game.cost === 'function') return game.cost(t); } catch (e) { warnOnce('game.cost', e); }
-      return CFG.tools && CFG.tools[t] ? CFG.tools[t].cost : 0;
+      return CFG.tools && CFG.tools[t] ? listPrice(t) : 0;
     }
     // toque no lugar do chip do Boost que acabou de sair: o no do chip (null fora disso)
     function chipGhostNode(sx, sy) {
@@ -5125,7 +5133,7 @@
         var tl = tiles[t.id]; if (!tl) continue;
         var c = game.cost ? game.cost(t.id) : t.cost;
         // nv10 1: a gratuidade que veio do dado so aparece depois de a jogadora rolar
-        if (c === 0 && (t.id === 'road' || t.id === 'light') && dieFreeHidden(s)) c = CFG.tools[t.id].cost;
+        if (c === 0 && (t.id === 'road' || t.id === 'light') && dieFreeHidden(s)) c = listPrice(t.id);
         // w_tiles: todo ladrilho diz o nome curto ao lado do custo ('Road 2', 'Stop 1', 'Round 3'): o dono jogou
         // semanas sem saber o que era o aro com ponto. O ladrilho cresce na largura so o que o nome pede (style.css)
         // v2m: o ladrilho do semaforo diz quantos a cidade liga ('1 of 2'), ao lado do icone (crz-tcap)
@@ -6150,9 +6158,9 @@
     var chStrkRow = el('div', 'crz-chstrk'), chStrk = el('div', 'crz-sstrikes'), chStrkTxt = el('span'), chStrkEls = [];
     for (i = 0; i < (CFG.ironMode ? 1 : CFG.maxStrikes); i++) { var cs0 = el('span', 'crz-strike'); chStrk.appendChild(cs0); chStrkEls.push(cs0); }
     chStrkRow.appendChild(chStrk); chStrkRow.appendChild(chStrkTxt);
-    var chSaveEl = el('div', 'crz-ctxt'), chNewEl = el('div', 'crz-chnew'), chRow = el('div', 'crz-crow');
+    var chSaveEl = el('div', 'crz-ctxt'), chNewEl = el('div', 'crz-chnew'), chPriceEl = tut(el('div', 'crz-chnew crz-chprice gone'), 'chapter-price'), chRow = el('div', 'crz-crow');
     var chGo = tut(el('button', 'crz-cstart'), 'chapter-go'); chGo.textContent = STR.cont; chRow.appendChild(chGo);
-    [chTitleEl, chDaysEl, chStrkRow, chSaveEl, chNewEl, chRow].forEach(function (x) { chBox.appendChild(x); });
+    [chTitleEl, chDaysEl, chStrkRow, chSaveEl, chNewEl, chPriceEl, chRow].forEach(function (x) { chBox.appendChild(x); });
     chEl.appendChild(chBox); ui.appendChild(chEl);
     var chCur = null;
     function chCardOpen() { return !chEl.classList.contains('gone'); }
@@ -6184,6 +6192,19 @@
       if (!lead && nx) return STR.chNewLead + nx + (sl ? ' ' + sl : '');
       return lead + (lead && nx ? ' ' + nx : '') + (sl ? (lead || nx ? ' ' : STR.chNewLead) + sl : '');
     }
+    // w_price: 'Lights now cost 6. Roundabouts cost 5.' (precos de CRZ.toolPrice): pecas liberadas hoje cujo preco de tabela
+    // subiu desde o capitulo anterior. A Roundabout ainda nao apresentada (dia 11, libera no 12) fica fora: o cartao dela diz o preco
+    function chPriceText(s, c) {
+      if (c < 2) return '';
+      var a = (c - 1) * CH_LEN + 1, out = [], T = s.tools || [], k;
+      ['light', 'round'].forEach(function (id) {
+        var t = null; for (k = 0; k < T.length; k++) if (T[k].id === id) t = T[k];
+        if (!t || !t.unlocked || !STR.chPrice[id]) return;
+        var now = listPrice(id, a), was = listPrice(id, a - 1);
+        if (now > was) out.push(STR.chPrice[id](now));
+      });
+      return out.join(' ');
+    }
     // strikes do capitulo anterior (dias com strike depois dos livres); numa volta, todos (acabaram)
     function chPrevUsed(s, c) {
       var M = chStrkEls.length, a = (c - 2) * CH_LEN + 1, b = a + CH_LEN - 1, h = s.history || [], n = 0, k;
@@ -6199,6 +6220,7 @@
       chStrkTxt.textContent = STR.strikesBack(CFG.ironMode ? 1 : CFG.maxStrikes | 0);
       var sv = chSaveText(s, c); chSaveEl.textContent = sv; chSaveEl.classList.toggle('gone', !sv);
       var nw = chNewText(s, c); chNewEl.textContent = nw; chNewEl.classList.toggle('gone', !nw);
+      var pw = chPriceText(s, c); chPriceEl.textContent = pw; chPriceEl.classList.toggle('gone', !pw);
       // os usados aparecem cheios e esvaziam um a um (repostos); movimento reduzido: ja vazios
       var k, rm = reducedMotion();
       for (k = 0; k < chStrkEls.length; k++) chStrkEls[k].classList.toggle('on', !rm && k < used);

@@ -509,7 +509,7 @@
       if (tool === 'road' && st.free.road) return 0;
       if (tool === 'light' && st.free.light) return 0;
       if (handOf(tool) > 0) return 0;
-      return t.cost;
+      return CRZ.toolPrice ? CRZ.toolPrice(tool, st.day) : t.cost;   // w_price: preco do capitulo de hoje
     }
     // v2m: quantos semaforos a cidade liga hoje (CFG.lightCap.byDay: [[dia, N], ...] em ordem; a carta Free power soma
     // +1 por escolha). Infinity sem a regra.

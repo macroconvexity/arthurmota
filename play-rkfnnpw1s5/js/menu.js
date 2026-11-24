@@ -729,7 +729,8 @@
         var b = el('b', null, info[0]);
         tx.appendChild(b);
         tx.appendChild(el('div', null, info[1]));
-        var meta = el('div', 'meta', STR.pts(def.cost) + ' · ' + (locked ? '' : (def.choiceDay ? '' : STR.fromDay(def.unlockDay))));
+        var pr = CRZ.toolPrice && CRZ.CFG && CRZ.CFG.tools && CRZ.CFG.tools[id] ? CRZ.toolPrice(id, Math.max(day, def.unlockDay | 0)) : def.cost;   // w_price: preco do capitulo
+        var meta = el('div', 'meta', STR.pts(pr) + ' · ' + (locked ? '' : (def.choiceDay ? '' : STR.fromDay(def.unlockDay))));
         if (locked) { meta.appendChild(el('span', 'tag', def.choiceDay ? STR.choiceDay(def.choiceDay) : STR.unlocksDay(def.unlockDay))); }
         tx.appendChild(meta);
         li.appendChild(ic); li.appendChild(tx);

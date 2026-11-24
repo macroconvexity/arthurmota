@@ -116,7 +116,8 @@
     var T = CRZ.CFG && CRZ.CFG.tools, id, c;
     for (id in STR.tool) {
       if (!has(STR.tool, id)) continue;
-      c = T && T[id] ? T[id].cost : null;
+      // w_price: o preco do dia em que a peca chega (o cartao abre nesse dia; a Roundabout chega no capitulo 2)
+      c = T && T[id] ? (CRZ.toolPrice && T[id].unlockDay > 0 ? CRZ.toolPrice(id, T[id].unlockDay) : T[id].cost) : null;
       var U = CRZ.CFG && CRZ.CFG.upkeep;
       STR.tool[id] = STR.tool[id].replace('{u}', U && U.fromDay ? String(U.fromDay) : '11');
       STR.tool[id] = STR.tool[id].replace(' Your city powers {lc} for now.', lightCapOn() ? ' Your city powers ' + lightCapOn() + ' for now.' : '');

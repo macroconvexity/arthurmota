@@ -109,10 +109,13 @@
       road:    { cost: 2, unlockDay: 1 },
       stop:    { cost: 1, unlockDay: 3 },
       yield:   { cost: 1, unlockDay: 8 },
-      light:   { cost: 4, unlockDay: 5 },
+      // w_price (2026-11-24): costByChapter = preco nos capitulos [1, 2, 3] (cost = o do capitulo 1). Os dois sinais fortes
+      // sobem por capitulo para que dois aneis numa manha nao caibam nos pontos do dia (v2/DECISAO_SINAL.md 4). Lido por
+      // CRZ.toolPrice; o Easy pode trocar em difficulty.js. Medido em web/dev/review/w_price
+      light:   { cost: 4, unlockDay: 5, costByChapter: [4, 6, 8] },
       upgrade: { cost: 3, unlockDay: 9 },
       cross:   { cost: 1, unlockDay: 999, removed: true },
-      round:   { cost: 3, unlockDay: 12 },   // w_light: para todos no dia 12 (antes so pela carta do dia 19); medido em v2/_scripts/w_light
+      round:   { cost: 3, unlockDay: 12, costByChapter: [3, 5, 7] },   // w_light: para todos no dia 12 (antes so pela carta do dia 19); medido em v2/_scripts/w_light
       oneway:  { cost: 1, unlockDay: 9 }   // so no arquetipo com oneway: true (archetypes.river)
     },
     toolOrder: ['road', 'stop', 'yield', 'light', 'upgrade', 'round', 'oneway'],
@@ -646,6 +649,17 @@
       if (typeof x[q] === 'string') x[q] = one(x[q]); else if (x[q] && typeof x[q] === 'object') CRZ.dayText(x[q]);
     }
     return x;
+  };
+
+  // w_price: preco de tabela de uma peca no dia `day` (CFG.tools.<id>.costByChapter pelo capitulo do dia; sem a lista, cost).
+  // Sem mao nem gratuidade: isso e do game (costOf). Infinity para peca que nao existe
+  CRZ.toolPrice = function (tool, day) {
+    var C = CRZ.CFG || {}, T = C.tools && Object.prototype.hasOwnProperty.call(C.tools, tool) ? C.tools[tool] : null;
+    if (!T) return Infinity;
+    var L = T.costByChapter, n = C.chapterDays > 0 ? C.chapterDays : (C.maxDays || 30);
+    if (!Array.isArray(L) || !L.length) return T.cost;
+    var ch = Math.max(1, Math.ceil((day > 0 ? day : 1) / n)), v = L[Math.min(L.length, ch) - 1];
+    return typeof v === 'number' && v >= 0 ? v : T.cost;
   };
 
   CRZ.rng = function (seed) {
