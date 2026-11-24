@@ -466,6 +466,9 @@
     // (+5 liquido, pago no 3o dia; no dia 26, 4 manhas: +1). Hire sempre contra Not now sempre, cidade a cidade: melhor em
     // 13 a 20 de 30, pior em 9 a 17: nenhuma das duas domina. 4 por 10 perdia em 19 a 20 de 30 (aware).
     crew: { fromDay: 16, toDay: 26, cost: 3, perDay: 1, days: 8, maxActive: 1, gapDays: 5 },
+    // w_bugs11: folhas que abrem sozinhas (Road crew, boas-vindas, 'Tap to try another') esperam o mapa ficar parado: sem ferramenta
+    // na mao e este tempo (ms) depois do ultimo toque no mapa. O cego 11 perdeu um toque no dia 16 para a folha da Road crew
+    sheetIdleMs: 1500,
     // efeito de cada carta (game.js le daqui; a UI le por CRZ.Game cardInfo(id) para nao copiar numero)
     cardEffects: {
       plus2:     { budget: 2 },

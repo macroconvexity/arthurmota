@@ -2773,7 +2773,7 @@
       var t = tierOf(st.day);
       return { tier: t, chapter: chapterOfDay(st.day), state: st.dieState, canRoll: needPlan() && !!t && st.dieState === 'none',
         offers: !!t && t !== 'gift', canKeep: st.dieState === 'offer' && canKeepToday(), kept: st.kept ? clone(st.kept) : null,
-        canPlayKept: needPlan() && !!t && st.dieState === 'none' && !!st.kept && faceUsable(st.kept.id, st.day), debtPaid: st.debtPaid || 0, debt: st.debt || 0,
+        canPlayKept: needPlan() && !!t && (st.dieState === 'none' || st.dieState === 'passed') && !!st.kept && faceUsable(st.kept.id, st.day), debtPaid: st.debtPaid || 0, debt: st.debt || 0,
         keepFrom: DC().keepFrom, firstOffer: DC().firstOffer, costFrom: DC().costFrom };
     };
     // toque do jogador: sorteia a face (semente + dia), guarda e devolve. Face sem escolha ja vale; oferta espera
@@ -2800,10 +2800,10 @@
     g.useDie = function () { return decide('used'); };
     g.passDie = function () { return decide('passed'); };
     g.keepDie = function () { return decide('kept'); };
-    // a face do bolso no lugar de rolar: vale na hora (a escolha foi feita quando guardou)
+    // a face do bolso no lugar de rolar (ou de um dia normal que a jogadora passou): vale na hora (a escolha foi feita quando guardou)
     g.playKept = function () {
       if (!needPlan()) return fail('phase');
-      if (!tierOf(st.day) || st.dieState !== 'none' || !st.kept || !faceUsable(st.kept.id, st.day)) return fail('state');
+      if (!tierOf(st.day) || (st.dieState !== 'none' && st.dieState !== 'passed') || !st.kept || !faceUsable(st.kept.id, st.day)) return fail('state');   // 'passed' = a normal day, nothing applied yet: the kept face takes its place
       st.die = makeFace(st.kept.id, st.kept.value, st.day);
       st.kept = null; st.dieState = 'used'; st.dieFromKept = true;
       st.tally.kept++;

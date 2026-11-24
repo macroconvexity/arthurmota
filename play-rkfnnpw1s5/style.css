@@ -1071,6 +1071,9 @@ body.crz-sayshow .crz-daybanner { top: calc(var(--crz-sayb, 140px) + 6px); }
 /* ==== polimento 2026-11-15, passo 2: uma coluna so (margem lateral de 16 px) ==== */
 /* os ladrilhos comecam na margem esquerda (antes centrados: borda esquerda em 19, 27 ou 95 px conforme o dia) */
 .crz-tiles { justify-content: flex-start; }
+/* w_bugs11 (cego 11, bug 9): a bandeja ancora embaixo; wrap-reverse poe a primeira fileira embaixo e as novas por cima, entao um
+   tile que chega (Lanes e One-way no dia 9, Round no 12) nunca desloca os alvos que ja estavam la */
+.crz-tiles { flex-wrap: wrap-reverse; }
 
 /* as legendas do topo moram DENTRO da caixa do marcador (o anel do tutorial e o alvo de toque as incluem):
    a caixa cresce 30 px para baixo sem mexer na linha (margem negativa igual) */

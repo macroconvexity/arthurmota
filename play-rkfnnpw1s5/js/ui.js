@@ -35,7 +35,7 @@
     info: {
       strikes: function (s, m) { return CRZ.dayText('Strikes this chapter: ' + s + ' of ' + m + '. From day {strikeDay}, a jam adds one.'); },
       days: function (d, m) { var L = (CRZ.CFG && CRZ.CFG.chapterDays) || m; return d >= m ? STR.lastDay(d, m) : 'Day ' + d + ' of ' + m + ', chapter ' + Math.ceil(d / L) + ' of ' + Math.ceil(m / L) + '.'; },
-      budget: function (n) { return CRZ.dayText(n + (n === 1 ? ' build point' : ' build points') + '. New every day; {carry} unused can stay for tomorrow.'); },
+      budget: function (n, last) { return CRZ.dayText(n + (n === 1 ? ' build point' : ' build points') + (last ? '. Last day: spend them now.' : '. New every day; {carry} unused can stay for tomorrow.')); },
       tipsLast: function (n, per) { return STR.tipsLast(n, per); },
       // a barra mede carros entregues (1 por carro a 1x, mais a 2x e 4x), somados de um dia para o outro
       tips: function (n, per) { return 'Delivery bonus: ' + n + ' of ' + per + '. Full bar: +' + BONUS_SCORE() + ' score.'; },
@@ -96,7 +96,7 @@
     // dado v2 (2026-11-16): o topo depois da escolha. Passou ou guardou: dado neutro, dia normal
     lblPassed: 'Today: normal day', lblKept: function (name) { return 'Kept: ' + name; },
     // primeiro gasto da partida (uma vez): o que aconteceu com os pontos
-    firstSpend: function (n) { return CRZ.dayText('You spent ' + n + (n === 1 ? ' build point' : ' build points') + '. You get new build points every day. Up to {carry} unused ones stay for tomorrow.'); },
+    firstSpend: function (n, last) { return CRZ.dayText('You spent ' + n + (n === 1 ? ' build point' : ' build points') + (last ? '.' : '. You get new build points every day. Up to {carry} unused ones stay for tomorrow.')); },
     lblPts: function (n) { return n + (n === 1 ? ' build point' : ' build points'); },
     // dia 1: proximo passo fixo depois da primeira rua (sem pontos ou 6 s parada); some so com o Play
     nextPlay: 'Good. Now tap \u25b6\ufe0e to send the cars.',
@@ -131,7 +131,7 @@
     boostNothing: 'Nothing to boost here yet.', boostAllCalm: 'All calm. Nothing needs a boost.',
     // v2y: toque tardio no lugar do chip que saiu; sem cargas (uma vez por partida, com a regra real)
     boostSaved: 'It cleared up. Boost saved.',
-    boostOut: function (n) { return 'No Boosts left. You get ' + n + ' again tomorrow.'; },
+    boostOut: function (n, last) { return last ? 'No Boosts left.' : 'No Boosts left. You get ' + n + ' again tomorrow.'; },
     freeRoadNow: 'Your next road costs nothing.',
     // nv10 3: rerrolar devolve o bonus do dado de hoje (pontos ou a obra gratis); o botao diz isso
     rerollLbl: function (c, loses) { return 'Reroll: ' + c + (c === 1 ? ' point' : ' points') + (loses ? " (today's bonus is replaced)" : ''); },
@@ -209,6 +209,7 @@
     todoNew: function (n) { return 'To do before tomorrow: ' + n + (n === 1 ? ' new crossing needs a sign \u203a' : ' new crossings need a sign \u203a'); },
     todoBusy: 'Busiest crossing today \u203a',
     todoBusyWhy: 'This crossing got too busy. Tomorrow, boost it early.',
+    peekBack: 'The summary comes right back.',
     boosted: 'Boosted!',
     boostedSend: 'Boosted! An extra car is on its way.',
     boostedJFirst: 'Boosted: cars here move faster for a few seconds.',
@@ -436,6 +437,7 @@
       boostLocked: function (d) { return 'Boost unlocks on day ' + d + '.'; },
       other: 'Can\'t build there: this spot doesn\'t take that tool.',
       boostNone: 'No Boosts left today. You get more tomorrow.',
+      boostNoneLast: 'No Boosts left.',
       // ponta sem lugar para mais um carro agora (game.useClear 'space')
       boostSpace: 'No room right now. Try another road end.',
       boostWhere: 'Boost works on a road end or a busy crossing.',
@@ -629,7 +631,7 @@
       },
       help: 'Each row replays yesterday with that sign here. Tap one to place it.',
       leave: 'Leave it', leaveAria: 'Leave this crossing as it is',
-      free: 'free', pts: function (c) { return c + (c === 1 ? ' point' : ' points'); },
+      free: 'free', moveHere: 'move a light here: free', pts: function (c) { return c + (c === 1 ? ' point' : ' points'); },
       wait: function (a, b) { return a + ' s \u2192 ' + b + ' s'; }, one: function (a) { return a + ' s'; },
       // w_choice3: a linha diz uma palavra, nao segundos (a faixa em s nao se sustentou: medido em v2/_scripts/sinais/veredito.js).
       // Cortes em CFG.signCard.verdict (game.verdictFor). A linha 'this road 4 s . the other 12 s' saiu: a direcao acertava ~65%
@@ -2451,8 +2453,10 @@
       if (j.done) return true;
       if (!q || q.done) { q = wiQ = { day: j.day, jobs: [], i: 0, t0: nowMs(), t1: 0, done: false, stop: null, kicked: false, slices: 0, maxSlice: 0, fresh: false, cap: 6000 }; }
       else { q.t0 = nowMs(); q.cap = 6000; }
-      for (k = q.i; k < q.jobs.length; k++) if (q.jobs[k].id === id) return true;
-      q.jobs.push(j); wiKick();
+      // o anel que a jogadora tocou passa a frente da fila (os jobs andam em fatias e guardam o proprio estado): antes ele esperava
+      // todos os da fila do resumo e os ramos a mais, e o cartao ficava ~3 s em 'Replaying yesterday here...' (cego 11, dia 26)
+      for (k = q.i; k < q.jobs.length; k++) if (q.jobs[k].id === id && !q.jobs[k].relief) { if (k > q.i) q.jobs.splice(q.i, 0, q.jobs.splice(k, 1)[0]); return true; }
+      q.jobs.splice(q.i, 0, j); wiKick();
       return true;
     }
     // w_noopt: os ramos a mais (game.reliefJob) de um cruzamento cujo cartao nao tem peca 'better'; no maximo um por cruzamento na fila
@@ -2473,6 +2477,11 @@
       else { if (!reliefQueue(q, id)) return false; q.t0 = nowMs(); q.cap = 6000; }
       wiKick();
       return true;
+    }
+    // o anel que a jogadora tocou ja esta na fila (o resumo o levou): passa a frente, os jobs guardam o proprio estado
+    function wiFront(id) {
+      var q = wiQ, k; if (!q || q.done) return;
+      for (k = q.i + 1; k < q.jobs.length; k++) if (q.jobs[k].id === id && !q.jobs[k].relief) { q.jobs.splice(q.i, 0, q.jobs.splice(k, 1)[0]); return; }
     }
     function wiPending(id) {
       if (!wiQ || wiQ.done) return false;
@@ -3188,7 +3197,7 @@
         if (r.reason === 'charges') shake(clearEl);
         // sem lugar para o carro: o toque acertou, mas nada sai. Antes so o som (2026-11-09, sementes 7003 e 7014)
         if (r.reason === 'space') flash(n.x, n.y, 'bad');
-        say(r.reason === 'charges' ? STR.deny.boostNone : r.reason === 'space' ? STR.deny.boostSpace : STR.deny.boostWhere);
+        say(r.reason === 'charges' ? (lastDayOf(game.state) ? STR.deny.boostNoneLast : STR.deny.boostNone) : r.reason === 'space' ? STR.deny.boostSpace : STR.deny.boostWhere);
       }
       emitUI('clearUsed', { ok: okC, kind: kind, reason: okC ? null : (r && r.reason) || null, id: n.id });
       return okC;
@@ -3328,7 +3337,7 @@
       for (q in w.nodes) if (w.nodes.hasOwnProperty(q)) {
         n = w.nodes[q];
         if (boostable(n) && (n.stress || 0) >= chipOn()) {
-          if (sayShown(STR.boostOut((CFG.clear && CFG.clear.charges) || 3), 3500)) { markSeen('boostOut'); addPulse(n.x, n.y); }
+          if (sayShown(STR.boostOut((CFG.clear && CFG.clear.charges) || 3, lastDayOf(s)), 3500)) { markSeen('boostOut'); addPulse(n.x, n.y); }
           return;
         }
       }
@@ -3523,7 +3532,7 @@
       sumEl.classList.add('crz-peek');
       if (peekT) root.clearTimeout(peekT);
       peekT = later(function () { sumEl.classList.remove('crz-peek'); peekT = 0; }, 2600);
-      if (todoKind === 'busy') say(STR.todoBusyWhy, 2600);
+      say(todoKind === 'busy' ? STR.todoBusyWhy + ' ' + STR.peekBack : STR.peekBack, 2600);
       emitUI('summaryTodo', { kind: todoKind, id: n.id });
     });
     on(newJEl, 'click', function () {
@@ -3536,6 +3545,7 @@
       sumEl.classList.add('crz-peek');
       if (peekT) root.clearTimeout(peekT);
       peekT = later(function () { sumEl.classList.remove('crz-peek'); peekT = 0; }, 2200);
+      say(STR.peekBack, 2200);
       emitUI('newJunctionTap', { id: n.id, count: L.length });
     });
 
@@ -3932,8 +3942,12 @@
       say(moving ? STR.deny.tapMoving : STR.deny.tapNone(STR.tools[sel] || sel), 2600);
       emitUI('tapUnanswered', { tool: sel, moving: moving });
     }
+    // folha que abre sozinha nao abre com ferramenta na mao nem logo depois de um toque no mapa (CFG.sheetIdleMs): espera o proximo momento parado
+    var lastMapTapAt = -1e9;
+    function mapBusy() { return !!sel || nowMs() - lastMapTapAt < (CFG.sheetIdleMs | 0); }
     function onTap(sx, sy) {
       var s = game.state;
+      lastMapTapAt = nowMs();
       // camera andando por pedido da jogadora (lupa, enquadrar, chip; CAM_MS = 450 ms no render) quando o dedo desceu:
       // o toque seria resolvido contra um mapa em movimento e podia pegar o no errado. Ignora sem acao, aviso,
       // som nem carga. Movimento automatico (inicio da corrida, abertura do plano) nao chega aqui: o render o para
@@ -4483,7 +4497,7 @@
     })();
     infoTap(strikesEl, function (s) { return STR.info.strikes(s.strikes | 0, CFG.maxStrikes); });
     infoTap(dotsEl, function (s) { return STR.info.days(s.day | 0, CFG.maxDays); });
-    infoTap(budgetEl, function (s) { return STR.info.budget(s.budget | 0); });
+    infoTap(budgetEl, function (s) { return STR.info.budget(s.budget | 0, lastDayOf(s)); });
     infoTap(tipEl, function (s) {
       var sd = s.speedDial; if (!sd || !(sd.perPoint > 0)) return '';
       return (lastDayOf(s) ? STR.info.tipsLast : STR.info.tips)(Math.min(sd.perPoint, Math.floor((sd.carry || 0) + (sd.tips || 0))), sd.perPoint);
@@ -4780,6 +4794,10 @@
       rollGo.textContent = offer ? STR.rollUse : STR.rollContinue;
       if (offer) rollGo.setAttribute('aria-label', STR.rollUseAria(name)); else if (rollGo.removeAttribute) rollGo.removeAttribute('aria-label');
       rollGo.classList.toggle('crz-rolluse', offer);
+      // a face guardada tambem entra no lugar de um dia normal ja passado (antes so antes de rolar: o item ficava parado)
+      var keptNow = s.dieState === 'passed' && di.canPlayKept;
+      rollKept.classList.toggle('gone', !keptNow);
+      if (keptNow) rollKept.textContent = STR.rollKeptBtn(dieName(di.kept.id));
       var after = { used: s.dieFromKept ? '' : STR.rollUsedNote, passed: STR.rollPassedNote, kept: STR.rollKeptNote }[s.dieState];
       rollNote.textContent = (!offer && v2 && after) ? after : '';
       rollTutEl.classList.add('gone');   // a linha do tutorial ('Tap the dice') sai depois de rolar
@@ -5019,7 +5037,7 @@
     // a face guardada no lugar de rolar: vale na hora; o cartao mostra a face aberta com Continue
     on(rollKept, 'click', function (e) {
       if (e && e.stopPropagation) e.stopPropagation();
-      if (roll.stage !== 'ready') return;
+      if (roll.stage !== 'ready' && roll.stage !== 'result') return;
       var r = null; try { r = game.playKept(); } catch (x) { r = null; }
       if (!r || !r.ok) { snd('deny'); say(STR.deny.dieChoice); return; }
       markSeen('rollAny'); rollMark(game.state.day | 0);
@@ -6240,7 +6258,7 @@
       var rollPend = ROLL_ON && (s.day | 0) >= 2 && (s.dieState === 'none' ? diceInfoOf(s).canRoll : s.dieState === 'offer');
       var crewPend = !!(CFG.crew && s.crew && s.crew.offer && (s.budget | 0) >= CFG.crew.cost && crewAskDay !== s.day);
       if (bootFrames >= 0 || growPend || holdUntil || modal() || chCardOpen() || chCardPending(s) ||
-          roll.open || rollPend || crewOpen() || crewPend || confirmOpen() || sheetOpen || guideEl ||
+          roll.open || rollPend || crewOpen() || crewPend || confirmOpen() || sheetOpen || guideEl || mapBusy() ||
           tutBalloonOn() || tutorTalking() || sayUntil || sayEl.classList.contains('show')) {
         welcomeSettle = false;
         return;
@@ -6455,7 +6473,7 @@
       if (crewOpen() && (s.phase !== 'plan' || !s.crew || !s.crew.offer)) { crewClose(); return; }
       if (!C || s.phase !== 'plan' || !s.crew || !s.crew.offer || crewAskDay === s.day) return;
       if ((s.budget | 0) < C.cost) return;   // sem pontos para pagar: a oferta nao aparece (nada a decidir)
-      if (roll.open || growPend || bootFrames >= 0 || modal() || tutBalloonOn() || sayUntil || confirmOpen()) return;
+      if (roll.open || growPend || bootFrames >= 0 || modal() || tutBalloonOn() || sayUntil || confirmOpen() || mapBusy()) return;
       crewAskDay = s.day;
       var first = gOn() && !seen('crew'); if (first) markSeen('crew');
       var ci = game.crewInfo ? game.crewInfo() : null;
@@ -6496,7 +6514,9 @@
     // preco fica cinza quando faltam pontos. lost: pontos que a troca faz perder (Roundabout trocada), dito na linha antes do toque
     function choiceRow(r, c, M, lost) {
       var C = STR.choice, name = STR.tools[r.tool] || r.tool, price = r.cost > 0 ? C.pts(r.cost) : C.free;
-      var vd = r.verdict || r.res || 'same', b = el('button', 'crz-scrow' + (vd === 'worse' ? ' bad' : (vd === 'better' ? ' good' : '')) + (r.afford ? '' : ' poor') + (r.capped ? ' capped' : ''), '');
+      // light cap reached: this row moves a light you already have (the tap asks which one), so it is free and never buys
+      var moves = r.tool === 'light' && r.capped && !r.hand; if (moves) price = C.moveHere;
+      var vd = r.verdict || r.res || 'same', b = el('button', 'crz-scrow' + (vd === 'worse' ? ' bad' : (vd === 'better' ? ' good' : '')) + (r.afford || moves ? '' : ' poor') + (r.capped ? ' capped' : ''), '');
       b.setAttribute('data-tool', r.tool);
       var ico = el('span', 'crz-scico', toolIcon(r.tool)), body = el('span', 'crz-scbody'), top = el('span', 'crz-sctop');
       var nm = el('span', 'crz-scname'); nm.textContent = name;
@@ -6573,6 +6593,7 @@
     function openChoice(s, n) {
       if (s.phase !== 'plan' || modal() || choiceOpen() || degOf(n) < 3) return false;   // w_noopt: o portal que virou cruzamento (cego 10, dia 24) tambem
       var c = choiceData(n.id);
+      if (c && c.pending) wiFront(n.id);
       // w_choice2: anel sem 'e se' guardado: o toque comeca o trabalho (as linhas vem com '...' e se enchem); sem a manha de
       // ontem na memoria (reload), nao ha o que medir e vale a frase de sempre
       if (!c && wiAdd(n.id)) c = choiceData(n.id);
@@ -6727,7 +6748,7 @@
       if (choiceAsk && !choiceOpen()) {
         if (s.phase === 'summary' && (s.day | 0) === choiceAsk.day) { /* ainda no resumo */ }
         else if (s.phase !== 'plan' || (s.day | 0) !== choiceAsk.day + 1) choiceAsk = null;
-        else if (!(roll.open || growPend || bootFrames >= 0 || modal() || tutBalloonOn() || sayUntil || confirmOpen() || chCardOpen())) {
+        else if (!(roll.open || growPend || bootFrames >= 0 || modal() || tutBalloonOn() || sayUntil || confirmOpen() || chCardOpen() || mapBusy())) {
           var an = game.world.nodes ? game.world.nodes[choiceAsk.id] : null; choiceAsk = null;
           if (an) openChoice(s, an);
         }
@@ -6775,7 +6796,7 @@
       var tu = CRZ.app && CRZ.app.tutorial, tutOn = tutBalloonOn() || tutorScript();
       // a frase da mao unica ('Tap the arrow to flip it.') fica: o aviso do primeiro gasto espera o proximo gasto
       if (sayUntil && /^One-way: /.test(sayEl.textContent)) tutOn = true;
-      if (b < spendBudget && gOn() && !seen('firstSpend') && !tutOn) { markSeen('firstSpend'); say(STR.firstSpend(spendBudget - b)); }
+      if (b < spendBudget && gOn() && !seen('firstSpend') && !tutOn) { markSeen('firstSpend'); say(STR.firstSpend(spendBudget - b, lastDayOf(s))); }
       spendBudget = b;
     }
     var hintScan = { day: -1, phase: '', had: false };
@@ -7573,7 +7594,7 @@
     function wiState() {
       var q = wiQ; if (!q) return { done: true, n: 0 };
       var b = 0; for (var i = 0; i < q.jobs.length; i++) b += q.jobs[i].branches | 0;
-      return { done: q.done, stop: q.stop, n: q.jobs.length, slices: q.slices, maxSlice: Math.round(q.maxSlice * 10) / 10, branches: b, ms: q.done ? Math.round(q.t1 - q.t0) : null };
+      return { done: q.done, stop: q.stop, n: q.jobs.length, next: q.jobs[q.i] ? q.jobs[q.i].id : null, slices: q.slices, maxSlice: Math.round(q.maxSlice * 10) / 10, branches: b, ms: q.done ? Math.round(q.t1 - q.t0) : null };
     }
     return { update: update, destroy: destroy, _wiState: wiState, getSelectedTool: getSelectedTool, isSheetOpen: isSheetOpen, isHolding: isHolding, boostChip: boostChip, boostNode: boostNode, timeScale: timeScale,
              openGuide: openGuide, closeGuide: closeGuide, isGuideOpen: function () { return !!guideEl; },
