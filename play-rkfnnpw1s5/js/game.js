@@ -2751,7 +2751,7 @@
       st.ff = false;
       st.tips = 0; syncDial();
       st.crew.offer = false;   // a oferta e so desta manha
-      convoy = (teachOn && !teachSeen && st.day === TEACH.day) ? planConvoy() : null;
+      convoy = (teachOn && !teachSeen && st.day === TEACH.day && !(CRZ.guide && CRZ.guide.on() === false)) ? planConvoy() : null;   // w_guide: Guidance Off sem a cena do engarrafamento
       st.teach.day3Convoy = !!convoy;   // nome antigo (o comboio era do dia 3); jam e o nome v2
       st.teach.jam = !!convoy;
       st.teach.sent = 0;

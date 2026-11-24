@@ -19,7 +19,7 @@
     best: 'Best', bestLine: function (b) { return b.bestDelivered + ' cars in one game'; },
     bestMore: function (b) { return b.games + (b.games === 1 ? ' game' : ' games') + ' \u00b7 ' + b.wins + (b.wins === 1 ? ' win' : ' wins') + ' \u00b7 up to day ' + b.bestDays; },
     menu: 'Menu', close: 'Close', resume: 'Back to game', pause: 'Pause', unpause: 'Resume', paused: 'Paused',
-    sound: 'Sound', on: 'on', off: 'off', replay: 'Replay tutorial', newGame: 'New game', newConfirm: 'Tap again to start a new game',
+    sound: 'Sound', on: 'on', off: 'off', guidance: 'Guidance', gOn: 'On', gOff: 'Off', replay: 'Replay tutorial', newGame: 'New game', newConfirm: 'Tap again to start a new game',
     stats: function (d, max, del, s, ms) { return 'Day ' + d + ' of ' + max + ' \u00b7 ' + del + ' cars \u00b7 ' + s + ' of ' + ms + ' strikes this chapter'; },
     helpTitle: 'How to play',
     goalH: 'Goal',
@@ -644,6 +644,7 @@
         if (u && typeof u.openGuide === 'function') { u.openGuide(); }
       });
       els.rSound = btn('crzm-row', null, function () { toggleSound(); });
+      els.rGuidance = btn('crzm-row', null, function () { toggleGuidance(); });
       els.rTut = btn('crzm-row', STR.replay, function () {
         if (!tutorial || !tutorial.replay) { return; }
         closeMenu(); tutorial.replay();
@@ -658,7 +659,7 @@
       els.rDiff.setAttribute('aria-expanded', 'false');
       els.mDiff = buildDiffBlock();
       els.stats = el('div', 'crzm-stats');
-      [els.rCont, els.rPause, els.rHelp, els.rGuide, els.rDiff, els.mDiff, els.rSound, els.rTut, els.rNew, els.stats].forEach(function (x) { sheet.appendChild(x); });
+      [els.rCont, els.rPause, els.rHelp, els.rGuide, els.rDiff, els.mDiff, els.rSound, els.rGuidance, els.rTut, els.rNew, els.stats].forEach(function (x) { sheet.appendChild(x); });
       menuEl.appendChild(sheet);
       rootEl.appendChild(menuEl);
     }
@@ -778,6 +779,16 @@
         els.diffShort.setAttribute('data-tut', 'diff-info');
         startEl.appendChild(els.diffShort);
       }
+      // w_guide: Guidance On | Off ao lado da dificuldade (mesmo seletor)
+      els.gSeg = el('div', 'crzm-diff');
+      els.gSeg.setAttribute('role', 'group'); els.gSeg.setAttribute('aria-label', STR.guidance);
+      els.gBtns = {
+        on: btn('crzm-dbtn', STR.guidance + ' ' + STR.gOn, function () { if (CRZ.guide) { CRZ.guide.set(true); } syncGuideSeg(); syncMenuRows(); }),
+        off: btn('crzm-dbtn', STR.guidance + ' ' + STR.gOff, function () { if (CRZ.guide) { CRZ.guide.set(false); } syncGuideSeg(); syncMenuRows(); })
+      };
+      els.gBtns.on.setAttribute('data-tut', 'guide-on'); els.gBtns.off.setAttribute('data-tut', 'guide-off');
+      els.gSeg.appendChild(els.gBtns.on); els.gSeg.appendChild(els.gBtns.off);
+      startEl.appendChild(els.gSeg); syncGuideSeg();
       els.play = btn('crzm-big', STR.play, function () { playPressed(); });
       els.play.setAttribute('data-tut', 'start');
       els.how = btn('crzm-ghost', STR.howto, function () { openHelp(); });
@@ -914,6 +925,7 @@
     }
 
     function fillStart() {
+      syncGuideSeg();
       els.play.textContent = hasContinue() ? STR.cont : STR.play;
       // com jogo salvo, avisa que trocar a dificuldade apaga a partida (difficulty.set recomeca)
       if (els.diffNote) { els.diffNote.textContent = STR.diffStrike + (hasContinue() ? ' ' + STR.diffNew : ''); }
@@ -988,6 +1000,15 @@
       syncMenuRows();
     }
 
+    // w_guide: Guidance On/Off, ajuste do aparelho (CRZ.guide, difficulty.js); vale na hora, no meio da partida
+    function guideNow() { return !CRZ.guide || CRZ.guide.on() !== false; }
+    function toggleGuidance() { if (CRZ.guide) { CRZ.guide.set(!guideNow()); } syncMenuRows(); syncGuideSeg(); }
+    function syncGuideSeg() {
+      if (!els.gBtns) { return; }
+      var on = guideNow();
+      els.gBtns.on.className = 'crzm-dbtn' + (on ? ' on' : ''); els.gBtns.on.setAttribute('aria-pressed', on ? 'true' : 'false');
+      els.gBtns.off.className = 'crzm-dbtn' + (on ? '' : ' on'); els.gBtns.off.setAttribute('aria-pressed', on ? 'false' : 'true');
+    }
     function pressNew() {
       var now = root.Date.now();
       if (!newArmedAt || now - newArmedAt > NEW_ARM_MS) {
@@ -1018,6 +1039,9 @@
       els.rSound.textContent = '';
       els.rSound.appendChild(doc.createTextNode ? doc.createTextNode(STR.sound) : el('span', null, STR.sound));
       els.rSound.appendChild(el('small', null, soundOn ? STR.on : STR.off));
+      els.rGuidance.textContent = '';
+      els.rGuidance.appendChild(doc.createTextNode ? doc.createTextNode(STR.guidance) : el('span', null, STR.guidance));
+      els.rGuidance.appendChild(el('small', null, guideNow() ? STR.gOn : STR.gOff));
       els.rTut.style.display = tutorial && tutorial.replay ? '' : 'none';
       var armed = newArmedAt && root.Date.now() - newArmedAt <= NEW_ARM_MS;
       els.rNew.textContent = armed ? STR.newConfirm : STR.newGame;

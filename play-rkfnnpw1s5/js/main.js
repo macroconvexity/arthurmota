@@ -150,6 +150,11 @@
       }
     });
 
+    // w_guide: partidas do aparelho que chegaram ao dia 11 (capitulo 1 terminado); so a chegada ao dia 11 conta
+    game.onEvent(function (ev) {
+      if (ev.type === 'day' && ev.day === (CRZ.CFG.chapterDays || 10) + 1 && CRZ.guide) { CRZ.guide.noteChapterDone(); }
+    });
+
     var render = CRZ.Render.create(canvas, game);
     render.resize();
     render.fit(false);

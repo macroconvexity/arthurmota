@@ -218,6 +218,9 @@
     newJFirst: 'NEW: roads just met here. Give this crossing a sign before you start.',
     newJRule: 'From day {newjDay}, a crossing without a sign gets much slower.',
     day4Rule: 'From today, a crossing with no sign gets slow. Give each NEW crossing a sign.',
+    // w_guide: quem ja terminou o capitulo 1 num aparelho com Guidance On ve isto uma vez por partida, no dia 1
+    guideHint: 'Played before? Turn Guidance off in the menu.', guideOffBtn: 'Turn off', guideOffAria: 'Turn Guidance off',
+    guideOffDone: 'Guidance off. Turn it on again in the menu.',
     boostsFixed: 'From today: {charges} boosts a day.',
     // v2: cidade no teto (CFG.growth.afterCap): uma ponta passa a mandar e receber mais carros
     shiftUp: 'The city changed: more cars use this road end now.',
@@ -1894,7 +1897,7 @@
     if (!hints || typeof hints !== 'object' || Array.isArray(hints)) hints = {};
     // M4: dicas 'uma vez por PARTIDA' levam a semente na chave; as de outras partidas saem ao carregar
     var PER_RUN = { boostOut: 1, bigDie: 1, sumInfo: 1, firstSpend: 1, ringGroup: 1, day4rule: 1, boostJ1: 1, runHint: 1, half6: 1, boosts4: 1, resumed: 1,
-                    strikes6: 1, chapter11: 1, chapter21: 1, mag: 1 };
+                    strikes6: 1, chapter11: 1, chapter21: 1, mag: 1, guideHint: 1 };
     var runTag = '@' + ((game.world && game.world.seed) != null ? game.world.seed : 0);
     (function pruneRunHints() {
       var k, ch = false;
@@ -2255,6 +2258,12 @@
     ui.appendChild(swapCancelEl);
     function showSwapCancel() { hideSwapUndo(); swapCancelEl.classList.remove('gone'); sayPillAvoid(swapCancelEl); }
     function hideSwapCancel() { swapCancelEl.classList.add('gone'); }
+    // w_guide: o botao da dica 'Played before?' (mesma pilula do Undo da troca de sinal, sob a faixa)
+    var guideOffEl = tut(el('button', 'crz-sayundo gone', ''), 'guide-off'), guideHintUntil = 0;
+    guideOffEl.textContent = STR.guideOffBtn;
+    guideOffEl.setAttribute('aria-label', STR.guideOffAria);
+    ui.appendChild(guideOffEl);
+    function hideGuideHint() { guideHintUntil = 0; guideOffEl.classList.add('gone'); }
     // chip do Boost (dia 4+): botao de 56 px ao lado do no mais critico; toque = o mesmo Boost do mapa
     var bchipEl = tut(el('button', 'crz-bchip gone', svg(BOLT_ICON, '0 0 24 24') + '<span>' + STR.chipBoost + '</span>'), 'boost-chip');
     bchipEl.setAttribute('aria-label', STR.chipAria);
@@ -2717,7 +2726,7 @@
         snd('deny'); say(roadSayText('budget')); return true;
       },
       // dias 1 a 3 (cidade pequena): um dedo nao arrasta o mapa; o enquadrar e dois dedos continuam
-      lockPan: function () { var s = game.state; return (s.day | 0) >= 1 && (s.day | 0) <= PAN_LOCK_DAYS && (s.phase === 'plan' || s.phase === 'run'); },
+      lockPan: function () { var s = game.state; return (s.day | 0) >= 1 && (s.day | 0) <= panLockN() && (s.phase === 'plan' || s.phase === 'run'); },
       // o aviso de 'escolha New road' (arrasto numa ponta sem ferramenta) tem a vez; senao, uma vez, como mover
       // blind3 2/6: um dedo no vazio nos dias 1-3 nao move o mapa; so fala quando ha cidade fora da tela (com o enquadrar)
       panLocked: function () { if (!panLockSaid && !sayUntil && !tutorTalking() && cityCut()) { panLockSaid = true; say(STR.panHint); pulseEl(fitBtn); } },
@@ -2992,7 +3001,7 @@
       // dica unica: a cidade nao cabe e a jogadora ainda nao arrastou o mapa
       if (userMoved && !seen('pan')) markSeen('pan');
       // lupa: a frase 'Tap again to pick' fica na faixa o tempo dela; a dica do enquadrar espera
-      if (seen('pan') || s.phase !== 'plan' || !cut || modal() || gesture.state() !== 'idle' || (render.animating && render.animating()) || now < magSayUntil) { panHintAt = 0; return; }
+      if (!gOn() || seen('pan') || s.phase !== 'plan' || !cut || modal() || gesture.state() !== 'idle' || (render.animating && render.animating()) || now < magSayUntil) { panHintAt = 0; return; }
       var tutor = CRZ.app && CRZ.app.tutorial;
       if (tutor && tutor.isActive && tutor.isActive()) { panHintAt = 0; return; }
       if (!panHintAt) { panHintAt = now + 1500; return; }
@@ -3011,6 +3020,8 @@
     var boostUsed = false;
     // o tutorial ja esta falando (balao na tela): a recusa do Boost so faz o som, sem segunda faixa
     // tutorial com balao na tela OU com roteiro ainda pela frente (entre dois passos o isActive e falso)
+    // w_guide: Guidance (CRZ.guide, difficulty.js; ajuste do aparelho). Off tira o ensino, nao a informacao do jogo
+    function gOn() { var g = CRZ.guide; return !g || g.on() !== false; }
     function tutorScript() {
       var tu = CRZ.app && CRZ.app.tutorial;
       try { return !!(tu && ((tu.isActive && tu.isActive()) || (tu.inScript && tu.inScript()))); } catch (e) { return false; }
@@ -3120,7 +3131,7 @@
         addPulse(n.x, n.y);
         // com o roteiro do tutorial a seguir, o proprio balao responde (nunca dois avisos juntos); fica o anel
         // primeiro boost num cruzamento: o que ele faz (uma vez)
-        if (kind !== 'send' && !seen('boostJ1') && !tutorScript()) { markSeen('boostJ1'); sayUntil = 0; say(STR.boostedJFirst, 3200); }
+        if (kind !== 'send' && gOn() && !seen('boostJ1') && !tutorScript()) { markSeen('boostJ1'); sayUntil = 0; say(STR.boostedJFirst, 3200); }
         else if (!sayUntil && !tutorScript()) say(kind === 'send' ? STR.boostedSend : STR.boosted, 1200);
       } else if (r && r.reason === 'portalQueue') {
         // ponta cuja rua esta na fila do cruzamento a frente: aponta e pulsa esse cruzamento
@@ -3148,7 +3159,7 @@
     /* ---- ajudas do dia 4 em diante (ensinam a acao; nada joga sozinho) ---- */
     // (3) Yield num cruzamento que ficou vermelho ontem (state.hot no plano = pico de ontem): diz o que segura ali
     function yieldBusyHint(s, n) {
-      if ((s.day | 0) < ASSIST_DAY) return;
+      if ((s.day | 0) < ASSIST_DAY || !gOn()) return;
       var h = (s.hot && +s.hot[n.id]) || 0;
       if (h < RING_SEEN) return;
       // o mesmo recomendador do anel e do resumo (com o Yield ja no no: o proximo sinal melhor)
@@ -3504,6 +3515,7 @@
     function easyOn() { var d = CFG.difficultyName; return !d || d === 'easy'; }
     // ajudas por perfil (difficulty.js, CFG.difficulties[nome].assist); sem o campo vale o padrao de antes
     function assistGet(k, d) {
+      if (!gOn() && (k === 'playConfirm' || k === 'newJunctionTip')) return false;   // w_guide: Off sem confirmacao de ajuda nem dica 'NEW'
       var n = CFG.difficultyName || 'easy', p = CFG.difficulties && CFG.difficulties[n], a = p && p.assist;
       return a && a[k] != null ? a[k] : d;
     }
@@ -3558,7 +3570,7 @@
       // novo; sem pausar. Nos outros dias ficam o chip "N new crossings" e a confirmacao do Play (rodada 3:
       // a faixa diaria aparecia 9 vezes por partida junto com os dois)
       // primeiro cruzamento novo da partida, Easy e Normal: o que e a marca e a regra do dia 4, uma vez cada
-      if (ids.length && njDay.tip <= 0 && now - njDay.at >= 1400 && !modal() && !tutorTalking() &&
+      if (ids.length && gOn() && njDay.tip <= 0 && now - njDay.at >= 1400 && !modal() && !tutorTalking() &&
           !holdUntil && !(sayUntil && now < sayUntil)) {
         njDay.tip = s.day | 0; saveNewJ();
         var njValid = function () { return game.state.phase === 'plan' && morningList(game.state).length > 0; };
@@ -3594,9 +3606,9 @@
       if (confirmAsked.day !== s.day) { var pa = planToday(s); confirmAsked = { day: s.day, keys: pa && pa.asked ? pa.asked : {} }; }
       var L = assistGet('playConfirm', easyOn()) && !tutorTalking() ? morningList(s) : [];
       if (L.length && signAffordable(s) && !confirmAsked.keys.newj) out.push({ key: 'newj', text: STR.cWhyNew(L.length), node: L[0] });
-      if (s.free && s.free.road && !confirmAsked.keys.free) out.push({ key: 'free', text: STR.cWhyFree });
+      if (gOn() && s.free && s.free.road && !confirmAsked.keys.free) out.push({ key: 'free', text: STR.cWhyFree });
       // invisivel 6: o semaforo gratis tambem some a noite
-      if (s.free && s.free.light && !confirmAsked.keys.freelight && (s.tools || []).some(function (x) { return x.id === 'light' && x.unlocked; }) && lightSpot()) out.push({ key: 'freelight', text: STR.cWhyFreeLight });
+      if (gOn() && s.free && s.free.light && !confirmAsked.keys.freelight && (s.tools || []).some(function (x) { return x.id === 'light' && x.unlocked; }) && lightSpot()) out.push({ key: 'freelight', text: STR.cWhyFreeLight });
       // blind3 7: sem nenhuma ferramenta pagavel o aviso nao serve para nada: nao aparece
       if (!lastDayOf(s) && (s.budget | 0) > cap && !confirmAsked.keys.carry && (s.budget | 0) >= minToolCost(s)) out.push({ key: 'carry', text: STR.cWhyCarry(s.budget | 0, cap) });
       return out;
@@ -3865,7 +3877,7 @@
       magUntil = nowMs() + MAG_MS;
       snd('select');
       emitUI('magZoom', { zoom: mp.z });
-      if (!seen('mag')) { markSeen('mag'); say(STR.magZoom, MAG_SAY_MS); magSayUntil = nowMs() + MAG_SAY_MS; }
+      if (gOn() && !seen('mag')) { markSeen('mag'); say(STR.magZoom, MAG_SAY_MS); magSayUntil = nowMs() + MAG_SAY_MS; }
     }
     // Toque no mapa com ferramenta na mao sempre responde: poe a peca, ou a faixa diz por que nao. Confere depois do
     // onTap (qualquer caminho): nada mudou, nada foi dito, a camera nao foi pedida e nenhum pedido ficou aberto
@@ -4665,7 +4677,7 @@
     var ROLL_STATE_CLS = ['crz-rollc', 'crz-rollready', 'crz-rolling', 'crz-rolled', 'crz-rollmove', 'crz-rollfxhid', 'crz-rollresthid'];
     // dado v2: a linha de ensino da manha (uma por vez, cada uma uma vez por aparelho: hints 'dice:*')
     function rollHint(s) {
-      if (s.dieState !== 'offer' || !s.die) return '';
+      if (s.dieState !== 'offer' || !s.die || !gOn()) return '';
       var di = diceInfoOf(s);
       if (!seen('dice:offer')) return 'dice:offer';
       if ((di.tier === 'ch2' || di.tier === 'ch3') && !seen('dice:cost')) return 'dice:cost';
@@ -5451,7 +5463,7 @@
       halfEl.textContent = half ? STR.chapterStop : ''; halfEl.classList.toggle('gone', !half);
       chapterMoment(s, chapterDoneOf(sm));
       // (A3) explicacoes: abertas no primeiro resumo da partida, depois atras do (i)
-      var firstSum = !seen('sumInfo'); if (firstSum) markSeen('sumInfo');
+      var firstSum = gOn() && !seen('sumInfo'); if (firstSum) markSeen('sumInfo');
       for (i = 0; i < infoRows.length; i++) setInfo(infoRows[i], firstSum);
       var carryN = lastDayOf(s) ? 0 : Math.min(s.budget | 0, CFG.carryCap != null ? CFG.carryCap : 3);
       carryEl.textContent = carryN > 0 ? STR.carryOver(carryN) : '';
@@ -5871,7 +5883,7 @@
     function newToolTick(s, now) {
       // w_light: no dia do semaforo o pulso sai logo (2,5 s): o primeiro semaforo vai ao anel de ontem, nao a um calmo
       var waitMs = CFG.tools.light && CFG.tools.light.unlockDay === (s.day | 0) ? 2500 : TOOL_HINT_MS;
-      if (toolHintDay === s.day || now - planOpenAt < waitMs || tutBalloonOn() || modal() || sayUntil) return;
+      if (!gOn() || toolHintDay === s.day || now - planOpenAt < waitMs || tutBalloonOn() || modal() || sayUntil) return;
       var i, t, id = null;
       for (i = 0; s.tools && i < s.tools.length; i++) { t = s.tools[i]; if (t.unlocked && CFG.tools[t.id] && CFG.tools[t.id].unlockDay === (s.day | 0) && (s.day | 0) > 1) id = t.id; }
       toolHintDay = s.day;
@@ -5906,7 +5918,7 @@
       }
       // nunca dois avisos ao mesmo tempo: a faixa espera o aviso do topo sair
       // folha do dado aberta: a faixa espera (a folha a cobria)
-      var show = nextOn && !tutBalloonOn() && !modal() && !sayEl.classList.contains('show') && !sheetOpen;
+      var show = gOn() && nextOn && !tutBalloonOn() && !modal() && !sayEl.classList.contains('show') && !sheetOpen;
       if (show) {
         var tx = nextText(s);
         // a faixa nunca cobre rua: cobrindo, a frase curta (uma linha); ainda cobrindo, so o Play pulsa
@@ -5954,7 +5966,7 @@
     // Le state.boost (recarga dos dias de aprendizado, outro agente) ou state.clear
     function boltCharges(s) { var b = s.boost || s.clear; return b ? (b.charges | 0) : 0; }
     function boostLiveTick(s) {
-      var live = s.phase === 'run' && !s.paused && (s.day | 0) >= 1 && (s.day | 0) <= 3 && !!(s.clear && s.clear.unlocked !== false) && boltCharges(s) > 0;
+      var live = gOn() && s.phase === 'run' && !s.paused && (s.day | 0) >= 1 && (s.day | 0) <= 3 && !!(s.clear && s.clear.unlocked !== false) && boltCharges(s) > 0;
       if (live !== clearEl.classList.contains('crz-boostlive')) clearEl.classList.toggle('crz-boostlive', live);
     }
     // ---- fast-forward (blind2 9; game.setFastForward, CFG.fastForward) ----
@@ -6005,10 +6017,29 @@
       ffCalmSince = 0;
       if (ev.reason === 'ring' && game.state.phase === 'run') ffSlowedNote();
     }
+    // w_guide: dia 1 de uma partida com Guidance On num aparelho que ja terminou o capitulo 1: uma linha, uma vez por partida.
+    // O botao sob a faixa liga o Off na hora; sem toque, a faixa sai sozinha e nada mais acontece
+    function guideHintTick(s, now) {
+      if (guideHintUntil && (now >= guideHintUntil || !gOn() || s.phase !== 'plan' || (s.day | 0) !== 1)) hideGuideHint();
+      if (guideHintUntil || !gOn() || (s.day | 0) !== 1 || s.phase !== 'plan' || seen('guideHint') || bootFrames >= 0) return;
+      if (!CRZ.guide || !CRZ.guide.finishedChapter()) return;
+      if (roll.open || chCardOpen() || modal() || tutBalloonOn() || tutorScript() || sayUntil || confirmOpen() || growPend) return;
+      markSeen('guideHint');
+      stripSay(STR.guideHint, 7000);
+      guideHintUntil = now + 7000;
+      guideOffEl.classList.remove('gone'); sayPillAvoid(guideOffEl);
+    }
+    on(guideOffEl, 'click', function (e) {
+      if (e && e.stopPropagation) e.stopPropagation();
+      hideGuideHint();
+      if (CRZ.guide) CRZ.guide.set(false);
+      sayUntil = 0; say(STR.guideOffDone, 3500); snd('select');
+      emitUI('guideOff', {});
+    });
     function runHintTick(s, now) {
       if (runHintUntil && now >= runHintUntil) { runHintUntil = 0; runHintEl.classList.add('gone'); }
       // blind3 1: com o roteiro do tutorial a faixa do Boost ja disse isso (o mesmo texto em dois lugares)
-      if (s.phase !== 'run' || (s.day | 0) !== 1 || seen('runHint') || tutBalloonOn() || s.paused || tutorScript()) return;
+      if (!gOn() || s.phase !== 'run' || (s.day | 0) !== 1 || seen('runHint') || tutBalloonOn() || s.paused || tutorScript()) return;
       if (!runAt || now - Math.max(runAt, lastTouchAt) < 15000) return;
       markSeen('runHint'); runHintEl.textContent = STR.runHint; runHintEl.classList.remove('gone'); runHintUntil = now + 6000;
     }
@@ -6043,7 +6074,7 @@
     // so depois do Skip (quem fez o roteiro ja viu tudo isto nos baloes)
     function tutorSkipped() { var tu = CRZ.app && CRZ.app.tutorial; try { return !!(tu && tu.wasSkipped && tu.wasSkipped()); } catch (e) { return false; } }
     function firstUseTick(s, now) {
-      if (tutorScript() || !tutorSkipped()) return;
+      if (!gOn() || tutorScript() || !tutorSkipped()) return;
       // dado (dia 2+, plano) e velocidade (primeiro dia que roda): uma vez cada
       if (s.phase === 'plan' && (s.day | 0) >= 2 && s.die && !seen('fu:die')) { firstUse('die', STR.dieFirst, now); pulseEl(dieEl); }
       if (s.phase === 'run' && !seen('fu:speed') && !seen('speedTaught') && runAt && now - runAt >= 7000) { firstUse('speed', STR.speedFirst, now); pulseEl(playBtn); }
@@ -6317,7 +6348,7 @@
       var cInc = s.crew && s.crew.day === s.day ? s.crew.income | 0 : 0;
       if (s.phase !== 'plan' || upkeepSaid === s.day || (!U && !cInc)) return;
       if (roll.open || growPend || bootFrames >= 0 || modal() || tutBalloonOn() || sayUntil || confirmOpen() || crewOpen()) return;
-      var per = (CFG.upkeep && CFG.upkeep.perLight) || 1, first = !!U && !seen('upkeep');
+      var per = (CFG.upkeep && CFG.upkeep.perLight) || 1, first = gOn() && !!U && !seen('upkeep');
       var dark = U && U.dark ? U.dark.length : 0;
       var txt = (first ? STR.upkeepFirst(per, (s.day | 0) !== ((CFG.upkeep && CFG.upkeep.fromDay) | 0)) + ' ' : '') + (U ? STR.upkeepLine(U.paid | 0, dark) : '') + (cInc ? (U ? ' ' : '') + STR.crewLine(cInc) : '');
       U = U || { dark: [] };
@@ -6363,7 +6394,7 @@
       if ((s.budget | 0) < C.cost) return;   // sem pontos para pagar: a oferta nao aparece (nada a decidir)
       if (roll.open || growPend || bootFrames >= 0 || modal() || tutBalloonOn() || sayUntil || confirmOpen()) return;
       crewAskDay = s.day;
-      var first = !seen('crew'); if (first) markSeen('crew');
+      var first = gOn() && !seen('crew'); if (first) markSeen('crew');
       var ci = game.crewInfo ? game.crewInfo() : null;
       crewTxt.textContent = (first ? STR.crewFirst + ' ' : '') + STR.crewOffer(C.cost, C.perDay, ci ? ci.days : C.days);
       crewEl.classList.remove('gone'); modalReg().set(doc.body, 'crew', true); snd('select');
@@ -6458,7 +6489,7 @@
       if (!c && wiAdd(n.id)) c = choiceData(n.id);
       if (!c || !c.rows.length) return false;
       scId = n.id; scSig = ''; scAt = nowMs(); scMsg.classList.add('gone'); scMsg.textContent = '';
-      var first = !seen('choiceHelp');
+      var first = gOn() && !seen('choiceHelp');
       scHelp.textContent = STR.choice.help; scHelp.classList.toggle('gone', !first); if (first) markSeen('choiceHelp');
       paintChoice(c);
       // w_place: um Pare em cruzamento de 3+ ruas, do dia em que ele engasga (CFG.junction.stop.late): o cartao diz o motivo
@@ -6563,7 +6594,7 @@
       var w = game.world, k; for (k in w.nodes) if (w.nodes.hasOwnProperty(k)) { var n = w.nodes[k]; if (isJunction(n) && !n.tool) addPulse(n.x, n.y); }
     }
     function ringGroupTick(s) {
-      if (seen('ringGroup') || (s.phase !== 'plan' && s.phase !== 'summary') || !render || typeof render.hotRings !== 'function' || sayUntil) return;
+      if (!gOn() || seen('ringGroup') || (s.phase !== 'plan' && s.phase !== 'summary') || !render || typeof render.hotRings !== 'function' || sayUntil) return;
       var L = render.hotRings() || [], i;
       for (i = 0; i < L.length; i++) if (L[i].count >= 2) {
         if (tutBalloonOn() || modal() || confirmOpen() || roll.open) return;
@@ -6589,7 +6620,7 @@
       var tu = CRZ.app && CRZ.app.tutorial, tutOn = tutBalloonOn() || tutorScript();
       // a frase da mao unica ('Tap the arrow to flip it.') fica: o aviso do primeiro gasto espera o proximo gasto
       if (sayUntil && /^One-way: /.test(sayEl.textContent)) tutOn = true;
-      if (b < spendBudget && !seen('firstSpend') && !tutOn) { markSeen('firstSpend'); say(STR.firstSpend(spendBudget - b)); }
+      if (b < spendBudget && gOn() && !seen('firstSpend') && !tutOn) { markSeen('firstSpend'); say(STR.firstSpend(spendBudget - b)); }
       spendBudget = b;
     }
     var hintScan = { day: -1, phase: '', had: false };
@@ -6598,6 +6629,8 @@
     var SCROLL_OK = '[data-scroll]';
     var CHIP_LINGER = 2000, MIN_ROAD_PX = 20;
     var PAN_LOCK_DAYS = (CFG.panLockDays != null ? CFG.panLockDays : 3), panLockSaid = false;
+    // w_guide: o bloqueio dos dias 1 a 3 (um dedo nao move o mapa) e ensino (protege quem aprende a arrastar); Off o tira
+    function panLockN() { return gOn() ? PAN_LOCK_DAYS : 0; }
     // dias 1 e 2 (dias de tutorial) comecam a 1x; no dia 3 volta o padrao do CFG (4x), a menos que a jogadora
     // ja tenha escolhido a velocidade no botao (o equilibrio dos dias 3+ foi medido com o padrao)
     // dias 1 e 2 (dias de tutorial) SEMPRE comecam a 1x, mesmo se a jogadora trocou no dia 1. Do dia 3 em diante
@@ -6648,7 +6681,7 @@
     function syncHint(s, now) {
       var tut = CRZ.app && CRZ.app.tutorial;
       var tutOn = !!(tut && tut.isActive && tut.isActive());
-      if (tutOn) hint = null;   // o tutorial guiado assume
+      if (tutOn || !gOn()) hint = null;   // o tutorial guiado assume (Guidance Off: sem pulsos de ensino)
       else if (!chCardOpen()) maybeStartHint(s, now);   // w_chap: a ferramenta nova espera o cartao do capitulo
       if (hint && s.phase !== 'plan') hint = null;
       if (hint && !tutOn) {
@@ -6703,7 +6736,7 @@
       // nv8 5: a legenda segue o custo (a rua gratis usada volta a custar): reescreve quando o texto muda
       if (sel && !legendEl.classList.contains('gone')) { if (!legendAfford(sel) || legendHeld()) syncLegend(); else { var lt = legendText(sel); if (legendEl.textContent !== lt) legendEl.textContent = lt; } }
       else if (sel && s.phase === 'plan' && legendAfford(sel) && !legendHeld()) syncLegend();
-      firstSpendTick(s); ringEverTick(s); ringGroupTick(s);
+      firstSpendTick(s); ringEverTick(s); ringGroupTick(s); guideHintTick(s, now);
       if (s.phase === 'run' && !runAt) runAt = now; else if (s.phase !== 'run') runAt = 0;
       firstUseTick(s, now);
       var nextShow = nextStepTick(s, now);
@@ -6721,7 +6754,7 @@
     // esquerda e depois o da direita a cada ~4 s, no maximo 2 ciclos. Para no primeiro clearUsed.
     var bhint = { n: 0, nextAt: 0, armed: false };
     function boostHintTick(s, now) {
-      if (s.phase !== 'run') { bhint.armed = false; return; }
+      if (s.phase !== 'run' || !gOn()) { bhint.armed = false; return; }
       if (s.day !== 1 || boostUsed || bhint.n >= 4) return;
       var cl = s.clear;
       if (!cl || !cl.unlocked || !(cl.charges > 0)) return;
@@ -6826,7 +6859,7 @@
       if (gesture.count() === 0 && render && render.held && render.held()) camHold(false);
       // 2026-11-09: dias 1 a 3 a camera nao anda durante um arrasto (a borda puxava o mapa sozinha; a cidade
       // cabe na tela e o enquadrar resolve). Do dia 4 em diante o arrasto na borda ainda leva a rua longe
-      if ((game.state.day | 0) > PAN_LOCK_DAYS) autoPan(dt);
+      if ((game.state.day | 0) > panLockN()) autoPan(dt);
       if (infTimer > 0) {
         infTimer -= dt * 1000;
         if (infTimer <= 0 && !holding) { var o = ov(); if (o) o.showInfluence = null; }

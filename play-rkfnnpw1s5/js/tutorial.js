@@ -985,10 +985,15 @@
       return null;
     }
 
+    // w_guide: Guidance Off (CRZ.guide, ajuste do aparelho) desliga o roteiro, as dicas, o aviso do anel e o lembrete diario
+    function guideOff() { var g = CRZ.guide; return !!g && g.on() === false; }
     function update(dt) {
       if (!started) return;
       dt = dt > 0 ? dt : 0;
       c.clock += dt;
+      // Off no meio de um passo: ele sai sem marcar visto (solta a pausa e o escuro) e nenhum outro entra.
+      // Ao ligar de novo, passos de janela ja passada se marcam vistos em pickNext (nada repete)
+      if (guideOff()) { if (c.cur) dropCur(); hidden = false; return; }
       // nv8 1: a janela do 'Tap again to skip' fechou: o rotulo volta a 'Skip tutorial' na hora
       if (armedUntil > 0 && c.clock >= armedUntil) { armedUntil = -1; if (c.cur && !hidden && c.cur.mode !== 'strip') view.frame(info()); }
       if (c.ringId !== null && c.ringId !== undefined) {   // pico do no do anel: a queda real do 'Nice'
@@ -1179,9 +1184,9 @@
       start: function () { started = true; },
       modalsToday: modalsToday,
       skip: skip, replay: replay, destroy: destroy, update: update,
-      isActive: function () { return !!c.cur && !hidden; },
+      isActive: function () { return !!c.cur && !hidden && !guideOff(); },
       // o roteiro ainda tem passos (nao pulado, nao acabou): a UI segura os proprios avisos de primeiro uso
-      inScript: function () { return !!started && !data.skipped && mainLeft(); },
+      inScript: function () { return !!started && !data.skipped && !guideOff() && mainLeft(); },
       wasSkipped: function () { return !!data.skipped; },
       // o Play fica travado enquanto um passo do roteiro que NAO pede o Play esta aberto no plano
       // nv6: tambem com QUALQUER balao com Got it aberto (dica de crossing, cartao do Stop, balao do raio no dia 1);
@@ -1196,7 +1201,7 @@
         return st(c).phase === 'plan' && c.cur.step.kind === 'main';
       },
       // nv7: no dia 1 a velocidade fica em 1x ate o balao de SPEED ser lido
-      speedLocked: function () { var s = st(c); return !!started && !data.skipped && (s.day || 0) === 1 && s.phase === 'run' && !data.seen.speedTaught; },
+      speedLocked: function () { var s = st(c); return !!started && !data.skipped && !guideOff() && (s.day || 0) === 1 && s.phase === 'run' && !data.seen.speedTaught; },
       bump: function () { c.touchAt = c.clock; try { if (view.again) view.again(); } catch (e) {} },
       handleUI: handleUI, handleGame: handleGame, cont: cont, slow: slow, tap: tap, skipTap: skipTap, dimTap: dimTap,
       touched: function () { c.touchAt = c.clock; }, againCount: function () { return c.againN || 0; },

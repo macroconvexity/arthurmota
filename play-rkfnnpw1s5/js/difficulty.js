@@ -134,4 +134,39 @@
       return true;
     }
   };
+  /* Guidance (w_guide): o ajuste de aparelho "Guidance On/Off", guardado como o som (fora do save da partida).
+   * On e o padrao (sem chave, ou qualquer valor que nao seja '0'). Off tira o ensino (tutorial, dicas de primeiro uso,
+   * confirmacoes de ajuda); a informacao do jogo fica. ch1: contador por aparelho de partidas que chegaram ao dia
+   * CFG.chapterDays + 1 (capitulo 1 terminado); sem contador, o melhor dia do recorde (cruzamento.best) vale. */
+  var GKEY = 'gridlet.guidance', CH1_KEY = 'gridlet.ch1', BEST_KEY = 'cruzamento.best';
+  function lsGet(k) { try { return root.localStorage ? root.localStorage.getItem(k) : null; } catch (e) { return null; } }
+  function lsPut(k, v) { try { if (root.localStorage) { root.localStorage.setItem(k, v); } } catch (e) {} }
+  var guideOn = lsGet(GKEY) !== '0', guideCbs = [];
+  CRZ.guide = {
+    key: GKEY, ch1Key: CH1_KEY,
+    on: function () { return guideOn; },
+    // grava e avisa quem ouve; true se mudou
+    set: function (v) {
+      v = !!v;
+      if (v === guideOn) { return false; }
+      guideOn = v; lsPut(GKEY, v ? '1' : '0');
+      guideCbs.slice().forEach(function (f) { try { f(guideOn); } catch (e) {} });
+      return true;
+    },
+    onChange: function (f) { guideCbs.push(f); return function () { var i = guideCbs.indexOf(f); if (i >= 0) { guideCbs.splice(i, 1); } }; },
+    // testes: relê a chave do armazenamento
+    reload: function () { guideOn = lsGet(GKEY) !== '0'; return guideOn; },
+    // partidas do aparelho que chegaram ao dia 11 (inicio do capitulo 2)
+    chapters: function () {
+      var n = parseInt(lsGet(CH1_KEY), 10);
+      return n > 0 ? n : 0;
+    },
+    noteChapterDone: function () { lsPut(CH1_KEY, String(CRZ.guide.chapters() + 1)); },
+    finishedChapter: function () {
+      if (CRZ.guide.chapters() > 0) { return true; }
+      var need = ((CFG && CFG.chapterDays) || 10) + 1, b = null;
+      try { b = JSON.parse(lsGet(BEST_KEY) || 'null'); } catch (e) {}
+      return !!b && (+b.bestDays || 0) >= need;
+    }
+  };
 })(typeof window !== 'undefined' ? window : globalThis);
