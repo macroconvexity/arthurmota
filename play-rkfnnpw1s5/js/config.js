@@ -459,6 +459,13 @@
         // w_noopt2: barra mais alta so para a linha do vizinho: seguida, ela saia 'better' no dia seguinte em 46% (rua: 69%), com ganho de 8 s e 40% em 67%
         // (web/dev/review/w_noopt2/runs/table5.md); fica o ganho minimo em s e em fracao da espera de ontem
         bar: { feed: { sec: 8, pct: 0.4 } } } },
+    // w_dawn: every crossing that carried cars yesterday gets its replay in the background from the end of the day (summary, then the
+    // plan; the day running stops it), after the rings the summary always did. cpuMs: slice time the background replays may use per
+    // morning (the tapped crossing is outside it); wallMs: no background replay starts or goes on later than this after the queue began;
+    // reloadMs: after a reload in the plan, the wait before the same queue starts by itself.
+    // Measured in web/dev/review/w_dawn (measure.js, dawn_timing.mjs): a chapter-3 morning replays all its crossings in about 4.5 s of slices
+    // in headless Chrome; at 4x CPU slow-down 8000 ms keeps the frames of the morning as they were (12000 added a 117 ms frame)
+    dawnReplay: { cpuMs: 8000, wallMs: 30000, reloadMs: 1500 },
     // v2 (v2/economia.md 3.2 e 6.2, v2/sistemas.md 4): Road crew, a troca entre hoje e depois. Nas manhas de fromDay a
     // toDay o plano oferece: pagar cost pontos hoje e receber perDay ponto toda manha pelos proximos days dias (a
     // partir de amanha). No maximo maxActive ao mesmo tempo. Paga-se no 4o dia (cost / perDay) e rende +6. days e a

@@ -2455,6 +2455,7 @@
       var ids = wiIds(s), jobs = [], i, j;
       for (i = 0; i < ids.length; i++) { j = null; try { j = game.whatIfJob(ids[i]); } catch (e) { warnOnce('game.whatIfJob', e); } if (j) jobs.push(j); }
       wiQ = { day: s.day | 0, jobs: jobs, i: 0, t0: nowMs(), t1: 0, done: false, stop: null, kicked: false, slices: 0, maxSlice: 0, fresh: false };
+      dawnInit(wiQ, s, ids); dawnAm.day = (s.day | 0) + 1;
       wiAdvance();
       if (!wiQ.done) wiKick();
     }
@@ -2466,11 +2467,12 @@
       try { j = game.whatIfJob(id, false, true); } catch (e) { warnOnce('game.whatIfJob', e); }
       if (!j) return false;
       if (j.done) return true;
+      j.tap = true;   // w_dawn: the tapped crossing runs to the end (wall cap from the tap), outside the background budget
       if (!q || q.done) { q = wiQ = { day: j.day, jobs: [], i: 0, t0: nowMs(), t1: 0, done: false, stop: null, kicked: false, slices: 0, maxSlice: 0, fresh: false, cap: 6000 }; }
       else { q.t0 = nowMs(); q.cap = 6000; }
       // o anel que a jogadora tocou passa a frente da fila (os jobs andam em fatias e guardam o proprio estado): antes ele esperava
       // todos os da fila do resumo e os ramos a mais, e o cartao ficava ~3 s em 'Replaying yesterday here...' (cego 11, dia 26)
-      for (k = q.i; k < q.jobs.length; k++) if (q.jobs[k].id === id && !q.jobs[k].relief) { qFront(q, k); return true; }
+      for (k = q.i; k < q.jobs.length; k++) if (q.jobs[k].id === id && !q.jobs[k].relief) { q.jobs[k].tap = true; qFront(q, k); return true; }
       q.jobs.splice(q.i, 0, j); wiKick();
       return true;
     }
@@ -2493,13 +2495,18 @@
       var q = wiQ;
       if (!q || q.done) { q = { day: (game.state.day | 0) - 1, jobs: [], i: 0, t0: nowMs(), t1: 0, done: false, stop: null, kicked: false, slices: 0, maxSlice: 0, fresh: false, cap: 6000 }; if (!reliefQueue(q, id, true) || !q.jobs.length) return false; wiQ = q; }
       else { if (!reliefQueue(q, id, true)) return false; q.t0 = nowMs(); q.cap = 6000; }
+      if (q.jobs[q.i] && q.jobs[q.i].id === id) q.jobs[q.i].tap = true;
       wiKick();
       return true;
     }
     // o anel que a jogadora tocou ja esta na fila (o resumo o levou): passa a frente, os jobs guardam o proprio estado
     function wiFront(id) {
       var q = wiQ, k; if (!q || q.done) return;
-      for (k = q.i + 1; k < q.jobs.length; k++) if (q.jobs[k].id === id && !q.jobs[k].relief) { q.jobs.splice(q.i, 0, q.jobs.splice(k, 1)[0]); return; }
+      for (k = q.i; k < q.jobs.length; k++) if (q.jobs[k].id === id && !q.jobs[k].relief) {
+        if (!q.jobs[k].tap) { q.jobs[k].tap = true; q.t0 = nowMs(); q.cap = 6000; }   // w_dawn: the wall cap counts from the tap
+        if (k > q.i) q.jobs.splice(q.i, 0, q.jobs.splice(k, 1)[0]);
+        return;
+      }
     }
     function wiPending(id) {
       if (!wiQ || wiQ.done) return false;
@@ -2511,16 +2518,21 @@
       while (q.i < q.jobs.length && q.jobs[q.i].done) {
         var jb = q.jobs[q.i++];
         if (jb.branches) q.fresh = true;
+        // w_dawn: a crossing the summary did not pick (quiet, or a ring past the first two): no advice memory here (the tap reads it
+        // as before) and its relief branches wait until every crossing has its rows
+        if (jb.bg && !jb.tap) { if (jb.r && !jb.relief && q.relLater) q.relLater.push(jb.id); continue; }
         // a memoria do conselho (state.adv) sai agora, como no resumo de antes
         try { if (jb.r && !jb.relief) game.adviceFor(jb.id, true); } catch (e) { warnOnce('game.adviceFor', e); }
         // w_noopt: cartao sem peca 'better': os ramos a mais entram na mesma fila (a manha ja sabe se o anel tem o que oferecer)
         if (jb.r && !jb.relief) reliefQueue(q, jb.id, choiceOpen() && scId === jb.id);
       }
-      if (q.i >= q.jobs.length) wiEnd(null);
+      // w_dawn: the summary's worst crossing line does not wait for the background crossings
+      if (jamWait && !wiPending(jamWaitId)) { var s0 = game.state; if (s0.phase === 'summary') paintJam(s0); jamWait = false; }
+      if (q.i >= q.jobs.length && !dawnLeft(q)) wiEnd(null);
     }
     function wiEnd(why) {
       var q = wiQ; if (!q || q.done) return;
-      q.done = true; q.stop = why; q.t1 = nowMs();
+      q.done = true; q.stop = why || q.stop || null; q.t1 = nowMs();
       var s = game.state;
       if (jamWait && s.phase === 'summary') paintJam(s);
       jamWait = false;
@@ -2544,12 +2556,89 @@
       // (o trabalho guarda o save de ontem), entao seguem em fatias ate o fim ou o WI_CAP, e o cartao do anel enche
       var inSum = s.phase === 'summary' && (s.day | 0) === q.day, inMorn = s.phase === 'plan' && (s.day | 0) === q.day + 1;
       if (!inSum && !inMorn) { wiEnd('phase'); return; }
-      if (nowMs() - q.t0 > (q.cap || WI_CAP)) { wiEnd('cap'); return; }
       var job = q.jobs[q.i], t = nowMs();
+      // w_dawn: no frame for a second (page hidden, app in the background): background replays wait for the next frame
+      if ((!job || !job.tap) && q.later && t - uiBeat > 1000) { q.idle = true; return; }
+      // w_dawn: the plan opening (city growth, camera, die) is the heaviest frame of the morning: background slices keep out of it
+      if ((!job || !job.tap) && q.later && uiPhaseFr < DAWN_GAP) { q.kicked = true; root.setTimeout(function () { q.kicked = false; wiKick(); }, 50); return; }
+      // w_dawn: past the background budget only the tapped jobs stay; the next background crossing is made in a slice of its own
+      if ((!job || !job.tap) && q.later && (q.spent >= q.budget || nowMs() - q.w0 > (DAWN.wallMs || 30000))) { dawnDrop(q); wiAdvance(); if (!q.done) wiKick(); return; }
+      if (!job) {
+        var nx = dawnNext(q);
+        if (nx === 'wait') { q.kicked = true; root.setTimeout(function () { q.kicked = false; wiKick(); }, 250); return; }
+        if (!nx) { wiEnd(null); return; }
+        dt = nowMs() - t; q.slices++; q.spent += dt; if (dt > q.maxSlice) q.maxSlice = dt;
+        wiKick(); return;
+      }
+      if ((job.tap || !q.later) && nowMs() - q.t0 > (q.cap || WI_CAP)) { wiEnd('cap'); return; }
       try { job.run(WI_SLICE, nowMs); } catch (e) { warnOnce('game.whatIfJob', e); job.done = true; job.r = null; }
       var dt = nowMs() - t; q.slices++; if (dt > q.maxSlice) q.maxSlice = dt;
+      if (!job.tap && q.later) q.spent += dt;
       wiAdvance();
       if (!q.done) wiKick();
+    }
+    // w_dawn: the summary replayed only the 2 hottest rings and the worst crossing, so about 3 crossings in 4 that carried cars had no
+    // replay at dawn and the first armed tap there always opened a pending card. Now every crossing that carried cars yesterday follows
+    // in the same queue (q.later, made one job at a time), in the order a tap is likely: the other rings (hottest first), the
+    // crossings where a piece went in yesterday (st.marks), then by cars yesterday. It runs in the same slices as before, only in the
+    // summary and the next plan (the day running ends it), inside a budget of slice time (CFG.dawnReplay.cpuMs; the tapped crossing is
+    // outside it and still jumps to the front). A crossing removed or no longer replayable when its turn comes is skipped; one that
+    // already has its replay or is already queued is never made twice. After a reload in the plan the same queue starts by itself
+    // (CFG.dawnReplay.reloadMs after the plan shows) for what the save does not have.
+    var DAWN = CFG.dawnReplay || {}, dawnAm = { day: -1, at: 0 }, jamWaitId = null, uiBeat = nowMs(), uiPhase = null, uiPhaseFr = 99, DAWN_GAP = 6;   // DAWN_GAP: frames
+    function dawnIds(s, skip) {
+      var w = game.world, h = s.hot || {}, kd = s.kinds || {}, mk = {}, L = [], k, M = s.marks && s.marks.list ? s.marks.list : [];
+      for (k = 0; k < M.length; k++) if (M[k]) mk[M[k].id] = 1;
+      for (k in w.nodes) if (w.nodes.hasOwnProperty(k) && w.nodes[k] && !w.nodes[k].portal && degOf(w.nodes[k]) >= 3 && kd[k] && kd[k].v >= 1 && !(skip && skip.indexOf(+k) >= 0)) L.push(+k);
+      function cls(id) { return +h[id] >= HOT_TAP ? 0 : (mk[id] ? 1 : 2); }
+      L.sort(function (a, b) { return (cls(a) - cls(b)) || (cls(a) === 0 ? (+h[b] - +h[a]) : 0) || ((kd[b].v || 0) - (kd[a].v || 0)) || (a - b); });
+      return L;
+    }
+    function dawnInit(q, s, skip) {
+      q.later = DAWN.cpuMs > 0 ? dawnIds(s, skip) : []; q.relLater = []; q.spent = 0; q.budget = DAWN.cpuMs > 0 ? DAWN.cpuMs : 0; q.ready = 0; q.w0 = nowMs();
+    }
+    function dawnLeft(q) { return !!(q.later && (q.later.length || q.relLater.length) && q.spent < q.budget); }
+    function dawnDrop(q) {
+      q.later.length = 0; q.relLater.length = 0;
+      for (var k = q.jobs.length - 1; k >= q.i; k--) if (!q.jobs[k].tap) q.jobs.splice(k, 1);
+      if (!q.stop) q.stop = 'budget';
+    }
+    // the next background job (in the plan, making it loads yesterday's morning: a slice of its own, never inside another)
+    function dawnNext(q) {
+      var s = game.state, id, n, j;
+      while (q.later.length) {
+        id = q.later.shift(); n = game.world.nodes[id]; j = null;
+        if (!n || n.portal || degOf(n) < 3 || wiPending(id)) continue;
+        try { if (!game.canReplay(id)) continue; j = s.phase === 'plan' ? game.whatIfJob(id, false, true) : game.whatIfJob(id); } catch (e) { warnOnce('game.whatIfJob', e); }
+        if (!j || j.done) continue;
+        j.bg = true; q.jobs.push(j); q.ready++;
+        return true;
+      }
+      // relief rows check their road on today's map (the city grows at night): made in the plan, never in the summary, so the card is
+      // the one the morning tap would make (summary-made relief of a crossing could miss a road that is legal only today)
+      if (q.relLater.length && s.phase !== 'plan') return 'wait';
+      while (q.relLater.length) {
+        id = q.relLater.shift(); n = game.world.nodes[id];
+        if (!n || wiPending(id)) continue;
+        var m = q.jobs.length; reliefQueue(q, id, false);
+        if (q.jobs.length > m) { q.jobs[q.jobs.length - 1].bg = true; return true; }
+      }
+      return false;
+    }
+    // after a reload in the plan (the page opened on a saved plan, no summary ran in it): the same background queue, once, when no other runs
+    function dawnTick(s) {
+      if (s.phase !== 'plan' || !(DAWN.cpuMs > 0) || typeof game.whatIfJob !== 'function' || !game.resumed) return;
+      var d = s.day | 0;
+      if (dawnAm.first === undefined) dawnAm.first = d;   // only the morning the page opened on (later mornings come from a summary)
+      if (dawnAm.day === d || dawnAm.first !== d) return;
+      if (wiQ && !wiQ.done) return;
+      if (dawnAm.wait !== d) { dawnAm.wait = d; dawnAm.at = nowMs(); }
+      if (nowMs() - dawnAm.at < (DAWN.reloadMs | 0)) return;
+      dawnAm.day = d;
+      var q = { day: d - 1, jobs: [], i: 0, t0: nowMs(), t1: 0, done: false, stop: null, kicked: false, slices: 0, maxSlice: 0, fresh: false, dawn: true };
+      dawnInit(q, s, null);
+      if (!q.later.length) return;
+      wiQ = q; wiKick();
     }
     function tapAdvice(s, n) { var a = nodeAdvice(s, n); if (a) showAdviceRoad(a); return a ? a.text : ''; }
     // conselho de segunda faixa: destaca no mapa a rua mais ocupada do no (o texto nao diz ponto cardeal).
@@ -5637,7 +5726,7 @@
       // v2int: o 'e se' ja anda em fatias desde o fim do dia (wiStart em onPhase). A linha do pior ponto (escondida no
       // painel enxuto, lida pelo tutorial) sai quando o 'e se' dele termina: sem 'e se', o conselho pelo tipo
       var worst = worstNode(s, game.world), wh = worst ? heatOf(s, worst) : 0;
-      jamWait = !!(worst && wh >= JAM_SUMMARY && !lastDayOf(s) && wiPending(worst.id));
+      jamWait = !!(worst && wh >= JAM_SUMMARY && !lastDayOf(s) && wiPending(worst.id)); jamWaitId = jamWait ? worst.id : null;
       if (jamWait) { jamEl.textContent = ''; jamEl.classList.add('gone'); } else paintJam(s);
       // resumo do ultimo dia (antes da vitoria): uma linha de fechamento no lugar da dica de amanha
       // (o game hoje vai do dia 12 direto ao fim, sem resumo: a linha de fechamento sai tambem na vitoria;
@@ -7004,6 +7093,7 @@
       upkeepTick(s);
       crewTick(s);
       choiceTick(s);
+      dawnTick(s);
       invisTick(s, now);
       welcomeTick(s);
       // nv8 6: com aviso preto na tela o selo PAUSED (menu.js) desce para baixo dele
@@ -7125,6 +7215,8 @@
     function update(dt) {
       if (destroyed) return;
       var s = game.state, now = nowMs();
+      uiBeat = now; if (wiQ && wiQ.idle && !wiQ.done) { wiQ.idle = false; wiKick(); }   // w_dawn: frames are back, the background replays go on
+      if (s.phase !== uiPhase) { uiPhase = s.phase; uiPhaseFr = 0; } else uiPhaseFr++;
       // rede de seguranca (REFUSALS.md): recusa com som e sem frase no mesmo quadro ganha a frase generica
       if (denyPend) { denyPend = false; if (!tutBalloonOn()) say(STR.deny.generic); }
       if (s.phase !== lastPhase || (s.phase === 'summary' && lastDay !== s.day)) {
@@ -7712,7 +7804,7 @@
     function wiState() {
       var q = wiQ; if (!q) return { done: true, n: 0 };
       var b = 0; for (var i = 0; i < q.jobs.length; i++) b += q.jobs[i].branches | 0;
-      return { done: q.done, stop: q.stop, n: q.jobs.length, next: q.jobs[q.i] ? q.jobs[q.i].id : null, order: q.jobs.slice(q.i).map(function (j) { return j.id + (j.relief ? 'r' : ''); }), slices: q.slices, maxSlice: Math.round(q.maxSlice * 10) / 10, branches: b, ms: q.done ? Math.round(q.t1 - q.t0) : null };
+      return { spent: Math.round(q.spent || 0), later: q.later ? q.later.length : 0, ready: q.ready || 0, done: q.done, stop: q.stop, n: q.jobs.length, next: q.jobs[q.i] ? q.jobs[q.i].id : null, order: q.jobs.slice(q.i).map(function (j) { return j.id + (j.relief ? 'r' : ''); }), all: q.jobs.map(function (j) { return j.id + (j.relief ? 'r' : ''); }), slices: q.slices, maxSlice: Math.round(q.maxSlice * 10) / 10, branches: b, ms: q.done ? Math.round(q.t1 - q.t0) : null };
     }
     return { update: update, destroy: destroy, _wiState: wiState, getSelectedTool: getSelectedTool, isSheetOpen: isSheetOpen, isHolding: isHolding, boostChip: boostChip, boostNode: boostNode, timeScale: timeScale,
              openGuide: openGuide, closeGuide: closeGuide, isGuideOpen: function () { return !!guideEl; },

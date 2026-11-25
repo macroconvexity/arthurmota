@@ -2046,7 +2046,7 @@
         if (out) { r.alt[task.t] = base[task.t]; r.altHi[task.t] = out; }
       }
       job.run = function (ms, now) {
-        var t0 = now ? now() : 0;
+        var t0 = now ? now() : 0, did = false;
         while (!job.done) {
           var task = q[job.i];
           if (!task && !repQ) { queueReps(); continue; }
@@ -2064,6 +2064,9 @@
             settle(task, hout);
             continue;
           }
+          // w_dawn: a branch opens (load + start of the day, the longest piece of work that cannot be cut) only at the start of a slice
+          if (!job.br && now && did) break;
+          did = true;
           if (!job.br) { job.br = branchOpen(save, id, task.t, task.mul, task.s, !!task.bk, task.lane); job.branches++; if (!job.br) { settle(task, null); continue; } }
           else if (branchStep(job.br, now ? 45 : Infinity)) {
             if (task.bk && job.br.all) mBase[task.bk] = job.br.all;
@@ -2134,10 +2137,12 @@
         else if (task.k === 'feed' && !x.lock && !x.cut && (!out.feed || x.w < out.feed.w)) { x.node = task.node; x.tool = task.t; out.feed = x; }
       }
       job.run = function (ms, now) {
-        var t0 = now ? now() : 0;
+        var t0 = now ? now() : 0, did = false;
         while (!job.done) {
           var task = plan[job.i];
           if (!task) { job.done = true; job.r = out; r.relief = out; break; }
+          if (!job.br && now && did) break;   // w_dawn: a branch opens only at the start of a slice
+          did = true;
           if (!job.br) { job.br = branchOpen(save, id, r.tool, 1, 0, false, null, mk(task)); job.branches++; if (!job.br) { job.i++; continue; } }
           else if (branchStep(job.br, now ? 45 : Infinity)) { keep(task, job.br.out); job.br = null; job.i++; }
           if (now && now() - t0 >= ms) break;
