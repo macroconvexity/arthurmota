@@ -651,7 +651,12 @@
     // de uma face usada nem tira o premio)
     function shiftUndo(delta) {
       if (!delta) return;
-      for (var i = 0; i < undoStack.length; i++) undoStack[i].budget = Math.max(0, undoStack[i].budget + delta);
+      // w_review: uma foto que ficaria abaixo de 0 nao pode voltar sem devolver parte do custo da face (antes virava 0: o Undo e o reembolso
+      // davam pontos do nada). Ela e as mais velhas saem da pilha; as mais novas andam com o dado
+      var cut = -1, i;
+      for (i = 0; i < undoStack.length; i++) if (undoStack[i].budget + delta < 0) cut = i;
+      if (cut >= 0) undoStack.splice(0, cut + 1);
+      for (i = 0; i < undoStack.length; i++) undoStack[i].budget += delta;
     }
     function useFace(die) {
       var before = st.budget, d = applyDie(die);
@@ -1836,7 +1841,8 @@
       return { layout: world.cloneLayout(), budget: st.budget, placed: clone(placed), paid: clone(paid), ow: clone(owDay),
                free: { road: st.free.road, light: st.free.light }, lightHand: st.lightHand | 0, hand: handNorm(st.hand),
                die: st.die ? clone(st.die) : null, rerolled: st.rerolled,
-               watch: st.watch && st.watch.day === st.day ? clone(st.watch.list) : [], crew: clone(st.crew) };
+               watch: st.watch && st.watch.day === st.day ? clone(st.watch.list) : [], crew: clone(st.crew),
+               choice: clone(st.choice || {}) };   // w_review: a promessa do cartao volta com o Undo (sem ela, a linha do dia seguinte falava de uma peca desfeita)
     }
     function fail(reason) { return { ok: false, reason: reason }; }
     // w_paid: pecas que vao para a mao (semaforo, Stop, Yield) nao perdem pontos na troca: nao guardam preco pago
@@ -2451,13 +2457,34 @@
       }
       return null;
     };
+    // w_review: a rua sugerida que corta outra rua (CFG.signCard.relief.maxCross) chega em 'to' por um cruzamento novo: o caminho de ruas
+    // postas hoje (as que nao existiam no comeco do plano, st.planLanes) de a ate b, no maximo 4 trechos
+    function builtPath(a, b) {
+      var pl = st.planLanes; if (!pl) return false;
+      var seenN = {}, front = [a], d, k, j;
+      seenN[a] = 1;
+      for (d = 0; d < 4 && front.length; d++) {
+        var next = [];
+        for (k = 0; k < front.length; k++) {
+          var nd = world.nodes[front[k]]; if (!nd) continue;
+          for (j = 0; j < nd.edges.length; j++) {
+            var eid = idOf(nd.edges[j]), e = world.edges[eid]; if (!e || own(pl, String(eid))) continue;
+            var o = e.a === nd.id ? e.b : e.a;
+            if (o === b) return true;
+            if (!seenN[o]) { seenN[o] = 1; next.push(o); }
+          }
+        }
+        front = next;
+      }
+      return false;
+    }
     g.keepPromise = function (id, rec) {
       id = +id; var n = world.nodes[id];
       if (!rec || !n || rec.day !== st.day) return false;
       if (rec.tool === 'upgrade') { var two = false; for (var j = 0; j < n.edges.length; j++) { var ed = world.edges[idOf(n.edges[j])]; if (ed && ed.lanes === 2) two = true; } if (!two) return false; }
       // w_noopt2: as linhas a mais do cartao: a rua sugerida (tool 'road', from/to) e a peca no vizinho (tool 'feed', node/piece); a linha do dia
       // seguinte fala do cruzamento original
-      else if (rec.tool === 'road') { if (!world.nodes[rec.from] || !world.nodes[rec.to] || !linkedIn(world, rec.from, rec.to)) return false; }
+      else if (rec.tool === 'road') { if (!world.nodes[rec.from] || !world.nodes[rec.to] || !(linkedIn(world, rec.from, rec.to) || builtPath(rec.from, rec.to))) return false; }
       else if (rec.tool === 'feed') { var fnd = world.nodes[rec.node]; if (!fnd || fnd.tool !== rec.piece) return false; }
       else if (n.tool !== rec.tool) return false;
       if (!st.choice) st.choice = {};
@@ -2797,6 +2824,7 @@
       if (Array.isArray(e.watch)) { var nw = normWatch({ day: st.day, list: e.watch }); st.watch = nw || { day: st.day, list: [] }; }
       syncWatch();
       if (e.crew && typeof e.crew === 'object') st.crew = crewNorm(e.crew);
+      if (isObj(e.choice)) st.choice = e.choice;   // w_review (entrada de save antigo sem o campo: as promessas ficam)
       refresh();
       return { ok: true };
     };
@@ -3232,7 +3260,7 @@
       // Undo do plano de hoje (Game.load ja conferiu ou tirou d.undo): mesmas fotos, mesma ordem, mesmos reembolsos
       undoStack = (saved.undo && st.phase === 'plan') ? saved.undo.list.map(function (e) {
         return { layout: e.layout, budget: e.budget, placed: e.placed, paid: isObj(e.paid) ? e.paid : undefined, ow: owNorm(e.ow), free: { road: e.free.road, light: e.free.light }, lightHand: e.lightHand, hand: handNorm(e.hand),
-                 die: normDie(e.die, st.day), rerolled: e.rerolled, watch: Array.isArray(e.watch) ? e.watch : undefined, crew: e.crew };
+                 die: normDie(e.die, st.day), rerolled: e.rerolled, watch: Array.isArray(e.watch) ? e.watch : undefined, crew: e.crew, choice: isObj(e.choice) ? choiceNorm(e.choice) : undefined };
       }) : [];
       st.hot = saved.hotMap || {};
       // retorno da escolha (v2): save antigo sem os campos (ou campo estragado) carrega sem eles

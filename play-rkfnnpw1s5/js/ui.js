@@ -6678,6 +6678,8 @@
       scRows.innerHTML = '';
       for (i = 0; i < c.rows.length; i++) scRows.appendChild(choiceRow(c.rows[i], c, M, c.rows[i].tool === 'upgrade' ? 0 : lostPts));
       for (i = 0; i < ex.length; i++) scRows.appendChild(choiceExtraRow(ex[i], c, M));
+      // w_review: a peca da mao sem linha no cartao (Lanes na mao e a rua mais cheia ja com 2 faixas): a ajuda da marca sai (nada esta marcado)
+      if (scPick && scHelp.textContent === STR.choice.pickHelp) scHelp.classList.toggle('gone', !c.pending && !c.rows.some(function (r) { return r.tool === scPick; }));
       var lv = c.leave, ln;
       scLeave.innerHTML = '';
       var lt = el('span', 'crz-scname'); lt.textContent = C.leave; scLeave.appendChild(lt);
