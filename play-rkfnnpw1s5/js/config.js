@@ -31,6 +31,8 @@
     maxRoadLen: 260,
     minNodeSpacing: 56,   // distancia minima entre dois nos
     nodePickRadius: 26,   // raio de toque em px de tela
+    roadOneFromDay: 3,   // w_bugs15: from this day the Road tool is put down after one road (days 1 and 2 build several, and the tutorial script keeps it too)
+    roadSugFrame: { fill: 0.7, maxGrow: 1.8 },   // w_bugs15: the suggested 'Road around it' fills at most this share of the free area; the camera zooms in at most this many times
     camIdleMs: 600,       // o mapa nao reenquadra sozinho com um dedo na tela (mapa ou botao) nem por este tempo depois do ultimo toque
     worldRadius: 900,     // o crescimento automatico da cidade nunca passa disso a partir do centro
     buildRadius: 1500,    // ruas do jogador podem ir ate aqui (folga para crescer para todos os lados)
@@ -549,7 +551,8 @@
         now: 'Here come the cars. Boost this crossing.',
         why: { game: 'Big game today: more cars came.', school: 'School out today: more cars came.', roadwork: 'Roadwork today: one road was closed.',
                gamePrep: 'Big game today: your second road took the cars.', schoolPrep: 'School out today: your second road took the cars.',
-               roadworkPrep: 'Roadwork today: your two lanes held the line.' }
+               roadworkPrep: 'Roadwork today: your two lanes held the line.',
+               gamePrepBoost: 'Big game today: your Boost kept cars moving.', schoolPrepBoost: 'School out today: your Boost kept cars moving.' }
       }
     },
 

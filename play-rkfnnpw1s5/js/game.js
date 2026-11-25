@@ -3074,6 +3074,7 @@
       var cev = { type: 'clear', nodeId: n.id, left: st.clear.charges, kind: kind }, res = { ok: true, id: n.id, left: st.clear.charges, kind: kind };
       if (extraUse) { cev.extra = true; res.extra = true; }   // so aparece no Boost alem das 3 cargas do dia
       emit(cev);
+      if (EVM() && typeof EVM().onBoost === 'function') { try { EVM().onBoost(g, n.id); } catch (e) { /* the score never stops a Boost */ } }   // w_bugs15
       return res;
     };
 

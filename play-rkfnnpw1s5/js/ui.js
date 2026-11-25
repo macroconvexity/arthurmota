@@ -263,11 +263,11 @@
     lightToHand: 'The light is in your hand: pick Light and tap a crossing. Free.',
     lightTapMove: 'To move this light, pick Light and tap it. Free.',
     stopPicked: 'Stop picked up. Tap a crossing to place it. Free.',
-    stopMoved: 'Stop moved. Free.',
+    stopMoved: 'Stop placed from your hand. Free.',   // w_bugs15: said when a piece from the hand goes on a crossing (it was not moved)
     stopToHand: 'The stop is in your hand: pick Stop and tap a crossing. Free.',
     stopTapMove: 'To move this stop, pick Stop and tap it. Free.',
     yieldPicked: 'Yield picked up. Tap a crossing to place it. Free.',
-    yieldMoved: 'Yield moved. Free.',
+    yieldMoved: 'Yield placed from your hand. Free.',
     yieldToHand: 'The yield is in your hand: pick Yield and tap a crossing. Free.',
     yieldTapMove: 'To move this yield, pick Yield and tap it. Free.',
     upgradePicked: 'Two lanes picked up. Tap a road to place it. Free.',
@@ -561,6 +561,8 @@
     swapUndo: 'Undo',
     // toque num no com a Rua na mao: a rua sai por arrasto
     roadTapHint: 'Drag from a road end or crossing to build.',
+    // w_bugs15: the Road tool is one road at a time; said once, the first time it lets go
+    roadOne: 'Road built. Tap Road for another one.',
     // toque com lupa: cidade longe e dois alvos sob o dedo; o toque so aproxima (frase uma vez por partida)
     magZoom: 'Zoomed in. Tap again to pick.',
     swapUndoAria: 'Undo the swap',
@@ -578,7 +580,8 @@
     marks: {
       days: function (n) { return 'All ' + n + ' days'; }, noRetry: 'No chapter replayed', clean: 'A chapter with no strike',
       events: 'Every event prepared', kept: 'Kept a roll for later',
-      chEvents: function (p, n) { return 'Prepared ' + p + ' of ' + n + (n === 1 ? ' event' : ' events'); }, chClean: 'No strike this chapter'
+      // w_bugs15: 'ready' = what the event's note asked for: a second road out (game, school), two lanes on the detour (roadwork), or the Boost it named on the day
+      chEvents: function (p, n) { return 'Ready for ' + p + ' of ' + n + (n === 1 ? ' event' : ' events'); }, chClean: 'No strike this chapter'
     },
     markOn: 'Done: ', markOff: 'Not yet: ',
     // w_chap: as marcas sao um registro, nao uma escolha: titulo com a conta e, ao toque, o que cada uma pede
@@ -586,8 +589,8 @@
     chMarksHead: function (n, m) { return 'Marks this chapter: ' + n + ' of ' + m; },
     markHow: {
       days: function (n) { return 'Finish all ' + n + ' days.'; }, noRetry: 'Win without replaying a chapter.',
-      clean: 'Get through a whole chapter with no strike.', events: 'Prepare for every event before it starts.',
-      kept: 'Keep a roll, then use it on a later day.', chEvents: 'Prepare for each event in this chapter.',
+      clean: 'Get through a whole chapter with no strike.', events: 'Before each event, do what its note says.',
+      kept: 'Keep a roll, then use it on a later day.', chEvents: 'Before each event, do what its note says.',
       chClean: 'Get through this chapter with no strike.'
     },
     nextCh: {
@@ -603,7 +606,7 @@
       if (t.fixed > 0) p.push('fixed ' + t.fixed + (t.fixed === 1 ? ' trouble spot' : ' trouble spots'));
       // w_fix8: com eventos que passaram sem preparo, a conta diz 'P of N' (a marca 'Every event prepared' fica apagada)
       var evN = t.events | 0;
-      if (t.prepared > 0) p.push('prepared for ' + t.prepared + (evN > t.prepared ? ' of ' + evN : '') + ((evN > t.prepared ? evN : t.prepared) === 1 ? ' event' : ' events'));
+      if (t.prepared > 0) p.push('was ready for ' + t.prepared + (evN > t.prepared ? ' of ' + evN : '') + ((evN > t.prepared ? evN : t.prepared) === 1 ? ' event' : ' events'));
       if (p.length) return 'You ' + p.join(' and ') + '.';
       return signs > 0 ? 'Your ' + signs + (signs === 1 ? ' sign kept' : ' signs kept') + ' the cars moving.' : '';
     },
@@ -778,6 +781,8 @@
     hintOffer: 'Use it, or pass for a normal day.',
     hintCost: 'Most rolls have a cost now.',
     hintKeep: 'Keep saves it for a later morning.',
+    // w_bugs15: Keep puts the new face in the one pocket: the offer says what it throws away
+    rollKeepReplaces: function (name) { return 'Keep: replaces your kept ' + name + '.'; },
     rollUsedNote: 'In use today.', rollPassedNote: 'Passed: a normal day.', rollKeptNote: 'Kept for a later morning.',
     loanPaid: function (n) { return 'Loan: -' + n + (n === 1 ? ' build point' : ' build points') + ' today.'; },
     forecast: function (label) { return 'Tomorrow: ' + label; },
@@ -2951,8 +2956,10 @@
         var br = game.buildRoad(from, g.x, g.y);
         if (result(br, g.x, g.y, 'build', 'road')) {
           // a ponta solta nao virou portal (teto de portais): avisa que nenhum carro vem ali
+          var spoke = !!br.deadEnd;
           if (br.deadEnd) { roadNote(g.x, g.y, 'deadEnd'); say(STR.deadEnd); }
-          else nearMiss(from, g);
+          else spoke = nearMiss(from, g);
+          roadLetGo(spoke);   // w_bugs15
           emitUI('roadBuilt', {});
         }
         else {
@@ -3016,7 +3023,15 @@
         d = segDist(n.x, n.y, a.x, a.y, g.x, g.y);
         if (d < bd && !linked(n.id, fromId)) { bd = d; best = n; }
       }
-      if (best && best.edges && best.edges.length < 2) { say(STR.notLinked); addPulse(best.x, best.y); later(function () { addPulse(best.x, best.y); }, 900); }
+      if (best && best.edges && best.edges.length < 2) { say(STR.notLinked); addPulse(best.x, best.y); later(function () { addPulse(best.x, best.y); }, 900); return true; }
+      return false;
+    }
+    // w_bugs15: a road is built one at a time: the Road tool is put down, so the next tap on a crossing opens its card instead of 'Drag from a road end'
+    function roadLetGo(spoke) {
+      if (tutorScript() || (game.state.day | 0) < (CFG.roadOneFromDay | 0)) return;   // the first days build several roads: the tool stays in hand
+      setSel(null);
+      // the first-spend line teaches more and speaks right after the build: this one waits for the next road
+      if (!spoke && !seen('roadOne') && !(gOn() && !seen('firstSpend'))) { markSeen('roadOne'); say(STR.roadOne, 4000); }
     }
     function linked(aId, bId) {
       var w = game.world, n = w.nodes[aId], i, e;
@@ -4030,6 +4045,8 @@
         if (d <= R) { L.push(n); D.push(d); }
       }
       if (!magSimilar(D)) return null;
+      // w_bugs15: one crossing under the finger is never a reason to zoom (the other target is a ring dot, a sign on a bend or a dead end)
+      if (!drag && !(sel && NODE_TOOLS[sel])) { var xc = 0; for (i = 0; i < L.length; i++) if (L[i].edges && L[i].edges.length >= 3) xc++; if (xc < 2) return null; }
       var dmin = Infinity, i, j;
       for (i = 0; i < L.length; i++) for (j = i + 1; j < L.length; j++) dmin = Math.min(dmin, dist(L[i].x, L[i].y, L[j].x, L[j].y));
       var z = comf;
@@ -4046,7 +4063,8 @@
       magUntil = nowMs() + MAG_MS;
       snd('select');
       emitUI('magZoom', { zoom: mp.z });
-      if (gOn() && !seen('mag')) { markSeen('mag'); say(STR.magZoom, MAG_SAY_MS); magSayUntil = nowMs() + MAG_SAY_MS; }
+      // w_bugs15: every zoom that is only a zoom says so (it was once per device and only with Guidance: the next one read as a dead tap)
+      say(STR.magZoom, MAG_SAY_MS); magSayUntil = nowMs() + MAG_SAY_MS;
     }
     // Toque no mapa com ferramenta na mao sempre responde: poe a peca, ou a faixa diz por que nao. Confere depois do
     // onTap (qualquer caminho): nada mudou, nada foi dito, a camera nao foi pedida e nenhum pedido ficou aberto
@@ -4993,6 +5011,7 @@
       if (keptNow) rollKept.textContent = STR.rollKeptBtn(dieName(di.kept.id));
       var after = { used: s.dieFromKept ? '' : STR.rollUsedNote, passed: STR.rollPassedNote, kept: STR.rollKeptNote }[s.dieState];
       rollNote.textContent = (!offer && v2 && after) ? after : (offer && D.effect && D.effect.budget > 0 && pointsWasted(s) ? STR.pointsWaste : '');
+      if (offer && di.canKeep && di.kept) rollNote.textContent = (rollNote.textContent ? rollNote.textContent + ' ' : '') + STR.rollKeepReplaces(dieName(di.kept.id));   // w_bugs15
       rollTutEl.classList.add('gone');   // a linha do tutorial ('Tap the dice') sai depois de rolar
       return fx;
     }
@@ -6923,8 +6942,20 @@
         ghost = { fromId: x.from, x: b.x, y: b.y, ok: true, why: '', reason: '', nodeId: x.to, edgeId: null, cross: null, capped: false, reach: null, deadEnd: false, tip: '' };
         var o = ov(); if (o) { o.ghostRoad = ghost; o.finger = null; }
         sayUntil = 0; say(STR.choice.roadSug, 6000);
-        // a camera so anda se uma das pontas esta fora da area livre (o toque de confirmar nao cai num mapa em movimento)
-        if (render && render.focus && render.toScreen && !(onFree(a) && onFree(b))) { try { camFree(function () { camByUser(function () { render.focus((a.x + b.x) / 2, (a.y + b.y) / 2, undefined, !reducedMotion()); }); }); } catch (e) { warnOnce('render.focus', e); } }
+        // w_bugs15: the camera frames the WHOLE suggested road (both ends in the free area, zoomed in when the city is small on screen) and
+        // both ends pulse: zoomed out the dashed line was nearly invisible. The camera is done before the confirming tap can land
+        if (render && render.focus && render.toScreen) {
+          try {
+            var u = render.usable ? render.usable() : null, z0 = (render.camera && render.camera.zoom) || 1, zt = z0;
+            if (u) {
+              var ex = Math.max(1, Math.abs(a.x - b.x)), ey = Math.max(1, Math.abs(a.y - b.y)), fz = CFG.roadSugFrame || { fill: 0.7, maxGrow: 1.8 };
+              zt = Math.min(u.w * fz.fill / ex, u.h * fz.fill / ey, z0 * fz.maxGrow);
+            }
+            camFree(function () { camByUser(function () { render.focus((a.x + b.x) / 2, (a.y + b.y) / 2, zt, !reducedMotion()); }); });
+          } catch (e) { warnOnce('render.focus', e); }
+        }
+        addPulse(a.x, a.y); addPulse(b.x, b.y);
+        later(function () { if (roadSug) { addPulse(a.x, a.y); addPulse(b.x, b.y); } }, 700);
         return;
       }
       if (x.kind === 'feed') {
@@ -6955,6 +6986,7 @@
       sayUntil = 0; sayEl.textContent = '';
       var br = game.buildRoad(R.from, b.x, b.y);
       if (result(br, b.x, b.y, 'build', 'road')) {
+        roadLetGo(false);   // w_bugs15
         emitUI('roadBuilt', { suggested: true });
         // w_noopt2: a promessa da linha 'Road around it' vai para o dia seguinte (a linha do resumo fala do cruzamento original)
         if (typeof game.keepPromise === 'function') { try { game.keepPromise(R.id, { day: R.day, tool: 'road', from: R.from, to: R.to, w0: R.w0, w1: R.w1, v: 'better' }); } catch (e) { warnOnce('game.keepPromise', e); } }
@@ -7734,7 +7766,7 @@
       // o pulso mostra o que a dica pede: a segunda rua (a ponta e onde ela chega), as ruas do desvio (obra) ou o
       // cruzamento seguinte (Boost)
       var W = game.world, pts = [], sw = typeof CRZ.Events.secondWay === 'function' ? CRZ.Events.secondWay(game, m) : null;
-      if (sw && W.nodes[sw.from] && W.nodes[sw.to]) pts = [W.nodes[sw.from], W.nodes[sw.to]];
+      if (sw && W.nodes[sw.from] && W.nodes[sw.to] && !/Boost$/.test(CRZ.Events.adviceKey(game, m))) pts = [W.nodes[sw.from], W.nodes[sw.to]];   // w_bugs15: the pulse follows the advice
       else if (m.edgeId !== null && m.edgeId !== undefined && W.edges[m.edgeId] && typeof CRZ.Events.detourEdges === 'function') {
         CRZ.Events.detourEdges(W, W.edges[m.edgeId]).slice(0, 3).forEach(function (id) {
           var e = W.edges[id], a = e && W.nodes[e.a], b = e && W.nodes[e.b];

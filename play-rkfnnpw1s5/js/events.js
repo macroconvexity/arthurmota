@@ -522,7 +522,13 @@
     if (m.type === 'roadwork' || m.type === 'festival') return m.type;
     var n = g.world.nodes[m.nodeId];
     if (n && deg(n) >= 2) return m.type + 'Done';
-    return secondWay(g, m) ? m.type : m.type + 'Boost';
+    var sw = secondWay(g, m);
+    return sw && !hasCard(g, sw.to) ? m.type : m.type + 'Boost';
+  }
+  // w_bugs15: the new road would hand cars to a crossing that has a card (yesterday's traffic there): the card is the place to compare, and
+  // a blind 'add a second road out' once made that crossing worse (11 s -> 17 s). The advice falls back to Boost, as a road that does not fit
+  function hasCard(g, id) {
+    try { return !!((typeof g.choiceFor === 'function' && g.choiceFor(id)) || (typeof g.canReplay === 'function' && g.canReplay(id))); } catch (e) { return false; }
   }
   // linhas de texto (CFG.events.text): balao do toque na marca, faixa da vespera, do dia e a do primeiro evento
   function explain(g, m) { var T = (EC() || {}).text || {}, k = adviceKey(g, m); return (T.tap && (T.tap[k] || T.tap[m.type])) || ''; }
@@ -530,6 +536,17 @@
     var T = (EC() || {}).text || {};
     var L = m.when === 'today' ? T.stripToday : T.stripEve, k = adviceKey(g, m);
     return (L && (L[k] || L[m.type])) || '';
+  }
+  // w_bugs15: when the note for an event said 'Boost the next crossing' (the second road does not fit there, or the crossing it would feed has a card),
+  // that event counts as prepared once the player Boosts the advised crossing on the event day: the score follows the advice. Called by game.useClear
+  function onBoost(g, nodeId) {
+    evsOn(g, g.state.day).forEach(function (ev) {
+      if (!ev || !ev.ran || ev.prep || ev.edge !== null || ev.type === 'roadwork') return;
+      var m = { nodeId: ev.node, edgeId: null, type: ev.type, when: 'today' };
+      if (!/Boost$/.test(adviceKey(g, m))) return;
+      var hn = helpNode(g, m);
+      if (hn && hn.id === nodeId) { ev.prep = true; ev.boost = true; }
+    });
   }
   function firstSeen(g) { var s = S(g); return !s || !!s.first; }
   function markFirst(g) { var s = S(g); if (s) s.first = true; }
@@ -543,6 +560,7 @@
     for (var i = 0; i < L.length; i++) {
       var td = typeDef(L[i].type); if (!td || !W[L[i].type]) continue;
       // preparado (a segunda rua, as duas faixas do desvio): a frase diz que o preparo segurou
+      if (L[i].prep && L[i].boost && W[L[i].type + 'PrepBoost']) return { key: 'event', type: L[i].type, text: W[L[i].type + 'PrepBoost'], prep: true };   // w_bugs15
       if (L[i].prep && W[L[i].type + 'Prep']) return { key: 'event', type: L[i].type, text: W[L[i].type + 'Prep'], prep: true };
       if (td.kind === 'close' ? dd < 0 : dd > 0) return { key: 'event', type: L[i].type, text: W[L[i].type] };
     }
@@ -575,7 +593,7 @@
   function forSave(g) {
     var s = S(g); if (!s) return undefined;
     return { v: 1, test: !!s.test, first: !!s.first, fest: s.fest ? { day: s.fest.day, id: s.fest.id } : null,
-             list: s.list.map(function (ev) { return { day: ev.day, type: ev.type, size: ev.size, node: ev.node, edge: ev.edge, x: ev.x, y: ev.y, ran: !!ev.ran, prep: !!ev.prep }; }) };
+             list: s.list.map(function (ev) { return { day: ev.day, type: ev.type, size: ev.size, node: ev.node, edge: ev.edge, x: ev.x, y: ev.y, ran: !!ev.ran, prep: !!ev.prep, boost: ev.boost ? true : undefined }; }) };   // w_bugs15: boost = prepared by the Boost its note asked for (optional field)
   }
   // campo do save conferido: devolve o estado limpo ou null (estragado ou de outra versao)
   function normalize(d) {
@@ -592,7 +610,8 @@
       if (e.edge !== null && !nat(e.edge)) return null;
       if (!fin(e.x) || !fin(e.y) || (e.ran !== undefined && typeof e.ran !== 'boolean')) return null;
       if (e.prep !== undefined && typeof e.prep !== 'boolean') return null;
-      list.push({ day: e.day, type: e.type, size: e.size, node: e.node, edge: e.edge, x: e.x, y: e.y, ran: !!e.ran, prep: !!e.prep });
+      if (e.boost !== undefined && typeof e.boost !== 'boolean') return null;
+      list.push({ day: e.day, type: e.type, size: e.size, node: e.node, edge: e.edge, x: e.x, y: e.y, ran: !!e.ran, prep: !!e.prep, boost: e.boost ? true : undefined });
     }
     var f = d.fest;
     if (f !== null && f !== undefined && !(isObj(f) && nat(f.day) && nat(f.id))) return null;
@@ -635,7 +654,7 @@
     tomorrow: tomorrow, today: today, forecast: forecast, scale: scale, festivalSpot: festivalSpot, festivalLive: festivalLive,
     marks: marks, helpNode: helpNode, explain: explain, stripLine: stripLine, firstSeen: firstSeen, markFirst: markFirst,
     secondWay: secondWay, detourEdges: detourEdges, prepared: prepared, adviceKey: adviceKey, enabled: enabled,
-    whyOf: whyOf, hotSpots: hotSpots,
+    whyOf: whyOf, hotSpots: hotSpots, onBoost: onBoost,
     forSave: forSave, normalize: normalize, load: load,
     _test: { detour: detour, firstJunction: firstJunction, followPortal: followPortal, allReach: allReach, routeUse: routeUse, place: place, resolve: resolve, mapK: mapK }
   };
