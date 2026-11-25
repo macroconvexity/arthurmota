@@ -1316,3 +1316,47 @@ html body #hud .crz-ui[data-phase="over"] .crz-bottom, html body #hud .crz-ui[da
   .crz-tile .crz-fw { display: none; }
   .crz-tile .crz-f0 { display: inline; }
 }
+
+/* w_layout2: a area de toque de 'Build points' (padding de 12 px de .crz-info) entrava 2 px na primeira fileira da bandeja
+   quando ela sobe em varias fileiras; 8 px embaixo (41 px de alto) fica livre dos ladrilhos. Sem esticar na largura toda
+   (align-self), a area nao passa por baixo do raio de Clear na ponta direita */
+.crz-bottom .crz-budget.crz-info { padding-bottom: 8px; margin-bottom: -8px; align-self: center; min-width: 88px; box-sizing: border-box; }
+@media (max-width: 340px) { .crz-bottom .crz-budget.crz-info { margin-right: 10px; } }
+
+/* w_layout2: 'Guidance Off' quebrava em duas linhas a 320 px e a coluna da tela inicial espremia o seletor de dificuldade (38 px de alto) */
+@media (max-width: 340px) {
+  .crzm-start .crzm-dbtn[data-tut^="guide-"] { min-width: 0; padding: 0 8px; white-space: nowrap; }
+}
+@media (orientation: portrait) and (max-height: 600px) { .crzm-start.crzm-start { gap: 12px; } }
+
+/* w_layout2: o cartao de escolha de 6 e 7 linhas (peca + 'Road around it' + 'Fix the crossing that feeds it') passava da tela a 375x667:
+   a mesma compactacao dos 600 px de altura, ate 700 px */
+@media (max-height: 700px) and (orientation: portrait) {
+  .crz-choice { padding-top: 8px; padding-bottom: 8px; }
+  .crz-choice .crz-cbox { padding: 10px 12px; gap: 5px; }
+  .crz-sctitle { line-height: 1.2; }
+  .crz-schelp, .crz-scshape { line-height: 1.2; margin-top: 0; }
+  .crz-scrows { gap: 4px; }
+  .crz-scrow { padding-top: 3px; padding-bottom: 3px; }
+  .crz-scbody { gap: 1px; }
+  .crz-scwhy, .crz-scpay, .crz-scmsg { line-height: 1.2; }
+}
+
+/* w_layout2: a linha do semaforo no teto ('move a light here: free') espremia o nome ('Traffic light' em duas linhas a 390 px):
+   o nome fica inteiro e o preco desce para baixo dele, a direita, quando nao cabe ao lado */
+.crz-scrow.capped .crz-sctop { flex-wrap: wrap; row-gap: 0; }
+.crz-scrow.capped .crz-scname { white-space: nowrap; }
+.crz-scrow.capped .crz-scprice { margin-left: auto; }
+/* 320 px: um pouco mais de largura para o texto das linhas ('replaces your roundabout: 3 points lost' quebrava por poucos px) */
+@media (max-width: 340px) and (orientation: portrait) {
+  .crz-choice { padding-left: calc(var(--sal) + 6px); padding-right: calc(var(--sar) + 6px); }
+  .crz-choice .crz-cbox { padding-left: 8px; padding-right: 8px; }
+  .crz-scrow { padding-left: 4px; padding-right: 8px; gap: 6px; }
+  .crz-scico { width: 28px; height: 28px; }
+}
+
+/* w_layout2: o Undo da faixa desce junto com ela quando a frase ocupa tres linhas (320 px), como a faixa 'Day N' */
+body.crz-sayshow .crz-sayundo { top: max(calc(var(--sat) + 170px), calc(var(--crz-sayb, 0px) + 6px)); }
+/* w_layout2: as linhas do resumo que se tocam ('Your Light here: worse...', 'and N more: tap a crossing to see') tinham 35 e 18 px de alto */
+.crz-swtry { padding: 3px 0; box-sizing: border-box; min-height: 40px; display: flex; align-items: center; justify-content: center; }
+.crz-swmore { padding: 11px 0; box-sizing: border-box; min-height: 40px; }

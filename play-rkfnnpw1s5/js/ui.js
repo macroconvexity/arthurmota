@@ -6334,6 +6334,7 @@
       if (s.phase === 'summary') { leftBy = { day: s.day | 0, n: b }; return b > cap; }
       return b > cap && s.phase === 'plan' && leftBy.day === (s.day | 0) - 1 && leftBy.n > cap;
     }
+    var sayBTxt = '';   // w_layout2: o texto do aviso quando --crz-sayb foi medido
     var carryLostShown = {};   // capitulo -> dia em que o resumo disse 'N unspent points lost' (w_plus2): uma vez por capitulo
     // pontos que se perdem no Play (acima do teto de carry-over): aviso e confirmacao com o 2o toque (Easy e Normal)
     var carryAsking = { day: -1, on: false };
@@ -7156,7 +7157,10 @@
       }
       // polimento 1: com aviso na tela a faixa 'Day N' desce para baixo dele (antes os dois se cobriam)
       var sAny = sayEl.classList.contains('show') && !sayIn;
-      if (doc.body && doc.body.classList && sAny !== doc.body.classList.contains('crz-sayshow')) {
+      // w_layout2: a frase trocada com o aviso ja na tela (outra altura) refaz a base (o Undo e a faixa 'Day N' descem junto)
+      var sayTxtNow = sAny ? sayEl.textContent : '';
+      if (doc.body && doc.body.classList && (sAny !== doc.body.classList.contains('crz-sayshow') || (sAny && sayTxtNow !== sayBTxt))) {
+        sayBTxt = sayTxtNow;
         if (sAny) { try { var sr2 = sayEl.getBoundingClientRect(); doc.documentElement.style.setProperty('--crz-sayb', Math.round(sr2.bottom) + 'px'); } catch (e) {} }
         doc.body.classList.toggle('crz-sayshow', sAny);
       }
