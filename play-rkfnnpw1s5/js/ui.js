@@ -301,6 +301,8 @@
     // J: pontos que sobram
     carryOver: function (n) { return 'Saved for tomorrow: ' + n; },
     // w_plus2: pontos acima do teto, uma vez por capitulo no resumo
+    // w_bugs13: a reward or die face that adds build points when the player already has more than they can keep (carry cap) or spend
+    pointsWaste: 'You already have more than you can keep.',
     carryLost: function (n, cap) { return n + (n === 1 ? ' unspent point lost. ' : ' unspent points lost. ') + 'You keep at most ' + cap + '.'; },
     // K: dia 3 a 4x
     day3Fast: 'Day 3 runs at 4\u00d7. Faster = more bonus score, but drivers wait less.',
@@ -655,6 +657,8 @@
       // w_place: o cartao aberto pela peca da bandeja (a linha dela marcada), a mesma peca no proprio cruzamento, a peca que entra
       // direto (a repeticao a diz 'better') e o cruzamento novo, sem nada para comparar
       pickHelp: 'Your pick is marked. Tap it to place it, or pick another.',
+      // w_bugs13: the marked row is the player's own pick, never advice: when the card says it is worse, the help line says so too
+      pickWorse: 'Your pick looks worse. Tap it anyway, or pick another.',
       keepHelp: function (name) { return 'To move this ' + name + ', tap Leave it, then tap the ' + name + ' again.'; },
       placedBetter: function (name) { return name + ' placed: better here. Yesterday\'s cars would have waited less.'; },
       newCross: 'New crossing: no traffic to compare yet.',
@@ -689,10 +693,14 @@
         worseThan: function (t, a, b) { return 'Your ' + t + ' here: worse than expected. ' + a + ' s \u2192 ' + b + ' s. Tap to try another.'; }
       },
       // w_choice2: a linha do dia seguinte de uma peca posta fora do cartao (sem promessa) e o motivo de ter saido da faixa
+      // w_bugs13: a piece on a crossing that had no cars yesterday: how it did, nothing to compare with
+      fresh: function (t, b) { return 'Your ' + t + ': wait ' + b + ' s.'; },
       placed: function (t, a, b) { return 'Your ' + t + ' here: ' + a + ' s \u2192 ' + b + ' s.'; },
       moreCars: function (n, y) { return 'More cars today: ' + n + ', yesterday ' + y + '.'; },
       fewerCars: function (n, y) { return 'Fewer cars today: ' + n + ', yesterday ' + y + '.'; },
       more: function (k) { return 'and ' + k + ' more: tap a crossing to see'; },
+      // w_bugs13: the tap on 'Tap to try another.' is answered at once; the card itself opens when tomorrow's morning is quiet
+      tryAsked: 'Tomorrow morning its card opens here. Pick another piece.',
       // nome curto da ferramenta no balao e na linha do resumo ('Traffic light' estourava as 6 palavras)
       tool: { stop: 'Stop', yield: 'Yield', light: 'Light', round: 'Roundabout', cross: 'Crosswalk', upgrade: 'Two lanes' },
       // w_noopt2: o nome das linhas a mais do cartao na linha do dia seguinte (fora de tool: o balao 'Your X work' so conhece pecas)
@@ -1284,6 +1292,7 @@
   // a carta faz sentido para a jogadora agora? (sem ctx: sim, como antes)
   function cardFits(id, peak, ctx) {
     if (!ctx) return true;
+    if (id === 'plus2' && ctx.pointsWaste) return false;   // w_bugs13: no 'Good pick' on points the player cannot keep
     if (id === 'patient') return peak >= RING_SEEN;
     // o dado de amanha ja da o semaforo de graca: a carta seria jogada fora (as duas gratuidades nao somam)
     // a carta vale AMANHA: o semaforo precisa existir amanha (no dia 4 a carta do dia 5 dizia 'come later')
@@ -4052,7 +4061,13 @@
     }
     // folha que abre sozinha nao abre com ferramenta na mao nem logo depois de um toque no mapa (CFG.sheetIdleMs): espera o proximo momento parado
     var lastMapTapAt = -1e9;
-    function mapBusy() { return !!sel || nowMs() - lastMapTapAt < (CFG.sheetIdleMs | 0); }
+    // w_bugs13 (cego 13, dias 16 e 24: a folha da Road crew abriu logo depois de um cartao fechar e comeu o toque seguinte): o tempo
+    // parado conta desde o ultimo toque em QUALQUER lugar (bandeja, cartao, botoes: lastTouchAt) e desde o fechamento de um cartao
+    var choiceClosedAt = -1e9, rawTouchAt = -1e9;   // rawTouchAt: ultimo pointerdown real em qualquer lugar (lastTouchAt comeca em 'agora')
+    function mapBusy() {
+      var idle = CFG.sheetIdleMs | 0, t = nowMs();
+      return !!sel || t - lastMapTapAt < idle || t - rawTouchAt < idle || t - choiceClosedAt < idle;
+    }
     function onTap(sx, sy) {
       var s = game.state;
       lastMapTapAt = nowMs();
@@ -4437,7 +4452,7 @@
     var nopass = { passive: false }, pass = { passive: true, capture: true };
     on(doc, 'pointerdown', unlockAudio, true);
     on(doc, 'pointerdown', function () {
-      lastTouchAt = nowMs();
+      lastTouchAt = nowMs(); rawTouchAt = lastTouchAt;
       if (render && render.touchNote) render.touchNote();   // botao do HUD: o mapa tambem nao reenquadra sozinho sob esse toque
       // faixa de dica do tutorial: some no primeiro toque
       if (stripOn && sayUntil) { stripOn = false; sayUntil = 0; sayEl.classList.remove('show'); }
@@ -4973,7 +4988,7 @@
       rollKept.classList.toggle('gone', !keptNow);
       if (keptNow) rollKept.textContent = STR.rollKeptBtn(dieName(di.kept.id));
       var after = { used: s.dieFromKept ? '' : STR.rollUsedNote, passed: STR.rollPassedNote, kept: STR.rollKeptNote }[s.dieState];
-      rollNote.textContent = (!offer && v2 && after) ? after : '';
+      rollNote.textContent = (!offer && v2 && after) ? after : (offer && D.effect && D.effect.budget > 0 && pointsWasted(s) ? STR.pointsWaste : '');
       rollTutEl.classList.add('gone');   // a linha do tutorial ('Tap the dice') sai depois de rolar
       return fx;
     }
@@ -5237,7 +5252,7 @@
     // 2026-11-09 (nv4: toques em serie escolhiam a carta em 0,5 a 1 s): janela morta DESLIZANTE de 1,2 s (todo
     // toque nela reinicia a contagem); depois, se o toque anterior no painel foi ha menos de 600 ms, o toque so
     // arma ('Tap again to pick it.') e o segundo no mesmo botao confirma; senao um toque escolhe
-    var sumShownAt = 0, sumQuietFrom = 0, sumPrevTap = 0, sumLastTap = 0, sumArm = null, sumArmUntil = 0, SUM_DEAD = 1200, SUM_SERIES = 600;
+    var sumWaiting = false, sumShownAt = 0, sumQuietFrom = 0, sumPrevTap = 0, sumLastTap = 0, sumArm = null, sumArmUntil = 0, SUM_DEAD = 1200, SUM_SERIES = 600;
     function sumGate(btn) {
       var now = nowMs();
       if (!sumShownAt) return false;
@@ -5263,6 +5278,9 @@
         if (sayEl.textContent === STR.pickAgain) { sayUntil = 0; sayEl.classList.remove('show'); sayEl.textContent = ''; }
       }
       if (sumArm && now >= sumArmUntil) disarmSum();
+      // w_bugs13: a tap in the dead window is ignored on purpose; the rows look not-ready (the dimmed state Play has while it waits) for exactly that long
+      var wait = !!sumShownAt && now - Math.max(sumShownAt, sumQuietFrom) < SUM_DEAD;
+      if (wait !== sumWaiting) { sumWaiting = wait; sumEl.classList.toggle('crz-guard', wait); }
     }
     // v2 (D9): volta a manha do primeiro dia do capitulo (game.retrySave). main.js grava e recarrega; sem main.js
     // (testes), grava aqui. false = nada a voltar
@@ -5772,7 +5790,7 @@
       skipBtn.textContent = nShown ? STR.skip : STR.cont;
       skipBtn.classList.toggle('only', !nShown);
       var pk = Math.max(+sm.peak || 0, wh);
-      var cctx = { day: s.day | 0, cfg: CFG, pairs: pairCount(game.world), dieFreeLight: dieFL };
+      var cctx = { day: s.day | 0, cfg: CFG, pairs: pairCount(game.world), dieFreeLight: dieFL, pointsWaste: pointsWasted(s) };
       var pick = gOn() ? suggestCard(dr, pk, worst, cctx) : null;   // w_bugs12: 'Good pick' (and the dark card) is teaching: Guidance Off shows none
       // botao principal do resumo = uma carta (a sugerida, senao a primeira que faz sentido); pular fica secundario
       // carta escura = recomendada = com o selo 'Good pick' (sempre juntos); sem recomendada, nenhuma escura
@@ -5793,7 +5811,7 @@
           var b = tut(el('button', 'crz-card' + (id === pick ? ' rec' : '') + (idx === mainIdx ? ' main' : ''), cardIcon(id)), 'card-' + idx);
           var tx = el('span', 'crz-ctx');
           var nm = el('b', 'crz-cname'); nm.textContent = STR.cards[id] || id;
-          var ln = el('span', 'crz-cline'); ln.textContent = STR.cardLine[id] || '';
+          var ln = el('span', 'crz-cline'); ln.textContent = (STR.cardLine[id] || '') + (id === 'plus2' && cctx.pointsWaste ? ' ' + STR.pointsWaste : '');
           var gd = el('span', 'crz-cgood');
           // (A6) 'Good if...' so nos 3 primeiros resumos da partida (aprendizado); depois titulo + efeito
           gd.textContent = (s.day | 0) <= 3 ? ((!cardFits(id, pk, cctx) && STR.cardGoodNo[id]) || STR.cardGood[id] || '') : '';
@@ -5801,7 +5819,7 @@
           if (id === pick) { var tg = el('i', 'crz-ctag'); tg.textContent = STR.cardSuggest; nm.appendChild(tg); }
           tx.appendChild(nm); tx.appendChild(ln); tx.appendChild(gd);
           b.appendChild(tx);
-          b.setAttribute('aria-label', (STR.cards[id] || id) + '. ' + (STR.cardLine[id] || ''));
+          b.setAttribute('aria-label', (STR.cards[id] || id) + '. ' + ln.textContent);
           b.setAttribute('data-card', String(idx));   // clique por delegacao em cardsEl
           cardsEl.appendChild(b);
         })(dr[i], i);
@@ -6307,6 +6325,15 @@
       var s = game.state;
       return (s.budget | 0) < minToolCost(s) && !freeLeft(s);
     }
+    // w_bugs13: points with nowhere to go. In the summary: the day ends with more unspent points than the carry cap keeps. The next
+    // morning: the player holds more than the cap and ended yesterday over it too (the UI remembers the last summary). Last day: no carry.
+    var leftBy = { day: -1, n: 0 };
+    function pointsWasted(s) {
+      var cap = CFG.carryCap != null ? CFG.carryCap : 3, b = s.budget | 0;
+      if (lastDayOf(s)) return false;
+      if (s.phase === 'summary') { leftBy = { day: s.day | 0, n: b }; return b > cap; }
+      return b > cap && s.phase === 'plan' && leftBy.day === (s.day | 0) - 1 && leftBy.n > cap;
+    }
     var carryLostShown = {};   // capitulo -> dia em que o resumo disse 'N unspent points lost' (w_plus2): uma vez por capitulo
     // pontos que se perdem no Play (acima do teto de carry-over): aviso e confirmacao com o 2o toque (Easy e Normal)
     var carryAsking = { day: -1, on: false };
@@ -6626,8 +6653,18 @@
     // integracao (fuzz): a folha e uma camada dona de body.crz-modal, como a tela do dado; o balao do tutorial espera
     // (antes o holofote do tutorial abria por cima e o 'Hire'/'Not now' nao recebia o toque)
     function crewClose() { crewEl.classList.add('gone'); modalReg().set(doc.body, 'crew', false); }
+    // w_bugs13: a folha que abre sozinha nao aceita toque logo ao abrir (CFG.sheetGuardMs) nem um toque que comecou antes dela
+    // (o pointerdown cru, o mesmo do dado): o dedo que ia para o mapa ou para a bandeja nunca vira Hire
+    var crewShownAt = -1e9;
+    on(crewEl, 'pointerdown', recDown, true);
+    function crewTooSoon(btn) {
+      if (nowMs() - crewShownAt < (CFG.sheetGuardMs | 0)) return true;
+      return rawDown.t > -1e8 && rawDown.t < crewShownAt && nowMs() - rawDown.t < 1500 || strayTap(btn);
+    }
     on(crewNo, 'click', function (e) {
-      if (e && e.stopPropagation) e.stopPropagation(); crewClose(); snd('select');
+      if (e && e.stopPropagation) e.stopPropagation();
+      if (crewTooSoon(crewNo)) { emitUI('crewGuard', {}); return; }
+      crewClose(); snd('select');
       var was = !!(game.state.crew && game.state.crew.offer);
       if (game.declineCrew) game.declineCrew();
       // w_crew: diz quando a oferta pode voltar (a regra rara), sem prometer o que nao vem
@@ -6636,7 +6673,9 @@
       emitUI('crew', { hire: false });
     });
     on(crewYes, 'click', function (e) {
-      if (e && e.stopPropagation) e.stopPropagation(); crewClose();
+      if (e && e.stopPropagation) e.stopPropagation();
+      if (crewTooSoon(crewYes)) { emitUI('crewGuard', {}); return; }
+      crewClose();
       var r = game.hireCrew ? game.hireCrew() : null;
       if (r && r.ok) { snd('place'); sayUntil = 0; say(STR.crewHired(Math.max.apply(null, game.state.crew.active.concat([1]))), 4000); }
       else { snd('deny'); say(r && r.reason === 'budget' ? STR.deny.crewShort(CFG.crew.cost, game.state.budget | 0) : r && r.reason === 'phase' ? STR.deny.phase : STR.deny.crewOther); }
@@ -6652,6 +6691,7 @@
       var first = gOn() && !seen('crew'); if (first) markSeen('crew');
       var ci = game.crewInfo ? game.crewInfo() : null;
       crewTxt.textContent = (first ? STR.crewFirst + ' ' : '') + STR.crewOffer(C.cost, C.perDay, ci ? ci.days : C.days);
+      crewShownAt = nowMs();
       crewEl.classList.remove('gone'); modalReg().set(doc.body, 'crew', true); snd('select');
       emitUI('crewOffer', {});
     }
@@ -6664,7 +6704,7 @@
     var scEvText = '';   // w_bugs12: the event line of a marker on the crossing whose card just opened (goes on the grey line)
     var scPick = null, scArm = null;   // w_place: a peca da bandeja que abriu o cartao (linha marcada) e a ferramenta na mao
     var scFrom = null;   // w_noopt2: { node, tool }: o cartao do vizinho aberto pela linha 'Fix the crossing that feeds it'; a peca prometida e a linha marcada
-    var scEl = tut(el('div', 'crz-confirm crz-choice gone'), 'choice-card'), scId = null, scSig = '', scHlEdge = null, cardPick = null, choiceAsk = null, scAt = -1e9, SC_GHOST_MS = 450;
+    var scEl = tut(el('div', 'crz-confirm crz-choice gone'), 'choice-card'), scId = null, scSig = '', scHlEdge = null, cardPick = null, choiceAsk = null, scHelpPick = false, scAt = -1e9, SC_GHOST_MS = 450;
     scEl.setAttribute('role', 'dialog'); scEl.setAttribute('aria-modal', 'true');
     var scBox = el('div', 'crz-cbox'); scBox.setAttribute('data-scroll', '');
     var scTitle = el('div', 'crz-ctxt crz-sctitle'), scHelp = el('div', 'crz-schelp gone'), scShape = el('div', 'crz-scshape gone'), scRows = el('div', 'crz-scrows'), scMsg = el('div', 'crz-scmsg gone'), scPts = el('div', 'crz-scpts');
@@ -6674,6 +6714,10 @@
     scBox.appendChild(scTitle); scBox.appendChild(scShape); scBox.appendChild(scHelp); scBox.appendChild(scRows); scBox.appendChild(scMsg); scBox.appendChild(scLeave); scBox.appendChild(scPts);
     scEl.appendChild(scBox); ui.appendChild(scEl);
     function choiceOpen() { return !scEl.classList.contains('gone'); }
+    // w_bugs13: o mapa nao anda sozinho enquanto uma colocacao esta em andamento (peca na mao ou cartao aberto; dias 1 a 6 ficam como eram)
+    if (render && typeof render.placing === 'function') render.placing(function () {
+      var s = game.state; return !!s && s.phase === 'plan' && (s.day | 0) > 6 && (!!sel || choiceOpen());
+    });
     function choiceData(id) {
       if (typeof game.choiceFor !== 'function') return null;
       var c = null;
@@ -6682,7 +6726,7 @@
     }
     function choiceClose() {
       if (!choiceOpen()) return;
-      scEl.classList.add('gone'); modalReg().set(doc.body, 'choice', false);
+      scEl.classList.add('gone'); modalReg().set(doc.body, 'choice', false); choiceClosedAt = nowMs();
       if (scHlEdge !== null && render && typeof render.highlightRoad === 'function') { try { render.highlightRoad(scHlEdge, 1); } catch (e) {} }
       scHlEdge = null; scId = null; scSig = ''; scFrom = null; scPick = null; scArm = null; scEvText = '';
     }
@@ -6774,6 +6818,14 @@
       var lt = el('span', 'crz-scname'); lt.textContent = C.leave; scLeave.appendChild(lt);
       if (!c.pending && lv && lv.w !== null) { ln = el('span', 'crz-scnum'); ln.textContent = C.one(Math.round(lv.before)); scLeave.appendChild(ln); }   // w_choice3: Leave it fica com o numero de ontem
       scPts.textContent = C.points(game.state.budget | 0);
+      // w_bugs13: the marked row says 'worse': the help line says it plainly (the rows fill in after the card opens, so it is set here)
+      if (scHelpPick && scPick && !c.pending) {
+        var pw = false, hasPick = false; for (i = 0; i < c.rows.length; i++) if (c.rows[i].tool === scPick) { hasPick = true; if ((c.rows[i].verdict || c.rows[i].res || 'same') === 'worse') pw = true; }
+        if (hasPick) {   // no marked row in the card (the piece has no row here): the help line stays what openChoice set
+        var hb = scHelp.textContent, tail = hb.indexOf(STR.choice.pickHelp) === 0 ? hb.slice(STR.choice.pickHelp.length) : hb.indexOf(STR.choice.pickWorse) === 0 ? hb.slice(STR.choice.pickWorse.length) : '';
+        scHelp.textContent = (pw ? STR.choice.pickWorse : STR.choice.pickHelp) + tail; scHelp.classList.remove('gone');
+        }
+      }
     }
     function openChoice(s, n, opt) {
       if (s.phase !== 'plan' || modal() || choiceOpen() || degOf(n) < 3) return false;   // w_noopt: o portal que virou cruzamento (cego 10, dia 24) tambem
@@ -6789,7 +6841,7 @@
       if (c.dead && c.relief === 'pending') reliefAdd(n.id);
       scId = n.id; scSig = ''; scAt = nowMs(); scMsg.classList.add('gone'); scMsg.textContent = '';
       var first = gOn() && !seen('choiceHelp');
-      scPick = opt && opt.pick ? opt.pick : null; scArm = sel || null;
+      scPick = opt && opt.pick ? opt.pick : null; scArm = sel || null; scHelpPick = !!scPick && !(opt && opt.keep);
       // w_place: aberto pela peca da bandeja, a linha que diz o que fazer vale sempre (mesmo com Guidance off): o toque nao pos nada
       if (opt && opt.keep) { scHelp.textContent = STR.choice.keepHelp(String(STR.tools[opt.keep] || opt.keep).toLowerCase()); scHelp.classList.remove('gone'); }
       else if (scPick) { scHelp.textContent = STR.choice.pickHelp; scHelp.classList.remove('gone'); }
@@ -6797,7 +6849,7 @@
       paintChoice(c);
       // w_place: um Pare em cruzamento de 3+ ruas, do dia em que ele engasga (CFG.junction.stop.late): o cartao diz o motivo
       var SLc = CFG.junction && CFG.junction.stop && CFG.junction.stop.late;
-      if (c.have === 'stop' && SLc && SLc.multiApproachPenalty > 0 && (s.day | 0) >= SLc.fromDay && !(opt && opt.keep)) { scHelp.textContent = STR.chStopLate(SLc.fromDay); scHelp.classList.remove('gone'); } scSig = JSON.stringify(c) + '|' + (s.budget | 0);
+      if (c.have === 'stop' && SLc && SLc.multiApproachPenalty > 0 && (s.day | 0) >= SLc.fromDay && !(opt && opt.keep)) { scHelp.textContent = scPick ? scHelp.textContent + ' ' + STR.chStopLate(SLc.fromDay) : STR.chStopLate(SLc.fromDay); scHelp.classList.remove('gone'); } scSig = JSON.stringify(c) + '|' + (s.budget | 0);
       scEl.classList.remove('gone'); modalReg().set(doc.body, 'choice', true);
       try { if (scLeave.focus) scLeave.focus(); } catch (e) {}
       emitUI('choiceOpen', { id: n.id, rows: c.rows.length, pending: !!c.pending });
@@ -7710,17 +7762,20 @@
       }
       for (i = 0; i < M.length; i++) {
         var m = M[i]; if (!m.now || seen[m.id]) continue;
+        // w_bugs13: a piece on a crossing that had no cars yesterday: one plain line (no comparison), only if cars came today
+        if (m.fresh) { if (!(m.now.n > 0)) continue; seen[m.id] = 1; out.push({ id: m.id, tool: m.tool, fresh: true, e: { id: m.id, tool: m.tool, w: m.now.w, now: { w: m.now.w } }, n0: 0, n1: m.now.n }); continue; }
         seen[m.id] = 1; out.push({ id: m.id, tool: m.tool, e: { id: m.id, tool: m.tool, w: m.w, now: { w: m.now.w } }, n0: m.n, n1: m.now.n });
       }
       for (i = 0; i < out.length; i++) { out[i].a = Math.round(out[i].e.w); out[i].b = Math.round(out[i].e.now.w); out[i].score = Math.abs(out[i].b - out[i].a); }
       // w_bugs12: a change that made things worse always wins the line (then the biggest change, then the id)
-      for (i = 0; i < out.length; i++) out[i].bad = game.verdictFor(out[i].a, out[i].b) === 'worse' ? 0 : 1;
+      for (i = 0; i < out.length; i++) out[i].bad = !out[i].fresh && game.verdictFor(out[i].a, out[i].b) === 'worse' ? 0 : 1;
       out.sort(function (x, y) { return (x.bad - y.bad) || (y.score - x.score) || (x.id - y.id); });
       return out;
     }
     // o texto de uma linha: { text, why, tryIt }
     function sumText(s, l) {
       var cn = game.world && game.world.nodes ? game.world.nodes[l.id] : null, ch = s.choice && s.choice[l.id], tn = lc(fbkToolName(l.tool)), r = { text: '', why: '', tryIt: false };
+      if (l.fresh) { r.text = STR.fbk.fresh(fbkToolName(l.tool), l.b); return r; }
       var mine = ch && ch.day === s.day && ch.tool === l.tool && cn && (l.tool === 'upgrade' || l.tool === 'road' || l.tool === 'feed' || cn.tool === ch.tool);
       if (!mine) { r.text = STR.fbk.line(l.tool === 'road' ? STR.tools.road : fbkToolName(l.tool), l.a, l.b); return r; }   // w_bugs12: a plain built road is 'Road'
       var M2 = STR.fbk.mine, rk = { worse: 0, same: 1, better: 2 }, pv = ch.v || game.verdictFor(ch.w0, ch.w1), rv = game.verdictFor(l.a, l.b), T = fbkToolName(l.tool);
@@ -7749,7 +7804,7 @@
         d.textContent = t.text;
         if (t.tryIt) {
           d.className = 'crz-swtry'; d.setAttribute('role', 'button');
-          (function (id, day, dd) { dd.addEventListener('click', function (ev) { if (ev && ev.stopPropagation) ev.stopPropagation(); choiceAsk = { id: id, day: day }; dd.className = 'crz-swtry on'; snd('select'); emitUI('tryAnother', { id: id }); }); })(l.id, s.day | 0, d);
+          (function (id, day, dd) { dd.addEventListener('click', function (ev) { if (ev && ev.stopPropagation) ev.stopPropagation(); choiceAsk = { id: id, day: day }; dd.className = 'crz-swtry on'; snd('select'); var tn = game.world && game.world.nodes ? game.world.nodes[id] : null; if (tn) addPulse(tn.x, tn.y); sayUntil = 0; say(STR.fbk.tryAsked, 4500); emitUI('tryAnother', { id: id }); }); })(l.id, s.day | 0, d);
         }
         watchLineEl.appendChild(d); n++;
         if (t.why) { var dw = el('div', 'crz-swhy'); dw.textContent = t.why; watchLineEl.appendChild(dw); }

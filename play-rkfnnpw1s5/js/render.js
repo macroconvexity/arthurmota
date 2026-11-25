@@ -526,7 +526,12 @@
     var clkF = null;   // relogio injetavel so para testes (r._camClock)
     function clk() { return clkF ? clkF() : (root.performance && root.performance.now) ? root.performance.now() : Date.now(); }
     r._camClock = function (f) { clkF = typeof f === 'function' ? f : null; };
-    function busy() { return held.on || touch.n > 0 || clk() - touch.last < CAM_IDLE_MS; }
+    // w_bugs13 (cego 13): uma colocacao em andamento (peca na mao, cartao aberto) tambem segura o movimento automatico, do primeiro toque
+    // ate acabar ou ser cancelada, e por CAM_IDLE_MS depois. A UI diz quando (r.placing); sem ela, tudo como antes
+    var placingF = null, placeLast = -1e9;
+    r.placing = function (f) { placingF = typeof f === 'function' ? f : null; };
+    function placingNow() { var p = false; try { p = !!(placingF && placingF()); } catch (e) { p = false; } if (p) placeLast = clk(); return p; }
+    function busy() { var p = placingNow(); return held.on || touch.n > 0 || p || clk() - touch.last < CAM_IDLE_MS || clk() - placeLast < CAM_IDLE_MS; }
     // Regra unica (w_int2): o mapa nunca anda sob um dedo que vai resolver um toque.
     //  - movimento AUTOMATICO em curso quando o dedo pousa: para no quadro visivel (o toque age no que se ve) e o
     //    resto do destino espera o dedo ficar parado CAM_IDLE_MS;

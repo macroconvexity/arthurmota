@@ -401,7 +401,9 @@
       var ids = sortedIds(world.nodes);
       for (var i = 0; i < ids.length && out.list.length < 12; i++) {
         var nd = world.nodes[ids[i]], yy = y[ids[i]];
-        if (!nd || !nd.tool || !WATCH_TOOLS[nd.tool] || nd.tool === 'upgrade' || pt[ids[i]] === nd.tool || !yy || !(yy.n > 0)) continue;
+        if (!nd || !nd.tool || !WATCH_TOOLS[nd.tool] || nd.tool === 'upgrade' || pt[ids[i]] === nd.tool) continue;
+        // w_bugs13: crossing with no cars yesterday (a new one): no 'before' to compare; the summary says how it did if cars came today
+        if (!yy || !(yy.n > 0)) { if (!nd.portal && degree(nd) >= 3) out.list.push({ id: ids[i], tool: nd.tool, w: 0, n: 0, fresh: true }); continue; }
         out.list.push({ id: ids[i], tool: nd.tool, w: yy.w, n: yy.n });
       }
       // Two lanes posta pelo cartao: a linha de amanha fala do cruzamento da escolha
@@ -3731,6 +3733,7 @@
       var x = M.list[i];
       if (!x || typeof x !== 'object' || !fin(x.id) || typeof x.tool !== 'string' || ['stop', 'yield', 'light', 'round', 'cross', 'road', 'feed', 'upgrade'].indexOf(x.tool) < 0 || !fin(x.w) || x.w < 0 || !fin(x.n) || x.n < 0) continue;
       var o = { id: Math.floor(x.id), tool: x.tool, w: x.w, n: Math.floor(x.n) };
+      if (x.fresh === true) o.fresh = true;   // w_bugs13
       if (x.now && typeof x.now === 'object' && fin(x.now.w) && x.now.w >= 0 && fin(x.now.n) && x.now.n >= 0) o.now = { w: x.now.w, n: Math.floor(x.now.n) };
       out.list.push(o);
     }

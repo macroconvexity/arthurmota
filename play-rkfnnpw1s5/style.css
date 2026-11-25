@@ -151,6 +151,8 @@ button svg { pointer-events: none; }
 .crz-play.off { visibility: hidden; }
 /* w_cam: guarda do Play ativa (toque ignorado): cara de desligado, a mesma do Undo sem uso */
 .crz-play.crz-guard { opacity: 0.3; }
+/* w_bugs13: the reward rows and Skip reward while the summary ignores taps (SUM_DEAD): the same dimmed look, gone when taps count */
+.crz-sum.crz-guard .crz-card, .crz-sum.crz-guard .crz-skip { opacity: 0.3; }
 .crz-ui[data-phase="run"] .crz-tiles, .crz-ui[data-phase="run"] .crz-undo { opacity: 0.3; }
 .crz-ui[data-phase="run"] .crz-tile, .crz-ui[data-phase="run"] .crz-undo { pointer-events: none; }
 .crz-ui[data-phase="summary"] .crz-bottom, .crz-ui[data-phase="over"] .crz-bottom { display: none; }
@@ -335,7 +337,7 @@ body.crz-modal #stage, body.crz-modal #hud, body.crz-modal #hud * { pointer-even
 .crz-headline.gone { display: none; }
 
 .crz-daybanner {
-  position: absolute; left: 0; right: 0; top: 38%; text-align: center; pointer-events: none;
+  position: absolute; left: 8px; right: 8px; top: 38%; text-align: center; pointer-events: none;   /* 8 px each side: the pop to scale(1.02) at the end stays inside the screen (390 px wide became 398) */
   font-size: var(--fs-d2); font-weight: var(--fw-bold); letter-spacing: -1px; opacity: 0; z-index: 2;
 }
 .crz-daybanner.show { animation: crz-day var(--t-show) var(--ease) 1 forwards; }

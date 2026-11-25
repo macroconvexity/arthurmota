@@ -1134,6 +1134,9 @@
       if (c.cur.data.alt) {
         var cu0 = c.cur, u0 = uiOf(c), id0 = cu0.data.node;
         releasePause(cu0);
+        // w_bugs13 (cego 13, dia 9): o jogo ja estava pausado por outro (pausa da jogadora, ajuda): o balao nao era dono da pausa,
+        // entao o Boost era recusado ('phase') e o dia seguia parado. O botao 'Boost' so faz sentido com o dia correndo: retoma
+        try { if (st(c).paused && c.game.setPaused) c.game.setPaused(false); } catch (e) {}
         var okB = false;
         try { okB = !!(u0 && typeof u0.boostNode === 'function' && u0.boostNode(id0)); } catch (e) {}
         if (c.cur === cu0) finish();

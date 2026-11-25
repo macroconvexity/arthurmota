@@ -481,6 +481,8 @@
     // w_bugs11: folhas que abrem sozinhas (Road crew, boas-vindas, 'Tap to try another') esperam o mapa ficar parado: sem ferramenta
     // na mao e este tempo (ms) depois do ultimo toque no mapa. O cego 11 perdeu um toque no dia 16 para a folha da Road crew
     sheetIdleMs: 1500,
+    // w_bugs13: uma folha que abre sozinha (Road crew) ignora toques por este tempo (ms) depois de abrir, e um toque que comecou antes dela
+    sheetGuardMs: 600,
     // efeito de cada carta (game.js le daqui; a UI le por CRZ.Game cardInfo(id) para nao copiar numero)
     cardEffects: {
       plus2:     { budget: 2 },
