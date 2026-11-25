@@ -398,6 +398,9 @@
     function marksNow() {
       var out = { day: st.day, list: [] }, y = st.yday && st.yday.day === st.day - 1 ? st.yday.nodes : null, pt = st.planTools;
       if (!y || !pt) return out;
+      // w_line: a crossing keeps one line for its piece and one for its road work (Road, Two lanes, fix next door); one did not push the other out
+      function roadHas(id) { return out.list.some(function (m) { return m.id === id && (m.tool === 'road' || m.tool === 'upgrade' || m.tool === 'feed'); }); }
+      function anyHas(id) { return out.list.some(function (m) { return m.id === id; }); }
       var ids = sortedIds(world.nodes);
       for (var i = 0; i < ids.length && out.list.length < 12; i++) {
         var nd = world.nodes[ids[i]], yy = y[ids[i]];
@@ -410,7 +413,7 @@
       if (st.choice) for (var ck in st.choice) {
         var cc = own(st.choice, ck) ? st.choice[ck] : null, cy = cc && y[ck];
         if (!cc || (cc.tool !== 'upgrade' && cc.tool !== 'road' && cc.tool !== 'feed') || cc.day !== st.day || !cy || !(cy.n > 0) || out.list.length >= 12) continue;
-        if (!out.list.some(function (m) { return m.id === +ck; })) out.list.push({ id: +ck, tool: cc.tool, w: cy.w, n: cy.n });
+        if (!roadHas(+ck)) out.list.push({ id: +ck, tool: cc.tool, w: cy.w, n: cy.n });   // w_line: a piece on the same crossing does not take the place of the road line
       }
       // w_bugs12: rua nova ou alargada hoje (por toque ou arrasto, sem cartao): a linha vai para a ponta que teve carros ontem (a de mais espera)
       var pl = st.planLanes;
@@ -419,10 +422,13 @@
         for (var ei = 0; ei < eids.length && out.list.length < 12; ei++) {
           var ed = world.edges[eids[ei]], was = pl[eids[ei]], kind = was === undefined ? 'road' : (ed.lanes === 2 && was < 2 ? 'upgrade' : null);
           if (!ed || !kind) continue;
-          var ea = y[ed.a], eb = y[ed.b], pick = null;
-          if (ea && ea.n > 0 && degree(world.nodes[ed.a]) >= 3) pick = ed.a;
-          if (eb && eb.n > 0 && degree(world.nodes[ed.b]) >= 3 && (pick === null || eb.w > ea.w)) pick = ed.b;
-          if (pick === null || out.list.some(function (m) { return m.id === pick; })) continue;
+          var ea = y[ed.a], eb = y[ed.b], pick = null, cand = [];
+          if (ea && ea.n > 0 && degree(world.nodes[ed.a]) >= 3) cand.push(ed.a);
+          if (eb && eb.n > 0 && degree(world.nodes[ed.b]) >= 3) { if (cand.length && eb.w > ea.w) cand.unshift(ed.b); else cand.push(ed.b); }   // the end with the longest wait first
+          // w_line: the first end that has no line yet; else the first without a road line (a piece line there does not cover the road)
+          for (var ci = 0; ci < cand.length && pick === null; ci++) if (!anyHas(cand[ci])) pick = cand[ci];
+          for (ci = 0; ci < cand.length && pick === null; ci++) if (!roadHas(cand[ci])) pick = cand[ci];
+          if (pick === null) continue;
           out.list.push({ id: pick, tool: kind, w: y[pick].w, n: y[pick].n });
         }
       }

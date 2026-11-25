@@ -7764,15 +7764,17 @@
     var sumTexts = {};
     function sumList(s) {
       var out = [], seen = {}, i, L = s.watch && s.watch.day === s.day ? s.watch.list || [] : [], M = s.marks && s.marks.day === s.day ? s.marks.list || [] : [];
+      // w_line: a crossing has one line for its piece and one for its road work (Road, Two lanes, fix next door): the key says which
+      function sk(id, tool) { return id + (tool === 'road' || tool === 'upgrade' || tool === 'feed' ? 'r' : 'p'); }
       for (i = 0; i < L.length; i++) {
         var e = L[i]; if (!e.now || typeof e.w !== 'number') continue;   // save antigo sem a espera de ontem: sem numero inventado
-        seen[e.id] = 1; out.push({ id: e.id, tool: e.tool, e: e, n0: e.n, n1: e.now.n });
+        seen[sk(e.id, e.tool)] = 1; out.push({ id: e.id, tool: e.tool, e: e, n0: e.n, n1: e.now.n });
       }
       for (i = 0; i < M.length; i++) {
-        var m = M[i]; if (!m.now || seen[m.id]) continue;
+        var m = M[i]; if (!m.now || seen[sk(m.id, m.tool)]) continue;
         // w_bugs13: a piece on a crossing that had no cars yesterday: one plain line (no comparison), only if cars came today
-        if (m.fresh) { if (!(m.now.n > 0)) continue; seen[m.id] = 1; out.push({ id: m.id, tool: m.tool, fresh: true, e: { id: m.id, tool: m.tool, w: m.now.w, now: { w: m.now.w } }, n0: 0, n1: m.now.n }); continue; }
-        seen[m.id] = 1; out.push({ id: m.id, tool: m.tool, e: { id: m.id, tool: m.tool, w: m.w, now: { w: m.now.w } }, n0: m.n, n1: m.now.n });
+        if (m.fresh) { if (!(m.now.n > 0)) continue; seen[sk(m.id, m.tool)] = 1; out.push({ id: m.id, tool: m.tool, fresh: true, e: { id: m.id, tool: m.tool, w: m.now.w, now: { w: m.now.w } }, n0: 0, n1: m.now.n }); continue; }
+        seen[sk(m.id, m.tool)] = 1; out.push({ id: m.id, tool: m.tool, e: { id: m.id, tool: m.tool, w: m.w, now: { w: m.now.w } }, n0: m.n, n1: m.now.n });
       }
       for (i = 0; i < out.length; i++) { out[i].a = Math.round(out[i].e.w); out[i].b = Math.round(out[i].e.now.w); out[i].score = Math.abs(out[i].b - out[i].a); }
       // w_bugs12: a change that made things worse always wins the line (then the biggest change, then the id)
@@ -7806,7 +7808,7 @@
       watchLineEl.innerHTML = ''; sumTexts = {};
       for (i = 0; i < A.length; i++) {
         var l = A[i], t = sumText(s, l);
-        sumTexts[l.id] = t.text + (t.why ? ' ' + t.why : '');
+        if (!(l.tool === 'road' || l.tool === 'upgrade' || l.tool === 'feed') || !Object.prototype.hasOwnProperty.call(sumTexts, l.id)) sumTexts[l.id] = t.text + (t.why ? ' ' + t.why : '');   // w_line: the tap on a crossing says its piece line first
         if (i >= 2) continue;
         var d = el('div');
         d.textContent = t.text;
