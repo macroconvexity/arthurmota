@@ -626,10 +626,12 @@
       titleRoad: function (w) { return 'Cars on the lit road waited ' + w + ' s here yesterday.'; },
       titleWait: 'Replaying yesterday here\u2026',
       // w_shape: a forma do cruzamento de ontem (a classe da matriz, CFG.signCard.shape), nas palavras das linhas das pecas
+      // w_texts: the volume word counts cars per minute yesterday (CFG.signCard.shape lowMax / highMin) and says nothing about
+      // waiting, so it can not contradict the wait or the ring on the same card ('quiet' beside 24 s and a red ring did)
       shape: function (h) {
-        var r = h.roads + ' roads';
-        if (h.main) return h.vol === 'low' ? r + '. One road has most cars, quiet.' : r + '. One busy road, ' + (h.roads === 3 ? 'one quiet side street.' : 'quiet side streets.');
-        return r + ', ' + (h.vol === 'low' ? 'quiet.' : (h.vol === 'high' ? 'all busy.' : 'fairly busy.'));
+        var r = h.roads + ' roads', few = h.vol === 'low';
+        if (h.main) return r + (few ? ', few cars, most on one road.' : ', most cars on one road.');
+        return r + ', ' + (few ? 'few cars.' : (h.vol === 'high' ? 'many cars.' : 'some cars.'));
       },
       help: 'Each row replays yesterday with that sign here. Tap one to place it.',
       leave: 'Leave it', leaveAria: 'Leave this crossing as it is',
@@ -665,6 +667,7 @@
       payer: { side: 'side street waits', main: 'main road waits', all: 'everyone waits a little' },
       // w_noopt: nenhuma peca 'better' (o cruzamento cheio): ate 2 linhas a mais, so as que o 'e se' diz 'better' (game.choiceFor extra)
       extra: { road: 'Road around it', feed: 'Fix the crossing that feeds it' },
+      // w_texts: n = the crossings the road makes (the chip's count)
       extraNote: { road: function (t, n) { return n > 0 ? 'cars go around, adds ' + n + (n === 1 ? ' crossing' : ' crossings') : 'cars go around'; }, feed: function (t) { return 'a ' + t + ' there'; } },
       // w_noopt2: o cartao do vizinho aberto pela linha 'Fix the crossing that feeds it': o veredito das linhas e da espera DO VIZINHO e a peca
       // prometida ajuda o cruzamento de antes (medido em web/dev/review/w_noopt2/REPORT.md: ali ela sai 'better' em 12% e 'worse' em 72%). A linha
@@ -779,7 +782,8 @@
     loanPaid: function (n) { return 'Loan: -' + n + (n === 1 ? ' build point' : ' build points') + ' today.'; },
     forecast: function (label) { return 'Tomorrow: ' + label; },
     sidePts: function (n) { return (n > 0 ? '+' : '-') + Math.abs(n) + (Math.abs(n) === 1 ? ' build point' : ' build points'); },
-    sideCars: function (pct, more) { return pct + '% ' + (more ? 'more' : 'fewer') + ' cars'; },
+    // w_texts: the percent is against a normal day (what Pass gives: same city, no roll), not against yesterday, and the text says so
+    sideCars: function (pct, more) { return pct + '% ' + (more ? 'more' : 'fewer') + ' cars than normal'; },
     sidePatient: 'Drivers wait longer', sideDebt: function (n) { return '-' + n + (n === 1 ? ' build point' : ' build points') + ' tomorrow'; },
     sideFestival: 'Twice the cars on one road', sideEvent: "Tomorrow's event is bigger", sideFree: 'A free road',
     rollOfferLive: function (name, a, b) { return "Today's roll: " + name + '. ' + a + (b ? ', ' + b : '') + '. Use or pass.'; },
@@ -6805,7 +6809,7 @@
       if (c.noData) scShape.textContent = c.tip || '';   // w_noopt: sem 'e se' possivel, a dica de uma linha vai na linha cinza do cartao
       if (scEvText) scShape.textContent = (scShape.textContent ? scShape.textContent + ' ' : '') + scEvText;
       scShape.classList.toggle('gone', !scShape.textContent);
-      scTitle.textContent = c.noData ? C.noData : c.pending ? C.titleWait : (lit ? C.titleRoad : C.title)(Math.max(1, Math.round(c.before)));
+      scTitle.textContent = c.noData ? C.noData : c.pending ? C.titleWait : (lit ? C.titleRoad : C.title)(Math.max(1, Math.round(c.yesterday !== undefined ? c.yesterday : c.before)));   // w_texts: the real wait of yesterday
       if (lit && scHlEdge !== c.loud) { try { if (render.highlightRoad(c.loud, 60000)) scHlEdge = c.loud; } catch (e) { warnOnce('render.highlightRoad', e); } }
       // a Roundabout trocada perde os pontos dela (a de hoje e reembolsada): o preco aparece na linha de cada troca, antes do toque
       var lostPts = c.have === 'round' && !paidToday(c.id) ? paidFor(c.id, 'round') : 0;
@@ -6817,7 +6821,7 @@
       var lv = c.leave, ln;
       scLeave.innerHTML = '';
       var lt = el('span', 'crz-scname'); lt.textContent = C.leave; scLeave.appendChild(lt);
-      if (!c.pending && lv && lv.w !== null) { ln = el('span', 'crz-scnum'); ln.textContent = C.one(Math.round(lv.before)); scLeave.appendChild(ln); }   // w_choice3: Leave it fica com o numero de ontem
+      if (!c.pending && lv && lv.w !== null) { ln = el('span', 'crz-scnum'); ln.textContent = C.one(Math.round(c.yesterday !== undefined ? c.yesterday : lv.before)); scLeave.appendChild(ln); }   // w_choice3: Leave it fica com o numero de ontem
       scPts.textContent = C.points(game.state.budget | 0);
       // w_bugs13: the marked row says 'worse': the help line says it plainly (the rows fill in after the card opens, so it is set here)
       if (scHelpPick && scPick && !c.pending) {

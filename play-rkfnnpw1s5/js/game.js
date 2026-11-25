@@ -995,7 +995,9 @@
       var headline = failed ? 'Locked!'
         : closeNow ? 'Close call'
         : recordNow ? 'New record'
-        : (hn > 0 && delivered > 1.1 * prevSum / hn) ? 'Busy day'
+        // w_texts: 'Busy day' says more cars than usual; the summary's own 'Yesterday' line sits under it, so it also needs more cars than yesterday
+        // (the playtest saw it over 56 cars after 80, and over a 'Calm day: fewer cars came' line)
+        : (hn > 0 && delivered > 1.1 * prevSum / hn && delivered > st.history[hn - 1].delivered) ? 'Busy day'
         : 'Smooth day';
       if (convoy) { teachSeen = true; convoy = null; }
       st.teach.seen = teachSeen;
@@ -2092,6 +2094,13 @@
       var q = wd.canAddEdge(from, b.x, b.y);
       return q && q.ok && q.nodeId === to && !q.capped ? q : null;
     }
+    // w_texts: the crossings (3+ roads) a new road makes, the count the 'N new crossings' chip shows after it is built: where it crosses other roads
+    // (q.cross) plus each end that was a plain bend (2 roads) and gets its third. The row used to say only the first ('adds 1 crossing', chip '2 new crossings')
+    function newCrossings(q, from, to) {
+      var n = q && q.cross ? q.cross.length : 0;
+      [from, to].forEach(function (e) { var nd = world.nodes[e]; if (nd && degree(nd) === 2) n++; });
+      return n;
+    }
     function crossOk(q, RL) { return !!q && !(RL.maxCross >= 0 && (q.cross ? q.cross.length : 0) > RL.maxCross); }
     function reliefPlan(id, r, wd) {
       var RL = (CFG.signCard || {}).relief || {}, K = RL.kinds || [], arms = r.cur && r.cur.a ? r.cur.a.slice() : [], plan = [], i, j;
@@ -2427,7 +2436,7 @@
           if (kx === 'road') {
             var rq = isUnlocked('road') ? roadOk(world, x2.from, x2.to) : null;
             ok2 = crossOk(rq, RL);
-            if (ok2) { var rc = costOf('road'); er = { kind: 'road', tool: 'road', from: x2.from, to: x2.to, cost: rc, hand: !!st.free.road, afford: st.budget >= rc, cross: rq.cross ? rq.cross.length : 0 }; }
+            if (ok2) { var rc = costOf('road'); er = { kind: 'road', tool: 'road', from: x2.from, to: x2.to, cost: rc, hand: !!st.free.road, afford: st.budget >= rc, cross: newCrossings(rq, x2.from, x2.to) }; }
           } else if (kx === 'feed') {
             var fn = world.nodes[x2.node]; ok2 = !!fn && !fn.portal && degree(fn) >= 3 && (fn.tool || null) !== x2.tool && isUnlocked(x2.tool);
             if (ok2) { var fc = placeCheck(x2.node, x2.tool); if (fc.capped) ok2 = false; else er = { kind: 'feed', tool: x2.tool, node: x2.node, cost: fc.cost, hand: fc.hand, afford: fc.afford }; }
@@ -2437,7 +2446,11 @@
           extra.push(er);
         }
       }
-      return { id: id, day: r.day, pending: pend, tool: r.tool, have: have, deg: deg, shape: shape, before: before, loud: loud ? loud[0] : null, rows: rows,
+      // w_texts: what the card SAYS cars waited yesterday is the real record of the crossing (st.yday, the number the next summary line starts from), not
+      // the replay's: in 96% of cards they are the same number; the replay has no Boost taps and, with no ring in it, falls back to the longest approach's mean.
+      // The rows and the verdicts keep comparing replay with replay (before), so a row is never judged against a day it did not play
+      var yy = !pend && st.yday && st.yday.day === r.day ? st.yday.nodes[id] : null, yest = yy && yy.w > 0 ? yy.w : before;
+      return { id: id, day: r.day, pending: pend, tool: r.tool, have: have, deg: deg, shape: shape, before: before, yesterday: yest, loud: loud ? loud[0] : null, rows: rows,
                leave: { tool: have, w: lw, before: before, same: have === r.tool || (!have && !r.tool) }, dead: dead, relief: rel, extra: extra };
     };
     // w_place: o cruzamento tem (ou pode ter, no toque) o 'e se' de ontem: ja guardado, ou com a manha de ontem na memoria e

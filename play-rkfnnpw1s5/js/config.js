@@ -455,6 +455,7 @@
       // rows: linhas a mais; pairs: os vizinhos das pairs ruas de mais carros entram nos pares da rua
       // w_noopt2: a linha do vizinho (kind 'feed') esta DESLIGADA: seguida, saiu 'better' no dia seguinte em 46% (318 cruzamentos; com a barra
       // abaixo, 59% em 93) contra 69% da rua e 17% sem fazer nada; para ligar, 'feed' volta a kinds. maxCross = no maximo de cruzamentos novos (sem sinal) que a rua sugerida pode criar; o cartao diz quantos
+      // w_texts: maxCross counts only where the road crosses another road; the row's 'adds N crossings' also counts an end that was a bend and gets its third road
       relief: { kinds: ['road'], maxBranches: 5, rows: 2, pairs: 3, maxCross: 1,
         // w_noopt2: barra mais alta so para a linha do vizinho: seguida, ela saia 'better' no dia seguinte em 46% (rua: 69%), com ganho de 8 s e 40% em 67%
         // (web/dev/review/w_noopt2/runs/table5.md); fica o ganho minimo em s e em fracao da espera de ontem
