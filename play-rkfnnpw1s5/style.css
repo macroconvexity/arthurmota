@@ -807,6 +807,9 @@ body.crz-modal #hud .crz-confirm, body.crz-modal #hud .crz-confirm * { pointer-e
 .crz-scname { font-size: var(--fs-md); font-weight: var(--fw-bold); }
 .crz-scprice { font-size: var(--fs-sm); font-weight: var(--fw-semi); white-space: nowrap; }
 .crz-scrow.poor .crz-scprice { color: var(--ink-2); font-weight: var(--fw-normal); }
+/* w_avail: a row he can not take now: the tray's greyed tile look (.crz-tile.poor); a tap says why in the card's message line */
+.crz-scrow.off { opacity: 0.35; }
+.crz-scrow.off:active { background: var(--bg); }
 .crz-scmid { display: flex; align-items: center; gap: 8px; }
 .crz-scbar { position: relative; flex: 1; height: 6px; background: var(--hair); border-radius: var(--r-sm); }
 .crz-scbar i { display: block; height: 100%; background: var(--ink-2); border-radius: var(--r-sm); -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 9px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 9px), transparent); }   /* w_choice3: ponta suave = aproximado */

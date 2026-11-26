@@ -683,6 +683,13 @@
       keepHelp: function (name) { return 'To move this ' + name + ', tap Leave it, then tap the ' + name + ' again.'; },
       placedBetter: function (name) { return name + ' placed: better here. Yesterday\'s cars would have waited less.'; },
       newCross: 'New crossing: no traffic to compare yet.',
+      // w_avail: the piece in hand went in directly where the replay says 'about the same' (nothing better he can take here)
+      placedSame: function (name) { return name + ' placed. About the same as before here.'; },
+      // w_avail: a row he can not take now (greyed like a tray tile, below the others): a tap says why, in the card's message line
+      off: { cost: function (name, c, have) { return name + ' costs ' + c + '. You have ' + have + '.'; }, lights: 'All lights are in use.' },
+      // w_avail: a calm crossing (no ring) where no piece does better: one line in the strip instead of a card with nothing to decide
+      calmTap: function (w) { return 'Cars waited ' + w + ' s here yesterday. No piece does better here.'; },
+      calmNone: 'No piece does better here.',
       payer: { side: 'side street waits', main: 'main road waits', all: 'everyone waits a little' },
       // w_noopt: nenhuma peca 'better' (o cruzamento cheio): ate 2 linhas a mais, so as que o 'e se' diz 'better' (game.choiceFor extra)
       extra: { road: 'Road around it', feed: 'Fix the crossing that feeds it' },
@@ -4317,6 +4324,12 @@
       // anel: o cartao da escolha (w_choice) com o que o 'e se' mediu; sem 'e se' guardado, a frase de sempre (e qual rua)
       // w_place (cego 11, dia 5): sem anel, o cruzamento com o 'e se' de ontem tambem abre o cartao no primeiro toque
       if (heatOf(s, n) >= HOT_TAP) { if (!openChoice(s, n)) say(tapAdvice(s, n)); }
+      else if (!tutorScript() && hasReplay(n) && calmNothing(s, n)) {
+        // w_avail: no ring and no piece does better here: one line, no card (its own sign keeps the line that says how to move it)
+        if (n.tool && (n.tool === 'light' || n.tool === 'stop' || n.tool === 'yield') && tiles[n.tool]) say(handStr('TapMove', n.tool));
+        else { var cw = choiceData(n.id); say(STR.choice.calmTap(Math.max(1, Math.round(cw.yesterday !== undefined ? cw.yesterday : cw.before))), 4000); }
+        addPulse(n.x, n.y); emitUI('calmTap', { id: n.id });   // 'here' is the crossing that pulses
+      }
       else if (!tutorScript() && hasReplay(n) && openChoice(s, n)) { /* o cartao */ }
       else if (isDeadEnd(n)) say(STR.deadEndTap);
       else if ((n.tool === 'light' || n.tool === 'stop' || n.tool === 'yield') && s.phase === 'plan' && tiles[n.tool]) say(handStr('TapMove', n.tool));
@@ -4334,6 +4347,14 @@
         try { return !!(n && degOf(n) >= 3 && typeof game.canReplay === 'function' && game.canReplay(n.id)); } catch (e) { warnOnce('game.canReplay', e); return false; }
       }
       var pickAsk = null, PICK_ASK_MS = 60000, newCmp = null;
+      // w_avail: a calm crossing (no ring) with yesterday's replay done where no row and no extra row is 'better': nothing to decide
+      function calmNothing(s, n) {
+        if (heatOf(s, n) >= HOT_TAP || modal() || choiceOpen()) return false;
+        var c = choiceData(n.id), i;
+        if (!c || c.pending || !c.rows.length) return false;
+        for (i = 0; i < c.rows.length; i++) if (c.rows[i].verdict === 'better') return false;
+        return !(c.extra && c.extra.length);
+      }
       // a linha 'New crossing' so faz sentido para quem ja pode ver cartoes: algum cruzamento do mapa tem a repeticao de ontem
       function cardsLive() {
         var w = game.world, k;
@@ -4359,14 +4380,21 @@
         var row = null, i;
         for (i = 0; i < c.rows.length; i++) if (c.rows[i].tool === tool) row = c.rows[i];
         if (!same && !row) return false;
-        if (!same && !n.tool && !c.pending && row.w !== null && row.verdict === 'better' && !row.qual && row.afford && !row.capped) {
+        // w_avail: the card opens only when it has something to say before he spends: his row is 'worse' (or 'better' with a caveat),
+        // a piece already there would go, or another row he can take now does better while his does not. Otherwise the piece goes in
+        var plain = !same && !n.tool && !c.pending && row.w !== null && !row.qual && (row.verdict === 'better' || row.verdict === 'same') && !rowOff(row, c, tool);
+        if (plain && row.verdict !== 'better') {
+          for (i = 0; i < c.rows.length && plain; i++) if (c.rows[i] !== row && c.rows[i].w !== null && c.rows[i].verdict === 'better' && !rowOff(c.rows[i], c, tool)) plain = false;
+          for (i = 0; plain && c.extra && i < c.extra.length; i++) if (c.extra[i].afford || c.extra[i].hand) plain = false;
+        }
+        if (plain) {
           var rec = null;
           try { rec = typeof game.promiseFor === 'function' ? game.promiseFor(n.id, tool) : null; } catch (e) { warnOnce('game.promiseFor', e); }
           cardPick = rec ? { id: n.id, tool: tool, rec: rec, until: nowMs() + 8000 } : null;
           placeNodeTool(n, tool, s);
           if (n.tool === tool) {
             // nada saiu do lugar (sem troca): a faixa do veredito vence a do retorno ('Stop placed here.', a dica do Yield, o mover da mao)
-            sayUntil = 0; say(STR.choice.placedBetter(STR.tools[tool] || tool), 4500);
+            sayUntil = 0; say((row.verdict === 'better' ? STR.choice.placedBetter : STR.choice.placedSame)(STR.tools[tool] || tool), 4500);
             emitUI('placeVerdict', { id: n.id, tool: tool, verdict: row.verdict });
           }
           return true;
@@ -6938,13 +6966,29 @@
     // a linha de uma peca: icone, nome, preco, barra e numero, quem paga, consequencia. Barra: o traco e a espera de ontem; o
     // preenchimento escuro vai ate o menor numero da faixa e o trecho claro ate o maior (w_choice2); vermelho quando piora. O
     // preco fica cinza quando faltam pontos. lost: pontos que a troca faz perder (Roundabout trocada), dito na linha antes do toque
-    function choiceRow(r, c, M, lost) {
+    // w_avail: why a row can not be taken right now ('' when it can). Not enough points (a piece in hand is free); the light cap with
+    // no move the replay calls 'better' (game.lightMoveFor). The light the player armed in the tray at the cap stays takeable: the
+    // tray already offered to move one ('Tap a crossing to move one there'). Locked pieces never get a row (game.choiceFor)
+    var scMoveOk = null;
+    function lightMoveOk(id) {
+      if (scMoveOk && scMoveOk.id === id && scMoveOk.at === nowMs()) return scMoveOk.v;
+      var mv = null; try { mv = typeof game.lightMoveFor === 'function' ? game.lightMoveFor(id) : null; } catch (e) { warnOnce('game.lightMoveFor', e); }
+      scMoveOk = { id: id, at: nowMs(), v: !!mv }; return !!mv;
+    }
+    function rowOff(r, c, pick) {
+      if (r.tool === 'light' && r.capped && !r.hand) return pick === 'light' || lightMoveOk(c.id) ? '' : STR.choice.off.lights;
+      if (!r.afford && !r.hand) return STR.choice.off.cost(STR.tools[r.tool] || r.tool, r.cost, game.state.budget | 0);
+      return '';
+    }
+    function choiceRow(r, c, M, lost, off) {
       var C = STR.choice, name = STR.tools[r.tool] || r.tool, price = r.cost > 0 ? C.pts(r.cost) : C.free;
       // light cap reached: this row moves a light you already have (the tap asks which one), so it is free and never buys
-      var moves = r.tool === 'light' && r.capped && !r.hand; if (moves) price = C.moveHere;
+      // w_avail: offered only when the move is 'better' here (or it is the tray's light); otherwise the row is off and says the cap
+      var moves = r.tool === 'light' && r.capped && !r.hand; if (moves) price = off ? C.note.lightsFull : C.moveHere;
       var vd = r.verdict || r.res || 'same', mk = !!scFrom && scFrom.node === c.id && scFrom.tool === r.tool, nd = mk && vd === 'worse';
-      var b = el('button', 'crz-scrow' + (!nd && vd === 'worse' ? ' bad' : (vd === 'better' ? ' good' : '')) + (r.afford || moves ? '' : ' poor') + (r.capped ? ' capped' : ''), '');
+      var b = el('button', 'crz-scrow' + (!nd && vd === 'worse' ? ' bad' : (vd === 'better' ? ' good' : '')) + (r.afford || moves ? '' : ' poor') + (r.capped ? ' capped' : '') + (off ? ' off' : ''), '');
       b.setAttribute('data-tool', r.tool);
+      if (off) b.setAttribute('aria-disabled', 'true');
       var ico = el('span', 'crz-scico', toolIcon(r.tool)), body = el('span', 'crz-scbody'), top = el('span', 'crz-sctop');
       var nm = el('span', 'crz-scname'); nm.textContent = name;
       // w_place + w_noopt2: uma marca por linha; 'Next door' (o vizinho prometido) vence 'Your pick' (o cartao do vizinho nao abre pela bandeja)
@@ -6965,21 +7009,28 @@
       if (mk) { ndTxt = C.nextDoor.note; var nn = el('span', 'crz-scnote'); nn.textContent = ndTxt; body.appendChild(nn); }
       if (!c.pending && vd === 'better' && r.payer && C.payer[r.payer]) { payTxt = C.payer[r.payer]; var py = el('span', 'crz-scnote crz-scpay'); py.textContent = payTxt; body.appendChild(py); }
       // w_pick: com quem paga na linha, a consequencia de lado (side/main) diria o mesmo: sai
-      if (r.note && !nd && !(payTxt && (r.note === 'side' || r.note === 'main')) && !(r.note === 'busy' && r.qual)) noteTxt = typeof C.note[r.note] === 'function' ? C.note[r.note](r.nv) : C.note[r.note];
+      if (r.note && r.note !== 'lightsFull' && !nd && !(payTxt && (r.note === 'side' || r.note === 'main')) && !(r.note === 'busy' && r.qual)) noteTxt = typeof C.note[r.note] === 'function' ? C.note[r.note](r.nv) : C.note[r.note];
       var qualTxt = !c.pending && vd === 'better' && r.qual && C.qualNote[r.qual] ? C.qualNote[r.qual] : '';
       if (qualTxt) { var qn = el('span', 'crz-scnote'); qn.textContent = qualTxt; body.appendChild(qn); }
       if (noteTxt) { var nt = el('span', 'crz-scnote'); nt.textContent = noteTxt; body.appendChild(nt); }
       if (lost > 0) { lostTxt = C.replaces(lost, String(STR.tools[c.have] || c.have).toLowerCase()); var ls = el('span', 'crz-scnote crz-sclost'); ls.textContent = lostTxt; body.appendChild(ls); }
       b.appendChild(ico); b.appendChild(body);
       b.setAttribute('aria-label', C.aria(name + (tagTxt ? ' (' + tagTxt + ')' : ''), price, nums, [ndTxt, payTxt, qualTxt, noteTxt, lostTxt].filter(Boolean).join('. ')));
-      b.addEventListener('click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); if (nowMs() - scAt < SC_GHOST_MS) return; choicePick(r.tool, r.edge); });
+      b.addEventListener('click', function (e) {
+        if (e && e.stopPropagation) e.stopPropagation(); if (nowMs() - scAt < SC_GHOST_MS) return;
+        // w_avail: a row he can not take answers in the card's message line (the footer's points line steps aside: one mention);
+        // the reason is said there, so the strip's safety net for a silent refusal sound stays off
+        if (off) { snd('deny'); denyPend = false; scMsg.textContent = off; scMsg.classList.remove('gone'); scPts.classList.add('gone'); emitUI('choiceOff', { id: c.id, tool: r.tool, why: off }); return; }
+        choicePick(r.tool, r.edge);
+      });
       return b;
     }
     // w_noopt: uma linha a mais (game.choiceFor extra: so as 'better'), no mesmo estilo das linhas das pecas, depois delas
-    function choiceExtraRow(x, c, M) {
+    function choiceExtraRow(x, c, M, off) {
       var C = STR.choice, name = C.extra[x.kind] || x.kind, price = x.cost > 0 ? C.pts(x.cost) : C.free;
-      var b = el('button', 'crz-scrow good' + (x.afford ? '' : ' poor'), '');
+      var b = el('button', 'crz-scrow good' + (x.afford ? '' : ' poor') + (off ? ' off' : ''), '');
       b.setAttribute('data-tool', x.tool); b.setAttribute('data-kind', x.kind);
+      if (off) b.setAttribute('aria-disabled', 'true');
       var ico = el('span', 'crz-scico', toolIcon(x.tool)), body = el('span', 'crz-scbody'), top = el('span', 'crz-sctop');
       var nm = el('span', 'crz-scname'); nm.textContent = name;
       var pr = el('span', 'crz-scprice'); pr.textContent = price;
@@ -6991,7 +7042,11 @@
       if (noteTxt) { var ns = el('span', 'crz-scnote'); ns.textContent = noteTxt; body.appendChild(ns); }
       b.appendChild(ico); b.appendChild(body);
       b.setAttribute('aria-label', C.aria(name, price, C.verdict.better, noteTxt));
-      b.addEventListener('click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); if (nowMs() - scAt < SC_GHOST_MS) return; choiceExtra(x); });
+      b.addEventListener('click', function (e) {
+        if (e && e.stopPropagation) e.stopPropagation(); if (nowMs() - scAt < SC_GHOST_MS) return;
+        if (off) { snd('deny'); denyPend = false; scMsg.textContent = off; scMsg.classList.remove('gone'); scPts.classList.add('gone'); emitUI('choiceOff', { id: c.id, kind: x.kind, why: off }); return; }
+        choiceExtra(x);
+      });
       return b;
     }
     function paintChoice(c) {
@@ -7014,8 +7069,21 @@
       // a Roundabout trocada perde os pontos dela (a de hoje e reembolsada): o preco aparece na linha de cada troca, antes do toque
       var lostPts = c.have === 'round' && !paidToday(c.id) ? paidFor(c.id, 'round') : 0;
       scRows.innerHTML = '';
-      for (i = 0; i < c.rows.length; i++) scRows.appendChild(choiceRow(c.rows[i], c, M, c.rows[i].tool === 'upgrade' ? 0 : lostPts));
-      for (i = 0; i < ex.length; i++) scRows.appendChild(choiceExtraRow(ex[i], c, M));
+      // w_avail: the rows he can take first (tray order), then the ones he can not, greyed as a group. An unavailable row stays only
+      // when it is 'better' here (worth saving for) or it is his pick; a calm crossing (no ring, no piece armed) lists only the rows
+      // that do better. With nothing left to list, every row shows (as before), so the card is never empty
+      var onR = [], offR = [], why;
+      for (i = 0; i < c.rows.length; i++) { why = rowOff(c.rows[i], c, scPick); (why ? offR : onR).push({ r: c.rows[i], off: why }); }
+      var wide = c.pending || c.noData;
+      function keepR(o) { return wide || o.r.verdict === 'better' || o.r.tool === scPick || (!scCalm && !o.off); }
+      var list = onR.filter(keepR), offL = offR.filter(keepR);
+      // a calm crossing whose replay came in after the tap with nothing better: the card stays short (title, the grey line, Leave it)
+      if (!list.length && !offL.length && !ex.length) { if (scCalm && !wide) { scShape.textContent = (scShape.textContent ? scShape.textContent + ' ' : '') + C.calmNone; scShape.classList.remove('gone'); } else { list = onR; offL = offR; } }
+      var exOn = ex.filter(function (x) { return x.afford || x.hand; }), exOff = ex.filter(function (x) { return !(x.afford || x.hand); });
+      for (i = 0; i < list.length; i++) scRows.appendChild(choiceRow(list[i].r, c, M, list[i].r.tool === 'upgrade' ? 0 : lostPts, ''));
+      for (i = 0; i < exOn.length; i++) scRows.appendChild(choiceExtraRow(exOn[i], c, M, ''));
+      for (i = 0; i < offL.length; i++) scRows.appendChild(choiceRow(offL[i].r, c, M, offL[i].r.tool === 'upgrade' ? 0 : lostPts, offL[i].off));
+      for (i = 0; i < exOff.length; i++) scRows.appendChild(choiceExtraRow(exOff[i], c, M, STR.choice.off.cost(STR.choice.extra[exOff[i].kind] || exOff[i].kind, exOff[i].cost, game.state.budget | 0)));
       // w_review: a peca da mao sem linha no cartao (Lanes na mao e a rua mais cheia ja com 2 faixas): a ajuda da marca sai (nada esta marcado)
       if (scPick && scHelp.textContent === STR.choice.pickHelp) scHelp.classList.toggle('gone', !c.pending && !c.rows.some(function (r) { return r.tool === scPick; }));
       var lv = c.leave, ln;
@@ -7044,9 +7112,10 @@
       if (!c || !c.rows.length) c = scNoData = choiceNoData(s, n); else scNoData = null;
       if (!c) return false;
       if (c.dead && c.relief === 'pending') reliefAdd(n.id);
-      scId = n.id; scSig = ''; scAt = nowMs(); scMsg.classList.add('gone'); scMsg.textContent = '';
+      scId = n.id; scSig = ''; scAt = nowMs(); scMsg.classList.add('gone'); scMsg.textContent = ''; scPts.classList.remove('gone');
       var first = gOn() && !seen('choiceHelp');
       scPick = opt && opt.pick ? opt.pick : null; scArm = sel || null; scHelpPick = !!scPick && !(opt && opt.keep);
+      scCalm = !scPick && !(opt && opt.keep) && !scFrom && heatOf(s, n) < HOT_TAP;   // w_avail: calm crossing, only the rows that do better
       // w_place: aberto pela peca da bandeja, a linha que diz o que fazer vale sempre (mesmo com Guidance off): o toque nao pos nada
       if (opt && opt.keep) { scHelp.textContent = STR.choice.keepHelp(String(STR.tools[opt.keep] || opt.keep).toLowerCase()); scHelp.classList.remove('gone'); }
       else if (scPick) { scHelp.textContent = STR.choice.pickHelp; scHelp.classList.remove('gone'); }
@@ -7109,7 +7178,7 @@
     }
     // w_noopt: as linhas a mais. road: a Rua fica na mao e a rua sugerida aparece como o fantasma do arrasto; um toque nela constroi (a
     // jogadora confirma), um arrasto desenha outra. feed: fecha este cartao e abre o do vizinho, centrado nele
-    var roadSug = null, scNoData = null;
+    var roadSug = null, scNoData = null, scCalm = false;
     function choiceExtra(x) {
       var s = game.state, n = scId !== null && game.world.nodes ? game.world.nodes[scId] : null;
       if (!n || s.phase !== 'plan') { choiceClose(); return; }
@@ -7268,7 +7337,7 @@
       // a frase da mao unica ('Tap the arrow to flip it.') fica: o aviso do primeiro gasto espera o proximo gasto
       if (sayUntil && /^One-way: /.test(sayEl.textContent)) tutOn = true;
       // w_place: o veredito da peca que entrou direto (ou 'New crossing') fica: o aviso espera o proximo gasto
-      if (sayUntil && (/ placed: better here\. /.test(sayEl.textContent) || sayEl.textContent === STR.choice.newCross)) tutOn = true;
+      if (sayUntil && (/ placed: better here\. | placed\. About the same as before here\.$/.test(sayEl.textContent) || sayEl.textContent === STR.choice.newCross)) tutOn = true;
       if (b < spendBudget && gOn() && !seen('firstSpend') && !tutOn) { markSeen('firstSpend'); say(STR.firstSpend(spendBudget - b, lastDayOf(s))); }
       spendBudget = b;
     }
