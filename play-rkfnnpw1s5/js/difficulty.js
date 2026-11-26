@@ -23,14 +23,17 @@
     // tutorial.js). Sem o bloco valem os padroes de ui.js (iguais a estes). Rodada 5 (dev/e2e/RESULTS_HUMANS.md,
     // 48 partidas por celula): no Normal a confirmacao do Play sobe o medio 67 -> 88% (chip 0,45) e o chip entre
     // 0,35 e 0,65 nao move nada fora do ruido; o Normal fica sem confirmacao.
-    easy:   { label: 'Easy',   spawn: 0.8,  patience: 1.25, strikes: 4, lock: 1.7,
+    // 2026-11-26 (dono): 'so 1 strike, sempre'. O Easy joga pela regra do Normal: UM strike para a partida inteira (wholeGame), sem
+    // volta de capitulo nem perdao. O que o Easy tem de mais facil: menos carros, motoristas mais pacientes (e mais ainda nos dias de
+    // trafego), pontos e precos por capitulo, a trava mais lenta (lock 1,7), as dicas (assist). strikes: 4 so vale fora da regra.
+    easy:   { label: 'Easy',   spawn: 0.8,  patience: 1.25, strikes: 4, wholeGame: true, lock: 1.7,
               spawnDay: [1, 1, 0.85],   // v2: so o dia 3 (comboio do tutorial); a forma dos 30 dias vem de CFG.spawnRate
               // v2x (playtest cego 5: 0 strikes em 30 dias no Easy): o risco cresce por capitulo. Capitulo 1 igual; no 2 os
               // motoristas esperam menos (o descuidado ve strikes, os dias 11 a 14 nao mandam de volta); no 3 mais carros.
               // Medido em web/dev/review/v2x/f3_measure.js, 40 sementes; tabela antes e depois no commit 3b
               // w_easy (80 sementes, web/dev/review/w_easy/sweep.js e results.jsonl): um multiplicador por capitulo pesava
-              // igual em todos (preguicoso repetia o 2 em 35%). Alavanca: no Easy o ultimo strike do capitulo 2 so avisa
-              // (restartFrom 21), entao o capitulo 2 pode apertar (strikes que ensinam, sem volta) e o 3 alivia um pouco.
+              // igual em todos (preguicoso repetia o 2 em 35%). Alavanca (de antes da regra de um strike): o capitulo 2 aperta e o 3 alivia
+              // um pouco. Os numeros de repeticao de capitulo abaixo sao de antes de 2026-11-26 (o Easy nao tem mais volta de capitulo).
               // Curioso: 1,88 strikes no cap. 2, repete o 3 em 24%; cuidadoso 4%; preguicoso 0% no 2 e 48% no 3; ingenuo
               // 1,04 strikes no 2. Picos (um dia em tres com 30% mais carros; spawnDays) mediram pior que o plano.
               chapter: { 2: { spawn: 1.2, patience: 0.75 }, 3: { spawn: 1.05 } },
@@ -40,7 +43,6 @@
               // (main 18%) com 1,0 strike no 2 (2,0), cuidadoso 0% (8%), preguicoso 65% (45%). Paciencia mais baixa ou mais
               // carros pesam primeiro no preguicoso (93% com carros x1,3/x1,15). web/dev/review/w_cars/NOTES.md
               latePatience: 1.2, budgetAdd: [0, -1, -1],
-              restartFrom: 21,
               // w_price (80 sementes, web/dev/review/w_price): no Easy so o semaforo sobe por capitulo (config: 4/6/8); qualquer subida
               // da Roundabout (3/3/4 em diante) leva o curioso a repetir o capitulo 3 em 40 a 44% (alvo 20 a 35%; sem rampa 34%)
               costByChapter: { round: [3, 3, 3] },
@@ -113,9 +115,6 @@
   if (ctune && CFG.tools) for (var ck in ctune) if (ctune.hasOwnProperty(ck) && CFG.tools[ck] && Array.isArray(ctune[ck])) CFG.tools[ck].costByChapter = ctune[ck].slice();
   CFG.maxStrikes = p.strikes;
   CFG.wholeGameStrike = !!p.wholeGame;   // w_one: main.js liga CFG.ironMode (e maxStrikes 1) quando a dificuldade e esta
-  // restartFrom (opcional): primeiro dia em que gastar os strikes manda de volta (CFG.noRestartBeforeDay; antes dele o
-  // ultimo strike so avisa, como no capitulo 1). Os textos leem {restartDay}
-  if (p.restartFrom > 0) CFG.noRestartBeforeDay = p.restartFrom;
   CFG.difficultyName = name;
   CFG.difficulties = PROFILES;
 

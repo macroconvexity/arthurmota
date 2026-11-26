@@ -96,6 +96,7 @@
     // faixa (blind2): sem seta; o chip do raio ja pulsa ao lado do anel
     ringAgain: 'Tap the glowing \u26a1\ufe0e next to the ring to clear it.',
     tipStrike: 'This crossing jammed: 1 strike. {n} in a chapter and you replay it.',
+    tipStrikeIron: 'This crossing jammed. One strike ends the game.',
     tipHot: "Dashed rings: yesterday's trouble spots. Tap one to see what helps.",
     tipEndJunction: 'This road end is now a crossing. Stop, Yield and lights work here too.',
     // o sim coordena o par pelo caminho mais curto entre os dois (nao precisa ser a mesma rua)
@@ -707,7 +708,7 @@
     // primeiro strike: sai logo (sem esperar o intervalo das dicas); no resumo aponta os circulos do cartao.
     // O numero de strikes vem do CFG na hora (a dificuldade Facil muda o limite)
     { id: 'tip:strike', mode: 'toast', nogap: true,
-      text: function () { return STR.tipStrike.replace('{n}', String((CRZ.CFG && CRZ.CFG.maxStrikes) || 3)); },
+      text: function () { if (CRZ.CFG && CRZ.CFG.ironMode) return STR.tipStrikeIron; return STR.tipStrike.replace('{n}', String((CRZ.CFG && CRZ.CFG.maxStrikes) || 3)); },
       target: function (c) { return st(c).phase === 'summary' ? { sel: 'summary-strikes' } : { sel: 'strikes' }; },
       // no resumo: nao cobre o titulo ("Locked!"), o numero grande de carros, a barra do Speed bonus nem a
       // linha do pior ponto ("Worst spot today")

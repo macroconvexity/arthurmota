@@ -283,7 +283,7 @@
       // cruzaram } } }. watch = cruzamentos vigiados HOJE (anel de ontem + ferramenta posta hoje, no maximo 2):
       // { day, list: [{ id, tool, p, t, w, n (de ontem), now: { p, w, n } (de hoje, no fim do dia) }] }.
       // watchPrev = o watch de ontem (a manha seguinte confere se o anel sumiu). Tudo vai no save.
-      trouble: null, watch: { day: 1, list: [] }, watchPrev: null,
+      trouble: null, troublePrev: null, watch: { day: 1, list: [] }, watchPrev: null,
       // v2: manutencao do semaforo desta manha (CFG.upkeep). null antes do fromDay. { day, lights, free, owed, paid,
       // dark: [ids de semaforos apagados hoje por falta de ponto] }. Vai no save.
       upkeep: null,
@@ -443,7 +443,9 @@
         var wt = Math.max(runWait[id] || 0, waitNow(id, n));
         if (pk >= HOT_MIN || wid[id]) rec[id] = { p: Math.round(pk * 100) / 100, t: r1(runAt[id] || 0), w: r1(wt), n: runPass[id] | 0, s: (runTrace[id] || []).slice() };
       }
-      st.trouble = { day: st.day, len: st.dayLen, nodes: rec };
+      // w_why: o registro de ontem fica ao lado (troublePrev) para a tela de derrota dizer se o cruzamento ja tinha avisado; close = o 'Close call' do dia
+      st.troublePrev = st.trouble && st.trouble.day === st.day - 1 ? st.trouble : null;
+      st.trouble = { day: st.day, len: st.dayLen, nodes: rec, close: st.summary && st.summary.close && st.summary.lockNode != null ? st.summary.lockNode : null };
       // w_choice2: a espera e os carros de todo cruzamento de 3+ ruas que teve carro (nao so os que acenderam o anel)
       var yd = {};
       for (i = 0; i < ids.length; i++) {
@@ -505,7 +507,7 @@
     }
     function normTrouble(v) {
       if (!isObjL(v) || !fin(v.day) || !isObjL(v.nodes)) return null;
-      var out = { day: v.day | 0, len: fin(v.len) ? v.len : 0, nodes: {} }, k, e;
+      var out = { day: v.day | 0, len: fin(v.len) ? v.len : 0, nodes: {}, close: fin(v.close) ? v.close | 0 : null }, k, e;
       for (k in v.nodes) {
         if (!own(v.nodes, k) || !/^\d+$/.test(k)) continue;
         e = v.nodes[k];
@@ -2175,7 +2177,7 @@
       var r = wiCached(id); if (!r || !r.cur) return null;
       if (r.relief) return { id: id, day: r.day, done: true, r: r.relief, branches: 0, run: function () { return true; } };
       if (BRANCHING || !morning || morning.day !== r.day) return null;
-      if (!(st.phase === 'summary' && morning.day === st.day) && !(st.phase === 'plan' && morning.day === st.day - 1)) return null;
+      if (!((st.phase === 'summary' || st.phase === 'over') && morning.day === st.day) && !(st.phase === 'plan' && morning.day === st.day - 1)) return null;   // w_why: over = o dia que travou
       return reliefJob(id, r);
     };
     // w_pick: as ruas que chegam ao cruzamento (ids em ordem). A cidade cresce de noite: uma rua nova no cruzamento (ou uma
@@ -2206,7 +2208,8 @@
       var C = wiCached(id);
       if (C) return { id: id, day: C.day, done: true, r: C, branches: 0, run: function () { return true; } };
       if (BRANCHING || !morning) return null;
-      if (!(st.phase === 'summary' && morning.day === st.day) && !(fromPlan && !prune && st.phase === 'plan' && morning.day === st.day - 1)) return null;
+      // w_why: a derrota (over) guarda a manha do dia que travou: o mesmo dia jogado de novo com cada peca, como no resumo
+      if (!((st.phase === 'summary' || st.phase === 'over') && morning.day === st.day) && !(fromPlan && !prune && st.phase === 'plan' && morning.day === st.day - 1)) return null;
       return wiJob(id, prune);
     };
     // g.adviceFor(id): a peca que o conselho manda para o cruzamento amanha, decidida pelo 'e se':
@@ -2456,11 +2459,24 @@
       // the replay's: in 96% of cards they are the same number; the replay has no Boost taps and, with no ring in it, falls back to the longest approach's mean.
       // The rows and the verdicts keep comparing replay with replay (before), so a row is never judged against a day it did not play
       var yy = !pend && st.yday && st.yday.day === r.day ? st.yday.nodes[id] : null, yest = yy && yy.w > 0 ? yy.w : before;
-      return { id: id, day: r.day, pending: pend, tool: r.tool, have: have, deg: deg, shape: shape, before: before, yesterday: yest, loud: loud ? loud[0] : null, rows: rows,
+      return { id: id, day: r.day, pending: pend, tool: r.tool, have: have, deg: deg, shape: shape, before: before, yesterday: yest, loud: loud ? loud[0] : null, rows: rows, jam: !!(r.cur && r.cur.lock),
                leave: { tool: have, w: lw, before: before, same: have === r.tool || (!have && !r.tool) }, dead: dead, relief: rel, extra: extra };
     };
     // w_place: o cruzamento tem (ou pode ter, no toque) o 'e se' de ontem: ja guardado, ou com a manha de ontem na memoria e
     // carros ali ontem (st.kinds: 3+ ruas e transito medido). Cruzamento novo (nao existia ou nao levou carro): false. Leitura pura
+    // w_why: o aviso que o cruzamento deu no dia ANTES de hoje (a derrota diz se a jogadora foi avisada): 'close' (o Close call do
+    // resumo), 'red' (anel acima de 0.6), 'amber' (anel ate 0.6) ou null (nenhum anel nem Close call). days = quantos dias para tras
+    // (1 = ontem). Leitura pura do registro (st.trouble / st.troublePrev); na manha o registro de ontem e o st.trouble
+    g.warnedBefore = function (id, days) {
+      id = +id; var back = days > 0 ? days | 0 : 1, want = st.day - back, rec = null, c;
+      var L = [st.trouble, st.troublePrev];
+      for (c = 0; c < L.length; c++) if (L[c] && L[c].day === want) { rec = L[c]; break; }
+      if (!rec) return null;
+      if (rec.close === id) return 'close';
+      var e = rec.nodes && rec.nodes[id];
+      if (!e || !(e.p >= HOT_MIN)) return null;
+      return e.p > 0.6 ? 'red' : 'amber';
+    };
     g.canReplay = function (id) {
       id = +id;
       var n = world.nodes[id]; if (!n || degree(n) < 3) return false;   // a ponta de rua que virou cruzamento tambem (como choiceFor)
@@ -3230,7 +3246,7 @@
           teach: st.phase === 'run' ? { day3Convoy: false, jam: false, seen: teachSeen, target: null, sent: 0 } : st.teach, tipCarry: st.tipCarry, speedBonus: st.speedBonus,
           speedApplied: st.speedDial.applied, lastLock: lastLock,
           // retorno da escolha (v2): registro do ultimo dia e vigiados (o reload no meio do dia volta a manha com eles)
-          trouble: st.trouble, watch: st.watch, watchPrev: st.watchPrev,
+          trouble: st.trouble, troublePrev: st.troublePrev, watch: st.watch, watchPrev: st.watchPrev,
           chapterCars0: st.chapterCars0, chapterRetries: st.chapterRetries, freeJamSeen: st.freeJamSeen,
           tally: { fixed: st.tally.fixed, kept: st.tally.kept },
           // eventos de lugar (v2e): calendario, lugares, tamanho (face Big game) e o que ja foi visto
@@ -3294,6 +3310,8 @@
       st.hot = saved.hotMap || {};
       // retorno da escolha (v2): save antigo sem os campos (ou campo estragado) carrega sem eles
       st.trouble = normTrouble(s.trouble);
+      st.troublePrev = normTrouble(s.troublePrev);
+      if (st.troublePrev && st.trouble && st.troublePrev.day !== st.trouble.day - 1) st.troublePrev = null;
       st.watch = normWatch(s.watch);
       if (!st.watch || st.watch.day !== st.day) st.watch = { day: st.day, list: [] };
       st.watchPrev = normWatch(s.watchPrev);

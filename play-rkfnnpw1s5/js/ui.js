@@ -21,6 +21,8 @@
     // v2x: a regra numa linha, com o limite da dificuldade em jogo (CFG.maxStrikes: Easy 4, Normal 4)
     lockedFirst: function (n) { return 'This crossing jammed: 1 strike. ' + n + ' in a chapter: replay it.'; },
     // w_one: com o numero de ruas quando o cruzamento tem 3 ou mais ('the 4-road crossing with a Stop jammed')
+    loseCauseShort: function (d, sign) { return 'Day ' + d + ': ' + (sign ? 'a ' + sign : 'a crossing with no sign') + ' jammed.'; },
+    loseFit: 74,   // letras da linha da derrota que cabem em duas linhas a 375 px
     loseCause: function (d, sign, roads) { var c = roads >= 3 ? 'the ' + roads + '-road crossing' : 'the crossing'; return 'Day ' + d + ': ' + (sign ? c + ' with a ' + sign : (roads >= 3 ? 'the ' + roads + '-road crossing with no sign' : 'a crossing with no sign')) + ' jammed.'; },
     loseNext: {
       sign: function (a) { return 'Next time, try a ' + a + ' there.'; },
@@ -28,8 +30,21 @@
       lane: 'Next time, give its busiest road a second lane.',
       road: 'Next time, build a road around it to spread cars.',
       boost: 'Next time, Boost it before the red ring fills.',
-      card: 'Next time, tap its ring and compare.'
+      card: 'Next time, tap its ring and compare.',
+      // w_why: o conselho da derrota vem do cartao do cruzamento que travou (o dia que travou, jogado de novo com cada peca)
+      // cada uma com a forma comprida e a curta: a linha inteira (causa + conselho) cabe em duas linhas a 375 px (loseText escolhe)
+      best: function (name) { return ['Next time, a ' + name + ' there.', 'Try a ' + name + ' there.']; },
+      lanes: ['Next time, Two lanes on its busiest road.', 'Try Two lanes on its busiest road.'],
+      around: ['Next time, a road around it.', 'Try a road around it.'],
+      none: ['No piece could hold it: boost it before the ring fills.', 'No piece could hold it: boost it early.'],
+      noneNoBoost: ['No piece could hold it.', 'No piece could hold it.'],
+      unclear: ['No piece clearly beat it: boost it before the ring fills.', 'No piece clearly beat it: boost it early.'],
+      unclearNoBoost: ['No piece clearly beat it.', 'No piece clearly beat it.'],
+      piece: { stop: 'Stop', yield: 'Yield', light: 'Traffic light', round: 'Roundabout' }
     },
+    // w_why: o cruzamento ja tinha avisado ontem? (a segunda frase da derrota, no estilo da linha cinza) e o toque que mostra onde
+    loseWarn: { close: 'It was a close call yesterday.', red: 'It had a red ring yesterday.', amber: 'It was a busy crossing yesterday.' },
+    loseWhere: 'Tap to see where.', loseBack: 'The result comes right back.',
     // blind3 4: o delta so quando e ganho ('(+11)'); dia pior que ontem: so o numero de ontem
     yesterday: function (prev, delta) { return 'Yesterday ' + prev + (delta > 0 ? ' (+' + delta + ')' : ''); },
     cardToday: function (name) { return name + ' today'; },
@@ -1248,6 +1263,15 @@
   function loseText(n, day, cfg, world, heat, ctx) {
     var T = TL, N = STR.loseNext;
     var cause = STR.loseCause(day | 0, n.tool ? T[n.tool] : '', n.edges && n.edges.length ? n.edges.length : 0);
+    // w_why: o 'e se' do dia que travou ainda anda: so a causa (o conselho entra quando ele acaba, ou cai no de antes)
+    if (ctx && ctx.pending) return cause;
+    var own = ctx && ctx.lose ? loseNext(ctx.lose, !!ctx.boost) : null;
+    if (own) {
+      // a causa inteira com o conselho comprido; senao com o curto; senao a causa curta ('Day 18: a stop jammed.') com um e outro
+      var short = STR.loseCauseShort(day | 0, n.tool ? T[n.tool] : ''), opts = [[cause, own[0]], [cause, own[1]], [short, own[0]], [short, own[1]]], k;
+      for (k = 0; k < opts.length; k++) if ((opts[k][0] + ' ' + opts[k][1]).length <= STR.loseFit) return opts[k][0] + ' ' + opts[k][1];
+      return short + ' ' + own[1];
+    }
     var a = advise(n, (day | 0) + 1, cfg, world, heat, ctx), next;
     if (a && a.key.indexOf('sign:') === 0) next = n.tool && STR.tools[n.tool] ? N.swap(T[a.tool]) : N.sign(T[a.tool]);
     else if (a && a.key === 'card') next = N.card;
@@ -1255,6 +1279,28 @@
     else if (a && a.tool === 'road') next = N.road;
     else next = N.boost;
     return cause + ' ' + next;
+  }
+  // w_why: o conselho da derrota sai do cartao do cruzamento que travou (game.choiceFor com o dia que travou jogado de novo), nao do
+  // conselho generico. Uma linha 'better' (ou mais): a de maior ganho na repeticao (espera de antes menos a espera com a peca), as sem
+  // ressalva primeiro. Nenhuma 'better': so a Road around it, se for a unica; senao 'nenhuma peca segurou' (so se a repeticao travou de
+  // novo e nenhuma peca deixou de travar) ou 'nenhuma ganhou claramente'. null = sem cartao que diga (cai no texto de antes)
+  function loseNext(c, boost) {
+    var N = STR.loseNext, rows = c && c.rows ? c.rows : null, best = null, bg = -1, i, r, g, qual, held = false, measured = 0;
+    if (!rows || c.pending) return null;
+    for (i = 0; i < rows.length; i++) {
+      r = rows[i]; if (!r || r.w === null || r.w === undefined || r.capped || r.note === 'lightsFull') continue;
+      measured++;
+      if (!r.lock) held = held || r.verdict !== 'worse';
+      if (r.verdict !== 'better' || r.lock || !(r.tool === 'upgrade' || N.piece[r.tool])) continue;
+      qual = r.qual ? 1 : 0; g = (+c.before || 0) - (+r.w || 0);
+      if (!best || qual < best.q || (qual === best.q && g > bg)) { best = { row: r, q: qual }; bg = g; }
+    }
+    if (best) return best.row.tool === 'upgrade' ? N.lanes : N.best(N.piece[best.row.tool]);
+    var ex = c.extra || [], onlyRoad = ex.length > 0 && ex.every(function (e) { return e.kind === 'road'; });
+    if (onlyRoad) return N.around;
+    if (!c.jam || !measured) return null;   // a repeticao nao reproduziu o travamento: nada que se diga sobre ele
+    if (c.dead === false) return null;      // ha linha 'better' que nao pode ser posta (cheia): o texto de antes
+    return held ? (boost ? N.unclear : N.unclearNoBoost) : (boost ? N.none : N.noneNoBoost);
   }
   // no travado do dia: state.final.lock {nodeId, tool, x, y} (game), ou o primeiro no com locked no mundo
   function lockedNodeOf(s, world) {
@@ -2166,7 +2212,7 @@
     var overEl = tut(el('div', 'crz-sheet crz-over'), 'over'); overEl.setAttribute('data-scroll', '');
     var markEl = el('div', 'crz-mark');
     markEl.setAttribute('role', 'img');
-    var overTitle = el('div', 'crz-otitle'), overSub = el('div', 'crz-osub');
+    var overTitle = el('div', 'crz-otitle'), overSub = el('div', 'crz-osub'), overWarn = el('div', 'crz-owarn gone');   // w_why: overWarn = 'It was a close call yesterday. Tap to see where.'
     var statsEl = el('div', 'crz-stats'), statNums = [], statLabs = [STR.statDays, STR.statCars, STR.statStrikes];
     for (i = 0; i < 3; i++) {
       var stc = el('div', 'crz-stat'), stn = el('b'), stl = el('span');
@@ -2192,7 +2238,7 @@
     var overRetry = null;   // { chapter, day } quando a derrota oferece a volta
     // vitoria no ultimo dia: a linha de fechamento do dia 12 (o game vai do dia 12 direto ao fim, sem resumo)
     var overClose = tut(el('div', 'crz-sclose gone'), 'over-closing');
-    overEl.appendChild(markEl); overEl.appendChild(overTitle); overEl.appendChild(overSub); overEl.appendChild(overWhy); overEl.appendChild(overClose); overEl.appendChild(statsEl); overEl.appendChild(overRec); overEl.appendChild(overMarks);
+    overEl.appendChild(markEl); overEl.appendChild(overTitle); overEl.appendChild(overSub); overEl.appendChild(overWarn); overEl.appendChild(overWhy); overEl.appendChild(overClose); overEl.appendChild(statsEl); overEl.appendChild(overRec); overEl.appendChild(overMarks);
     // rodada 3: a rua com carrinhos parecia uma barra de dias (quadrados preto e vermelho). Agora e de verdade:
     // um quadrado por dia jogado, vermelho = dia com strike, com a legenda embaixo
     var overDays = tut(el('div', 'crz-odays gone'), 'over-days'), overDaysCap = el('div', 'crz-odayscap gone');
@@ -5932,6 +5978,65 @@
       var c = sm && sm.chapterDone;
       return c && typeof c === 'object' && c.chapter > 0 ? { chapter: c.chapter | 0, cars: Math.max(0, c.cars | 0), strikesLeft: Math.max(0, c.strikesLeft | 0) } : null;
     }
+    // w_why: o 'e se' do dia que travou (o mesmo dia jogado de novo com cada peca, game.whatIfJob na fase over) corre em fatias fora do
+    // quadro enquanto o cruzamento fica em destaque (~2 s); a linha de causa nunca espera por ele. Acabou: o conselho vem do cartao.
+    // Passou de LOSE_CAP ms, sem manha na memoria (reload) ou cruzamento sem 'e se': o texto de antes
+    var loseQ = null, LOSE_CAP = 6000, loseT = 0;
+    function loseStart(s) {
+      var n = lockedNodeOf(s, game.world), j = null;
+      if (!n || !n.edges || (loseQ && loseQ.day === (s.day | 0) && loseQ.id === n.id)) return;
+      loseQ = { day: s.day | 0, id: n.id, job: null, rel: null, t0: nowMs(), state: 'run' };
+      try { if (typeof game.whatIfJob === 'function') j = game.whatIfJob(n.id); } catch (e) { warnOnce('game.whatIfJob', e); }
+      if (!j) { loseQ.state = 'none'; return; }
+      loseQ.job = j; loseKick();
+    }
+    function loseKick() { if (!loseT) loseT = root.setTimeout(loseRun, 0); }
+    function loseRun() {
+      var q = loseQ; loseT = 0;
+      if (!q || q.state !== 'run' || destroyed) return;
+      var s = game.state, j = q.rel || q.job, c = null;
+      if (s.phase !== 'over') { q.state = 'none'; return; }
+      try { if (!j.done) j.run(WI_SLICE, nowMs); } catch (e) { warnOnce('game.whatIfJob', e); q.state = 'none'; paintLose(s); return; }
+      if (j.done && !q.rel) {
+        try { c = game.choiceFor(q.id); if (c && c.dead && c.relief === 'pending' && typeof game.reliefJob === 'function') q.rel = game.reliefJob(q.id); } catch (e) { warnOnce('game.reliefJob', e); }
+        if (q.rel && !q.rel.done) { loseKick(); return; }
+      }
+      if (j.done) { q.state = 'done'; paintLose(s); return; }
+      if (nowMs() - q.t0 > LOSE_CAP) { q.state = 'cap'; paintLose(s); return; }
+      loseKick();
+    }
+    // a linha da derrota (causa + conselho) e a linha cinza (o aviso de ontem + o toque que mostra onde)
+    function paintLose(s, lockN, days) {
+      if (!s || s.phase !== 'over' || (s.final && s.final.win === true)) return;
+      lockN = lockN || lockedNodeOf(s, game.world);
+      days = days != null ? days : (s.final && s.final.days != null ? s.final.days : s.day);
+      if (!lockN) { overSub.textContent = STR.loseSub1 + (days | 0) + STR.loseSub2; overWarn.textContent = ''; overWarn.classList.add('gone'); return; }
+      var q = loseQ && loseQ.id === lockN.id ? loseQ : null, ctx = { budget: s.budget | 0, card: false, boost: !!(s.clear && s.clear.unlocked) }, c = null;
+      if (lockN.edges && typeof game.choiceFor === 'function') { try { c = game.choiceFor(lockN.id); } catch (e) { warnOnce('game.choiceFor', e); } }
+      ctx.card = !!c;
+      if (q && q.state === 'run') ctx.pending = true; else if (q && q.state === 'done') ctx.lose = c;
+      overSub.textContent = loseText(lockN, days, CFG, lockN.edges ? game.world : null, function (o) { return heatOf(s, o); }, ctx);
+      var wk = null; try { wk = lockN.edges && typeof game.warnedBefore === 'function' ? game.warnedBefore(lockN.id, 1) : null; } catch (e) { warnOnce('game.warnedBefore', e); }
+      var where = isFinite(lockN.x) && isFinite(lockN.y);
+      overWarn.textContent = (wk ? STR.loseWarn[wk] + (where ? ' ' : '') : '') + (where ? STR.loseWhere : '');
+      overWarn.classList.toggle('gone', !overWarn.textContent);
+      overSub.classList.toggle('crz-tap', where); overWarn.classList.toggle('crz-tap', where);
+    }
+    // toque na causa: o mapa no cruzamento que travou, com o anel, e a tela volta (a mesma ideia do resumo, 'crz-peek')
+    var overPeekT = 0;
+    function overWhere() {
+      var s = game.state, n = s.phase === 'over' ? lockedNodeOf(s, game.world) : null;
+      if (!n || !isFinite(n.x) || !isFinite(n.y)) return;
+      snd('select');
+      try { if (render && render.focus) camByUser(function () { render.focus(n.x, n.y, focusZoom(), !reducedMotion()); }); } catch (e) { warnOnce('render.focus', e); }
+      addPulse(n.x, n.y); later(function () { addPulse(n.x, n.y); }, 900);
+      overEl.classList.add('crz-peek');
+      if (overPeekT) root.clearTimeout(overPeekT);
+      overPeekT = later(function () { overEl.classList.remove('crz-peek'); overPeekT = 0; }, 2600);
+      say(STR.loseBack, 2600);
+      emitUI('overWhere', { id: n.id });
+    }
+    on(overSub, 'click', overWhere); on(overWarn, 'click', overWhere);
     function buildOver(s) {
       var f = s.final || {};
       var win = typeof f.win === 'boolean' ? f.win : (overWin === null ? (s.strikes < CFG.maxStrikes) : overWin);
@@ -5940,6 +6045,7 @@
       // v2: a vitoria conta os strikes da partida inteira (eles voltam a cada capitulo); a derrota, os do capitulo
       if (win && f.strikesTotal != null) stk = f.strikesTotal | 0;
       statNums[0].textContent = String(days | 0); countTo(statNums[1], 0, deliv | 0); statNums[2].textContent = String(stk | 0);
+      overEl.classList.remove('crz-peek');
       overRetry = !win && f.retry && f.retry.chapter > 0 && game.retrySave ? f.retry : null;
       overTitle.textContent = win ? STR.win : (overRetry ? STR.loseChapter(days | 0) : STR.lose);
       againBtn.textContent = overRetry ? STR.retryBtn(overRetry.chapter | 0) : STR.again;
@@ -5951,8 +6057,9 @@
       tryNormalBtn.classList.toggle('gone', !(win && dName === 'easy' && !seen('tryNormal') && CRZ.difficulty && typeof CRZ.difficulty.set === 'function'));
       // derrota com causa: qual cruzamento travou e o que tentar (sem no travado: frase antiga)
       var lockN = win ? null : lockedNodeOf(s, game.world);
-      overSub.textContent = win ? (stk === 0 ? STR.winFlawless : stk === 1 ? STR.winOne(days | 0) : STR.winMany(stk | 0))
-        : (lockN ? loseText(lockN, days, CFG, lockN.edges ? game.world : null, function (o) { return heatOf(s, o); }, { budget: s.budget | 0, card: !!(lockN.edges && typeof game.choiceFor === 'function' && game.choiceFor(lockN.id)) }) : (STR.loseSub1 + (days | 0) + STR.loseSub2));
+      if (win) overSub.textContent = stk === 0 ? STR.winFlawless : stk === 1 ? STR.winOne(days | 0) : STR.winMany(stk | 0);
+      else { loseStart(s); paintLose(s, lockN, days); }
+      if (win) { overWarn.textContent = ''; overWarn.classList.add('gone'); }
       var oc = win && (days | 0) >= CFG.maxDays ? (f.lastFailed ? STR.closingJam : STR.closing(days | 0, deliv | 0)) : (overRetry ? STR.retryLine(overRetry.day | 0, overRetry.chapter | 0) : '');
       overClose.textContent = oc; overClose.classList.toggle('gone', !oc);
       // melhor dia (do historico; senao do final) e pior momento (so se houve strike)
@@ -5974,7 +6081,9 @@
       overRec.textContent = rl.length ? STR.recLead + rl.join(', ') : ''; overRec.classList.toggle('gone', !rl.length);
       // w_chap: na derrota so as marcas feitas e as que o Retry ainda alcanca (open); a que nao se ganha mais nao aparece
       var mks = CRZ.Game && CRZ.Game.marks ? CRZ.Game.marks(s) : [];
-      if (!win) mks = mks.filter(function (m) { return m.on || m.open !== false; });
+      // w_why: sem volta de capitulo (Normal, uma partida so) a derrota nao mostra marca de partida que ela nao terminou ('A chapter with
+      // no strike', 'Every event prepared'): fica so o que se fez e vale por si, o Keep
+      if (!win) mks = mks.filter(function (m) { return overRetry ? (m.on || m.open !== false) : (m.on && m.id === 'kept'); });
       fillMarks(overMarks, mks, STR.marksHead);
       var wy = win && CRZ.Game && CRZ.Game.tally ? STR.winWhy(CRZ.Game.tally(s), signCount(game.world)) : '';
       overWhy.textContent = wy; overWhy.classList.toggle('gone', !wy);
@@ -6001,6 +6110,7 @@
     function onPhase(s) {
       camFreeze = false;
       ui.setAttribute('data-phase', s.phase);
+      if (s.phase !== 'over') loseQ = null;   // w_why: o 'e se' da derrota e de uma partida so
       if (s.phase === 'run') { tutorialSpeed(s); day3Notice(game.state); }
       // A.7: depois de um reload no mesmo dia, a foto do comeco do plano volta do planMemo (nao a de agora)
       if (s.phase === 'plan') { mapTouched = false; planTools = planEnter(s, toolSnap()).tools; }
@@ -7926,7 +8036,7 @@
              chipPick: chipPick, chipRank: chipRank, chipPlace: chipPlace, CHIP: { on: CHIP_ON, off: CHIP_OFF, px: CHIP_PX, px2: CHIP2_PX, every: CHIP_EVERY, day: ASSIST_DAY },
              jamBar: jamBar, jamAdvice: jamAdvice, jamPick: jamPick, jamOptions: jamOptions, busiestLane: busiestLane, denyText: denyText, suggestCard: suggestCard, worstNode: worstNode,
              fbk: { FBK: FBK, traceAt: fbkTraceAt, trigger: fbkTrigger, verdict: fbkVerdict, result: fbkResult, whyCause: whyCause, toolName: fbkToolName },
-             isEnd: isEnd, isDeadEnd: isDeadEnd, queueJunction: queueJunction, loseText: loseText, lockedNodeOf: lockedNodeOf,
+             isEnd: isEnd, isDeadEnd: isDeadEnd, queueJunction: queueJunction, loseText: loseText, loseNext: loseNext, lockedNodeOf: lockedNodeOf,
              toolIcon: toolIcon, cardIcon: cardIcon, eventSvg: eventSvg, dieSvg: dieSvg, miniDieSvg: miniDieSvg, describeDie: describeDie, dieName: dieName, dieSides: dieSides, ICONS: ICONS, CARD_ICONS: CARD_ICONS }
   };
 })(typeof window !== 'undefined' ? window : globalThis);

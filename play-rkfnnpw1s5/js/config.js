@@ -19,7 +19,7 @@
     graceRelief: 0.4,     // estresse que sai do cruzamento quando ele destrava sozinho num dia livre
     // v2/economia.md secao 4 e v2/jogador.md 5.3: nenhum recomeco de capitulo antes do dia noRestartBeforeDay; o
     // strike que esgotaria o capitulo e perdoado (a fileira mostra um a menos e uma linha diz isso)
-    noRestartBeforeDay: 15,
+    noRestartBeforeDay: 15,   // so fora da regra de um strike (testes sem main.js); no jogo (ironMode nas duas dificuldades) nada e perdoado
     chapter1LastStrikeWarns: true,   // capitulo 1: o ultimo strike so avisa (perdoado), nunca manda de volta (medir)
     // modo "um crash, do zero" (D9, liberado depois de vencer; sem UI ainda): o primeiro strike contado encerra a
     // partida, sem checkpoint, sem perdao

@@ -346,8 +346,8 @@ body.crz-modal #stage, body.crz-modal #hud, body.crz-modal #hud * { pointer-even
 .crz-otitle { font-size: var(--fs-d1); font-weight: var(--fw-bold); letter-spacing: -1px; }
 .crz-osub { font-size: var(--fs-lg); color: var(--ink); text-align: center; padding: 0 24px; }
 .crz-stats { display: flex; gap: 36px; margin: 6px 0; }
-.crz-oextra { font-size: var(--fs-md); color: var(--inkText); text-align: center; font-variant-numeric: tabular-nums; }
-.crz-oextra.gone { display: none; }
+.crz-oextra, .crz-owarn { font-size: var(--fs-md); color: var(--inkText); text-align: center; font-variant-numeric: tabular-nums; }
+.crz-oextra.gone, .crz-owarn.gone { display: none; }
 .crz-stat { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 64px; }
 .crz-stat b { font-size: var(--fs-d3); line-height: 1; font-weight: var(--fw-bold); letter-spacing: 0; font-variant-numeric: tabular-nums; font-feature-settings: 'tnum'; }
 .crz-stat span { font-size: var(--fs-sm); color: var(--inkText); }
@@ -544,7 +544,11 @@ body.crz-modal #stage, body.crz-modal #hud, body.crz-modal #hud * { pointer-even
 /* v2y (playtest cego 5, shot 027): o resumo some de todo no peek (antes 8%: texto fantasma sobre o mapa, ilegivel) */
 .crz-sheet.crz-sum.crz-peek { opacity: 0; transition: opacity var(--t-base) var(--ease); }
 .crz-sheet.crz-sum.crz-peek * { pointer-events: none !important; }
-@media (prefers-reduced-motion: reduce) { .crz-sheet.crz-sum.crz-peek { transition: none; } }
+/* w_why: a derrota abaixa do mesmo jeito quando a jogadora toca na causa (ve o cruzamento no mapa) */
+.crz-sheet.crz-over.crz-peek { opacity: 0; transition: opacity var(--t-base) var(--ease); }
+.crz-sheet.crz-over.crz-peek * { pointer-events: none !important; }
+.crz-osub.crz-tap, .crz-owarn.crz-tap { cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { .crz-sheet.crz-sum.crz-peek, .crz-sheet.crz-over.crz-peek { transition: none; } }
 
 /* ---- 2026-11-09 (ui): segundo chip do Boost, menor e sem pulso ---- */
 .crz-bchip2 {
@@ -1080,6 +1084,8 @@ body.crz-sayshow .crz-daybanner { top: calc(var(--crz-sayb, 140px) + 6px); }
 /* as legendas do topo moram DENTRO da caixa do marcador (o anel do tutorial e o alvo de toque as incluem):
    a caixa cresce 30 px para baixo sem mexer na linha (margem negativa igual) */
 .crz-top .crz-dots.crz-info, .crz-top .crz-strikes.crz-info { padding-bottom: 42px; margin-bottom: -42px; }
+/* w_easy_whole: com um strike so (as duas dificuldades) a area de toque do rotulo tem 42 px: o minimo de 44 */
+.crz-top .crz-strikes.crz-info { min-width: 44px; }
 .crz-top .crz-dots .crz-lbl-day { top: auto; bottom: 16px; }
 .crz-top .crz-strikes .crz-lbl-strk { top: auto; bottom: 19px; }
 .crz-top .crz-dots .crz-lastchip { top: auto; bottom: 12px; }
@@ -1289,7 +1295,7 @@ html body #hud .crz-ui[data-phase="over"] .crz-bottom, html body #hud .crz-ui[da
   .crz-over .crz-osub, .crz-over .crz-owhy, .crz-over .crz-sclose, .crz-over .crz-orec { font-size: var(--fs-xs); line-height: 1.25; }
   .crz-over .crz-stat b { font-size: 32px; }
   .crz-over .crz-stats { gap: 24px; }
-  .crz-over .crz-oextra { font-size: var(--fs-xs); line-height: 1.2; }
+  .crz-over .crz-oextra, .crz-over .crz-owarn { font-size: var(--fs-xs); line-height: 1.2; }
   .crz-over .crz-omarks { row-gap: 16px; column-gap: 4px; }
   .crz-over .crz-omark { min-height: 24px; padding: 1px 8px 1px 4px; font-size: var(--fs-xs); }
   .crz-over .crz-oday { width: 12px; height: 12px; }
