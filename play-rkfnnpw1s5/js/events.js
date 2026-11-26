@@ -523,7 +523,18 @@
     var n = g.world.nodes[m.nodeId];
     if (n && deg(n) >= 2) return m.type + 'Done';
     var sw = secondWay(g, m);
-    return sw && !hasCard(g, sw.to) ? m.type : m.type + 'Boost';
+    return sw && !hasCard(g, sw.to) && roadPossible(g, m) ? m.type : m.type + 'Boost';
+  }
+  // w_boost (cego 16, day 18): the advice 'add a second road out' is only given when the player can do it now. In the plan, the Road
+  // piece has to be open and paid for (a free road counts), and the road end must not be locked; later (tomorrow, the run) the
+  // calendar and the score keep the advice they had, so nothing about the prep rule moves
+  function roadPossible(g, m) {
+    var st = g.state;
+    if (!st || st.phase !== 'plan' || m.when === 'tomorrow') return true;
+    var P = g.world.nodes[m.nodeId];
+    if (P && P.locked) return false;
+    var open = (st.tools || []).some(function (t) { return t.id === 'road' && t.unlocked; });
+    return open && (typeof g.canAfford !== 'function' || !!g.canAfford('road'));
   }
   // w_bugs15: the new road would hand cars to a crossing that has a card (yesterday's traffic there): the card is the place to compare, and
   // a blind 'add a second road out' once made that crossing worse (11 s -> 17 s). The advice falls back to Boost, as a road that does not fit

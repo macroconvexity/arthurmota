@@ -780,7 +780,7 @@ body.crz-modal #hud .crz-guide, body.crz-modal #hud .crz-guide * { pointer-event
 @keyframes crz-freepulse { 0%, 100% { box-shadow: 0 0 0 0 rgba(26, 127, 53, 0.55); } 50% { box-shadow: 0 0 0 6px rgba(26, 127, 53, 0); } }
 .crz-tile.crz-freeon { border-color: var(--green-text); animation: crz-freepulse var(--t-loop) var(--ease) infinite; }
 @media (prefers-reduced-motion: reduce) { .crz-tile.crz-freeon { animation: none; outline: var(--bw-2) solid var(--green-text); outline-offset: 2px; } }
-.crz-runhint { position: absolute; left: calc(var(--sal) + var(--gutter) + 44px); right: calc(var(--sar) + var(--gutter) + 50px); bottom: calc(100% + 6px); text-align: center; font-size: var(--fs-sm); color: var(--ink-2); pointer-events: none; }
+.crz-runhint { position: absolute; left: calc(var(--sal) + var(--gutter) + 44px); right: calc(var(--sar) + var(--gutter) + 50px); bottom: calc(100% + 74px); text-align: center; font-size: var(--fs-sm); color: var(--ink-2); pointer-events: none; }
 .crz-runhint.gone { display: none; }
 .crz-confirm { position: fixed; inset: 0; z-index: 900; background: var(--scrim); display: flex; align-items: flex-end; justify-content: center; padding: 0 calc(var(--sar) + var(--gutter)) calc(var(--sab) + 12px) calc(var(--sal) + var(--gutter)); pointer-events: auto; }
 .crz-confirm.gone { display: none; }

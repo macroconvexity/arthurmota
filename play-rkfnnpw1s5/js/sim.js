@@ -1054,6 +1054,9 @@
       return CFG.lockSeconds + (pl > 1 ? (pl - 1) * patNow() : 0);
     }
     w.lockSecs = lockSecsNow;   // relogio da trava (render.js lockProgress, game.js lockNear)
+    // w_boost: how far along the jam clock a crossing is (0 to 1; 1 = it locks now). Read only. The Boost rule ranks
+    // crossings by it (stress alone stops at 1 while the clock still runs), so one answer serves chip, balloon and pulse
+    w.lockClock = function (id) { var ns = NS[id], L = lockSecsNow(); return ns && !(w.nodes[id] && w.nodes[id].locked) && L > 0 ? Math.min(1, ns.lockT / L) : 0; };
 
     function stress(dt) {
       var i, n, ns, pat = patNow();

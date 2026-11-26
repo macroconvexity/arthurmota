@@ -428,8 +428,8 @@
     // por que a ferramenta nao entrou (reason do game) e o que ajuda num ponto com fila
     deny: {
       // a fila de uma ponta espera no cruzamento a frente: a recusa aponta e pulsa esse cruzamento
-      portal: 'Road ends can\'t take a Stop, Yield or light. Use the pulsing crossing ahead.',
-      portalNoLane: 'Road ends can\'t take a Stop, Yield or light. Use the pulsing crossing ahead.',
+      portal: 'Tap a crossing, where roads meet.',
+      portalNoLane: 'Tap a crossing, where roads meet.',
       // a recusa sempre diz o proximo passo (dono no iPhone, 2026-11-09: travou no dia 1 com 0 pontos)
       budget: 'Not enough build points. Tap \u25b6\ufe0e to start the day: you get more every day.',
       budgetCost: function (c, have) { return 'Not enough build points. This costs ' + c + ', you have ' + have + '. Tap \u25b6\ufe0e to start the day.'; },
@@ -441,9 +441,9 @@
       cap: function (n) { return (n === 1 ? 'Your 1 light is' : 'All ' + n + ' lights are') + ' in use. Tap a crossing to move one there. Free.'; },
       notJunction: 'Tap a crossing, where roads meet.',
       // sem cruzamento a frente para pulsar (antes pulsava o no do meio da rua, que nao e ponta nem cruzamento)
-      portalNone: 'Road ends can\'t take a Stop, Yield or light. Pick a crossing with three or more roads.',
+      portalNone: 'Tap a crossing, where roads meet.',
       // game: 'notjunction' (curva, reta ou beco)
-      notjunction: 'Stops, yields and lights need a crossing: three or more roads meeting.',
+      notjunction: 'Tap a crossing, where roads meet.',
       notjunctionCross: 'A crosswalk needs a road passing through this crossing.',
       edge: 'Tap right on a road.',
       notlight: 'Tap a traffic light.',
@@ -1991,7 +1991,11 @@
     // L1: so objeto (primitivo ou lista fazia seen() sempre falso e a fila de dicas crescer todo quadro)
     if (!hints || typeof hints !== 'object' || Array.isArray(hints)) hints = {};
     // M4: dicas 'uma vez por PARTIDA' levam a semente na chave; as de outras partidas saem ao carregar
-    var PER_RUN = { boostOut: 1, bigDie: 1, sumInfo: 1, firstSpend: 1, ringGroup: 1, day4rule: 1, boostJ1: 1, runHint: 1, half6: 1, boosts4: 1, resumed: 1,
+    // w_boost (cego 16, restarts): only FACTS stay per match (the out-of-boosts line, the no-sign rule, the boosts that stop
+    // recharging, the strike rule, the chapter strike line, the Guidance offer). What teaches a control or a word (the points
+    // line, the summary bar, grouped rings, the first Boost on a crossing, the day-1 road-end hint, the first-piece watch, the
+    // first event line, the NEW tip, the chapter dots line) is kept per device and never comes back in a later match
+    var PER_RUN = { boostOut: 1, bigDie: 1, day4rule: 1, half6: 1, boosts4: 1, resumed: 1,
                     strikes6: 1, chapter11: 1, chapter21: 1, mag: 1, guideHint: 1 };
     var runTag = '@' + ((game.world && game.world.seed) != null ? game.world.seed : 0);
     (function pruneRunHints() {
@@ -3266,8 +3270,9 @@
     var lockedSaidDay = -1;
     // o cruzamento mais apertado agora (estresse >= 0,3), fora o no tocado
     function tightestNode(skip) {
-      var w = game.world, k, b = null, bv = 0.3;
-      for (k in w.nodes) if (w.nodes.hasOwnProperty(k)) { var o = w.nodes[k]; if (o && o !== skip && !isEnd(o) && (o.stress || 0) >= bv) { bv = o.stress; b = o; } }
+      var w = game.world, k, b = null, bv = -1;
+      // w_boost: the same ranking as the chip (jamUrgency), so the pulse never points at a different crossing than the chip would
+      for (k in w.nodes) if (w.nodes.hasOwnProperty(k)) { var o = w.nodes[k]; if (o && o !== skip && !isEnd(o) && (o.stress || 0) >= 0.3 && jamUrgency(o) > bv) { bv = jamUrgency(o); b = o; } }
       return b;
     }
     function nearestEnd(n) {
@@ -3436,7 +3441,7 @@
     // o chip saiu da tela: guarda onde estava e de que no era. Um toque que chega ali logo depois (o dedo ja vinha)
     // vale para ESSE no, nunca para o que estava escondido sob o chip (playtest cego 3, 144/145: o toque caiu numa
     // curva sob o chip e o carro extra saiu de uma ponta do outro lado)
-    var CHIP_GHOST_MS = 1500;
+    var CHIP_GHOST_MS = 1500, chipSwallow = { l: 0, t: 0, r: 0, b: 0, until: 0 };
     var chipGhost = { id: null, l: 0, t: 0, r: 0, b: 0, at: -1e9 };
     function chipLead(on, p, c) {
       if (!on) { if (!bleadEl.classList.contains('gone')) bleadEl.classList.add('gone'); return; }
@@ -3499,16 +3504,28 @@
       var left = (+s.dayLen || 0) - (+s.dayTime || 0), sp = Math.max(1, +s.speed || 1);
       return left >= CHIP_TAIL + 0.5 * sp;
     }
+    // w_boost: the ONE rule for 'which crossing needs the Boost'. Closest to jamming by the sim's own clock: the stress (0 to 1)
+    // plus how far the jam clock has run (0 to 1; stress stops at 1 while the clock keeps going), plus half the recent rise.
+    // chipCandidate picks with it, and boostNeed() hands the same crossing to the chip, the balloon and the pulse
+    function jamUrgency(n) {
+      var lc = game.world && typeof game.world.lockClock === 'function' ? +game.world.lockClock(n.id) || 0 : 0;
+      return (n.stress || 0) + lc + Math.max(0, chipRate(n)) * 0.5;
+    }
+    function boostNeed() {
+      var w = game.world, n = bchip.id !== null && w && w.nodes ? w.nodes[bchip.id] : null;
+      if (n && boostable(n)) return n;
+      return w && w.nodes ? chipCandidate(+game.state.dayTime || 0) : null;
+    }
     // candidato a chip: ambar subindo, ou acima de chipOn(); o pedido do balao 'Busy again' (bchip.want) vale no ambar
-    function chipCandidate(t) {
+    function chipCandidate(t, skipId) {
       var w = game.world, q, n, st, best = null, bs = -1, on = chipOn(), want = bchip.want && bchip.want.until > nowMs() ? bchip.want.id : null;
       for (q in w.nodes) if (w.nodes.hasOwnProperty(q)) {
         n = w.nodes[q];
-        if (!boostable(n) || bchip.cool[n.id] > t || (n.boost || 0) > 0) continue;
+        if (!boostable(n) || n.id === skipId || bchip.cool[n.id] > t || (n.boost || 0) > 0) continue;
         st = n.stress || 0;
         if (!(st >= on || (st >= RING_BUSY && (chipRate(n) >= CHIP_RISE || n.id === want)))) continue;
-        // mais urgente: estresse; empate (CHIP_TIE): quem sobe mais rapido
-        var sc = st + (n.id === want ? CHIP_TIE : 0) + Math.max(0, chipRate(n)) * 0.5;
+        // mais urgente: a mais perto de travar pelo relogio do proprio sim (estresse + relogio da trava); empate: quem sobe mais rapido
+        var sc = jamUrgency(n) + (n.id === want ? CHIP_TIE : 0);
         if (sc > bs) { bs = sc; best = n; }
       }
       return best;
@@ -3516,14 +3533,12 @@
     // so um aviso por partida: sem cargas, a fila apertou; os Boosts voltam amanha (CFG.clear.charges por dia)
     function chipOutLine(s, t) {
       if (seen('boostOut') || tutorScript() || sayUntil || (s.day | 0) <= ((CFG.earlyBoost && CFG.earlyBoost.days) | 0)) return;
-      var w = game.world, q, n;
+      var w = game.world, q, n, best = null;
       for (q in w.nodes) if (w.nodes.hasOwnProperty(q)) {
         n = w.nodes[q];
-        if (boostable(n) && (n.stress || 0) >= chipOn()) {
-          if (sayShown(STR.boostOut((CFG.clear && CFG.clear.charges) || 3, lastDayOf(s)), 3500)) { markSeen('boostOut'); addPulse(n.x, n.y); }
-          return;
-        }
+        if (boostable(n) && (n.stress || 0) >= chipOn() && (!best || jamUrgency(n) > jamUrgency(best))) best = n;   // w_boost: the one ranking
       }
+      if (best && sayShown(STR.boostOut((CFG.clear && CFG.clear.charges) || 3, lastDayOf(s)), 3500)) { markSeen('boostOut'); addPulse(best.x, best.y); }
     }
     // posicao do chip: candidatos em 8 lados, perto do no e depois mais longe (com linha ate ele), dentro da faixa
     // entre os HUDs e com folga para o pulso (o anel de 56 px cresce 1,3x: 16 px de folga na borda); faixas como
@@ -3555,6 +3570,9 @@
       bchip.x = bchip.y = -1;
       bchipEl.classList.remove('gone'); bchipEl.classList.remove('fade');
       bchipEl.classList.toggle('still', reducedMotion());
+      // w_boost: the crossing is off the usable area: the camera shows it (the chip alone points at it with a line, and the jam could be
+      // the one the player never saw); the camera moves the least it can
+      try { if (!originOnScreen(n) && render && render.reveal) render.reveal(n.x, n.y, !reducedMotion()); } catch (e) { warnOnce('render.reveal', e); }
       emitUI('boostChip', { id: n.id });
     }
     function chipMove(n, now) {
@@ -3584,6 +3602,14 @@
         // sai: no sumiu ou travou; fila resolvida de vez; ou, passados os 3 s, abaixo do desligar e caindo
         var gone = !n || !boostable(n) || st < CHIP_GONE || (age >= CHIP_MIN_MS && st < chipOff() && chipRate(n) <= 0);
         if (gone) { hideChip(true); return; }
+        // w_boost (item 4): one chip, so it must be on the crossing closest to jamming. Another crossing that is chipSwitch closer
+        // (stress plus the sim's jam clock) takes the chip over, once the chip has been up CHIP_MIN_MS (never under a finger)
+        if (age >= CHIP_MIN_MS) {
+          var alt = chipCandidate(t, n.id);
+          if (alt && jamUrgency(alt) >= jamUrgency(n) + ((CFG.clear && CFG.clear.chipSwitch) || 0.3)) {
+            hideChip(false); chipGhost.id = null; chipShow(alt, now); chipMove(alt, now); return;
+          }
+        }
         chipMove(n, now);
         return;
       }
@@ -3621,11 +3647,26 @@
         bchip.cool[n.id] = (+s.dayTime || 0) + ((CFG.clear && CFG.clear.seconds) || 6);
         var now0 = nowMs();
         bchip.holdUntil = Math.max(bchip.shownAt + CHIP_MIN_MS, now0 + CHIP_SEE_MS);
+        // w_boost (real touch, double tap): the second tap of a double tap lands where the chip was and used to hit whatever sat under it
+        // (a road end: a second charge for an extra car). Taps there for CHIP_DEDUP_MS after the Boost are the same tap: ignored
+        if (bchip.x >= 0) chipSwallow = { l: bchip.x - CHIP_PX / 2 - 8, t: bchip.y - CHIP_PX / 2 - 8, r: bchip.x + CHIP_PX / 2 + 8, b: bchip.y + CHIP_PX / 2 + 8, until: now0 + CHIP_DEDUP_MS };
         hideChip(false);
-        chipGhost.id = null;             // o segundo toque do dedo no mesmo lugar nao vira outro Boost
+        chipGhost.id = null;
       }
     }
-    on(bchipEl, 'click', chipTap);
+    // w_boost (cego 16, match 2 day 10): a tap on the chip must always Boost, first tap. The chip hops between spots as rings
+    // come and go; a click is only delivered if the finger is still over the element when it lifts, so a tap that started on
+    // the chip could end on the map. The Boost is taken on pointerdown (the finger is on the chip for sure); the click that
+    // follows is the same tap and is swallowed. Keyboard and tests (click only) still work
+    var chipDownAt = -1e9, CHIP_DEDUP_MS = 900;
+    on(bchipEl, 'pointerdown', function (e) {
+      if (e && e.pointerType === 'mouse' && e.button) return;
+      chipDownAt = nowMs(); chipTap(e);
+    });
+    on(bchipEl, 'click', function (e) {
+      if (nowMs() - chipDownAt < CHIP_DEDUP_MS) { if (e && e.stopPropagation) e.stopPropagation(); return; }
+      chipTap(e);
+    });
     on(bchip2El, 'click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); });
 
     // chip "Pair lights": arma o pareamento a partir do semaforo do chip (o proximo toque noutro semaforo pareia)
@@ -3801,9 +3842,9 @@
       // novo; sem pausar. Nos outros dias ficam o chip "N new crossings" e a confirmacao do Play (rodada 3:
       // a faixa diaria aparecia 9 vezes por partida junto com os dois)
       // primeiro cruzamento novo da partida, Easy e Normal: o que e a marca e a regra do dia 4, uma vez cada
-      if (ids.length && gOn() && njDay.tip <= 0 && now - njDay.at >= 1400 && !modal() && !tutorTalking() &&
+      if (ids.length && gOn() && njDay.tip <= 0 && !seen('newJTip') && now - njDay.at >= 1400 && !modal() && !tutorTalking() &&
           !holdUntil && !(sayUntil && now < sayUntil)) {
-        njDay.tip = s.day | 0; saveNewJ();
+        njDay.tip = s.day | 0; saveNewJ(); markSeen('newJTip');   // per device: a later match does not teach what NEW means again
         var njValid = function () { return game.state.phase === 'plan' && morningList(game.state).length > 0; };
         say(STR.newJFirst, 4000, njValid); pulseEl(njChipEl);
         showJunction(L[0], false);
@@ -3902,6 +3943,8 @@
       var n = L[njDay.idx % L.length]; njDay.idx++;
       snd('select');
       showJunction(n, true);
+      // w_boost: the chip leads to the crossing's card (the signs, with the numbers); no card to show: the strip says what to do
+      if (openChoice(game.state, n)) { emitUI('newJunctionTap', { id: n.id, count: L.length, from: 'plan', card: true }); return; }
       say(STR.newJChipSay, 2600);
       emitUI('newJunctionTap', { id: n.id, count: L.length, from: 'plan' });
     });
@@ -4022,6 +4065,16 @@
     function toolCost(t) {
       try { if (typeof game.cost === 'function') return game.cost(t); } catch (e) { warnOnce('game.cost', e); }
       return CFG.tools && CFG.tools[t] ? listPrice(t) : 0;
+    }
+    // w_boost: the chip's crossing when (sx, sy) is within its tap radius (null: no chip, or the tap is elsewhere). Within the
+    // radius the chip's crossing wins over a nearer curve or road end: a road end there is refused anyway while the line sits
+    // at the crossing ('Boost that crossing'), and the finger meant the crossing the chip points at
+    function chipNodeAt(sx, sy) {
+      if (bchip.id === null || bchipEl.classList.contains('gone') || !render || !render.toScreen) return null;
+      var n = game.world && game.world.nodes ? game.world.nodes[bchip.id] : null;
+      if (!n) return null;
+      var p = render.toScreen(n.x, n.y), R = render.pickRadius ? render.pickRadius() : CFG.nodePickRadius;
+      return dist(sx, sy, p.x, p.y) <= R ? n : null;
     }
     // toque no lugar do chip do Boost que acabou de sair: o no do chip (null fora disso)
     function chipGhostNode(sx, sy) {
@@ -4144,7 +4197,10 @@
       // o toque seria resolvido contra um mapa em movimento e podia pegar o no errado. Ignora sem acao, aviso,
       // som nem carga. Movimento automatico (inicio da corrida, abertura do plano) nao chega aqui: o render o para
       // no pointerdown e o toque age no mapa parado. Botoes do HUD sao DOM e nao passam por aqui.
-      if (tapInCamAnim) { tapInCamAnim = false; return; }
+      // w_boost: with the Boost chip on a crossing, a tap on that crossing is never dropped for the camera (it may be moving
+      // to show it): the crossing is where it was a moment ago, within the tap radius
+      if (tapInCamAnim && !(s.phase === 'run' && chipNodeAt(sx, sy))) { tapInCamAnim = false; return; }
+      tapInCamAnim = false;
       if (s.phase === 'plan' && sel === 'road' && roadSug && roadSugTap(sx, sy)) return;   // w_noopt: a rua sugerida vem antes da lupa
       if (s.phase === 'plan') { var mp = magPlan(sx, sy, false); if (mp) { magZoom(sx, sy, mp); return; } }
       // plano, mao vazia: a curva comum (2 ruas, sem sinal nem anel) nao responde ao toque; um ponto que responde
@@ -4155,8 +4211,12 @@
       var askN = s.phase === 'plan' ? askNear(sx, sy) : null;
       if (askN) hitN = askN;
       if (swapAsk && !(hitN && hitN.id === swapAsk.id && sel === swapAsk.tool)) endSwapAsk('tap');
+      if (s.phase === 'run' && nowMs() < chipSwallow.until && sx >= chipSwallow.l && sx <= chipSwallow.r && sy >= chipSwallow.t && sy <= chipSwallow.b) { emitUI('noteTap', { kind: 'chipDouble' }); return; }
       var gn = s.phase === 'run' ? chipGhostNode(sx, sy) : null;
       if (gn) hitN = gn;
+      // w_boost: a tap on the crossing the Boost chip is on IS the chip's tap (the same Boost, the same answer, the chip's
+      // cooldown): never 'All calm' while the chip is showing there, and the nearer curve or road end under the finger does not steal it
+      if (s.phase === 'run' && !gn && !modal() && chipNodeAt(sx, sy)) { chipTap(); emitUI('noteTap', { kind: 'chip' }); return; }
       // w_bugs12: a tap on a note over the map never does nothing. The Boost chip takes a tap a little off its centre (it hops
       // between crossings); the retorno balloon (it ignores touches) is dismissed by a tap on it
       if (s.phase === 'run' && !hitN && !modal()) {
@@ -4632,10 +4692,19 @@
     // w_cam (playtest cego 5, shots 281-287): um toque no Play visivel e com cara de ativo sempre faz algo ou diz
     // por que nao. Guarda que ignora o toque (os ~1 s depois de comecar o dia; a velocidade travada no dia 1 do
     // roteiro) deixa o botao com cara de desligado enquanto vale (.crz-guard, a mesma opacidade do Undo sem uso)
+    // w_boost (cego 16, dias 24 e 3): the speed control sits where Play was, and a second tap there (a finger unsure the first one
+    // counted) dropped 4x to 1x. The reward buttons already ignore a tap for a short time and every ignored tap restarts that time
+    // (SUM_DEAD, sumQuietFrom); the speed control now does the same, with the dimmed look (crz-guard) while it ignores taps.
+    // The raw pointerdown says where the finger landed, before the click
+    var playQuietFrom = -1e9;
+    on(playBtn, 'pointerdown', function () {
+      var n = nowMs();
+      if (game.state.phase === 'run' && !game.state.ff && n - Math.max(playPressedAt, playQuietFrom) < PLAY_GUARD) playQuietFrom = n;
+    }, true);
     var playWait = false;
     function playWaitOn(s, now) {
       if (s.phase !== 'run' || s.ff) return false;
-      if (now - playPressedAt < PLAY_GUARD) return true;
+      if (now - Math.max(playPressedAt, playQuietFrom) < PLAY_GUARD) return true;
       var tu = CRZ.app && CRZ.app.tutorial;
       try { return !!(tu && tu.speedLocked && tu.speedLocked()); } catch (e) { return false; }
     }
@@ -4656,7 +4725,7 @@
         // fast-forward ligado: o botao (que mostra o simbolo) so desliga o ff, a velocidade fica
         if (s.ff) { ffOff(); snd('select'); emitUI('ffOff', {}); return; }
         // toques seguidos no Play: ~1 s depois de comecar o dia o botao nao muda a velocidade (nv7: 4x sem querer)
-        if (nowMs() - playPressedAt < PLAY_GUARD) return;
+        if (nowMs() - Math.max(playPressedAt, playQuietFrom) < PLAY_GUARD) return;
         // dia 1 com o roteiro: velocidade travada em 1x ate o balao de SPEED (nv7)
         var tuL = CRZ.app && CRZ.app.tutorial;
         if (tuL && tuL.speedLocked && tuL.speedLocked()) { snd('deny'); try { tuL.bump(); } catch (e) { warnOnce('tutorial.bump', e); } return; }
@@ -6679,7 +6748,8 @@
       var d = s.day | 0, c = Math.ceil(d / CH_LEN), b = Math.min(CFG.maxDays, d + CH_LEN - 1), used = chPrevUsed(s, c);
       chCur = { key: chCardKey(s), day: d };
       chTitleEl.textContent = STR.chTitle(c);
-      chDaysEl.textContent = STR.chDays(d, b);
+      // w_boost: 'The row of dots at the top is days 11 to 20.' teaches the HUD once per device; the facts on the sheet stay
+      var dotsSeen = seen('chDotsLine'); chDaysEl.textContent = dotsSeen ? '' : STR.chDays(d, b); chDaysEl.classList.toggle('gone', dotsSeen); if (!dotsSeen) markSeen('chDotsLine');
       chStrkTxt.textContent = STR.strikesBack(CFG.ironMode ? 1 : CFG.maxStrikes | 0);
       var sv = chSaveText(s, c); chSaveEl.textContent = sv; chSaveEl.classList.toggle('gone', !sv);
       var nw = chNewText(s, c); chNewEl.textContent = nw; chNewEl.classList.toggle('gone', !nw);
@@ -7158,8 +7228,13 @@
       var sig = JSON.stringify(c) + '|' + (s.budget | 0);
       if (sig !== scSig) { scSig = sig; paintChoice(c); }
     }
+    // w_boost (cego 16): the rule is a fact (not teaching), shown in every match on the day it starts (CFG.junction.none.late.fromDay).
+    // It takes the first free moment of that day: the morning, but also the run and the evening (a player who pressed Play before
+    // the strip was free still sees it that day)
+    function noSignDay() { var L = CFG.junction && CFG.junction.none && CFG.junction.none.late; return (L && L.fromDay) || ASSIST_DAY; }
     function day4RuleTick(s) {
-      if (seen('day4rule') || s.phase !== 'plan' || (s.day | 0) !== 4 || roll.open || growPend || bootFrames >= 0) return;
+      if (seen('day4rule') || (s.day | 0) !== noSignDay() || roll.open || growPend || bootFrames >= 0) return;
+      if (s.phase !== 'plan' && s.phase !== 'run' && s.phase !== 'summary') return;
       if (modal() || tutBalloonOn() || sayUntil || confirmOpen()) return;
       if (!sayShown(STR.day4Rule, 5000)) return;
       markSeen('day4rule');
@@ -7210,7 +7285,7 @@
     // dias 1 e 2 (dias de tutorial) SEMPRE comecam a 1x, mesmo se a jogadora trocou no dia 1. Do dia 3 em diante
     // vale a ultima escolha dela; sem escolha, o padrao do CFG (4x; o equilibrio dos dias 3+ foi medido assim)
     // A.7: a escolha da jogadora sobrevive ao reload (planMemo, por partida)
-    var speedChosen = (function () { var v = planMemo.speed, L = (CFG.speedDial && CFG.speedDial.levels) || [], i; for (i = 0; i < L.length; i++) if (L[i].speed === v) return v; return 0; })(), TUT_SPEED_DAYS = 2, TUT_SPEED = 2, playPressedAt = -1e9, PLAY_GUARD = 1000;
+    var speedChosen = (function () { var v = planMemo.speed, L = (CFG.speedDial && CFG.speedDial.levels) || [], i; for (i = 0; i < L.length; i++) if (L[i].speed === v) return v; return 0; })(), TUT_SPEED_DAYS = 2, TUT_SPEED = 2, playPressedAt = -1e9, PLAY_GUARD = 1200;
     function startSpeed(s) {
       var d = s.day | 0, def = (CFG.speedDial && CFG.speedDial.defaultSpeed) || 1;
       // dono 2026-11-09: dias 1 e 2 a 2x (1x deixava o dia longo e passivo; 4x rapido demais)
@@ -7483,6 +7558,7 @@
       syncTray(s);
       boostHintTick(s, now);
       boostChipTick(s, now);
+      evNowTick(s, now);
       timeScaleTick(s, dt);
       newJPlanTick(s, now);
       fbkTick(s, now);
@@ -7654,8 +7730,8 @@
     // ferramenta posta (ou Two lanes) com sucesso: o no foi tocado; vigiado novo na partida: a faixa diz uma vez
     function fbkPlaced(tr, n, plain) {
       if (n) fbkTap(n.id);
-      if (!tr || tr.watched !== 'new' || fbkSeen('watchFirst')) return;
-      fbkMark('watchFirst');
+      if (!tr || tr.watched !== 'new' || seen('watchFirst')) return;
+      markSeen('watchFirst');   // per device (w_boost)
       // colocacao simples: a faixa troca 'Stop placed here.' por esta; troca de sinal ou dica do Yield: espera a faixa
       if (plain && !fbkBusy()) { sayUntil = 0; say(STR.fbk.watchFirst, 3000); }
       else fbkWatchPend = nowMs();
@@ -7697,7 +7773,12 @@
       var boostOk = !!(s.clear && s.clear.unlocked) && (((s.boost && s.boost.charges) || (s.clear && s.clear.charges)) | 0) > 0;
       // v2y: 'Tap the bolt' so quando o chip pode sair agora (tempo e cruzamento valem); o chip vai para ESTE no
       var chipOk = boostOk && q.v === 'bad' && boostable(qn) && chipTimeOk(s) && (bchip.id === null || bchip.id === qn.id);
-      if (chipOk) bchip.want = { id: qn.id, until: now + 4000 };
+      // w_boost: 'Tap the bolt' only when the one Boost rule agrees this is the crossing (never a balloon here and the chip elsewhere)
+      if (chipOk) {
+        var want0 = bchip.want; bchip.want = { id: qn.id, until: now + 4000 };
+        var nd = boostNeed();
+        if (!nd || nd.id !== qn.id) { bchip.want = want0; chipOk = false; }
+      }
       fbkShow(qn, q.v === 'good' ? STR.fbk.good(fbkToolName(q.tool)) : (chipOk ? STR.fbk.bad : STR.fbk.badNoBoost), q.v);
     }
 
@@ -7849,7 +7930,7 @@
         say(line, 4000);
         addPulse(m.x, m.y);
         // primeira vez na partida: a linha de ensino vem logo depois (e fica gravada no save)
-        if (m.when === 'tomorrow' && !CRZ.Events.firstSeen(game)) { CRZ.Events.markFirst(game); evAm.firstPend = true; }
+        if (m.when === 'tomorrow' && !CRZ.Events.firstSeen(game)) { CRZ.Events.markFirst(game); if (!seen('evFirst')) { markSeen('evFirst'); evAm.firstPend = true; } }   // w_boost: the teaching line once per device
         emitUI('eventWarn', { key: m.key, when: m.when, type: m.type, text: line });
         return;
       }
@@ -7891,15 +7972,31 @@
       emitUI('eventTap', { key: m.key, type: m.type, text: text });
       return true;
     }
+    // w_boost: the leva balloon no longer points at its own crossing. It waits for the Boost rule (boostNeed): the balloon shows
+    // only while the Boost chip is on a crossing (Guidance off: when a Boost there would be taken), at THAT crossing, so the
+    // balloon, the chip and the pulse are one answer and the tap on it is never refused. No need within nowWaitS: no balloon
+    var evNow = null;
     function evOpen(ev) {
       var s = game.state, n = game.world && game.world.nodes ? game.world.nodes[ev.nodeId] : null;
-      if (!n || s.ff || s.paused || fbkBusy() || fbkCur) return;
-      // o balao fica no cruzamento que a leva enche (o Boost ali ajuda, medido em web/dev/events/prep.js)
+      if (!n || s.ff) return;
+      // o balao da leva pede o Boost: o chip vai para o cruzamento seguinte da ponta quando a fila chegar (ambar)
       var hn = CRZ.Events.helpNode ? CRZ.Events.helpNode(game, { nodeId: ev.nodeId, edgeId: null }) : null;
-      fbkShow(hn || n, evText('now'), 'eventNow');
-      if (hn) addPulse(hn.x, hn.y);
-      // v2y: o balao da leva pede o Boost no cruzamento seguinte: o chip vai para la quando a fila chegar (ambar)
       if (hn && boostable(hn)) bchip.want = { id: hn.id, until: nowMs() + 8000 };
+      evNow = { day: s.day | 0, until: (+s.dayTime || 0) + ((CFG.events && CFG.events.nowWaitS) || 20) };
+    }
+    function evNowTick(s, now) {
+      var cur = fbkCur && fbkCur.kind === 'eventNow';
+      // the balloon says 'Boost this crossing': it leaves with the chip (Boost taken, queue gone, chip moved elsewhere)
+      if (cur && (s.phase !== 'run' || (gOn() && bchip.id !== fbkCur.id))) fbkHide();
+      if (!evNow) return;
+      if (s.phase !== 'run' || (s.day | 0) !== evNow.day || (+s.dayTime || 0) > evNow.until) { evNow = null; return; }
+      if (s.ff || s.paused || fbkBusy() || fbkCur) return;
+      var n = boostNeed();
+      if (!n || !s.clear || !s.clear.unlocked || (s.clear.charges | 0) <= 0) return;
+      if (gOn() ? bchip.id === null : (n.stress || 0) < BOOST_MIN) return;
+      evNow = null;
+      fbkShow(n, evText('now'), 'eventNow');
+      addPulse(n.x, n.y);
     }
 
     // resumo: uma linha por peca posta ou movida onde ontem passaram carros (os vigiados do anel e as marcas de game.state.marks), com numero
@@ -8016,7 +8113,7 @@
       var b = 0; for (var i = 0; i < q.jobs.length; i++) b += q.jobs[i].branches | 0;
       return { spent: Math.round(q.spent || 0), later: q.later ? q.later.length : 0, ready: q.ready || 0, done: q.done, stop: q.stop, n: q.jobs.length, next: q.jobs[q.i] ? q.jobs[q.i].id : null, order: q.jobs.slice(q.i).map(function (j) { return j.id + (j.relief ? 'r' : ''); }), all: q.jobs.map(function (j) { return j.id + (j.relief ? 'r' : ''); }), slices: q.slices, maxSlice: Math.round(q.maxSlice * 10) / 10, branches: b, ms: q.done ? Math.round(q.t1 - q.t0) : null };
     }
-    return { update: update, destroy: destroy, _wiState: wiState, getSelectedTool: getSelectedTool, isSheetOpen: isSheetOpen, isHolding: isHolding, boostChip: boostChip, boostNode: boostNode, timeScale: timeScale,
+    return { update: update, destroy: destroy, _wiState: wiState, getSelectedTool: getSelectedTool, isSheetOpen: isSheetOpen, isHolding: isHolding, boostChip: boostChip, boostNeed: function () { var n = boostNeed(); return n ? n.id : null; }, boostNode: boostNode, timeScale: timeScale,
              openGuide: openGuide, closeGuide: closeGuide, isGuideOpen: function () { return !!guideEl; },
              isRollOpen: function () { return roll.open; },
              beginLeave: beginLeave, flushSave: onHide,

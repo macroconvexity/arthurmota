@@ -640,6 +640,8 @@
   function chipNode(c) {
     var u = uiOf(c), id = u && u.boostChip ? u.boostChip() : undefined;
     if (id !== undefined && id !== null) { var cn = nodeById(c, id); if (cn) return cn; }
+    var nid = u && u.boostNeed ? u.boostNeed() : null;   // w_boost: the UI's one Boost rule, when there is no chip yet
+    if (nid !== null && nid !== undefined) { var nn = nodeById(c, nid); if (nn) return nn; }
     return ringJunction(c.game, AGAIN_AT);   // ainda sem chip: o cruzamento com o anel
   }
   // no onde o Boost escoa (2+ ruas, sem trava) com o maior estresse acima de th

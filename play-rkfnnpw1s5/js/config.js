@@ -290,7 +290,7 @@
     //  - numa ponta da rua (portal): manda um carro extra agora (conta como entrega);
     //  - num cruzamento sofrendo: escoa a fila dele (mul x mais rapido por `seconds`, alivia estresse).
     // Cada toque gasta uma carga. O dia nao desacelera sozinho: a velocidade e escolha do jogador.
-    clear: { unlockDay: 1, charges: 3, seconds: 6, mul: 2.2, stressRelief: 0.2, minStress: 0 },   // minStress > 0: Boost recusa (calm) no com estresse <= minStress (desligado: Boost preventivo vale)
+    clear: { unlockDay: 1, charges: 3, seconds: 6, mul: 2.2, stressRelief: 0.2, minStress: 0, chipSwitch: 0.3 },   // minStress > 0: Boost recusa (calm) no com estresse <= minStress (desligado: Boost preventivo vale)
     // Dias de aprendizado (2026-11-09, dono: hipercasual, nunca so assistindo). Nos dias 1..days, durante o dia,
     // cada carga de Boost usada volta depois de regenSeconds de tempo de JOGO (sem passar de clear.charges). A partir
     // do 4o Boost do dia o carro mandado pela ponta nao paga gorjeta (Delivery bonus fica como se so 3 valessem).
@@ -508,6 +508,7 @@
     // Numeros medidos com tools/headless.js (--events, v2e): ver o relatorio do ramo.
     events: {
       on: true, test: false, perDayMax: 2, testPerDayMax: 1,
+      nowWaitS: 20,   // w_boost: the 'Here come the cars' balloon waits this many game seconds for the Boost chip; no chip, no balloon
       testWindows: { 2: [6, 8], 3: [9, 12] },
       // w_evt (web/dev/review/w_evt/out): a obra saiu do calendario e do chapeu. Fechar uma rua quase nao muda o dia (a
       // rota dos carros contorna sozinha) e nenhum preparo mediu efeito confiavel no dia dela (Two lanes no desvio:
