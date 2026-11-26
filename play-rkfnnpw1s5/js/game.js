@@ -3248,7 +3248,9 @@
         yday: st.yday || undefined, planTools: st.planTools || undefined, planLanes: st.planLanes || undefined, marks: st.marks || undefined,   // w_choice2 (campos opcionais)
         morn: bare ? undefined : mornForSave(),   // w_reload (campo opcional: save sem ele carrega igual)
         // w_modes: so fora do jogo de sempre (save antigo e save do jogo livre seguem iguais)
-        mode: st.mode !== 'free' ? st.mode : undefined, date: st.mode === 'daily' ? st.date : undefined
+        mode: st.mode !== 'free' ? st.mode : undefined, date: st.mode === 'daily' ? st.date : undefined,
+        // w_one: a regra de um strike para a partida inteira vale (Normal); o save de antes dela nao tem a marca e carrega com a pagina limpa
+        rule: CFG.ironMode && st.mode !== 'iron' ? 'whole' : undefined
       });
     }
 
@@ -3414,6 +3416,8 @@
     return !!oc && di.value >= oc.min && di.value <= oc.max;
   }
   // formatos antigos que tem conserto (chamado por load antes de validSave; muda d no lugar)
+  // w_one: o limite de strikes do Normal antes de 2026-11-26 (um over no dia 30 com menos que isso era vitoria)
+  var LEGACY_STRIKES = 4;
   function normSave(d) {
     if (!isObj(d) || !isObj(d.world)) return;
     var w = d.world, i;
@@ -3445,6 +3449,15 @@
     // v2: ferramenta cortada (CFG.tools.<id>.removed, a faixa de pedestre): vira cruzamento sem sinal e o custo volta
     // ao orcamento de hoje (ate o teto que validSave aceita; o resto se perde, nunca invalida o save)
     var s = d.st, refund = 0;
+    // w_one (dono, 2026-11-26): o Normal agora tem UM strike para a partida inteira (CFG.ironMode). Um save do Normal de antes
+    // (sem a marca iron) carrega com a pagina limpa: os strikes ja tomados nao encerram a partida (plano e resumo ficam em 0); uma
+    // derrota continua derrota; uma vitoria do dia 30 (over com menos que os 4 strikes do limite antigo) continua vitoria.
+    // O checkpoint nao vale mais nessa regra (build o descarta).
+    if (CFG.ironMode && isObj(s) && nat(s.strikes) && d.rule !== 'whole' && d.mode !== 'iron') {
+      if (s.phase !== 'over') s.strikes = 0;
+      else if (s.strikes < strikeCap()) { /* ja vale */ }
+      else s.strikes = (nat(s.day) && s.day >= CFG.maxDays && s.strikes < LEGACY_STRIKES) ? 0 : strikeCap();
+    }
     if (Array.isArray(w.nodes)) for (i = 0; i < w.nodes.length; i++) {
       var rn = w.nodes[i];
       if (isObj(rn) && typeof rn.tool === 'string' && own(CFG.tools, rn.tool) && CFG.tools[rn.tool].removed) {

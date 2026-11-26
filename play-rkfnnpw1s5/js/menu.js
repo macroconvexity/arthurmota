@@ -20,7 +20,7 @@
     bestMore: function (b) { return b.games + (b.games === 1 ? ' game' : ' games') + ' \u00b7 ' + b.wins + (b.wins === 1 ? ' win' : ' wins') + ' \u00b7 up to day ' + b.bestDays; },
     menu: 'Menu', close: 'Close', resume: 'Back to game', pause: 'Pause', unpause: 'Resume', paused: 'Paused',
     sound: 'Sound', on: 'on', off: 'off', guidance: 'Guidance', gOn: 'On', gOff: 'Off', replay: 'Replay tutorial', newGame: 'New game', newConfirm: 'Tap again to start a new game',
-    stats: function (d, max, del, s, ms) { return 'Day ' + d + ' of ' + max + ' \u00b7 ' + del + ' cars \u00b7 ' + s + ' of ' + ms + ' strikes this chapter'; },
+    stats: function (d, max, del, s, ms, whole) { return 'Day ' + d + ' of ' + max + ' \u00b7 ' + del + ' cars \u00b7 ' + (whole ? s + ' of 1 strike' : s + ' of ' + ms + ' strikes this chapter'); },
     helpTitle: 'How to play',
     goalH: 'Goal',
     goal: 'Guide the cars through the city for {d} days, in {chapters} chapters of {chapterLen}. Keep crossings from jamming: {n} strikes in one chapter ({diff}) and you replay that chapter.',
@@ -71,6 +71,8 @@
     diffEnds: function (n) { return n + ' strikes per chapter'; },
     diffJamSlow: 'crossings jam more slowly',
     diffStrike: 'A strike is a crossing that jams.',
+    // w_one (dono, 2026-11-26): Normal e um strike para a partida inteira
+    diffWhole: 'one strike for the whole game',
     diffNew: 'Switching starts a new game.',
     // paisagem curta (altura <= 500): o jogo e de iPhone em pe
     landTitle: 'Best in portrait', landText: 'Turn your phone upright for the best view.', landGo: 'Play anyway',
@@ -121,7 +123,7 @@
       var kl = (+p.lock || 1) / ((ref && +ref.lock) || 1);
       if (kl > 1.005) { parts.push(STR.diffJamSlow); }
     }
-    parts.push(STR.diffEnds(p.strikes || 3));
+    parts.push(p.wholeGame ? STR.diffWhole : STR.diffEnds(p.strikes || 3));
     var lead = (p.label || name) + ': ' + (STR.diffHint[name] ? STR.diffHint[name] + '. ' : '');
     var body = parts.length > 2 ? parts.slice(0, -1).join(', ') + ', and ' + parts[parts.length - 1]
       : parts.join(' and ');
@@ -846,6 +848,8 @@
       }
       sh.appendChild(mline([res ? STR.dailyResult(res) : STR.dailyLine, old && old.date ? STR.dailyOld(M.dateLabel(old.date)) : '']));
       var un = M.ironUnlocked(), isave = un ? M.modeSave('iron') : null, ib = M.readIron();
+      // w_one: no Normal a regra de One strike e a do jogo; a linha some (os recordes ficam guardados) e volta no Easy
+      if (CRZ.CFG && CRZ.CFG.wholeGameStrike) { sh.appendChild(btn('crzm-ghost', STR.close, function () { closeModes(); })); return; }
       var r2 = btn('crzm-row crzm-miron' + (un ? '' : ' lock'), null, un ? function () { if (isave) { launchMode('iron'); } else { fillModes('iron'); } } : null);
       rowText(r2, STR.iron, un ? (isave ? STR.dailyCont : '') : STR.ironLocked);
       if (!un) { r2.disabled = true; }
@@ -1049,7 +1053,7 @@
       els.rNew.textContent = armed ? STR.newConfirm : STR.newGame;
       els.rNew.classList[armed ? 'add' : 'remove']('armed');
       els.stats.textContent = STR.stats(num(s.day) || 1, num(s.maxDays) || (CRZ.CFG && CRZ.CFG.maxDays) || 12,
-        num(s.totalDelivered), num(s.strikes), (CRZ.CFG && CRZ.CFG.ironMode) ? 1 : (CRZ.CFG && CRZ.CFG.maxStrikes) || 3);
+        num(s.totalDelivered), num(s.strikes), (CRZ.CFG && CRZ.CFG.ironMode) ? 1 : (CRZ.CFG && CRZ.CFG.maxStrikes) || 3, !!(CRZ.CFG && CRZ.CFG.ironMode));
     }
     function syncPause() {
       if (!pauseBtn) { return; }

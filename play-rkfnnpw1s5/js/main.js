@@ -37,6 +37,13 @@
         !(o.undo && o.undo.list && o.undo.list.length);
     } catch (e) { return false; }
   }
+  // w_one (dono, 2026-11-26): no Normal a regra de um strike para a partida inteira e a do modo One strike (CFG.ironMode): um so
+  // lugar liga as duas. Easy: so o modo One strike liga.
+  function ironFor(mode) {
+    var C = CRZ.CFG, whole = !!C.wholeGameStrike;
+    C.ironMode = mode === 'iron' || whole;
+    if (whole) { C.maxStrikes = 1; }
+  }
   function recoverBad() {
     var bad = null, cur = null, done = null, played = null;
     try {
@@ -54,7 +61,7 @@
     try { parkedFree = localStorage.getItem('gridlet.slot.free'); } catch (e) { parkedFree = null; }
     if ((parsedBad && parsedBad.mode && parsedBad.mode !== 'free') || (parsedCur && parsedCur.mode && parsedCur.mode !== 'free') || parkedFree) { return; }
     var g = null;
-    try { CRZ.CFG.ironMode = false; g = CRZ.Game.load(parsedBad); } catch (e) { g = null; }
+    try { ironFor('free'); g = CRZ.Game.load(parsedBad); } catch (e) { g = null; }
     if (!g || g.migrated || g.state.day < 2) { return; }
     var okW = false;
     try { localStorage.setItem(SAVE_KEY, bad); okW = localStorage.getItem(SAVE_KEY) === bad; } catch (e) {}
@@ -101,7 +108,7 @@
     if (seedParam !== null && saved && !devHost()) { seedParam = null; }
     if (saved && seedParam === null) {
       var parsed = null;
-      try { parsed = JSON.parse(saved); if (Modes) { CRZ.CFG.ironMode = !!(parsed && parsed.mode === 'iron'); } game = CRZ.Game.load(parsed); } catch (e) { game = null; }
+      try { parsed = JSON.parse(saved); if (Modes) { ironFor(parsed && parsed.mode); } game = CRZ.Game.load(parsed); } catch (e) { game = null; }
       if (game && game.migrated) { notice = MIGRATED_NOTICE; }
       var flag = null;
       try { flag = sessionStorage.getItem(DIFF_SWITCH_KEY); sessionStorage.removeItem(DIFF_SWITCH_KEY); } catch (e) {}
@@ -137,7 +144,7 @@
       var archP = param('arch');
       // w_modes: One strike liga a regra de um crash (CFG.ironMode); Today's city tira a semente e a forma da data local
       var mode = launch || 'free', date = null;
-      if (Modes) { CRZ.CFG.ironMode = mode === 'iron'; }
+      if (Modes) { ironFor(mode); }
       if (Modes && mode === 'daily') { date = Modes.todayStr(); seed = Modes.dateSeed(date); }
       game = CRZ.Game.create(seed, { teach: !played, archetype: archP || (played || mode === 'daily' ? 'seed' : 'classic'), mode: mode, date: date });   // a cena do dia 2 e so do primeiro jogo
     }

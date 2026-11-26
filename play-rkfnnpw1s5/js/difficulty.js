@@ -47,7 +47,10 @@
               assist: { chipAt: 0.45, chipOff: 0.3, playConfirm: true, newJunctionTip: true, newMark: true, jamBalloonAt: 0.3 } },
     // w_ag7 (2026-11-24): com o Pare lento na cruz cheia e os lugares, o aware do Normal caia a ~45% limpo (alvo 70 a 85%): 4 strikes
     // (eram 3) e motoristas 1,5x mais pacientes do dia 5 (era 1,3). 40 sementes: aware 55% (main) -> 80%, Stop em tudo 3% -> 0% (web/dev/review/w_ag7)
-    normal: { label: 'Normal', spawn: 0.85, patience: 1.1,  strikes: 4,
+    // 2026-11-26 (dono, depois de jogar): com 4 strikes por capitulo o Normal ficava facil: 'a pessoa tomava o strike e a vida seguia'.
+    // Normal = UM strike para a partida inteira, a regra que o modo One strike ja tem (CFG.ironMode, ligado por main.js; wholeGame). O
+    // numero abaixo e o do capitulo, que so vale fora dessa regra (testes sem main.js; o jogo ligado usa CFG.maxStrikes = 1).
+    normal: { label: 'Normal', spawn: 0.85, patience: 1.1,  strikes: 4, wholeGame: true,
               // w_cars: x1,3 do dia 5 (CFG.patienceLate). 40 sementes: aware limpo 80% (antes 82), lightsUp 85% (80), smart 35%
               // (42), spendAll 30% (40); com 1,25 o aware caia para 65% e o smart para 18%
               latePatience: 1.5,   // w_ag7: era 1.3 (acima)
@@ -109,6 +112,7 @@
   var ctune = tune && tune.costByChapter ? tune.costByChapter : p.costByChapter;
   if (ctune && CFG.tools) for (var ck in ctune) if (ctune.hasOwnProperty(ck) && CFG.tools[ck] && Array.isArray(ctune[ck])) CFG.tools[ck].costByChapter = ctune[ck].slice();
   CFG.maxStrikes = p.strikes;
+  CFG.wholeGameStrike = !!p.wholeGame;   // w_one: main.js liga CFG.ironMode (e maxStrikes 1) quando a dificuldade e esta
   // restartFrom (opcional): primeiro dia em que gastar os strikes manda de volta (CFG.noRestartBeforeDay; antes dele o
   // ultimo strike so avisa, como no capitulo 1). Os textos leem {restartDay}
   if (p.restartFrom > 0) CFG.noRestartBeforeDay = p.restartFrom;

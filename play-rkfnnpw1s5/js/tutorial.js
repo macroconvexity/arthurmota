@@ -14,6 +14,9 @@
     // blind2: 'crossing' so e definida no dia 3; aqui palavras comuns
     goal: 'Get cars across town for {days} days. From day {strikeDay}, a jam is a strike.',
     strikes: 'From day {strikeDay} a jam is a strike. {n} in a chapter: replay it.',
+    // w_one: Normal e One strike = um strike para a partida inteira (CFG.ironMode)
+    goalIron: 'Get cars across town for {days} days. From day {strikeDay}, one jam ends the game.',
+    strikesIron: 'From day {strikeDay}, one jam ends the game. Keep every crossing flowing.',
     // primeira frase do jogo: o objetivo em palavras simples (nada de jargao antes de explicar)
     road: 'Cars need roads to get from one end to another. Tap Road.',
     roadDrag: "Cars enter at the city's road ends. Drag outward from this one to build.",
@@ -394,7 +397,7 @@
     // o que e perder, antes de tudo (playtest as cegas: 'Strikes' nao significava nada); um conceito por balao
     { id: 'goal', win: at(1, 'plan'), mode: 'nudge', btn: 'ok', target: T('strikes', true),
       enter: function (c) { c.mark('tip:strikes'); },   // o balao do primeiro anel nao repete o strike
-      text: function () { return STR.goal.replace('{n}', String((CRZ.CFG && CRZ.CFG.maxStrikes) || 3)); } },
+      text: function () { return (CRZ.CFG && CRZ.CFG.ironMode ? STR.goalIron : STR.goal).replace('{n}', String((CRZ.CFG && CRZ.CFG.maxStrikes) || 3)); } },
     // blind2: dias 1 e 2 com no maximo 4 baloes modais; o resto do roteiro vira faixa (strip)
     // 1. Rua: bloqueante (o buraco deixa tocar); o mesmo balao segue para o arrasto
     // sem 'Got it'/escape: so avanca com a estrada feita (nv6: o Got it levava ao 'Tap play' sem estrada)
@@ -671,7 +674,7 @@
   var TIPS = [
     // strikes: no primeiro anel (quando um strike passa a ser possivel), nao no inicio do jogo
     { id: 'tip:strikes', mode: 'nudge', nogap: true, btn: 'ok', target: T('strikes'),
-      text: function () { return STR.strikes.replace('{n}', String((CRZ.CFG && CRZ.CFG.maxStrikes) || 3)); },
+      text: function () { if (CRZ.CFG && CRZ.CFG.ironMode) return STR.strikesIron; return STR.strikes.replace('{n}', String((CRZ.CFG && CRZ.CFG.maxStrikes) || 3)); },
       ready: function (c) { var s = st(c); return c.seen('ring') && (s.phase === 'run' || s.phase === 'plan' || s.phase === 'summary'); } },
     // o primeiro cruzamento (3+ ruas): o que e a palavra crossing (dia 2+, o dia 1 ja tem 6 baloes)
     { id: 'tip:junction', mode: 'toast', nogap: true, text: STR.junction,

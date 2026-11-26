@@ -20,7 +20,8 @@
     lockedSay: 'This crossing jammed: 1 strike.',
     // v2x: a regra numa linha, com o limite da dificuldade em jogo (CFG.maxStrikes: Easy 4, Normal 4)
     lockedFirst: function (n) { return 'This crossing jammed: 1 strike. ' + n + ' in a chapter: replay it.'; },
-    loseCause: function (d, sign) { return 'Day ' + d + ': ' + (sign ? 'the crossing with a ' + sign : 'a crossing with no sign') + ' jammed.'; },
+    // w_one: com o numero de ruas quando o cruzamento tem 3 ou mais ('the 4-road crossing with a Stop jammed')
+    loseCause: function (d, sign, roads) { var c = roads >= 3 ? 'the ' + roads + '-road crossing' : 'the crossing'; return 'Day ' + d + ': ' + (sign ? c + ' with a ' + sign : (roads >= 3 ? 'the ' + roads + '-road crossing with no sign' : 'a crossing with no sign')) + ' jammed.'; },
     loseNext: {
       sign: function (a) { return 'Next time, try a ' + a + ' there.'; },
       swap: function (to) { return 'Next time, a ' + to + ' there moves more cars.'; },
@@ -33,7 +34,7 @@
     yesterday: function (prev, delta) { return 'Yesterday ' + prev + (delta > 0 ? ' (+' + delta + ')' : ''); },
     cardToday: function (name) { return name + ' today'; },
     info: {
-      strikes: function (s, m) { return CRZ.dayText('Strikes this chapter: ' + s + ' of ' + m + '. From day {strikeDay}, a jam adds one.'); },
+      strikes: function (s, m) { if (CRZ.CFG && CRZ.CFG.ironMode) return CRZ.dayText('One strike for the whole game. From day {strikeDay}, the first jam ends it.'); return CRZ.dayText('Strikes this chapter: ' + s + ' of ' + m + '. From day {strikeDay}, a jam adds one.'); },
       days: function (d, m) { var L = (CRZ.CFG && CRZ.CFG.chapterDays) || m; return d >= m ? STR.lastDay(d, m) : 'Day ' + d + ' of ' + m + ', chapter ' + Math.ceil(d / L) + ' of ' + Math.ceil(m / L) + '.'; },
       budget: function (n, last) { return CRZ.dayText(n + (n === 1 ? ' build point' : ' build points') + (last ? '. Last day: spend them now.' : '. New every day; {carry} unused can stay for tomorrow.')); },
       tipsLast: function (n, per) { return STR.tipsLast(n, per); },
@@ -50,7 +51,7 @@
     chapterN: function (c) { return 'Chapter ' + c; },
     chapterDone: function (c) { return 'Chapter ' + c + ' complete'; },
     // w_chap: strikes USADOS no capitulo (antes 'left'): o numero que o cartao do comeco prometeu
-    chapterLine: function (cars, left, max) { var u = Math.max(0, max - left); return u + ' of ' + max + ' strikes used \u00b7 ' + cars + (cars === 1 ? ' car' : ' cars'); },
+    chapterLine: function (cars, left, max) { var u = Math.max(0, max - left); return u + ' of ' + max + (max === 1 ? ' strike used' : ' strikes used') + ' \u00b7 ' + cars + (cars === 1 ? ' car' : ' cars'); },
     // w_chap: o comeco do capitulo (cartao das manhas 11 e 21) e o rotulo do HUD. O nome diz a fase da cidade
     chapterName: ['Small town', 'Growing city', 'Full city'],
     chTitle: function (c) { var n = STR.chapterName[c - 1]; return 'Chapter ' + c + (n ? ': ' + n : ''); },
@@ -1246,7 +1247,7 @@
   // a proxima tentativa sai do mesmo recomendador (advise) que o resumo e o anel usam, no dia seguinte
   function loseText(n, day, cfg, world, heat, ctx) {
     var T = TL, N = STR.loseNext;
-    var cause = STR.loseCause(day | 0, n.tool ? T[n.tool] : '');
+    var cause = STR.loseCause(day | 0, n.tool ? T[n.tool] : '', n.edges && n.edges.length ? n.edges.length : 0);
     var a = advise(n, (day | 0) + 1, cfg, world, heat, ctx), next;
     if (a && a.key.indexOf('sign:') === 0) next = n.tool && STR.tools[n.tool] ? N.swap(T[a.tool]) : N.sign(T[a.tool]);
     else if (a && a.key === 'card') next = N.card;
@@ -7611,7 +7612,9 @@
         if (fx === null || fbkSeen('fixed.' + s.day)) fbkAm.stage = 1;
         // w_risk: ontem passou perto de travar (summary.close): o cruzamento dele e o problema do dia, com a frase propria
         var lh = s.history && s.history[s.history.length - 1], sc = s.summary || {}, clId = sc.close && lh && lh.day === s.day - 1 && sc.lockNode != null && w.nodes[sc.lockNode] ? w.nodes[sc.lockNode].id : null;
-        if (clId !== null && !noOffer(clId)) { best = clId; fbkAm.hotId = clId; fbkAm.close = true; }
+        // w_one: com um strike para a partida inteira (CFG.ironMode) o aviso e a unica chance: a faixa do quase-travamento vem
+        // antes de qualquer outra ('Fixed.' fica para depois) e sai mesmo quando o cartao diz que nenhuma peca ajuda
+        if (clId !== null && (CFG.ironMode || !noOffer(clId))) { best = clId; fbkAm.hotId = clId; fbkAm.close = true; if (CFG.ironMode) { fbkAm.stage = 1; fbkAm.skip = false; } }
         if (best === null || fbkSeen('trouble.' + s.day)) fbkAm.skip = true;
       }
       // o tutorial apresenta os aneis tracejados hoje (tip:hot): ele ja aponta o anel mais forte; a faixa nao repete
