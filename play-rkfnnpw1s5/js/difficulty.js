@@ -31,18 +31,25 @@
               // v2x (playtest cego 5: 0 strikes em 30 dias no Easy): o risco cresce por capitulo. Capitulo 1 igual; no 2 os
               // motoristas esperam menos (o descuidado ve strikes, os dias 11 a 14 nao mandam de volta); no 3 mais carros.
               // Medido em web/dev/review/v2x/f3_measure.js, 40 sementes; tabela antes e depois no commit 3b
-              // w_easy (80 sementes, web/dev/review/w_easy/sweep.js e results.jsonl): um multiplicador por capitulo pesava
-              // igual em todos (preguicoso repetia o 2 em 35%). Alavanca (de antes da regra de um strike): o capitulo 2 aperta e o 3 alivia
-              // um pouco. Os numeros de repeticao de capitulo abaixo sao de antes de 2026-11-26 (o Easy nao tem mais volta de capitulo).
-              // Curioso: 1,88 strikes no cap. 2, repete o 3 em 24%; cuidadoso 4%; preguicoso 0% no 2 e 48% no 3; ingenuo
-              // 1,04 strikes no 2. Picos (um dia em tres com 30% mais carros; spawnDays) mediram pior que o plano.
-              chapter: { 2: { spawn: 1.2, patience: 0.75 }, 3: { spawn: 1.05 } },
+              // owner decision 2026-11-26: one strike for the whole game; Easy retuned so it is the easier difficulty (w_ez,
+              // web/dev/review/w_ez/TABLE.md). Before, chapter 2 was harsher (spawn x1.2, patience x0.75) because its strikes were
+              // free and only taught; with one strike the novice (curious) lost there: Easy curious reached day 30 in 8% (Normal 8%),
+              // median end day 15, 83% of games ended in chapter 2. Now chapter 2 keeps no extra cars and a mild patience cut (x0.9,
+              // so a few novices still lose there, warned the day before), chapter 3 x1.05 cars as before.
+              // Measured with latePatience 1.4 below (one strike): curious 38% reach day 30 (80 seeds; Normal 8%), ends ch1/ch2/ch3
+              // 0/15/48%, 0% on days 6 to 8; careful 98%, saverCareful 88%, saver 78%, aware 88% (40 seeds); Stop everywhere 5%,
+              // no signs 0%; best fixed recipe smart2 68%; 94% of the fatal jams warned the day before (chapter 2: 100%).
+              chapter: { 2: { patience: 0.9 }, 3: { spawn: 1.05 } },
               // w_cars (2026-11-18): com ~1,7x carros na cidade (config.js carsMul, portalRefMax), os motoristas esperam
               // 20% mais do dia 5 em diante (CFG.patienceLate), e o Easy ganha 1 ponto a menos por dia que o Normal nos
               // capitulos 2 e 3 (budgetAdd: 4 e 5). Novatos, 40 partidas, depois do merge de main: curioso repete o 3 em 10%
               // (main 18%) com 1,0 strike no 2 (2,0), cuidadoso 0% (8%), preguicoso 65% (45%). Paciencia mais baixa ou mais
               // carros pesam primeiro no preguicoso (93% com carros x1,3/x1,15). web/dev/review/w_cars/NOTES.md
-              latePatience: 1.2, budgetAdd: [0, -1, -1],
+              // owner decision 2026-11-26 (w_ez): latePatience 1.2 -> 1.4. At 1.2 Easy drivers from day 5 were LESS patient than
+              // Normal's (1.25 x 1.2 = 1.5 against 1.1 x 1.5 = 1.65). 20 seeds, chapter 2 x1 cars: 1.35 curious 25%, 1.4 35%,
+              // 1.5 55% (careful 100%), 1.8 90% with Stop everywhere 85% (a walk). budgetAdd kept: 0 or -2 in chapters 2 and 3
+              // moved no policy by more than 20-seed noise (15 points) against the same cell without it; it is not the lever.
+              latePatience: 1.4, budgetAdd: [0, -1, -1],
               // w_price (80 sementes, web/dev/review/w_price): no Easy so o semaforo sobe por capitulo (config: 4/6/8); qualquer subida
               // da Roundabout (3/3/4 em diante) leva o curioso a repetir o capitulo 3 em 40 a 44% (alvo 20 a 35%; sem rampa 34%)
               costByChapter: { round: [3, 3, 3] },
