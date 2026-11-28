@@ -104,8 +104,7 @@
     if (param('reset') === null && param('seed') === null && !launch) { recoverBad(); }
     try { saved = localStorage.getItem(SAVE_KEY); } catch (e) {}
     // ?seed= so troca a partida salva numa maquina de desenvolvimento; em producao o link nao apaga o save
-    var seedParam = param('seed');
-    if (seedParam !== null && saved && !devHost()) { seedParam = null; }
+    var seedParam = devHost() ? param('seed') : null;
     if (saved && seedParam === null) {
       var parsed = null;
       try { parsed = JSON.parse(saved); if (Modes) { ironFor(parsed && parsed.mode); } game = CRZ.Game.load(parsed); } catch (e) { game = null; }
@@ -140,13 +139,13 @@
       var played = false;
       try { played = localStorage.getItem(PLAYED_KEY) === '1'; } catch (e) {}
       // v2: a primeira partida e sempre a Classica (v2/nivel.md 3.2: aprende o jogo antes da forma); depois, a semente
-      // escolhe (game.js archetypeOf). ?arch=river|park|classic (testes) escolhe direto
-      var archP = param('arch');
+      // escolhe (game.js archetypeOf). ?arch=rail|twin|mixed|bend|lake (experimental); ?arch=expanded sorteia todos
+      var archP = devHost() ? param('arch') : null;
       // w_modes: One strike liga a regra de um crash (CFG.ironMode); Today's city tira a semente e a forma da data local
       var mode = launch || 'free', date = null;
       if (Modes) { ironFor(mode); }
       if (Modes && mode === 'daily') { date = Modes.todayStr(); seed = Modes.dateSeed(date); }
-      game = CRZ.Game.create(seed, { teach: !played, archetype: archP || (played || mode === 'daily' ? 'seed' : 'classic'), mode: mode, date: date });   // a cena do dia 2 e so do primeiro jogo
+      game = CRZ.Game.create(seed, { teach: !played, archetype: archP || (played || mode === 'daily' ? (CRZ.CFG.terrainExpansionEnabled ? 'expanded' : 'seed') : 'classic'), mode: mode, date: date });   // a cena do dia 2 e so do primeiro jogo
     }
 
     var audio = CRZ.Audio.create();

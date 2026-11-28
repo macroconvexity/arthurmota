@@ -1172,9 +1172,15 @@
                next: nat(c && c.next) && c.next <= 60 ? c.next : 0 };
     }
     function archCfg() { return (CFG.archetypes && CFG.archetypes[st.archetype]) || {}; }
+    var terrainCache=null,terrainArch=null;
+    function expandedTerrain(){
+      if(terrainArch!==st.archetype){terrainArch=st.archetype;terrainCache=CRZ.Terrain.make(archCfg().terrain,seed);}
+      return terrainCache||[];
+    }
     // ponto dentro do terreno (agua ou parque): ali nao nasce no
     function terrainPt(P) {
       var A = archCfg();
+      if (A.terrain && !CRZ.Terrain.pointOK(expandedTerrain(), P)) return false;
       if (A.river && Math.abs(P.y) < A.river.half + 4) return false;
       // parque: o no fica a 20 ou mais da borda tracejada (uma rua colada no contorno se confundia com ele)
       if (A.park && Math.abs(P.x) < A.park.half + 20 && Math.abs(P.y) >= A.park.gapY - 20) return false;
@@ -1183,6 +1189,7 @@
     // segmento P->Q passa pelo terreno? (nos de ponta conferidos por terrainPt; aqui o meio)
     function terrainOk(P, Q) {
       var A = archCfg(), d1, d2, t;
+      if (A.terrain && !CRZ.Terrain.segmentOK(expandedTerrain(), P, Q)) return false;
       if (A.river) {
         var R = A.river, h = R.half;
         if (!terrainPt(Q) && Math.abs(Q.y) < h + 4) return false;
@@ -1626,7 +1633,7 @@
               var oe = world.edges[nowE[ei]]; if (oe.id === lo.id) continue;
               if (ptSegDist(px, py, world.nodes[oe.a].x, world.nodes[oe.a].y, world.nodes[oe.b].x, world.nodes[oe.b].y) < CFG.minNodeSpacing / 2) near = true;
             }
-            if (!near) { nid = idOf(world.splitEdge(lo.id, px, py)); if (nid === undefined) nid = null; }
+            if (!near && (!archCfg().terrain || terrainPt({x:px,y:py}))) { nid = idOf(world.splitEdge(lo.id, px, py)); if (nid === undefined) nid = null; }
           }
         }
         if (nid === null && PL.junction) {   // rua curta entre dois cruzamentos: o cruzamento de fora (sem sinal) vira o lugar (aro duplo, ja existe)
@@ -3447,7 +3454,7 @@
     var cae = world.canAddEdge;
     if (typeof cae === 'function') world.canAddEdge = function (aId, x, y, o) {
       var r = cae.call(world, aId, x, y, o), A = archCfg();
-      if (!r || !r.ok || (!A.river && !A.park)) return r;
+      if (!r || !r.ok || (!A.river && !A.park && !A.terrain)) return r;
       var pts = [world.nodes[aId]].concat((r.cross || []).map(function (c) { return { x: c.x, y: c.y }; }));
       pts.push({ x: r.x, y: r.y });
       pts.sort(function (p, q) { return dist(p.x, p.y, world.nodes[aId].x, world.nodes[aId].y) - dist(q.x, q.y, world.nodes[aId].x, world.nodes[aId].y); });
@@ -3458,14 +3465,17 @@
       }
       return r;
     };
+    g.terrain = expandedTerrain();
     return g;
   }
   // v2: forma da cidade. opts.archetype: um id (river, park, classic) escolhe direto; 'seed' sorteia pela semente
   // (CFG.archetypeList; e o que main.js pede da segunda partida em diante); sem pedido: Classica (testes e ferramentas)
   function archetypeOf(seed, want) {
-    var L = CFG.archetypeList || ['classic'];
+    // 'seed' e o seletor de sempre (CFG.archetypeList, as tres formas publicadas: testes e ferramentas contam com ele);
+    // 'expanded' sorteia entre as oito (CFG.terrainExpansionList). main.js pede 'expanded' quando CFG.terrainExpansionEnabled
+    var L = want === 'expanded' ? (CFG.terrainExpansionList || CFG.archetypeList || ['classic']) : (CFG.archetypeList || ['classic']);
     if (typeof want === 'string' && CFG.archetypes && own(CFG.archetypes, want)) return want;
-    if (want !== 'seed') return 'classic';
+    if (want !== 'seed' && want !== 'expanded') return 'classic';
     var h = Math.imul((seed >>> 0) ^ 0x9E3779B9, 0x85EBCA6B) >>> 0;
     h = (h ^ (h >>> 13)) >>> 0;
     return L[h % L.length] || 'classic';

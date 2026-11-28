@@ -1294,7 +1294,7 @@
 
     function drawTerrain(z, ox, oy) {
       var A = game && game.state && CFG.archetypes && CFG.archetypes[game.state.archetype];
-      if (!A || (!A.river && !A.park)) return;
+      if (!A || (!A.river && !A.park && !A.terrain)) return;
       var L = (CFG.growth && CFG.growth.lot) || { rx: 500, ry: 800 }, ext = Math.max(L.rx, L.ry) + 600;
       ctx.save();
       if (A.river) {
@@ -1313,6 +1313,44 @@
         ctx.strokeStyle = C.inkSoft; ctx.lineWidth = 1.4; ctx.setLineDash([9, 6]);
         ctx.beginPath(); ctx.rect(x0, oy - far, x1 - x0, far - gy); ctx.stroke();
         ctx.beginPath(); ctx.rect(x0, oy + gy, x1 - x0, far - gy); ctx.stroke();
+      }
+
+      if(A.terrain && game.terrain){
+        var T=CRZ.Terrain;
+        function move(p){ctx.moveTo(p.x*z+ox,p.y*z+oy);}
+        function line(p){ctx.lineTo(p.x*z+ox,p.y*z+oy);}
+        game.terrain.forEach(function(b){
+          ctx.setLineDash([]);
+          if(b.kind==='lake'){
+            ctx.fillStyle=C.grid;ctx.beginPath();move(b.poly[0]);
+            for(var i=1;i<b.poly.length;i++)line(b.poly[i]);
+            ctx.closePath();ctx.fill();return;
+          }
+          var K=b.knots;
+          if(b.kind==='water'){
+            ctx.fillStyle=C.grid;ctx.beginPath();move(T.xy(b,K[0][0],K[0][1]-b.half));
+            for(var i=1;i<K.length;i++)line(T.xy(b,K[i][0],K[i][1]-b.half));
+            for(var i=K.length-1;i>=0;i--)line(T.xy(b,K[i][0],K[i][1]+b.half));
+            ctx.closePath();ctx.fill();
+          }else{
+            ctx.strokeStyle=C.inkSoft;ctx.lineWidth=1;
+            [-b.half*.6,b.half*.6].forEach(function(off){
+              ctx.beginPath();move(T.xy(b,K[0][0],K[0][1]+off));
+              for(var i=1;i<K.length;i++)line(T.xy(b,K[i][0],K[i][1]+off));ctx.stroke();
+            });
+            var org=b.axis==='x'?ox:oy,w=canvas.width||1000,h=canvas.height||1000;
+            var u0=Math.max(K[0][0],(-org-30)/z),u1=Math.min(K[K.length-1][0],((b.axis==='x'?w:h)-org+30)/z);
+            var step=Math.max(10,6/z);ctx.beginPath();
+            for(var u=Math.floor(u0/step)*step;u<=u1;u+=step){
+              var v=T.center(b,u);move(T.xy(b,u,v-b.half));line(T.xy(b,u,v+b.half));
+            }ctx.stroke();
+          }
+          ctx.strokeStyle=C.inkSoft;ctx.lineWidth=1.2;ctx.setLineDash([3,3]);ctx.beginPath();
+          b.crossings.forEach(function(u){
+            var v=T.center(b,u),bw=Math.max(4/z,6);
+            [-bw,bw].forEach(function(off){move(T.xy(b,u+off,v-b.half-3/z));line(T.xy(b,u+off,v+b.half+3/z));});
+          });ctx.stroke();ctx.setLineDash([]);
+        });
       }
       ctx.setLineDash(DASH_NONE || []);
       ctx.restore();

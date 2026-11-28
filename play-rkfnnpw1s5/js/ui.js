@@ -263,7 +263,12 @@
     // v2: arquetipo (CFG.archetypes), uma linha no primeiro plano da partida
     archLine: {
       river: 'River town: roads cross the water only at a bridge.',
-      park: 'Park town: nothing is built in the park. Its gap is busy.'
+      park: 'Park town: nothing is built in the park. Its gap is busy.',
+      rail: 'Rail town: roads cross the tracks only at a crossing.',
+      twin: 'Twin rivers: connect all three banks using bridges.',
+      mixed: 'River & rail: use bridges and marked rail crossings.',
+      bend: 'River bend: roads cross the water only at a bridge.',
+      lake: 'Lake town: roads must go around the lake.'
     },
     // v2: manutencao do semaforo (CFG.upkeep). Linha da manha e, na primeira vez, a regra
     upkeepLine: function (paid, dark) { return 'Lights: -' + paid + ' today' + (dark > 0 ? '. ' + dark + (dark === 1 ? ' light is' : ' lights are') + ' off: not enough points.' : '.'); },

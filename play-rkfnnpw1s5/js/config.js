@@ -137,9 +137,17 @@
     archetypes: {
       classic: { name: 'Classic town' },
       river:   { name: 'River town', oneway: true, day1: 'vertical', day1Half: 130, river: { half: 18, bridges: [0, 330], bridgeW: 26 } },
-      park:    { name: 'Park town', park: { half: 46, gapY: 70 } }
+      park:    { name: 'Park town', park: { half: 46, gapY: 70 } },
+      rail:    { name: 'Rail town', day1: 'vertical', day1Half: 130, terrain: 'rail' },
+      twin:    { name: 'Twin rivers', oneway: true, day1: 'vertical', day1Half: 130, terrain: 'twin' },
+      mixed:   { name: 'River & rail', oneway: true, day1Half: 130, terrain: 'mixed' },
+      bend:    { name: 'River bend', oneway: true, day1: 'vertical', day1Half: 130, terrain: 'bend' },
+      lake:    { name: 'Lake town', terrain: 'lake' }
     },
     archetypeList: ['classic', 'river', 'park'],
+    // Expanded maps are randomly selected after onboarding. Branch is not production until QA approval.
+    terrainExpansionEnabled: true,
+    terrainExpansionList: ['classic','river','park','rail','twin','mixed','bend','lake'],
     // v2: semaforos ligados por uma rua pareiam sozinhos (o botao "Pair lights" saiu). false volta ao par manual
     lightsAutoPair: true,
 
@@ -720,4 +728,104 @@
     next.pick = function (arr) { return arr[Math.floor(next() * arr.length)]; };
     return next;
   };
+
+  // Terrain geometry v1: shared by game and renderer. Independent seeded stream.
+  CRZ.Terrain = (function () {
+    var EPS=1e-7,PAD=5;
+    function band(kind,axis,knots,half,crossings,bridgeW) {
+      return {kind:kind,axis:axis,knots:knots,half:half,crossings:crossings,bridgeW:bridgeW};
+    }
+    function center(b,u) {
+      var k=b.knots;
+      if(u<=k[0][0])return k[0][1];
+      for(var i=1;i<k.length;i++)if(u<=k[i][0])return k[i-1][1]+(k[i][1]-k[i-1][1])*(u-k[i-1][0])/(k[i][0]-k[i-1][0]);
+      return k[k.length-1][1];
+    }
+    function local(b,p){return b.axis==='x'?[p.x,p.y]:[p.y,p.x];}
+    function xy(b,u,v){return b.axis==='x'?{x:u,y:v}:{x:v,y:u};}
+    function smooth(poly){
+      var out=[];
+      for(var i=0;i<poly.length;i++){
+        var a=poly[i],b=poly[(i+1)%poly.length];
+        out.push({x:.75*a.x+.25*b.x,y:.75*a.y+.25*b.y},{x:.25*a.x+.75*b.x,y:.25*a.y+.75*b.y});
+      }return out;
+    }
+    function make(id,seed){
+      var r=CRZ.rng((seed^0x64e91a77)>>>0),n=function(a,b){return a+(b-a)*r();};
+      var E=10000,k=function(v){return [[-E,v],[E,v]];};
+      if(id==='rail')return [band('rail','x',k(0),8,[0,n(-290,-225),n(225,290)],32)];
+      if(id==='twin'){
+        var d=n(64,78);
+        return [band('water','x',k(-d),n(10,13),[0,n(-255,-200),n(205,260)],36),
+          band('water','x',k(d),n(10,13),[0,n(-205,-155),n(155,205)],36)];
+      }
+      if(id==='mixed')return [band('rail','y',k(0),8,[0,n(-300,-245),n(220,285)],32),
+        band('water','x',k(n(-155,-125)),n(12,17),[n(-280,-220),n(220,280)],36)];
+      if(id==='bend'){
+        var a=n(35,65),b=n(45,85);
+        return [band('water','x',[[-E,-a],[-340,-a],[-160,-a*.8],[0,0],[160,b],[340,b*.7],[E,b*.7]],n(13,17),[0,n(-265,-215),n(215,265)],36)];
+      }
+      if(id==='lake'){
+        var sx=n(.85,1.08),sy=n(.85,1.06),dx=n(-28,28),dy=n(-22,8);
+        var raw=[[-185,-195],[-142,-265],[-57,-283],[-23,-244],[35,-265],[104,-310],[162,-276],[151,-225],[96,-207],[57,-212],[29,-177],[87,-144],[156,-153],[174,-106],[118,-82],[52,-102],[12,-142],[-39,-112],[-105,-85],[-154,-112],[-125,-161],[-173,-158]];
+        var poly=raw.map(function(p){return {x:p[0]*sx+dx,y:p[1]*sy+dy};});
+        return [{kind:'lake',poly:smooth(smooth(poly))}];
+      }
+      return [];
+    }
+    function pDist(p,a,b){
+      var x=b.x-a.x,y=b.y-a.y,d=x*x+y*y,t=d?Math.max(0,Math.min(1,((p.x-a.x)*x+(p.y-a.y)*y)/d)):0;
+      return Math.hypot(p.x-a.x-t*x,p.y-a.y-t*y);
+    }
+    function orient(a,b,c){return (b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);}
+    function nearSegments(a,b,c,d){
+      if(orient(a,b,c)*orient(a,b,d)<0&&orient(c,d,a)*orient(c,d,b)<0)return true;
+      return Math.min(pDist(a,c,d),pDist(b,c,d),pDist(c,a,b),pDist(d,a,b))<=PAD+EPS;
+    }
+    function inLake(p,poly){
+      var inside=false;
+      for(var i=0,j=poly.length-1;i<poly.length;j=i++){
+        var a=poly[j],b=poly[i];
+        if(pDist(p,a,b)<=PAD+EPS)return true;
+        if((a.y>p.y)!==(b.y>p.y)&&p.x<(b.x-a.x)*(p.y-a.y)/(b.y-a.y)+a.x)inside=!inside;
+      }return inside;
+    }
+    function pointOK(list,p){
+      for(var i=0;i<list.length;i++){
+        var b=list[i];
+        if(b.kind==='lake'){if(inLake(p,b.poly))return false;}
+        else {var q=local(b,p);if(Math.abs(q[1]-center(b,q[0]))<=b.half+PAD+EPS)return false;}
+      }return true;
+    }
+    // Clip the road parameter t against linear half planes (no sampling gaps).
+    function clip(it,f0,f1){
+      var d=f1-f0;if(Math.abs(d)<EPS)return f0>=-EPS;
+      var t=-f0/d;if(d>0)it[0]=Math.max(it[0],t);else it[1]=Math.min(it[1],t);
+      return it[0]<=it[1]+EPS;
+    }
+    function bandOK(b,p,q){
+      var a=local(b,p),c=local(b,q),du=c[0]-a[0],dv=c[1]-a[1],h=b.half+PAD,k=b.knots,hits=[];
+      for(var i=1;i<k.length;i++){
+        var lo=k[i-1][0],hi=k[i][0],s=(k[i][1]-k[i-1][1])/(hi-lo);
+        var da=a[1]-(k[i-1][1]+s*(a[0]-lo)),dc=c[1]-(k[i-1][1]+s*(c[0]-lo)),it=[0,1];
+        if(clip(it,a[0]-lo,c[0]-lo)&&clip(it,hi-a[0],hi-c[0])&&clip(it,h-da,h-dc)&&clip(it,h+da,h+dc))
+          hits.push([a[0]+du*it[0],a[0]+du*it[1]]);
+      }
+      if(!hits.length)return true;
+      var d0=a[1]-center(b,a[0]),d1=c[1]-center(b,c[0]);
+      if(d0*d1>=0||Math.abs(du)>Math.abs(dv)*.65)return false;
+      return b.crossings.some(function(u){return hits.every(function(t){return Math.abs(t[0]-u)<=b.bridgeW+EPS&&Math.abs(t[1]-u)<=b.bridgeW+EPS;});});
+    }
+    function segmentOK(list,p,q){
+      if(!pointOK(list,p)||!pointOK(list,q))return false;
+      for(var i=0;i<list.length;i++){
+        var b=list[i];
+        if(b.kind==='lake'){
+          for(var j=0;j<b.poly.length;j++)if(nearSegments(p,q,b.poly[j],b.poly[(j+1)%b.poly.length]))return false;
+        }else if(!bandOK(b,p,q))return false;
+      }return true;
+    }
+    return {make:make,pointOK:pointOK,segmentOK:segmentOK,center:center,xy:xy};
+  })();
+
 })(typeof window !== 'undefined' ? window : globalThis);
