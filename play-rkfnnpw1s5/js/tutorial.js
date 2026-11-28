@@ -13,6 +13,7 @@
     days: 'Day 1 of {days}.',
     // blind2: 'crossing' so e definida no dia 3; aqui palavras comuns
     goal: 'Get cars across town for {days} days. From day {strikeDay}, a jam is a strike.',
+    goalEndless: 'No last day: keep traffic moving. From day {strikeDay}, one jam ends the run.',
     strikes: 'From day {strikeDay} a jam is a strike. {n} in a chapter: replay it.',
     // w_one: Normal e One strike = um strike para a partida inteira (CFG.ironMode)
     goalIron: 'Get cars across town for {days} days. From day {strikeDay}, one jam ends the game.',
@@ -401,7 +402,10 @@
     // o que e perder, antes de tudo (playtest as cegas: 'Strikes' nao significava nada); um conceito por balao
     { id: 'goal', win: at(1, 'plan'), mode: 'nudge', btn: 'ok', target: T('strikes', true),
       enter: function (c) { c.mark('tip:strikes'); },   // o balao do primeiro anel nao repete o strike
-      text: function () { return (CRZ.CFG && CRZ.CFG.ironMode ? STR.goalIron : STR.goal).replace('{n}', String((CRZ.CFG && CRZ.CFG.maxStrikes) || 3)); } },
+      text: function (c) {
+        var end = !!(CRZ.CFG && CRZ.CFG.endlessMode) || (c && c.game && c.game.state && c.game.state.mode === 'endless');
+        return (end ? STR.goalEndless : (CRZ.CFG && CRZ.CFG.ironMode ? STR.goalIron : STR.goal)).replace('{n}', String((CRZ.CFG && CRZ.CFG.maxStrikes) || 3));
+      } },
     // blind2: dias 1 e 2 com no maximo 4 baloes modais; o resto do roteiro vira faixa (strip)
     // 1. Rua: bloqueante (o buraco deixa tocar); o mesmo balao segue para o arrasto
     // sem 'Got it'/escape: so avanca com a estrada feita (nv6: o Got it levava ao 'Tap play' sem estrada)
@@ -601,7 +605,7 @@
         var n = ringNode(c), s = st(c);
         cu.data.node = n ? n.id : null; c.ringId = cu.data.node;
         // ponta que virou cruzamento (2+ estradas) aceita sinal e Boost de escoar: texto de cruzamento
-        var lastDay = !!(CRZ.CFG && s.day === CRZ.CFG.maxDays);   // no ultimo dia nao ha "amanha"
+        var lastDay = !!(CRZ.CFG && s.day === CRZ.CFG.maxDays && !CRZ.CFG.endlessMode && s.mode !== 'endless');   // no ultimo dia nao ha "amanha"
         cu.data.text = n && n.portal && deg(n) < 2
             ? (lastDay ? STR.ringEndLast : unlocked(c, 'upgrade') ? STR.ringEndLane : STR.ringEnd)
           : (s.speed || 1) > 1 ? STR.ringFast

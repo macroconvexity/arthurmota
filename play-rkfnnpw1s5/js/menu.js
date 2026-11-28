@@ -20,7 +20,7 @@
     bestMore: function (b) { return b.games + (b.games === 1 ? ' game' : ' games') + ' \u00b7 ' + b.wins + (b.wins === 1 ? ' win' : ' wins') + ' \u00b7 up to day ' + b.bestDays; },
     menu: 'Menu', close: 'Close', resume: 'Back to game', pause: 'Pause', unpause: 'Resume', paused: 'Paused',
     sound: 'Sound', on: 'on', off: 'off', guidance: 'Guidance', gOn: 'On', gOff: 'Off', replay: 'Replay tutorial', newGame: 'New game', newConfirm: 'Tap again to start a new game',
-    stats: function (d, max, del, s, ms, whole) { return 'Day ' + d + ' of ' + max + ' \u00b7 ' + del + ' cars \u00b7 ' + (whole ? s + ' of 1 strike' : s + ' of ' + ms + ' strikes this chapter'); },
+    stats: function (d, max, del, s, ms, whole, end) { return (end ? 'Day ' + d : 'Day ' + d + ' of ' + max) + ' \u00b7 ' + del + ' cars \u00b7 ' + (whole ? s + ' of 1 strike' : s + ' of ' + ms + ' strikes this chapter'); },
     helpTitle: 'How to play',
     goalH: 'Goal',
     goal: 'Guide the cars through the city for {d} days, in {chapters} chapters of {chapterLen}. Keep crossings from jamming: {n} strikes in one chapter ({diff}) and you replay that chapter.',
@@ -91,7 +91,11 @@
     ironGo: 'Start', back: 'Back',
     goalIron: 'Guide the cars through the city for {d} days. One strike: from day {strikeDay}, the first crossing that jams ends the game.',
     strikesIron: 'days 1 to {graceEnd}, a jam costs nothing. From day {strikeDay}, the first jam ends the game. No chapter replays.',
-    modeTagDaily: function (d) { return 'Today\'s city \u00b7 ' + d; }
+    modeTagDaily: function (d) { return 'Today\'s city \u00b7 ' + d; },
+    endless: 'Endless',
+    endlessLine: 'No last day. Play until the city jams.',
+    endlessBest: function (b) { return 'Best: day ' + b.bestDays; },
+    goalEndless: 'Endless: no last day. One strike: from day {strikeDay}, the first crossing that jams ends the run. Your score is the day you reach.'
   };
   if (CRZ.dayText) CRZ.dayText(STR);   // integracao v2: dias de regra nos textos ({strikeDay}, {offerDay}...) saem do CFG
   // w_modes: no One strike as frases de strike da UI (ui.js carrega antes) dizem a regra do modo, nao 'replay it'.
@@ -185,9 +189,9 @@
    * 'gridlet.slot.<modo>' (e o memo do plano em '.plan'): trocar de modo estaciona o ativo, traz o outro e recarrega.
    * Save sem campo mode (todo save antigo) e o jogo de sempre ('free'). sessionStorage 'gridlet.launch' = modo pedido
    * antes do reload: main.js cria a partida nova nesse modo quando nao ha save e a tela inicial nao abre. */
-  var MODES = { free: 1, iron: 1, daily: 1 };
+  var MODES = { free: 1, iron: 1, daily: 1, endless: 1 };
   var KEY_PLAN = 'gridlet.plan', KEY_MIDDAY = 'cruzamento.midday', KEY_SLOT = 'gridlet.slot.';
-  var KEY_UNLOCK = 'gridlet.ironUnlocked', KEY_IRON = 'gridlet.ironBest', KEY_DAILY = 'gridlet.daily', KEY_LAUNCH = 'gridlet.launch';
+  var KEY_UNLOCK = 'gridlet.ironUnlocked', KEY_IRON = 'gridlet.ironBest', KEY_ENDLESS = 'gridlet.endlessBest', KEY_DAILY = 'gridlet.daily', KEY_LAUNCH = 'gridlet.launch';
   function pad2(n) { return (n < 10 ? '0' : '') + n; }
   // data local de hoje 'AAAA-MM-DD' (now: Date ou ms, para os testes)
   function todayStr(now) {
@@ -275,6 +279,20 @@
     setItem(ls(), ironKey(), JSON.stringify(b));
     return b;
   }
+  // w_endless: melhor dia e carros por dificuldade, separado de readBest e do One strike
+  function endlessKey() { var C = CRZ.CFG || {}; return KEY_ENDLESS + '.' + ((CRZ.difficulty && CRZ.difficulty.name) || C.difficultyName || 'easy'); }
+  function readEndless() {
+    var out = { games: 0, bestDays: 0, bestDelivered: 0 }, j = parseJ(getItem(ls(), endlessKey()));
+    if (j) { for (var k in out) { out[k] = num(j[k]); } }
+    return out;
+  }
+  function recordEndless(s) {
+    var b = readEndless();
+    b.games += 1;
+    b.bestDays = Math.max(b.bestDays, num(s.day)); b.bestDelivered = Math.max(b.bestDelivered, num(s.totalDelivered));
+    setItem(ls(), endlessKey(), JSON.stringify(b));
+    return b;
+  }
   // resultado de hoje na cidade do dia (um por data; o de outra data nao conta)
   function readDaily(today) {
     var j = parseJ(getItem(ls(), KEY_DAILY));
@@ -316,8 +334,8 @@
   CRZ.Modes = {
     todayStr: todayStr, dateSeed: dateSeed, dateLabel: dateLabel, modeOf: modeOf, activeMode: activeMode, modeSave: modeSave,
     park: park, unpark: unpark, dropActive: dropActive, restoreFree: restoreFree, freshDay1: freshDay1, ironUnlocked: ironUnlocked, unlockIron: unlockIron,
-    readIron: readIron, recordIron: recordIron, readDaily: readDaily, recordDaily: recordDaily, takeLaunch: takeLaunch, go: go,
-    keys: { slot: KEY_SLOT, unlock: KEY_UNLOCK, iron: KEY_IRON, daily: KEY_DAILY, launch: KEY_LAUNCH }
+    readIron: readIron, recordIron: recordIron, readEndless: readEndless, recordEndless: recordEndless, readDaily: readDaily, recordDaily: recordDaily, takeLaunch: takeLaunch, go: go,
+    keys: { slot: KEY_SLOT, unlock: KEY_UNLOCK, iron: KEY_IRON, endless: KEY_ENDLESS, daily: KEY_DAILY, launch: KEY_LAUNCH }
   };
 
   var sessionFlag = false;
@@ -714,8 +732,10 @@
       var day = num(st().day) || 1;
       var CFG = CRZ.CFG || {};
       sc.appendChild(el('h3', null, STR.goalH));
-      if (CRZ.CFG && CRZ.CFG.ironMode) { sc.appendChild(el('p', null, STR.goalIron.replace('{d}', String(CRZ.CFG.maxDays || 30)))); } else
-      sc.appendChild(el('p', null, STR.goal.replace('{n}', String(strikesNow())).replace('{diff}', diffLabel()).replace('{d}', String((CRZ.CFG && CRZ.CFG.maxDays) || 30))));
+      // w_endless2: o Endless tambem liga CFG.ironMode (um strike): a linha dele vem antes
+      if ((CRZ.CFG && CRZ.CFG.endlessMode) || (st() && st().mode === 'endless')) { sc.appendChild(el('p', null, STR.goalEndless)); }
+      else if (CRZ.CFG && CRZ.CFG.ironMode) { sc.appendChild(el('p', null, STR.goalIron.replace('{d}', String(CRZ.CFG.maxDays || 30)))); }
+      else { sc.appendChild(el('p', null, STR.goal.replace('{n}', String(strikesNow())).replace('{diff}', diffLabel()).replace('{d}', String((CRZ.CFG && CRZ.CFG.maxDays) || 30)))); }
       sc.appendChild(el('h3', null, STR.gestH));
       STR.gest.forEach(function (g) { sc.appendChild(liText(g[0], g[1])); });
       sc.appendChild(el('h3', null, STR.toolsH));
@@ -849,13 +869,21 @@
       sh.appendChild(mline([res ? STR.dailyResult(res) : STR.dailyLine, old && old.date ? STR.dailyOld(M.dateLabel(old.date)) : '']));
       var un = M.ironUnlocked(), isave = un ? M.modeSave('iron') : null, ib = M.readIron();
       // w_one: no Normal a regra de One strike e a do jogo; a linha some (os recordes ficam guardados) e volta no Easy
-      if (CRZ.CFG && CRZ.CFG.wholeGameStrike) { sh.appendChild(btn('crzm-ghost', STR.close, function () { closeModes(); })); return; }
-      var r2 = btn('crzm-row crzm-miron' + (un ? '' : ' lock'), null, un ? function () { if (isave) { launchMode('iron'); } else { fillModes('iron'); } } : null);
-      rowText(r2, STR.iron, un ? (isave ? STR.dailyCont : '') : STR.ironLocked);
-      if (!un) { r2.disabled = true; }
-      r2.setAttribute('data-tut', 'mode-iron');
-      sh.appendChild(r2);
-      sh.appendChild(mline(un ? [STR.ironLine, ib.games > 0 ? STR.ironBest(ib, diffLabel()) : ''] : [STR.ironLockLine]));
+      // w_endless2: Endless nas duas dificuldades, logo depois da cidade do dia
+      var esave = M.modeSave('endless'), eb = M.readEndless();
+      var r3 = btn('crzm-row crzm-mendless', null, function () { launchMode('endless'); });
+      rowText(r3, STR.endless, esave ? STR.dailyCont : '');
+      r3.setAttribute('data-tut', 'mode-endless');
+      sh.appendChild(r3);
+      sh.appendChild(mline([STR.endlessLine, eb.bestDays > 0 ? STR.endlessBest(eb) : '']));
+      if (!(CRZ.CFG && CRZ.CFG.wholeGameStrike)) {
+        var r2 = btn('crzm-row crzm-miron' + (un ? '' : ' lock'), null, un ? function () { if (isave) { launchMode('iron'); } else { fillModes('iron'); } } : null);
+        rowText(r2, STR.iron, un ? (isave ? STR.dailyCont : '') : STR.ironLocked);
+        if (!un) { r2.disabled = true; }
+        r2.setAttribute('data-tut', 'mode-iron');
+        sh.appendChild(r2);
+        sh.appendChild(mline(un ? [STR.ironLine, ib.games > 0 ? STR.ironBest(ib, diffLabel()) : ''] : [STR.ironLockLine]));
+      }
       sh.appendChild(btn('crzm-ghost', STR.close, function () { closeModes(); }));
     }
     function openModes() {
@@ -1053,7 +1081,7 @@
       els.rNew.textContent = armed ? STR.newConfirm : STR.newGame;
       els.rNew.classList[armed ? 'add' : 'remove']('armed');
       els.stats.textContent = STR.stats(num(s.day) || 1, num(s.maxDays) || (CRZ.CFG && CRZ.CFG.maxDays) || 12,
-        num(s.totalDelivered), num(s.strikes), (CRZ.CFG && CRZ.CFG.ironMode) ? 1 : (CRZ.CFG && CRZ.CFG.maxStrikes) || 3, !!(CRZ.CFG && CRZ.CFG.ironMode));
+        num(s.totalDelivered), num(s.strikes), (CRZ.CFG && CRZ.CFG.ironMode) ? 1 : (CRZ.CFG && CRZ.CFG.maxStrikes) || 3, !!(CRZ.CFG && CRZ.CFG.ironMode), s.mode === 'endless');
     }
     function syncPause() {
       if (!pauseBtn) { return; }
@@ -1138,7 +1166,7 @@
       try { over = doc.querySelector && doc.querySelector('.crz-over'); } catch (e) { over = null; }
       if (!over) { return; }
       if (!modeTag) { modeTag = el('div', 'crz-oextra crzm-modetag'); modeTag.setAttribute('data-tut', 'over-mode'); }
-      modeTag.textContent = md === 'iron' ? STR.iron : STR.modeTagDaily(CRZ.Modes ? CRZ.Modes.dateLabel(s.date) : '');
+      modeTag.textContent = md === 'iron' ? STR.iron : md === 'endless' ? STR.endless : STR.modeTagDaily(CRZ.Modes ? CRZ.Modes.dateLabel(s.date) : '');
       var title = over.querySelector && over.querySelector('.crz-otitle');
       if (modeTag.parentNode !== over) { if (title && over.insertBefore) { over.insertBefore(modeTag, title); } else { over.appendChild(modeTag); } }
     }
@@ -1171,6 +1199,7 @@
             // w_modes: One strike tem recorde proprio; vitoria no jogo de regras normais libera o One strike
             var md = st().mode || 'free';
             if (md === 'iron' && CRZ.Modes) { CRZ.Modes.recordIron(st(), !!ev.win); }
+            else if (md === 'endless' && CRZ.Modes) { CRZ.Modes.recordEndless(st()); }
             else {
               recordOver(st(), !!ev.win);
               if (ev.win && CRZ.Modes) { CRZ.Modes.unlockIron(); }

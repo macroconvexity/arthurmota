@@ -24,6 +24,15 @@
     // modo "um crash, do zero" (D9, liberado depois de vencer; sem UI ainda): o primeiro strike contado encerra a
     // partida, sem checkpoint, sem perdao
     ironMode: false,
+    endlessMode: false,
+    // w_endless: modo sem fim. w_endless2: os dias 1 a 30 sao os do jogo, iguais; do dia 31 em diante os carros sobem 2%
+    // ao dia compostos sobre o dia 30, e o teto de carros vivos no mapa (custo de quadro; excesso espera nas pontas) liga
+    endless: {
+      carsFromDay: 31,
+      carsPerDay: 0.02,
+      maxCars: 220,
+      capFromDay: 31
+    },
 
     // geometria do mundo (unidades = px em zoom 1)
     snapAngle: 45,        // graus, estradas so em multiplos disso
@@ -702,6 +711,21 @@
       if (typeof x[q] === 'string') x[q] = one(x[q]); else if (x[q] && typeof x[q] === 'object') CRZ.dayText(x[q]);
     }
     return x;
+  };
+
+  // w_endless: le entrada de tabela por dia (dayLen, budget, spawnDay, patienceDay), repetindo o ultimo dia (maxDays) alem do fim
+  CRZ.atDay = function (arr, day, def) {
+    if (!Array.isArray(arr) || !arr.length) return def;
+    var C = CRZ.CFG || {}, d = Math.max(1, day | 0), cap = C.maxDays > 0 ? C.maxDays : arr.length;
+    if (d > cap) d = cap;
+    return d - 1 < arr.length ? arr[d - 1] : def;
+  };
+  CRZ.endlessSpawnRate = function (day) {
+    var C = CRZ.CFG || {}, E = C.endless || {}, from = E.carsFromDay > 0 ? E.carsFromDay : 31;
+    var step = typeof E.carsPerDay === 'number' && E.carsPerDay >= 0 ? E.carsPerDay : 0.02;
+    var maxD = C.maxDays > 0 ? C.maxDays : 30, d = Math.max(1, day | 0);
+    var base = C.spawnRate(Math.min(d, maxD));
+    return d >= from ? base * Math.pow(1 + step, d - (from - 1)) : base;
   };
 
   // w_price: preco de tabela de uma peca no dia `day` (CFG.tools.<id>.costByChapter pelo capitulo do dia; sem a lista, cost).

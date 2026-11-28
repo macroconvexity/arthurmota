@@ -153,7 +153,7 @@
   function chapterOf(day) { return Math.max(1, Math.ceil(day / chapLen())); }
   function chapterFirst(ch) { return (ch - 1) * chapLen() + 1; }
   function chapterStart(day) { return day === chapterFirst(chapterOf(day)); }
-  function chapterLast(day) { return day % chapLen() === 0 || day >= CFG.maxDays; }
+  function chapterLast(day, endless) { return day % chapLen() === 0 || (!endless && day >= CFG.maxDays); }
   // dias livres (1 a strikeGraceUntil): travar nao conta strike nem encerra o dia
   function graceDay(day) { return day <= (CFG.strikeGraceUntil | 0); }
   // strikes que encerram o capitulo (ironMode: o primeiro contado encerra a partida)
@@ -189,8 +189,11 @@
                 holdMax: 14, holdBelow: 0.3, holdQuiet: 2.5 };
   // tamanho maximo de um dia: o do config, mais a espera da cena (jamHold: st.dayLen += STEP ate holdMax s) no dia
   // TEACH.day. O save e a validacao usam este teto (o resumo do dia 2 esticado era recusado no reload)
+  function dayLenAt(day) { var v = CRZ.atDay ? CRZ.atDay(CFG.dayLen, day, 45) : CFG.dayLen[day - 1]; return typeof v === 'number' && v > 0 ? v : 45; }
+  function budgetAt(day) { var v = CRZ.atDay ? CRZ.atDay(CFG.budget, day, 12) : CFG.budget[day - 1]; return typeof v === 'number' && v >= 0 ? v : 12; }
+  function patDayAt(day) { return CRZ.atDay ? CRZ.atDay(CFG.patienceDay, day, 1) : (CFG.patienceDay && CFG.patienceDay[day - 1]); }
   function dayLenMax(day) {
-    var base = CFG.dayLen[day - 1];
+    var base = dayLenAt(day);
     return day === TEACH.day && TEACH.holdMax > 0 ? base + TEACH.holdMax + 2 * STEP : base;
   }
 
@@ -258,9 +261,9 @@
       // v2 (D9): voltas ao comeco de um capitulo nesta partida; dia do checkpoint (manha para onde a volta leva; null
       // sem checkpoint, ironMode); jams livres de hoje (dias 1 a 5) e se o aviso do primeiro jam livre ja saiu
       chapterRetries: 0, checkpointDay: null, freeJams: 0, freeJamSeen: false, iron: !!CFG.ironMode,
-      // modos (w_modes): 'free' (o jogo de sempre), 'iron' (One strike: main.js liga CFG.ironMode) ou 'daily' (Today's
-      // city; date = 'AAAA-MM-DD' local da semente). Vem de opts na partida nova e do save no load
-      mode: modeOk(opts.mode) ? opts.mode : 'free', date: dateOk(opts.date) ? opts.date : null,
+      // modos (w_modes): 'free' (o jogo de sempre), 'iron' (One strike: main.js liga CFG.ironMode), 'daily' (Today's
+      // city; date = 'AAAA-MM-DD' local da semente) ou 'endless' (w_endless: sem dia final). Vem de opts na partida nova e do save no load
+      mode: modeOk(opts.mode) ? opts.mode : (CFG.endlessMode ? 'endless' : 'free'), date: dateOk(opts.date) ? opts.date : null,
       // mapa de problemas: nodeId -> PICO de estresse do dia (so >= HOT_MIN). Vive do fim do
       // dia ate o proximo startDay. No removeNode/splitEdge a entrada fica (id inexistente: o
       // render ignora; nao e reaproveitado porque ids de no nao se repetem).
@@ -386,9 +389,21 @@
       return c;
     }
     // espera mais longa agora no no (s de jogo). Sim sem waitOf (stub dos testes): estresse x paciencia do dia
+    function endlessOn() { return st.mode === 'endless'; }
+    // w_endless2: dias 1 a 30 do Endless iguais ao jogo. O dado (faces que pedem amanha), o Keep e a oferta da equipe tratam o
+    // dia 30 como o ultimo dia, como no jogo de 30 dias; do dia 31 em diante sempre ha amanha
+    function lastForDie(day) { return endlessOn() ? (day | 0) === CFG.maxDays : (day | 0) >= CFG.maxDays; }
+    function syncWorldEndless() {
+      var p = world.params = world.params || {};
+      p.endless = endlessOn();
+      // w_endless2: o teto so vale do dia CFG.endless.capFromDay em diante (dias 1 a 30 iguais ao jogo)
+      var E = CFG.endless || {}, from = E.capFromDay > 0 ? E.capFromDay : (CFG.maxDays || 30) + 1;
+      p.maxCars = endlessOn() && E.maxCars > 0 && (st.day | 0) >= from ? E.maxCars : 0;
+    }
+    syncWorldEndless();
     function waitNow(id, n) {
       if (typeof world.waitOf === 'function') { var v = +world.waitOf(id); return v > 0 && isFinite(v) ? v : 0; }
-      var p = world.params || {}, pd = CFG.patienceDay && CFG.patienceDay[st.day - 1];
+      var p = world.params || {}, pd = patDayAt(st.day);
       return (n.stress || 0) * CFG.patience * (pd > 0 ? pd : 1) * (p.patienceMul > 0 ? p.patienceMul : 1);
     }
     // w_choice2: a peca de cada cruzamento agora (id -> peca) e a lista do que mudou desde o comeco do plano num cruzamento que teve
@@ -636,7 +651,7 @@
         try { var p = E.festivalSpot(g, day); return p !== null && p !== undefined && !!getNode(p); } catch (e) { return false; }
       }
       if (need === 'event') {
-        if (!E || typeof E.tomorrow !== 'function' || typeof E.scale !== 'function' || day >= CFG.maxDays) return false;
+        if (!E || typeof E.tomorrow !== 'function' || typeof E.scale !== 'function' || lastForDie(day)) return false;
         try { return !!E.tomorrow(g); } catch (e2) { return false; }
       }
       return true;
@@ -644,7 +659,7 @@
     // w_fix8: face cujo custo ou ganho cai em 'amanha' (debt: o Loan cobra amanha; eventMul: o evento de amanha) nao serve no
     // ultimo dia: nao ha amanha, o Loan viraria pontos de graca. Os numeros vem de CFG.dice.defs, nada fixo aqui
     function needsTomorrow(id) { var df = faceDef(id); return !!df && (df.debt > 0 || df.eventMul > 0); }
-    function faceUsable(id, day) { return !(needsTomorrow(id) && (day | 0) >= CFG.maxDays); }
+    function faceUsable(id, day) { return !(needsTomorrow(id) && lastForDie(day)); }
     // faces do sorteio de hoje: o pool da faixa sem as que pedem um sistema que nao existe (valor = casa no d6)
     function poolOf(day) {
       var t = tierOf(day), P = (DC().pools || {})[t] || [], out = [];
@@ -685,7 +700,7 @@
       return d;
     }
     function dieEvent() { emit({ type: 'die', die: st.die ? clone(st.die) : null, next: null, state: st.dieState, kept: st.kept ? clone(st.kept) : null }); }
-    function canKeepToday() { return st.day >= (DC().keepFrom || 99) && st.day < CFG.maxDays; }
+    function canKeepToday() { return st.day >= (DC().keepFrom || 99) && !lastForDie(st.day); }
     function rerollBlock() {
       if (!needPlan()) return 'phase';
       if (st.rerolled) return 'once';
@@ -712,14 +727,14 @@
       world.day = day;
       st.phase = 'plan';
       st.dayTime = 0;
-      st.dayLen = CFG.dayLen[day - 1];
+      st.dayLen = dayLenAt(day);
       st.summary = null;
       st.draft = null;
       st.cards = activeCards.slice();
       st.free.road = hasCard('freeRoad');
       st.free.light = hasCard('freeLight');
       var carry = Math.min(leftover || 0, CFG.carryCap);
-      st.budget = CFG.budget[day - 1] + carry + (hasCard('plus2') ? cardFx('plus2').budget : 0) + (st.speedBonus || 0);
+      st.budget = budgetAt(day) + carry + (hasCard('plus2') ? cardFx('plus2').budget : 0) + (st.speedBonus || 0);
       st.speedDial.applied = st.speedBonus || 0;
       st.teach = { day3Convoy: false, jam: false, seen: teachSeen, target: null, sent: 0 };
       st.speedBonus = 0;
@@ -729,7 +744,7 @@
       // dado v2: nada sorteado nem aplicado aqui; a face sai quando o jogador toca (g.rollDie). O rng principal ainda
       // consome o que o dado antigo consumia (dia 1 e dia 6 sorteavam o de hoje; todo dia menos o ultimo, o de amanha),
       // para as cidades das mesmas sementes crescerem iguais
-      var burn = (day === 1 || day === 6 ? 1 : 0) + (day < CFG.maxDays ? 1 : 0);
+      var burn = (day === 1 || day === 6 ? 1 : 0) + (day < CFG.maxDays ? 1 : 0);   // w_endless2: igual ao jogo ate o dia 30 (no Endless, sem queima depois)
       for (var bi = 0; bi < burn; bi++) R();
       st.die = null; st.nextDie = null; st.rerolled = false;
       st.dieState = 'none'; st.dieFromKept = false;
@@ -750,8 +765,9 @@
       refresh();
       // eventos de lugar: o de hoje confere o lugar, o de amanha ganha o lugar (aviso da vespera). Sem rng do jogo
       if (EVM() && st.events) EVM().onPlan(g);
-      // o checkpoint vem depois do onPlan: leva o lugar do evento de amanha
-      if ((newChapter || needCp) && !CFG.ironMode) takeCheckpoint();
+      // o checkpoint vem depois do onPlan: leva o lugar do evento de amanha; no Endless apos o dia 30, uma vida so
+      if (endlessOn() && day > CFG.maxDays) { checkpoint = null; needCp = false; st.checkpointDay = null; }
+      else if ((newChapter || needCp) && !CFG.ironMode) takeCheckpoint();
       emit({ type: 'day', day: day });
       if (newChapter) emit({ type: 'chapter', chapter: st.chapter, day: day });
       dieEvent();
@@ -771,7 +787,7 @@
       st.budget += inc;
       // w_crew: rara. So a partir de cr.next (depois de uma resposta), sem equipe demais e com pontos para pagar (manha
       // sem pontos nao e resposta: cr.next fica e a oferta espera a proxima manha que puder pagar)
-      cr.offer = !!C && st.day >= C.fromDay && st.day <= C.toDay && st.day < CFG.maxDays && cr.active.length < C.maxActive &&
+      cr.offer = !!C && st.day >= C.fromDay && st.day <= C.toDay && !lastForDie(st.day) && cr.active.length < C.maxActive &&
         st.day >= (cr.next | 0) && st.budget >= C.cost;
       if (inc > 0) emit({ type: 'crewPay', income: inc, active: cr.active.length });
     }
@@ -940,7 +956,7 @@
                // v2: strikes da partida inteira (dias com strike no historico), voltas de capitulo, e a volta oferecida
                // (derrota com checkpoint: o capitulo e o dia da manha para onde a partida volta)
                strikesTotal: failedDays.length, chapter: chapterOf(st.day), chapterRetries: st.chapterRetries, iron: !!CFG.ironMode, mode: st.mode,
-               retry: (!win && checkpoint && !CFG.ironMode) ? { chapter: chapterOf(checkpoint.st.day), day: checkpoint.st.day } : null };
+               retry: (!win && checkpoint && !CFG.ironMode && !(endlessOn() && st.day > CFG.maxDays)) ? { chapter: chapterOf(checkpoint.st.day), day: checkpoint.st.day } : null };
     }
     // ----- checkpoint (v2, D9) -----
     function takeCheckpoint() {
@@ -993,7 +1009,7 @@
       for (var pi = 0; pi < pids.length; pi++) peak = Math.max(peak, world.nodes[pids[pi]].stress || 0, runHot[pids[pi]] || 0);
       var prevBest = 0, prevSum = 0, hn = st.history.length, prevRate = 0, rn = 0;
       for (pi = 0; pi < hn; pi++) {
-        var hh = st.history[pi], hl0 = fin(hh.len) && hh.len > 0 ? hh.len : CFG.dayLen[(hh.day | 0) - 1];
+        var hh = st.history[pi], hl0 = fin(hh.len) && hh.len > 0 ? hh.len : dayLenAt(hh.day | 0);
         prevSum += hh.delivered;
         if ((hh.day | 0) < RECORD.fromDay) continue;   // base do recorde sem os dias do tutorial
         rn++; prevBest = Math.max(prevBest, hh.delivered);
@@ -1031,8 +1047,8 @@
         // resumo para o "Lost cars: N" sobreviver a save/load (o world.stats zera no load)
         lost: s.lost || 0
       };
-      // v2: fim do capitulo (dias 10 e 20; o dia 30 e o fim da partida): o resumo vira o momento do capitulo
-      if (chapterLast(st.day) && st.day < CFG.maxDays) {
+      // v2: fim do capitulo (dias 10 e 20; no Endless tambem no 30, 40, ...): o resumo vira o momento do capitulo
+      if (chapterLast(st.day, endlessOn()) && (endlessOn() || st.day < CFG.maxDays)) {
         st.summary.chapterDone = { chapter: chapterOf(st.day), cars: st.totalDelivered + delivered - st.chapterCars0,
                                    strikesLeft: 0 };
       }
@@ -1076,8 +1092,8 @@
       st.cards = [];
       st.free.road = false; st.free.light = false;
       st.speed = st.speed || 1;
-      if (st.strikes >= CAP || st.day >= CFG.maxDays) {
-        var win = st.strikes < CAP;
+      if (st.strikes >= CAP || (!endlessOn() && st.day >= CFG.maxDays)) {
+        var win = !endlessOn() && st.strikes < CAP;
         st.final = finalOf(win);
         st.phase = 'over';
         st.draft = null;
@@ -1607,7 +1623,7 @@
         if (pn0.portal && CFG.isPlaceRate(pn0.rate)) { have++; if (pn0.rate !== PL.rate && PL.rate > 0) world.setPortal(pn0.id, true, PL.rate); }   // a taxa segue o capitulo
       }
       if (!(PL.perDay > 0)) return made;
-      var skip = {}, cpd = CFG.spawnRate(day) * (CFG.dayLen[day - 1] || 45);   // carros por dia de uma ponta cheia
+      var skip = {}, cpd = ((endlessOn() && CRZ.endlessSpawnRate) ? CRZ.endlessSpawnRate(day) : CFG.spawnRate(day)) * (dayLenAt(day) || 45);   // carros por dia de uma ponta cheia
       while (made.length < PL.perDay && have < PL.max) {
         var flow = expectedFlow(day), eids = sortedIds(world.edges), vals = [], lo = null;
         for (i = 0; i < eids.length; i++) vals.push(flow[eids[i]]);
@@ -1767,7 +1783,7 @@
       var r = sideRng(307, st.day)();
       var n = TEACH.convoyMin + Math.floor(r * (TEACH.convoyMax - TEACH.convoyMin + 1));
       if (TEACH.carsPerPat > 0) {   // v2: rajada pela paciencia do dia (mesma conta do sim.js patNow)
-        var pd = CFG.patienceDay && CFG.patienceDay[st.day - 1], pm = (world.params && world.params.patienceMul) || 1;
+        var pd = patDayAt(st.day), pm = (world.params && world.params.patienceMul) || 1;
         var patD = CFG.patience * (pd > 0 ? pd : 1) * pm;
         n = Math.round(TEACH.carsPerPat * patD);
         n = Math.max(TEACH.convoyMin, Math.min(TEACH.convoyMax, n));
@@ -2993,7 +3009,7 @@
     // a previsao de amanha: o evento com o lugar, quando o sistema de eventos existe; nunca o dado
     g.forecast = function () {
       var E = EV();
-      if (!E || typeof E.tomorrow !== 'function' || st.day >= CFG.maxDays) return null;
+      if (!E || typeof E.tomorrow !== 'function' || (!endlessOn() && st.day >= CFG.maxDays)) return null;
       try { var t = E.tomorrow(g); return t ? clone(t) : null; } catch (e) { return null; }
     };
     g.chapterOf = chapterOfDay;
@@ -3047,6 +3063,7 @@
       world.resetDay();
       if (ypOn()) world.armTrack = true;   // w_sy: longest wait per road today (pure, no draw), for the next-day line of a Yield
       world.day = st.day;
+      syncWorldEndless();
       var p = world.params = world.params || {};
       // dado x cartas, a partir de 1 a cada dia (nao acumula de um dia para o outro)
       p.spawnMul = mul(o.spawnMul);
@@ -3060,10 +3077,10 @@
         try { var spot = EV().festivalSpot(g, st.day); p.portalMul = {}; p.portalMul[spot] = o.festivalMul; } catch (e) {}
       }
       // eventos de lugar do dia: rua fechada (params.closed) e janelas de carros a mais (params.portalMul)
-      st.dayLen = CFG.dayLen[st.day - 1];
+      st.dayLen = dayLenAt(st.day);
       if (EVM() && st.events) EVM().applyDay(g);
       st.dayTime = 0;
-      st.dayLen = CFG.dayLen[st.day - 1];
+      st.dayLen = dayLenAt(st.day);
       st.phase = 'run';
       st.paused = false;
       st.ff = false;
@@ -3281,7 +3298,7 @@
     // v2 (D9): derrota com checkpoint -> o save da manha do primeiro dia do capitulo, com a volta contada e os strikes
     // cheios; o resto (cidade, pontos, dado, cartas, historico) e o daquela manha. null sem volta oferecida.
     g.retrySave = function () {
-      if (st.phase !== 'over' || !st.final || !st.final.retry || !checkpoint || CFG.ironMode) return null;
+      if (st.phase !== 'over' || !st.final || !st.final.retry || !checkpoint || CFG.ironMode || (endlessOn() && st.day > CFG.maxDays)) return null;
       var d = clone(checkpoint);
       d.st.chapterRetries = st.chapterRetries + 1;
       d.st.strikes = 0;
@@ -3314,7 +3331,7 @@
           draft: st.draft, totalDelivered: st.totalDelivered, totalScore: st.totalScore,
           history: st.history, dayTime: st.phase === 'run' ? 0 : st.dayTime,
           // dia esticado pela cena do dia 2 (jamHold): o tamanho real do dia vai junto (resumo volta igual)
-          dayLen: st.phase !== 'run' && st.dayLen !== CFG.dayLen[st.day - 1] ? st.dayLen : undefined,
+          dayLen: st.phase !== 'run' && st.dayLen !== dayLenAt(st.day) ? st.dayLen : undefined,
           clearSeen: clearSeen, teachOn: teachOn, teachSeen: teachSeen,
           teach: st.phase === 'run' ? { day3Convoy: false, jam: false, seen: teachSeen, target: null, sent: 0 } : st.teach, tipCarry: st.tipCarry, speedBonus: st.speedBonus,
           speedApplied: st.speedDial.applied, lastLock: lastLock,
@@ -3362,7 +3379,7 @@
       st.draft = s.draft === undefined ? null : s.draft; st.totalDelivered = s.totalDelivered;
       st.totalScore = s.totalScore || 0; st.history = s.history || [];
       st.history.forEach(function (h) { if (h && typeof h === 'object') { if (h.lost !== undefined) h.lost = (fin(h.lost) && h.lost > 0) ? Math.floor(h.lost) : 0; if (h.peak !== undefined && !fin(h.peak)) delete h.peak; } });
-      st.dayTime = s.dayTime || 0; st.dayLen = CFG.dayLen[st.day - 1];
+      st.dayTime = s.dayTime || 0; st.dayLen = dayLenAt(st.day);
       // dia esticado (jamHold): o campo dayLen (validSave ja conferiu o teto) ou, save sem o campo, o proprio dayTime
       if (fin(s.dayLen) && s.dayLen > st.dayLen) st.dayLen = s.dayLen;
       // (so alem da folga de 1 s que a validacao antiga ja aceitava: abaixo dela o save volta como sempre voltou)
@@ -3397,6 +3414,7 @@
       st.yday = ydayNorm(saved.yday); st.planTools = planToolsNorm(saved.planTools); st.planLanes = planLanesNorm(saved.planLanes); st.marks = marksNorm(saved.marks);   // w_choice2
       if (isObjL(saved.perks)) st.perks = { round: saved.perks.round === true, freePower: nat(saved.perks.freePower) ? saved.perks.freePower : 0, chosen: typeof saved.perks.chosen === 'string' ? saved.perks.chosen : undefined };
       st.mode = modeOk(saved.mode) ? saved.mode : 'free'; st.date = st.mode === 'daily' && dateOk(saved.date) ? saved.date : null;
+      syncWorldEndless();
       if (typeof saved.archetype === 'string' && CFG.archetypes && own(CFG.archetypes, saved.archetype)) st.archetype = saved.archetype;
       shiftDay = nat(saved.shiftDay) ? saved.shiftDay : 0;
       // semaforo na mao: nunca mais que o teto (save de antes do teto pode ter mais no mapa); save sem o campo: nenhum
@@ -3425,11 +3443,12 @@
       var ty = isObjL(s.tally) ? s.tally : {};
       st.tally = { fixed: nat(ty.fixed) && ty.fixed < 1e5 ? ty.fixed : 0, kept: nat(ty.kept) && ty.kept < 1e5 ? ty.kept : 0 };
       // checkpoint (Game.load ja conferiu ou tirou): sem ele, a manha de hoje (plano) ou a proxima vira o checkpoint
-      checkpoint = isObjL(saved.checkpoint) && !CFG.ironMode ? clone(saved.checkpoint) : null;
+      var noCp = CFG.ironMode || (endlessOn() && st.day > CFG.maxDays);
+      checkpoint = isObjL(saved.checkpoint) && !noCp ? clone(saved.checkpoint) : null;
       if (isObjL(saved.morn) && st.phase === 'plan') morning = { day: saved.morn.st.day, save: clone(saved.morn), base: {} };   // w_reload (Game.load ja conferiu ou tirou)
       st.checkpointDay = checkpoint ? checkpoint.st.day : null;
-      needCp = !checkpoint && !CFG.ironMode;
-      if (st.phase === 'over') st.final = finalOf(st.strikes < strikeCap());
+      needCp = !checkpoint && !noCp;
+      if (st.phase === 'over') st.final = finalOf(!endlessOn() && st.strikes < strikeCap());
       st.tipCarry = s.tipCarry || 0; st.speedBonus = s.speedBonus || 0; st.tips = 0;
       st.speedDial.applied = s.speedApplied || 0;
       syncDial();   // cargas do dia nao vao no save: volta cheio
@@ -3482,7 +3501,7 @@
   }
 
   // ---------- validacao de save (localStorage pode vir corrompido ou de outra versao) ----------
-  var MODES = { free: 1, iron: 1, daily: 1 };
+  var MODES = { free: 1, iron: 1, daily: 1, endless: 1 };
   function modeOk(m) { return typeof m === 'string' && MODES[m] === 1; }
   function dateOk(d) { return typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d); }
   function fin(v) { return typeof v === 'number' && isFinite(v); }
@@ -3560,7 +3579,7 @@
         rn.tool = null; rn.pair = null;
       }
     }
-    if (refund > 0 && isObj(s) && nat(s.budget) && nat(s.day) && s.day >= 1 && s.day <= CFG.maxDays) {
+    if (refund > 0 && isObj(s) && nat(s.budget) && nat(s.day) && s.day >= 1 && (d.mode === 'endless' || s.day <= CFG.maxDays)) {
       s.budget = Math.min(s.budget + refund, Math.max(s.budget, budgetCap(s)));
       d.refunded = refund;
     }
@@ -3582,9 +3601,9 @@
   }
   function validSave(d) {
     if (!d || d.v !== 1 || !isObj(d.world) || !isObj(d.st)) return false;
-    var s = d.st, i;
+    var s = d.st, i, isEnd = d.mode === 'endless';
     if (!nat(d.seed) || !nat(d.rngCalls) || d.rngCalls > 5000000) return false;
-    if (!nat(s.day) || s.day < 1 || s.day > CFG.maxDays) return false;
+    if (!nat(s.day) || s.day < 1 || (!isEnd && s.day > CFG.maxDays) || s.day > 9999) return false;
     if (s.phase !== 'plan' && s.phase !== 'summary' && s.phase !== 'over') return false;
     var per = CFG.speedDial.tipsPerPoint, MAXSB = 200;   // teto folgado: pontos de gorjeta por dia
     if (s.tipCarry !== undefined && (!fin(s.tipCarry) || s.tipCarry < 0 || s.tipCarry >= per)) return false;
@@ -3595,7 +3614,7 @@
     if (!nat(s.budget) || s.budget > budgetCap(s)) return false;
     if (!nat(s.strikes) || s.strikes > CFG.maxStrikes) return false;
     if (s.phase !== 'over' && s.strikes >= strikeCap()) return false;
-    if (s.phase === 'over' && !(s.strikes >= strikeCap() || s.day >= CFG.maxDays)) return false;
+    if (s.phase === 'over' && !(s.strikes >= strikeCap() || (!isEnd && s.day >= CFG.maxDays))) return false;
     if (s.chapterRetries !== undefined && (!nat(s.chapterRetries) || s.chapterRetries > 9999)) return false;
     if (s.freeJamSeen !== undefined && typeof s.freeJamSeen !== 'boolean') return false;
     if (s.speed !== undefined) {
@@ -3605,7 +3624,7 @@
     }
     // dayLen (opcional): dia esticado pela cena, entre o config e dayLenMax; dayTime ate o dia salvo (ou ate o teto do
     // dia, save sem o campo) mais 1 s de folga
-    if (s.dayLen !== undefined && (!fin(s.dayLen) || s.dayLen < CFG.dayLen[s.day - 1] || s.dayLen > dayLenMax(s.day))) return false;
+    if (s.dayLen !== undefined && (!fin(s.dayLen) || s.dayLen < dayLenAt(s.day) || s.dayLen > dayLenMax(s.day))) return false;
     if (s.dayTime !== undefined && (!fin(s.dayTime) || s.dayTime < 0 || s.dayTime > (s.dayLen !== undefined ? s.dayLen : dayLenMax(s.day)) + 1)) return false;
     if (s.phase === 'plan') {
       if (!dieOk(s.die, s.day, s.dieState === 'none')) return false;
@@ -3613,7 +3632,7 @@
       if (s.dieState !== undefined && s.dieState !== 'none' && !s.die) return false;
       if (s.summary !== null && s.summary !== undefined) return false;
     }
-    if (s.nextDie !== undefined && s.nextDie !== null && (s.day >= CFG.maxDays || !dieOk(s.nextDie, s.day + 1))) return false;
+    if (s.nextDie !== undefined && s.nextDie !== null && ((!isEnd && s.day >= CFG.maxDays) || !dieOk(s.nextDie, s.day + 1))) return false;
     if (s.kept !== undefined && s.kept !== null && !keptOk(s.kept)) return false;
     if ((s.debt !== undefined && (!nat(s.debt) || s.debt > 20)) || (s.debtPaid !== undefined && (!nat(s.debtPaid) || s.debtPaid > 20))) return false;
     if (s.rerolled !== undefined && typeof s.rerolled !== 'boolean') return false;
@@ -3671,7 +3690,7 @@
     if (d.crew !== undefined && d.crew !== null) {
       if (!isObj(d.crew) || !Array.isArray(d.crew.active) || d.crew.active.length > 10) return false;
       for (i = 0; i < d.crew.active.length; i++) if (!nat(d.crew.active[i])) return false;
-      if (d.crew.next !== undefined && (!nat(d.crew.next) || d.crew.next > 60)) return false;
+      if (d.crew.next !== undefined && (!nat(d.crew.next) || d.crew.next > (isEnd ? Math.max(60, s.day + 60) : 60))) return false;
     }
     if (d.perks !== undefined && d.perks !== null) {
       if (!isObj(d.perks) || (d.perks.round !== undefined && typeof d.perks.round !== 'boolean')) return false;
@@ -3692,7 +3711,7 @@
   function budgetCap(s) {
     // v2: renda das equipes (saves de antes de w_crew podiam ter 2 ativas: o teto segue cabendo nelas)
     var crewMax = CFG.crew ? Math.max(CFG.crew.maxActive || 0, 2) * (CFG.crew.perDay || 0) : 0;
-    return CFG.budget[s.day - 1] + CFG.carryCap + 2 + maxFaceBudget() + (s.speedApplied || 0) + crewMax;
+    return budgetAt(s.day) + CFG.carryCap + 2 + maxFaceBudget() + (s.speedApplied || 0) + crewMax;
   }
   // mundo de save ou de uma entrada do Undo: as mesmas regras que o Sim garante em mundo valido
   function worldOk(w) {
@@ -3970,10 +3989,10 @@
     for (var i = 0; i < L.length; i++) if (L[i] && L[i].day >= from && L[i].day <= to) n++;
     return n;
   }
-  function chapRange(c) { var a = chapterFirst(c); return [a, Math.min(CFG.maxDays, a + chapLen() - 1)]; }
+  function chapRange(c, endless) { var a = chapterFirst(c); return [a, endless ? (a + chapLen() - 1) : Math.min(CFG.maxDays, a + chapLen() - 1)]; }
   // capitulo c inteiro no historico e sem dia com strike
   function chapClean(s, c, needAll) {
-    var r = chapRange(c), hs = (s && s.history) || [], seen = 0, i;
+    var r = chapRange(c, s && s.mode === 'endless'), hs = (s && s.history) || [], seen = 0, i;
     for (i = 0; i < hs.length; i++) {
       var h = hs[i]; if (!h || h.day < r[0] || h.day > r[1]) continue;
       if (h.failed) return false;
@@ -3990,11 +4009,12 @@
   // aconteceram, o Keep que ja chegou). { id, on, n? }
   function marksOf(s) {
     if (!s) return [];
-    var f = s.final || {}, win = f.win === true, t = tallyOf(s), out = [], c, chs = Math.ceil(CFG.maxDays / chapLen()), clean = false;
-    out.push({ id: 'days', on: win && (s.day | 0) >= CFG.maxDays, n: CFG.maxDays });
-    // w_chap: no One strike nao existe volta de capitulo: a marca nao se aplica (aparecia como pendente)
+    var f = s.final || {}, win = f.win === true, t = tallyOf(s), out = [], c;
+    var endless = s.mode === 'endless', chs = endless ? chapterOf(s.day | 0) : Math.ceil(CFG.maxDays / chapLen()), clean = false;
+    if (!endless) out.push({ id: 'days', on: win && (s.day | 0) >= CFG.maxDays, n: CFG.maxDays });
+    // w_chap: no One strike e no Endless nao existe marca de sem-replay ou N dias
     var iron = !!(CFG.ironMode || s.iron || s.mode === 'iron' || f.iron);
-    if (!iron) out.push({ id: 'noRetry', on: win && (s.chapterRetries | 0) === 0 });
+    if (!iron && !endless) out.push({ id: 'noRetry', on: win && (s.chapterRetries | 0) === 0 });
     for (c = 1; c <= chs; c++) if (chapClean(s, c, true)) clean = true;
     out.push({ id: 'clean', on: clean });
     if (t.events > 0) out.push({ id: 'events', on: t.prepared === t.events, n: t.events });
@@ -4016,23 +4036,23 @@
   }
   // w_chap: as marcas de um capitulo para o fim dele (resumo dos dias 10 e 20): nenhum strike nele e, com evento, o preparo
   function chapterMarksOf(s, c) {
-    var r = chapRange(c), ran = evRan(s, r[0], r[1]), prep = 0, i, out = [{ id: 'chClean', on: chapClean(s, c, false) }];
+    var r = chapRange(c, s && s.mode === 'endless'), ran = evRan(s, r[0], r[1]), prep = 0, i, out = [{ id: 'chClean', on: chapClean(s, c, false) }];
     for (i = 0; i < ran.length; i++) if (ran[i].prep) prep++;
     if (ran.length) out.push({ id: 'chEvents', on: prep === ran.length, n: ran.length, prep: prep });
     return out;
   }
   // a marca do capitulo c (fim de capitulo): com evento no capitulo, o preparo; senao, nenhum strike nele
   function chapterMarkOf(s, c) {
-    var r = chapRange(c), ran = evRan(s, r[0], r[1]), prep = 0, i;
+    var r = chapRange(c, s && s.mode === 'endless'), ran = evRan(s, r[0], r[1]), prep = 0, i;
     for (i = 0; i < ran.length; i++) if (ran[i].prep) prep++;
     if (ran.length) return { id: 'chEvents', on: prep === ran.length, n: ran.length, prep: prep };
     return { id: 'chClean', on: chapClean(s, c, false) };
   }
   // o que o capitulo depois de c traz (no maximo 2 coisas, da CFG e do calendario real desta partida). null no ultimo
   function nextChapterOf(s, c) {
-    var chs = Math.ceil(CFG.maxDays / chapLen());
-    if (!(c >= 1) || c >= chs) return null;
-    var r = chapRange(c + 1), r0 = chapRange(c), out = [], i;
+    var chs = Math.ceil(CFG.maxDays / chapLen()), endless = !!(s && s.mode === 'endless');
+    if (!(c >= 1) || (!endless && c >= chs)) return null;
+    var r = chapRange(c + 1, endless), r0 = chapRange(c, endless), out = [], i;
     var en = evAll(s, r[0], r[1]), ep = evAll(s, r0[0], r0[1]);
     if (en > 0 && ep === 0) out.push({ id: 'evStart', n: en });
     else if (en > ep) out.push({ id: 'evMore', n: en });

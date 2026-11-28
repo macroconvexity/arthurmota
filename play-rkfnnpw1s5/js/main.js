@@ -39,10 +39,12 @@
   }
   // w_one (dono, 2026-11-26): no Normal a regra de um strike para a partida inteira e a do modo One strike (CFG.ironMode): um so
   // lugar liga as duas. Easy: so o modo One strike liga.
+  // w_endless2: o Endless joga pela mesma regra (um strike para a partida inteira, nas duas dificuldades, sem reposicao)
   function ironFor(mode) {
-    var C = CRZ.CFG, whole = !!C.wholeGameStrike;
-    C.ironMode = mode === 'iron' || whole;
-    if (whole) { C.maxStrikes = 1; }
+    var C = CRZ.CFG, whole = !!C.wholeGameStrike, end = mode === 'endless';
+    C.endlessMode = end;
+    C.ironMode = mode === 'iron' || whole || end;
+    if (whole || end) { C.maxStrikes = 1; }
   }
   function recoverBad() {
     var bad = null, cur = null, done = null, played = null;
@@ -216,6 +218,7 @@
         // final fica como o resultado de hoje, a partida em andamento fica guardada, e o jogo vai para a tela inicial
         var ms = game.state || {};
         if (Modes && ms.mode === 'iron') { Modes.go('iron', { drop: true }); return; }
+        if (Modes && ms.mode === 'endless') { Modes.go('endless', { drop: true }); return; }
         if (Modes && ms.mode === 'daily') {
           if (ms.phase === 'over') {
             if (ms.final && ms.final.retry) { Modes.recordDaily(ms, false); }

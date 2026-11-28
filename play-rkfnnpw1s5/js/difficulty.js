@@ -108,7 +108,10 @@
   }
   var baseSpawn = CFG.spawnRate;
   // spawnDay (opcional): forma da curva por dia, por cima de `spawn` (o menu mostra so `spawn`)
-  CFG.spawnRate = function (day) { return baseSpawn(day) * p.spawn * ((p.spawnDay && p.spawnDay[day - 1]) || 1); };
+  CFG.spawnRate = function (day) {
+    var sd = CRZ.atDay ? CRZ.atDay(p.spawnDay, day, 1) : (p.spawnDay && p.spawnDay[day - 1]);
+    return baseSpawn(day) * p.spawn * (sd > 0 ? sd : 1);
+  };
   CFG.patience = CFG.patience * p.patience;
   if (p.lock > 0) CFG.lockSeconds = CFG.lockSeconds * p.lock;
   if (p.patienceDay) CFG.patienceDay = p.patienceDay;   // lido por sim.js (stress)

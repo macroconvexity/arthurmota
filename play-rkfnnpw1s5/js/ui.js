@@ -50,7 +50,7 @@
     cardToday: function (name) { return name + ' today'; },
     info: {
       strikes: function (s, m) { if (CRZ.CFG && CRZ.CFG.ironMode) return CRZ.dayText('One strike for the whole game. From day {strikeDay}, the first jam ends it.'); return CRZ.dayText('Strikes this chapter: ' + s + ' of ' + m + '. From day {strikeDay}, a jam adds one.'); },
-      days: function (d, m) { var L = (CRZ.CFG && CRZ.CFG.chapterDays) || m; return d >= m ? STR.lastDay(d, m) : 'Day ' + d + ' of ' + m + ', chapter ' + Math.ceil(d / L) + ' of ' + Math.ceil(m / L) + '.'; },
+      days: function (d, m, end) { var L = (CRZ.CFG && CRZ.CFG.chapterDays) || m; if (end) return 'Day ' + d + ', chapter ' + Math.ceil(d / L) + '.'; return d >= m ? STR.lastDay(d, m) : 'Day ' + d + ' of ' + m + ', chapter ' + Math.ceil(d / L) + ' of ' + Math.ceil(m / L) + '.'; },
       budget: function (n, last) { return CRZ.dayText(n + (n === 1 ? ' build point' : ' build points') + (last ? '. Last day: spend them now.' : '. New every day; {carry} unused can stay for tomorrow.')); },
       tipsLast: function (n, per) { return STR.tipsLast(n, per); },
       // a barra mede carros entregues (1 por carro a 1x, mais a 2x e 4x), somados de um dia para o outro
@@ -62,6 +62,8 @@
     roadFromEnd: 'Drag from a road end.',
     // rotulos curtos do HUD (dono, 2026-11-09: 'nao assuma que o jogador sabe nada'): cada marcador diz o que e
     lblDay: function (d, m) { return 'Day ' + d + ' of ' + m; },
+    lblDayEndless: function (d) { return 'Day ' + d; },
+    endlessDaysAria: function (d, c) { return 'Day ' + d + ', chapter ' + c; },
     // v2 capitulos: a linha extra do letreiro do dia no primeiro dia de cada capitulo, e o momento de fim de capitulo
     chapterN: function (c) { return 'Chapter ' + c; },
     chapterDone: function (c) { return 'Chapter ' + c + ' complete'; },
@@ -70,6 +72,10 @@
     // w_chap: o comeco do capitulo (cartao das manhas 11 e 21) e o rotulo do HUD. O nome diz a fase da cidade
     chapterName: ['Small town', 'Growing city', 'Full city'],
     chTitle: function (c) { var n = STR.chapterName[c - 1]; return 'Chapter ' + c + (n ? ': ' + n : ''); },
+    chMileTitle: function (d) { return d + ' days done'; },
+    chMileGrow: 'The city keeps growing. Traffic keeps growing.',
+    chMileFull: 'The city is full. Traffic keeps growing.',
+    chEndGrow: 'Traffic keeps growing.',
     chDays: function (a, b) { return 'The row of dots at the top is days ' + a + ' to ' + b + '.'; },
     chSaved: 'Progress saved: if you run out of strikes, you come back to this morning.',
     chSavedFrom: function (d) { return 'Progress saved: from day ' + d + ', running out of strikes brings you back to this morning.'; },
@@ -2072,6 +2078,10 @@
     var dotsEl = tut(el('div', 'crz-dots'), 'dots'), dotEls = [], i;
     // v2: as bolinhas sao as do capitulo de hoje (CFG.chapterDays, 10), o mesmo componente; o rotulo diz 'Day 14 of 30'
     var CH_LEN = (CFG.chapterDays | 0) > 0 ? Math.min(CFG.chapterDays | 0, CFG.maxDays) : CFG.maxDays;
+    function isEndless(s) {
+      var st0 = s || (game && game.state);
+      return (st0 && typeof st0.mode === 'string') ? st0.mode === 'endless' : !!CFG.endlessMode;
+    }
     // w_price: preco de tabela de hoje (sem mao nem gratuidade): CFG.tools.<id>.costByChapter pelo capitulo do dia
     function listPrice(t, day) {
       var d = day; if (!(d > 0)) { try { d = game.state.day | 0; } catch (e) { d = 1; } }
@@ -2318,7 +2328,7 @@
     dayBanner.setAttribute('aria-hidden', 'true');
     var dayBannerT = 0;
     function showDayBanner(s) {
-      dayBanner.textContent = s.day >= CFG.maxDays ? STR.finalDay : STR.dayN + s.day;
+      dayBanner.textContent = lastDayOf(s) ? STR.finalDay : STR.dayN + s.day;
       // v2: primeiro dia de um capitulo: uma linha a mais, menor, no mesmo letreiro
       var d0 = s.day | 0;
       if (CH_LEN < CFG.maxDays && d0 >= 1 && (d0 - 1) % CH_LEN === 0) {
@@ -4925,7 +4935,7 @@
       } catch (e) {}
     })();
     infoTap(strikesEl, function (s) { return STR.info.strikes(s.strikes | 0, CFG.maxStrikes); });
-    infoTap(dotsEl, function (s) { return STR.info.days(s.day | 0, CFG.maxDays); });
+    infoTap(dotsEl, function (s) { return STR.info.days(s.day | 0, CFG.maxDays, isEndless(s)); });
     infoTap(budgetEl, function (s) { return STR.info.budget(s.budget | 0, lastDayOf(s)); });
     infoTap(tipEl, function (s) {
       var sd = s.speedDial; if (!sd || !(sd.perPoint > 0)) return '';
@@ -5008,7 +5018,7 @@
       return !!fx.free && !!(s.free && (s.free.road || s.free.light)) && !cardGives(s, 'freeRoad') && !cardGives(s, 'freeLight');
     }
     // ultimo dia: nao existe amanha, entao nenhuma promessa de amanha
-    function lastDayOf(s) { return (s.day | 0) >= CFG.maxDays; }
+    function lastDayOf(s) { return !isEndless(s) && (s.day | 0) >= CFG.maxDays; }
     function refreshSheet(s) {
       if (!sheetOpen || !s.die) return;
       // dado v2: amanha nao mostra o dado; a linha de amanha e o evento com o lugar, quando existe
@@ -5740,17 +5750,20 @@
     function syncTop(s) {
       var i;
       if (cache.day !== s.day || cache.phase !== s.phase) {
-        var base = (Math.max(1, Math.ceil((s.day | 0) / CH_LEN)) - 1) * CH_LEN;   // dia antes do primeiro do capitulo
+        var base = (Math.max(1, Math.ceil((s.day | 0) / CH_LEN)) - 1) * CH_LEN, end = isEndless(s);   // dia antes do primeiro do capitulo
         for (i = 0; i < dotEls.length; i++) {
           var di = base + i + 1;
           var past = di < s.day;   // passados cheios, o dia atual com anel (tambem no resumo e na derrota), futuros vazios
           var now = di === s.day;
-          dotEls[i].className = 'crz-dot' + (past ? ' past' : (now ? ' now' : '')) + (di > CFG.maxDays ? ' gone' : '');
+          dotEls[i].className = 'crz-dot' + (past ? ' past' : (now ? ' now' : '')) + (!end && di > CFG.maxDays ? ' gone' : '');
           dotEls[i].setAttribute('aria-label', 'Day ' + di);
-          if (now) dayLbl.textContent = STR.lblDay(s.day | 0, CFG.maxDays);
-          if (now) chLbl.textContent = CH_LEN < CFG.maxDays ? STR.lblChapter(Math.ceil((s.day | 0) / CH_LEN), Math.ceil(CFG.maxDays / CH_LEN)) : '';
+          if (now) dayLbl.textContent = end ? STR.lblDayEndless(s.day | 0) : STR.lblDay(s.day | 0, CFG.maxDays);
+          if (now) chLbl.textContent = CH_LEN < CFG.maxDays ? (end ? STR.chapterN(Math.ceil((s.day | 0) / CH_LEN)) : STR.lblChapter(Math.ceil((s.day | 0) / CH_LEN), Math.ceil(CFG.maxDays / CH_LEN))) : '';
           if (now) dotEls[i].setAttribute('aria-current', 'step'); else if (dotEls[i].removeAttribute) dotEls[i].removeAttribute('aria-current');
-          if (now && lastDayOf(s) && dotsEl.setAttribute) dotsEl.setAttribute('aria-label', STR.lastDay(s.day | 0, CFG.maxDays));
+          if (now && dotsEl.setAttribute) {
+            if (lastDayOf(s)) dotsEl.setAttribute('aria-label', STR.lastDay(s.day | 0, CFG.maxDays));
+            else if (end) dotsEl.setAttribute('aria-label', STR.endlessDaysAria(s.day | 0, Math.ceil((s.day | 0) / CH_LEN)));
+          }
         }
       }
       var dieHide = s.day < 2;
@@ -5991,7 +6004,7 @@
       // (o game hoje vai do dia 12 direto ao fim, sem resumo: a linha de fechamento sai tambem na vitoria;
       // no resumo do dia 11 a linha avisa que amanha e o ultimo dia)
       var cTxt = lastDayOf(s) ? STR.closing(s.day | 0, (s.totalDelivered | 0) || (sm.delivered | 0))
-        : ((s.day | 0) === CFG.maxDays - 1 ? STR.tomorrowLast : '');
+        : (!isEndless(s) && (s.day | 0) === CFG.maxDays - 1 ? STR.tomorrowLast : '');
       // v2: fim de capitulo (game: summary.chapterDone): titulo e linha de fechamento do proprio cartao
       var cd = chapterDoneOf(sm);
       if (cd) { headEl.textContent = STR.chapterDone(cd.chapter); headEl.classList.remove('gone'); cTxt = STR.chapterLine(cd.cars, cd.strikesLeft, CFG.maxStrikes | 0); }
@@ -6212,8 +6225,8 @@
     }
     on(overSub, 'click', overWhere); on(overWarn, 'click', overWhere);
     function buildOver(s) {
-      var f = s.final || {};
-      var win = typeof f.win === 'boolean' ? f.win : (overWin === null ? (s.strikes < CFG.maxStrikes) : overWin);
+      var f = s.final || {}, end = isEndless(s);
+      var win = !end && (typeof f.win === 'boolean' ? f.win : (overWin === null ? (s.strikes < CFG.maxStrikes) : overWin));
       var days = f.days != null ? f.days : s.day, deliv = f.delivered != null ? f.delivered : s.totalDelivered;
       var stk = f.strikes != null ? f.strikes : s.strikes;
       // v2: a vitoria conta os strikes da partida inteira (eles voltam a cada capitulo); a derrota, os do capitulo
@@ -6221,7 +6234,7 @@
       statNums[0].textContent = String(days | 0); countTo(statNums[1], 0, deliv | 0); statNums[2].textContent = String(stk | 0);
       overEl.classList.remove('crz-peek');
       overRetry = !win && f.retry && f.retry.chapter > 0 && game.retrySave ? f.retry : null;
-      overTitle.textContent = win ? STR.win : (overRetry ? STR.loseChapter(days | 0) : STR.lose);
+      overTitle.textContent = win ? STR.win : ((end || overRetry) ? STR.loseChapter(days | 0) : STR.lose);
       againBtn.textContent = overRetry ? STR.retryBtn(overRetry.chapter | 0) : STR.again;
       newGameBtn.classList.toggle('gone', !overRetry);
       var nr = win ? (f.chapterRetries | 0) : 0;
@@ -6802,9 +6815,9 @@
     var chCur = null;
     function chCardOpen() { return !chEl.classList.contains('gone'); }
     function chCardKey(s) { return 'chcard' + (s.day | 0) + '.' + (s.chapterRetries | 0) + runTag; }
-    function chCardDay(d) { return d > 1 && CH_LEN < CFG.maxDays && (d - 1) % CH_LEN === 0 && d <= CFG.maxDays; }
+    function chCardDay(d, end) { return d > 1 && CH_LEN < CFG.maxDays && (d - 1) % CH_LEN === 0 && (end || d <= CFG.maxDays); }
     // a manha ainda vai abrir o cartao (as faixas que nao esperam o boot seguram ate ele sair)
-    function chCardPending(s) { return chCardOpen() || (s.phase === 'plan' && chCardDay(s.day | 0) && !hints[chCardKey(s)]); }
+    function chCardPending(s) { return chCardOpen() || (s.phase === 'plan' && chCardDay(s.day | 0, isEndless(s)) && !hints[chCardKey(s)]); }
     // o que o progresso salvo garante NESTE capitulo (CFG.noRestartBeforeDay; Easy: 21, Normal: 15)
     function chSaveText(s, c) {
       if (CFG.ironMode) return '';
@@ -6850,15 +6863,30 @@
       return Math.min(M, n);
     }
     function chCardShow(s) {
-      var d = s.day | 0, c = Math.ceil(d / CH_LEN), b = Math.min(CFG.maxDays, d + CH_LEN - 1), used = chPrevUsed(s, c);
+      var d = s.day | 0, end = isEndless(s), c = Math.ceil(d / CH_LEN), b = end ? d + CH_LEN - 1 : Math.min(CFG.maxDays, d + CH_LEN - 1), used = chPrevUsed(s, c);
       chCur = { key: chCardKey(s), day: d };
       chTitleEl.textContent = STR.chTitle(c);
       // w_boost: 'The row of dots at the top is days 11 to 20.' teaches the HUD once per device; the facts on the sheet stay
       var dotsSeen = seen('chDotsLine'); chDaysEl.textContent = dotsSeen ? '' : STR.chDays(d, b); chDaysEl.classList.toggle('gone', dotsSeen); if (!dotsSeen) markSeen('chDotsLine');
       chStrkTxt.textContent = STR.strikesBack(CFG.ironMode ? 1 : CFG.maxStrikes | 0);
-      var sv = chSaveText(s, c); chSaveEl.textContent = sv; chSaveEl.classList.toggle('gone', !sv);
-      var nw = chNewText(s, c); chNewEl.textContent = nw; chNewEl.classList.toggle('gone', !nw);
-      var pw = chPriceText(s, c); chPriceEl.textContent = pw; chPriceEl.classList.toggle('gone', !pw);
+      var sv, nw, pw;
+      if (end && d > CFG.maxDays) {
+        var cap = typeof (CFG.growth && CFG.growth.nodeCap) === 'function' ? CFG.growth.nodeCap(d) : Infinity;
+        var nn = game.world && game.world.nodes ? Object.keys(game.world.nodes).length : 0;
+        var full = isFinite(cap) && nn >= cap;
+        chTitleEl.textContent = d === CFG.maxDays + 1 ? STR.chMileTitle(CFG.maxDays) : STR.chTitle(c);
+        sv = '';   // w_endless2: um strike para a partida inteira, nada muda depois do dia 30
+        nw = full ? STR.chMileFull : (d === CFG.maxDays + 1 ? STR.chMileGrow : STR.chEndGrow);
+        pw = '';
+      } else {
+        chTitleEl.textContent = STR.chTitle(c);
+        sv = chSaveText(s, c);
+        nw = chNewText(s, c);
+        pw = chPriceText(s, c);
+      }
+      chSaveEl.textContent = sv; chSaveEl.classList.toggle('gone', !sv);
+      chNewEl.textContent = nw; chNewEl.classList.toggle('gone', !nw);
+      chPriceEl.textContent = pw; chPriceEl.classList.toggle('gone', !pw);
       // os usados aparecem cheios e esvaziam um a um (repostos); movimento reduzido: ja vazios
       var k, rm = reducedMotion();
       for (k = 0; k < chStrkEls.length; k++) chStrkEls[k].classList.toggle('on', !rm && k < used);
@@ -6877,16 +6905,16 @@
     on(doc, 'keydown', function (e) { if (e && chCardOpen() && (e.key === 'Enter' || e.key === 'Escape')) { pd(e); chCardClose(); } });
     function chCardTick(s) {
       if (chCardOpen()) { if (s.phase !== 'plan' || !chCur || chCur.day !== (s.day | 0)) chCardClose(); return; }
-      if (s.phase !== 'plan' || !chCardDay(s.day | 0) || hints[chCardKey(s)]) return;
+      if (s.phase !== 'plan' || !chCardDay(s.day | 0, isEndless(s)) || hints[chCardKey(s)]) return;
       if (bootFrames >= 0 || holdUntil || roll.open || rollAnyModal() || modal()) return;
       chCardShow(s);
     }
     var pendFreeJam = false, bannerWait = -1;
     function chapterTick(s) {
-      var d = s.day | 0, G = CFG.strikeGraceUntil | 0;
+      var d = s.day | 0, G = CFG.strikeGraceUntil | 0, end = isEndless(s);
       // a manha de um capitulo novo abre com o cartao do dado por cima do letreiro: o letreiro (com 'Chapter N') volta
       // quando o cartao fecha
-      if (s.phase === 'plan' && d > 1 && CH_LEN < CFG.maxDays && (d - 1) % CH_LEN === 0) {
+      if (s.phase === 'plan' && d > 1 && CH_LEN < CFG.maxDays && (d - 1) % CH_LEN === 0 && (end || d <= CFG.maxDays)) {
         // integracao: o letreiro e a primeira mensagem da manha; as faixas (capitulo, manutencao, problema do dia)
         // esperam ele sair (antes a faixa cobria 'Day 11')
         if (roll.open || chCardOpen()) bannerWait = d; else if (bannerWait === d) { bannerWait = -1; showDayBanner(s); if (!sayEl.classList.contains('show')) sayUntil = Math.max(sayUntil, nowMs() + 1300); }
@@ -6896,7 +6924,7 @@
       // o primeiro dia em que um jam conta: na corrida, quando passa a valer (o plano da manha ja tem as suas dicas)
       if (s.phase === 'run' && G > 0 && d === G + 1 && !seen('strikes6')) { if (sayShown(STR.strikesFrom(strikeMax()), 4200)) markSeen('strikes6'); return; }
       if (s.phase !== 'plan' || roll.open || growPend || bootFrames >= 0) return;
-      if (d > 1 && CH_LEN < CFG.maxDays && (d - 1) % CH_LEN === 0 && !seen('chapter' + d) && !chCardOpen()) {
+      if (d > 1 && CH_LEN < CFG.maxDays && (d - 1) % CH_LEN === 0 && (end || d <= CFG.maxDays) && !seen('chapter' + d) && !chCardOpen()) {
         if (sayShown(STR.strikesBack(CFG.ironMode ? 1 : CFG.maxStrikes | 0), 3600)) markSeen('chapter' + d);
       }
     }

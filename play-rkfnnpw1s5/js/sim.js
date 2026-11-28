@@ -65,8 +65,11 @@
       nodes: {}, edges: {}, cars: [], time: 0, day: 1,
       seed: (seed >>> 0) || 1,
       stats: null,
-      params: { spawnMul: 1, speedMul: 1, patienceMul: 1, waveMul: 1 }
+      params: { spawnMul: 1, speedMul: 1, patienceMul: 1, waveMul: 1, maxCars: 0, endless: false }
     };
+    function rateFor(day) {
+      return (w.params && w.params.endless && CRZ.endlessSpawnRate) ? CRZ.endlessSpawnRate(day) : CFG.spawnRate(day);
+    }
     var nextNode = 1, nextEdge = 1, nextCar = 1;
     var nodeList = [], edgeList = [], portalList = [];
     var nIdx = {};             // id do no -> indice em nodeList
@@ -338,7 +341,7 @@
       pairs = [];
       var v = CFG.speedFree * w.params.speedMul, v0 = Math.min(CFG.speedSlow, v);
       var accLoss = (v - v0) / v * (v - v0) / (2 * v); // arrancada de speedSlow a v com aceleracao v/s
-      var r0 = Math.max(0.05, CFG.spawnRate(w.day) * w.params.spawnMul);
+      var r0 = Math.max(0.05, rateFor(w.day) * w.params.spawnMul);
       for (i = 0; i < nodeList.length; i++) {
         n = nodeList[i];
         if (n.tool !== 'light' || n.pair == null) continue;
@@ -985,7 +988,8 @@
     }
 
     function spawn(dt) {
-      var rate = CFG.spawnRate(w.day) * w.params.spawnMul * dt;
+      var rate = rateFor(w.day) * w.params.spawnMul * dt;
+      var maxCars = w.params.maxCars > 0 ? w.params.maxCars : 0;
       // trafego da cidade dividido: acima de portalRef(dia) portais da cidade, cada um gera menos,
       // o total fica o mesmo e se espalha por todos os ramos. Portais do jogador (rate < 1) somam por fora.
       // So vale com w.portalNorm (o Game liga); mundo criado direto pelo Sim gera como antes.
@@ -1029,6 +1033,7 @@
         ns.pendLost = false;
         var l = laneFor(code);
         if (l < 0) continue;
+        if (maxCars > 0 && w.cars.length >= maxCars) continue;
         var via = pickVia(p, ns.pendDest), cv = via >= 0 ? route(p.id, -1, via) : -1;
         if (cv >= 0 && laneFor(cv) >= 0) { code = cv; l = laneFor(cv); } else via = -1;
         var car = { id: nextCar++, edgeId: 0, dir: 1, s: 0, lane: 0, speed: CFG.speedSlow,
@@ -1049,7 +1054,7 @@
     // CFG.patienceDay (opcional, difficulty.js): fator por dia (indice dia - 1). Antes o limite de perdido
     // e o teto 0.95 ignoravam patienceDay: com fator < 0.95 a espera no portal passava de 1 e travava o portal.
     function patNow() {
-      var pd = CFG.patienceDay && CFG.patienceDay[w.day - 1];
+      var pd = CRZ.atDay ? CRZ.atDay(CFG.patienceDay, w.day, 1) : (CFG.patienceDay && CFG.patienceDay[w.day - 1]);
       return CFG.patience * (pd > 0 ? pd : 1) * w.params.patienceMul;
     }
     // w_cars: CFG.patienceLate = { fromDay, mul } (difficulty.js latePatience): com mais carros na cidade, o cruzamento
@@ -1736,6 +1741,8 @@
       s.seed = w.seed; s.day = w.day;
       s.params = { spawnMul: w.params.spawnMul, speedMul: w.params.speedMul,
         patienceMul: w.params.patienceMul, waveMul: w.params.waveMul };
+      if (w.params.maxCars > 0) s.params.maxCars = w.params.maxCars;
+      if (w.params.endless) s.params.endless = true;
       return s;
     };
     w.restore = function (snap) {
@@ -1760,6 +1767,7 @@
       for (var k in w.nodes) { var nn = w.nodes[k]; if (nn.pair != null && !w.nodes[nn.pair]) nn.pair = null; }
       if (snap.seed != null) w.seed = snap.seed >>> 0;
       if (snap.day != null) w.day = snap.day;
+      w.params.maxCars = 0; w.params.endless = false;
       if (snap.params) for (var p in w.params) if (snap.params[p] != null) w.params[p] = snap.params[p];
       rebuild();
       w.resetDay();

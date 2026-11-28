@@ -70,6 +70,51 @@
     out.sort(function (p, q) { return p.day - q.day || TYPE_ORDER.indexOf(p.type) - TYPE_ORDER.indexOf(q.type); });
     return out;
   }
+  // w_endless: do capitulo 4 em diante, sorteia do mesmo catalogo do capitulo 3 (sem alterar schedule 1..30)
+  function scheduleChapter(seed, ch, test) {
+    var E = EC(), out = [];
+    if (!E || E.on === false || !Array.isArray(E.calendar)) return out;
+    var L = chapterLen(), hat = Array.isArray(E.hat) && E.hat.length ? E.hat : TYPE_ORDER;
+    var cap = (test && E.testPerDayMax > 0 ? E.testPerDayMax : E.perDayMax) || 2;
+    var rnd = rngFor(seed, ch, 911), perDay = {}, refCh = 0, i;
+    for (i = 0; i < E.calendar.length; i++) if ((E.calendar[i].ch | 0) > refCh) refCh = E.calendar[i].ch | 0;
+    refCh = Math.min(3, refCh || 3);
+    for (i = 0; i < E.calendar.length; i++) {
+      var en = E.calendar[i];
+      if ((en.ch | 0) !== refCh) continue;
+      var rel = L === 10 ? (en.rel | 0) : Math.max(1, Math.min(L, Math.round((en.rel | 0) * L / 10)));
+      var day = (ch - 1) * L + rel, k = Math.floor(rnd() * hat.length);
+      if (!(day >= 1)) continue;
+      var have = perDay[day] || (perDay[day] = []);
+      if (have.length >= cap) continue;
+      var type = en.type;
+      if (type === 'hat') {
+        for (var j = 0; j < hat.length; j++) { type = hat[(k + j) % hat.length]; if (have.indexOf(type) < 0) break; }
+      }
+      if (!typeDef(type) || have.indexOf(type) >= 0) continue;
+      have.push(type);
+      out.push({ day: day, type: type, size: 1, node: null, edge: null, x: 0, y: 0, ran: false, prep: false });
+    }
+    out.sort(function (p, q) { return p.day - q.day || TYPE_ORDER.indexOf(p.type) - TYPE_ORDER.indexOf(q.type); });
+    return out;
+  }
+  function ensureChapter(g, ch) {
+    var s = S(g); if (!s || !(g && g.state && g.state.mode === 'endless') || !enabled()) return;
+    var c = CFG(), baseCh = Math.ceil((c.maxDays || 30) / chapterLen());
+    if (!(s.chMax > 0)) {
+      var m = baseCh;
+      for (var i = 0; i < s.list.length; i++) { var lc = chapterOf(s.list[i].day); if (lc > m) m = lc; }
+      s.chMax = m;
+    }
+    while (s.chMax < ch) {
+      s.chMax++;
+      var add = scheduleChapter((g.world && g.world.seed) >>> 0 || 1, s.chMax, s.test);
+      for (var j = 0; j < add.length; j++) s.list.push(add[j]);
+    }
+  }
+  function ensureDay(g, day) {
+    if (g && g.state && g.state.mode === 'endless' && day > 0) ensureChapter(g, chapterOf(day));
+  }
 
   // ---------- leitura do mapa ----------
   function deg(n) { return n && n.edges ? n.edges.length : 0; }
@@ -297,6 +342,8 @@
   function onPlan(g) {
     var s = S(g); if (!s) return;
     var day = g.state.day;
+    ensureDay(g, day);
+    ensureDay(g, day + 1);
     evsOn(g, day).forEach(function (ev) { if (placed(ev)) resolve(g, ev); });
     evsOn(g, day + 1).forEach(function (ev) { if (!placed(ev)) place(g, ev); else resolve(g, ev); });
     if (s.fest && s.fest.day !== day) s.fest = null;
@@ -385,8 +432,9 @@
   // o evento de amanha com o lugar (ou null). Lugar ainda nao escolhido (load antigo, chamada fora de ordem): escolhe
   function tomorrow(g) {
     var s = S(g); if (!s || !g.state || !enabled()) return null;
-    var c = CFG(), d = g.state.day + 1;
-    if (d > (c.maxDays || 12) || g.state.phase === 'over') return null;
+    var c = CFG(), d = g.state.day + 1, endless = g.state.mode === 'endless';
+    if ((!endless && d > (c.maxDays || 12)) || g.state.phase === 'over') return null;
+    ensureDay(g, d);
     var L = evsOn(g, d);
     L.forEach(function (ev) { if (!placed(ev)) place(g, ev); });
     var ev = first(L);
@@ -603,12 +651,14 @@
   // ---------- save ----------
   function forSave(g) {
     var s = S(g); if (!s) return undefined;
-    return { v: 1, test: !!s.test, first: !!s.first, fest: s.fest ? { day: s.fest.day, id: s.fest.id } : null,
-             list: s.list.map(function (ev) { return { day: ev.day, type: ev.type, size: ev.size, node: ev.node, edge: ev.edge, x: ev.x, y: ev.y, ran: !!ev.ran, prep: !!ev.prep, boost: ev.boost ? true : undefined }; }) };   // w_bugs15: boost = prepared by the Boost its note asked for (optional field)
+    var o = { v: 1, test: !!s.test, first: !!s.first, fest: s.fest ? { day: s.fest.day, id: s.fest.id } : null,
+              list: s.list.map(function (ev) { return { day: ev.day, type: ev.type, size: ev.size, node: ev.node, edge: ev.edge, x: ev.x, y: ev.y, ran: !!ev.ran, prep: !!ev.prep, boost: ev.boost ? true : undefined }; }) };   // w_bugs15: boost = prepared by the Boost its note asked for (optional field)
+    if (s.chMax > Math.ceil((CFG().maxDays || 30) / chapterLen())) o.chMax = s.chMax;
+    return o;
   }
   // campo do save conferido: devolve o estado limpo ou null (estragado ou de outra versao)
-  function normalize(d) {
-    var c = CFG(), maxDays = c.maxDays || 12;
+  function normalize(d, opts) {
+    var c = CFG(), maxDays = (opts && opts.endless) ? 9999 : (c.maxDays || 12);
     if (!isObj(d) || d.v !== 1 || !Array.isArray(d.list) || d.list.length > 4 * maxDays) return null;
     if (d.test !== undefined && typeof d.test !== 'boolean') return null;
     if (d.first !== undefined && typeof d.first !== 'boolean') return null;
@@ -626,12 +676,14 @@
     }
     var f = d.fest;
     if (f !== null && f !== undefined && !(isObj(f) && nat(f.day) && nat(f.id))) return null;
-    return { v: 1, test: !!d.test, list: list, first: !!d.first, fest: f ? { day: f.day, id: f.id } : null };
+    var out = { v: 1, test: !!d.test, list: list, first: !!d.first, fest: f ? { day: f.day, id: f.id } : null };
+    if (nat(d.chMax) && d.chMax >= 1) out.chMax = d.chMax;
+    return out;
   }
   // load: o save traz os eventos (conferidos) ou e antigo/estragado. Sem campo: calendario da semente, sem os dias que
   // ja nao podem ser avisados (o que nunca foi mostrado nao existe)
   function load(g, data) {
-    var st = g.state, n = normalize(data);
+    var st = g.state, endless = !!(st && st.mode === 'endless'), n = normalize(data, { endless: endless });
     if (n) {
       // lugar que nao existe mais no mundo carregado: some (sem marca, sem efeito)
       n.list.forEach(function (ev) {
@@ -648,7 +700,7 @@
       // save antigo ja no fim do primeiro evento: o ensino da primeira vez continua valendo
     }
     // plano carregado: amanha precisa do lugar (save de antes da escolha)
-    if (st.phase === 'plan') evsOn(g, st.day + 1).forEach(function (ev) { if (!placed(ev)) place(g, ev); });
+    if (st.phase === 'plan') { ensureDay(g, st.day + 1); evsOn(g, st.day + 1).forEach(function (ev) { if (!placed(ev)) place(g, ev); }); }
     return st.events;
   }
 
