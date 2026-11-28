@@ -145,7 +145,7 @@
       lake:    { name: 'Lake town', terrain: 'lake' }
     },
     archetypeList: ['classic', 'river', 'park'],
-    // Expanded maps are randomly selected after onboarding. Branch is not production until QA approval.
+    // Expanded maps: all eight are drawn at random from the first match on (lote 49, owner request).
     terrainExpansionEnabled: true,
     terrainExpansionList: ['classic','river','park','rail','twin','mixed','bend','lake'],
     // v2: semaforos ligados por uma rua pareiam sozinhos (o botao "Pair lights" saiu). false volta ao par manual

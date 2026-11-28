@@ -138,14 +138,15 @@
       if (!(seed > 0)) { seed = (Date.now() % 2147483647) + 1; }
       var played = false;
       try { played = localStorage.getItem(PLAYED_KEY) === '1'; } catch (e) {}
-      // v2: a primeira partida e sempre a Classica (v2/nivel.md 3.2: aprende o jogo antes da forma); depois, a semente
+      // lote 49 (pedido do dono): com a expansao ligada o mapa e sorteado entre os oito desde a primeira partida (a cena de ensino
+      // do dia 2 foi conferida nos oito, 15 sementes cada). Sem a expansao: primeira partida Classica, depois a semente
       // escolhe (game.js archetypeOf). ?arch=rail|twin|mixed|bend|lake (experimental); ?arch=expanded sorteia todos
       var archP = devHost() ? param('arch') : null;
       // w_modes: One strike liga a regra de um crash (CFG.ironMode); Today's city tira a semente e a forma da data local
       var mode = launch || 'free', date = null;
       if (Modes) { ironFor(mode); }
       if (Modes && mode === 'daily') { date = Modes.todayStr(); seed = Modes.dateSeed(date); }
-      game = CRZ.Game.create(seed, { teach: !played, archetype: archP || (played || mode === 'daily' ? (CRZ.CFG.terrainExpansionEnabled ? 'expanded' : 'seed') : 'classic'), mode: mode, date: date });   // a cena do dia 2 e so do primeiro jogo
+      game = CRZ.Game.create(seed, { teach: !played, archetype: archP || (CRZ.CFG.terrainExpansionEnabled ? 'expanded' : (played || mode === 'daily' ? 'seed' : 'classic')), mode: mode, date: date });   // a cena do dia 2 e so do primeiro jogo
     }
 
     var audio = CRZ.Audio.create();
