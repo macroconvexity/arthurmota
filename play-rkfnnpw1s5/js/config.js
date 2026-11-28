@@ -143,6 +143,12 @@
     // v2: semaforos ligados por uma rua pareiam sozinhos (o botao "Pair lights" saiu). false volta ao par manual
     lightsAutoPair: true,
 
+    // w_pile: aviso de cruzamentos novos sem sinal que se acumulam (ui.js). warnAt: a partir de quantos o chip, a faixa da manha e o
+    // resumo do dia falam (chance por dia de o jam fatal ser num cruzamento sem peca: 1,1% com 1, 1,5% com 3, 2,0% com 4, 4,5% com 6 ou
+    // mais). busyAt: pico de ontem (0 a 1) a partir do qual um cruzamento novo sem sinal conta como 'busy' (anel vermelho, 0,6).
+    // Numeros e controles em web/dev/review/w_pile/REPORT.md
+    pile: { warnAt: 4, busyAt: 0.6 },
+
     // regras de cruzamento (segundos). Dono da implementacao: sim.js
     junction: {
       // 2026-11-09: do dia 4 em diante (late) o cruzamento sem sinal com 3+ entradas ocupadas fica bem mais

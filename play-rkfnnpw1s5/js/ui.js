@@ -591,6 +591,15 @@
     newJChip: function (n) { return n + (n === 1 ? ' new crossing' : ' new crossings'); },
     newJChipAria: function (n) { return n + (n === 1 ? ' new crossing' : ' new crossings') + ' without a sign. Tap to show it.'; },
     newJTip: 'New crossing. Give it a sign before the day starts.',
+    // w_pile: cruzamentos novos sem sinal que se acumulam (CFG.pile). Numeros que sustentam cada frase: web/dev/review/w_pile/REPORT.md
+    newJPile: function (n) { return 'New crossings without a sign: ' + n + '. They jam about twice as often.'; },
+    newJPileAria: function (n) { return 'New crossings without a sign: ' + n + '. They jam about twice as often. Tap to show the busiest.'; },
+    todoNewBusy: 'A busy crossing has no sign. Sign it before tomorrow \u203a',
+    todoNewPile: function (n) { return n + ' new crossings have no sign. They jam about twice as often \u203a'; },
+    newJChipPile: function (n, b) { return n + (n === 1 ? ' new crossing' : ' new crossings') + (b > 0 ? ', ' + b + ' busy' : ' without a sign'); },
+    newJChipPileAria: function (n, b) { return n + (n === 1 ? ' new crossing' : ' new crossings') + ' without a sign' + (b > 0 ? ', ' + b + ' busy yesterday' : '') + '. Tap to show the busiest.'; },
+    pileStripBusy: 'Busy yesterday, no sign. It will most likely be busy again. Start here.',
+    pileStrip: function (n) { return n + ' new crossings have no sign. They jam about twice as often.'; },
     daysLegend: 'Each square is a day: red = a strike day',
     // w_medals: marcas do fim (uma frase do que o jogador fez, que o jogo confere), recordes no aparelho e o porque da vitoria
     marks: {
@@ -3704,7 +3713,7 @@
     // tipDay/askDay: a dica do Easy e a confirmacao do Play ja sairam neste dia (sobrevive ao recarregar)
     function saveNewJ() {
       lsSet(NEWJ_KEY, JSON.stringify({ _s: game.world && game.world.seed, ids: newJ.ids, snap: newJ.snap,
-        tipDay: njDay ? njDay.tip : -1, askDay: njDay ? njDay.ask : -1 }));
+        tipDay: njDay ? njDay.tip : -1, askDay: njDay ? njDay.ask : -1, pileDay: njDay ? njDay.pile : -1 }));
     }
     function junctionIds() {
       var w = game.world, out = {}, q;
@@ -3768,6 +3777,7 @@
     });
     on(newJEl, 'click', function () {
       var L = newJList(), n = L[0];
+      if (pileOn(L.length)) { L = pileSort(game.state, L); n = L[0]; }
       if (!n) return;
       snd('select');
       try { if (render && render.focus) camByUser(function () { render.focus(n.x, n.y, focusZoom(), !reducedMotion()); }); } catch (e) { warnOnce('render.focus', e); }
@@ -3783,12 +3793,13 @@
     // ---- (4b) plano: cruzamentos desta manha (crescimento, ou rua do jogador que cortou outra) sem sinal ----
     // Marca NEW no mapa (render: overlay.newJ), chip "N new crossings", dica do Easy, confirmacao leve do Play.
     // A marca some com ferramenta no no e quando o dia comeca (overlay.newJ so vale no plano).
-    var njDay = { day: -1, at: 0, tip: -1, ask: -1, asking: false, idx: 0 };
+    var njDay = { day: -1, at: 0, tip: -1, ask: -1, pile: -1, asking: false, idx: 0 };
     (function loadNjDay() {
       var o = null; try { o = JSON.parse(lsGet(NEWJ_KEY) || 'null'); } catch (e) {}
       if (o && o._s === (game.world && game.world.seed)) {
         if ((o.tipDay | 0) > 0) njDay.tip = o.tipDay | 0;
         if ((o.askDay | 0) > 0) njDay.ask = o.askDay | 0;
+        if ((o.pileDay | 0) > 0) njDay.pile = o.pileDay | 0;
       }
     })();
     function easyOn() { var d = CFG.difficultyName; return !d || d === 'easy'; }
@@ -3807,10 +3818,26 @@
       for (q in now) if (now.hasOwnProperty(q) && !newJ.snap[q] && !newJ.ids[q]) { newJ.ids[q] = d; ch = true; }
       newJ.snap = now; if (ch) saveNewJ();
     }
+    // w_pile: o aviso de cruzamentos novos sem sinal acumulados. Acende com CFG.pile.warnAt ou mais (a subida da contagem dias
+    // seguidos foi medida e nao prediz nada alem da propria contagem: web/dev/review/w_pile/REPORT.md). Sem CFG.pile, ou com
+    // Guidance desligado, nada muda
+    function pileCfg() { var P = CFG.pile; return P && P.warnAt > 0 ? P : null; }
+    function pileOn(n) { var P = pileCfg(); return !!P && gOn() && n >= P.warnAt; }
+    // o ranking do aviso: o pico de ontem (st.hot) do mais alto ao mais baixo; empate, o mais antigo. Medido contra o mais antigo,
+    // o mais novo, o de mais ruas e o sorteio em web/dev/review/w_pile/REPORT.md
+    function pileSort(s, L) {
+      return L.slice().sort(function (a, b) { return (heatOf(s, b) - heatOf(s, a)) || ((newJ.ids[a.id] - newJ.ids[b.id])) || (a.id - b.id); });
+    }
+    function pileBusy(s, L) {
+      var P = pileCfg(), c = 0, i; if (!P) return 0;
+      for (i = 0; i < L.length; i++) if (heatOf(s, L[i]) >= P.busyAt) c++;
+      return c;
+    }
     function morningList(s) {
       if (!s || s.phase !== 'plan' || (s.day | 0) < ASSIST_DAY) return [];
       // a marca NEW fica entre os dias enquanto o cruzamento segue sem sinal (antes sumia no dia seguinte)
-      return newJList();
+      var L = newJList();
+      return pileOn(L.length) ? pileSort(s, L) : L;
     }
     // pontos sobrando: alguma ferramenta de cruzamento liberada cabe no orcamento (ou o semaforo gratis)
     function signAffordable(s) {
@@ -3836,11 +3863,13 @@
       }
       if (s.phase === 'plan' && njDay.day !== (s.day | 0)) { njDay.day = s.day | 0; njDay.at = now; njDay.asking = false; njDay.idx = 0; }
       if (s.phase !== 'plan') njDay.asking = false;
-      var key = ids.length ? ids.length + '' : '';
+      // w_pile: com o aviso aceso o chip diz quantos estavam cheios ontem ('5 new crossings, 2 busy') e o toque vai ao mais cheio
+      var pile = pileOn(ids.length), pBusy = pile ? pileBusy(s, L) : 0;
+      var key = ids.length ? ids.length + (pile ? 'p' + pBusy : '') : '';
       if (key !== njChipKey) {
         njChipKey = key;
-        njChipEl.textContent = ids.length ? STR.newJChip(ids.length) : '';
-        njChipEl.setAttribute('aria-label', ids.length ? STR.newJChipAria(ids.length) : '');
+        njChipEl.textContent = !ids.length ? '' : pile ? STR.newJChipPile(ids.length, pBusy) : STR.newJChip(ids.length);
+        njChipEl.setAttribute('aria-label', !ids.length ? '' : pile ? STR.newJChipPileAria(ids.length, pBusy) : STR.newJChipAria(ids.length));
         njChipEl.classList.toggle('gone', !ids.length);
         layoutDirty = true;
       }
@@ -3856,6 +3885,17 @@
         say(STR.newJFirst, 4000, njValid); pulseEl(njChipEl);
         showJunction(L[0], false);
         emitUI('newJunctionTip', { id: L[0].id, count: ids.length });
+        njDay.pile = s.day | 0; saveNewJ();   // the first-time tip is today's word on it; the pile strip starts tomorrow
+      }
+      // w_pile: the morning strip, once a day, when the count is at CFG.pile.warnAt or more.
+      // It points at the most urgent crossing (the busiest yesterday); a calm pile only says the count
+      if (pile && njDay.pile !== (s.day | 0) && seen('newJTip') && now - njDay.at >= 1400 && !modal() && !tutorTalking() &&
+          !holdUntil && !(sayUntil && now < sayUntil)) {
+        njDay.pile = s.day | 0; saveNewJ();
+        var top = L[0], busyTop = !!top && heatOf(s, top) >= CFG.pile.busyAt;
+        say(busyTop ? STR.pileStripBusy : STR.pileStrip(ids.length), 4000, function () { return game.state.phase === 'plan' && morningList(game.state).length > 0; });
+        pulseEl(njChipEl); showJunction(top, false);
+        emitUI('newJunctionPile', { id: top.id, count: ids.length, busy: pBusy });
       }
     }
     // Play no plano: true = pediu confirmacao (nao comeca). So no Easy, uma vez por dia, com pontos sobrando
@@ -5923,13 +5963,16 @@
       if (cd) { headEl.textContent = STR.chapterDone(cd.chapter); headEl.classList.remove('gone'); cTxt = STR.chapterLine(cd.cars, cd.strikesLeft, CFG.maxStrikes | 0); }
       closeEl.textContent = cTxt; closeEl.classList.toggle('gone', !cTxt);
       // (4) cruzamentos que o crescimento criou e seguem sem sinal (dia 4+, nao no ultimo dia)
-      var nj = (s.day | 0) >= ASSIST_DAY && !lastDayOf(s) ? newJList().length : 0;
-      newJEl.textContent = nj ? STR.newJ(nj) : '';
-      newJEl.setAttribute('aria-label', nj ? STR.newJAria(nj) : '');
+      var njL = (s.day | 0) >= ASSIST_DAY && !lastDayOf(s) ? newJList() : [], nj = njL.length;
+      // w_pile: com CFG.pile.warnAt ou mais, a linha diz o que a medida diz e o toque vai ao mais cheio de hoje
+      var pileS = pileOn(nj);
+      if (pileS) njL = pileSort(s, njL);
+      newJEl.textContent = nj ? (pileS ? STR.newJPile(nj) : STR.newJ(nj)) : '';
+      newJEl.setAttribute('aria-label', nj ? (pileS ? STR.newJPileAria(nj) : STR.newJAria(nj)) : '');
       newJEl.classList.toggle('gone', !nj);
       // (A4/A5) um chip de acao so: NEW sem sinal primeiro; senao o cruzamento mais cheio do dia
       todoKind = null; todoNode = null;
-      if (nj) { todoKind = 'newj'; todoNode = newJList()[0] || null; todoEl.textContent = STR.todoNew(nj); }
+      if (nj) { todoKind = 'newj'; todoNode = njL[0] || null; todoEl.textContent = !pileS ? STR.todoNew(nj) : (todoNode && heatOf(s, todoNode) >= CFG.pile.busyAt ? STR.todoNewBusy : STR.todoNewPile(nj)); }
       else if (worst && wh >= JAM_SUMMARY && !lastDayOf(s) && !(worst.portal && degOf(worst) < 2)) { todoKind = 'busy'; todoNode = worst; todoEl.textContent = STR.todoBusy; }
       todoEl.classList.toggle('gone', !todoKind);
       var lw = game.world && game.world.stats;
