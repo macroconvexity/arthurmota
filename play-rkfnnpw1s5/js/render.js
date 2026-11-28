@@ -1188,7 +1188,9 @@
     // w_sy (CFG.yieldPoint): a pointed Yield is drawn on each road that waits (the same triangle, smaller, at the mouth of that road), none in
     // the middle: the road without a sign keeps going. YP.at: centre of the sign along the road (x pictogram size); YP.s: its size. game.yieldAxes
     // is null with the switch off, and then nothing here runs. ypInfo is read once per frame per crossing
-    var YP = { at: 1.05, s: 0.7 }, ypCache = { f: -1, m: {} }, ypFrame = 0;
+    // w_fix17 (cego 17, s058): at the default zoom the 0.7 triangle hugging the crossing did not say which road waits. The numbers live in
+    // CFG.yieldPoint.mark (full sign size, further down the waiting road); the car's stop ramp below reads the same YP
+    var YPM = (CFG.yieldPoint && CFG.yieldPoint.mark) || {}, YP = { at: YPM.at > 0 ? YPM.at : 1.05, s: YPM.s > 0 ? YPM.s : 0.7 }, ypCache = { f: -1, m: {} }, ypFrame = 0;
     function ypInfo(n) {
       if (!n || n.tool !== 'yield' || !game || typeof game.yieldAxes !== 'function') return null;
       if (ypCache.f !== ypFrame) ypCache = { f: ypFrame, m: {} };

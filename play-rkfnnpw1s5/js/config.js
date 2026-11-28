@@ -171,7 +171,9 @@
     // the next-day line adds the main road's seconds when it fits. false = today's game (nothing of this runs)
     // sideMax: with on, the side street's turn comes after this many s of waiting (minorMaxWait, 12, stays for the game without the switch)
     // sameBelow: the card's seconds per road show one number when the two are less than this many s apart (never two numbers that rank one road above the other)
-    yieldPoint: { on: true, sideMax: 6, sameBelow: 4 },
+    // w_fix17 (cego 17, s058): mark = the triangle at the mouth of each waiting road (render.js): at = its centre along the road, s = its
+    // size, both x the pictogram size. 1.05/0.7 could not be read at the default zoom on 390x844 (web/dev/review/w_fix17)
+    yieldPoint: { on: true, sideMax: 6, sameBelow: 4, mark: { at: 1.5, s: 1.0 } },
 
     // regras de cruzamento (segundos). Dono da implementacao: sim.js
     junction: {

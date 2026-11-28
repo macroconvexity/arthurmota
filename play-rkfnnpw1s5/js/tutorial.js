@@ -1219,6 +1219,12 @@
       // nv7: no dia 1 a velocidade fica em 1x ate o balao de SPEED ser lido
       speedLocked: function () { var s = st(c); return !!started && !data.skipped && !guideOff() && (s.day || 0) === 1 && s.phase === 'run' && !data.seen.speedTaught; },
       bump: function () { c.touchAt = c.clock; try { if (view.again) view.again(); } catch (e) {} },
+      // w_fix17 (cego 17, s105): a tool card or tip with Got it never eats the Play tap: the tap is its Got it, and the Play goes on
+      // (the same close as a road built or a piece placed). Script steps keep holding the Play
+      playTap: function () {
+        if (!c.cur || hidden || !(c.cur.step.kind === 'tool' || c.cur.step.kind === 'tip') || info().btn !== 'ok') return false;
+        finish(); return true;
+      },
       handleUI: handleUI, handleGame: handleGame, cont: cont, slow: slow, tap: tap, skipTap: skipTap, dimTap: dimTap,
       touched: function () { c.touchAt = c.clock; }, againCount: function () { return c.againN || 0; },
       current: function () { return c.cur ? c.cur.step.id : null; },
@@ -1992,7 +1998,7 @@
     try { if (o.game && o.game.onEvent) offGame = o.game.onEvent(function (ev) { m.handleGame(ev); }); } catch (e) {}
     return {
       start: m.start, skip: m.skip, replay: m.replay, isActive: m.isActive, inScript: m.inScript, wasSkipped: m.wasSkipped, update: m.update,
-      blocksPlay: m.blocksPlay, bump: m.bump, speedLocked: m.speedLocked,
+      blocksPlay: m.blocksPlay, playTap: m.playTap, bump: m.bump, speedLocked: m.speedLocked,
       current: m.current,
       destroy: function () { if (doc) { doc.removeEventListener('crz:ui', onUI); try { doc.removeEventListener('pointerdown', onTouchAny, true); } catch (e) {} } try { if (typeof offGame === 'function') offGame(); } catch (e) {} m.destroy(); }
     };

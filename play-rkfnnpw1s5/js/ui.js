@@ -138,7 +138,9 @@
       var n = STR.tools[id] || id;
       if (id === 'upgrade' || id === 'oneway') return 'Pick ' + n + ', then tap a road.';
       if (id === 'cross') return 'Pick ' + n + ', then tap a crossing.';
-      if (id === 'light') return 'Pick ' + n + ', then tap the busiest crossing.';   // w_light: o pulso marca o mais cheio de ontem
+      // w_fix17 (cego 17, s036/s038): the busiest crossing was 'worse' for a light in 45 of 48 games on its first day (8 maps x 6 seeds,
+      // web/dev/review/w_fix17/measure_light_step.js): the step no longer calls it the place; the pulse still marks the busiest
+      if (id === 'light') return 'Pick ' + n + ', then tap a crossing to see if it helps there.';
       return 'Pick ' + n + ', then tap a crossing that has no sign.';
     },
     nextFirst: 'Pick Road, drag from a road end, then tap \u25b6\ufe0e.',
@@ -3811,8 +3813,8 @@
       emitUI('summaryTodo', { kind: todoKind, id: n.id });
     });
     on(newJEl, 'click', function () {
-      var L = newJList(), n = L[0];
-      if (pileOn(L.length)) { L = pileSort(game.state, L); n = L[0]; }
+      var L = newJList(), n = L[0], LH = pileHelp(L);
+      if (pileOn(LH.length)) { L = pileSort(game.state, LH); n = L[0]; }
       if (!n) return;
       snd('select');
       try { if (render && render.focus) camByUser(function () { render.focus(n.x, n.y, focusZoom(), !reducedMotion()); }); } catch (e) { warnOnce('render.focus', e); }
@@ -3858,6 +3860,15 @@
     // Guidance desligado, nada muda
     function pileCfg() { var P = CFG.pile; return P && P.warnAt > 0 ? P : null; }
     function pileOn(n) { var P = pileCfg(); return !!P && gOn() && n >= P.warnAt; }
+    // w_fix17 (cego 17, s042): a crossing whose replay already says no piece does better here (game.choiceFor: dead, no extra row)
+    // is not in the pile count nor its 'jam about twice as often' line: the card there says 'No piece does better here.'.
+    // Unknown (no replay yet) still counts, as before
+    function noHelpJ(n) {
+      var c = null; if (!n || typeof game.choiceFor !== 'function') return false;
+      try { c = game.choiceFor(n.id); } catch (e) { warnOnce('game.choiceFor', e); }
+      return !!c && !c.pending && !!c.dead && !(c.extra && c.extra.length);
+    }
+    function pileHelp(L) { return L.filter(function (n) { return !noHelpJ(n); }); }
     // o ranking do aviso: o pico de ontem (st.hot) do mais alto ao mais baixo; empate, o mais antigo. Medido contra o mais antigo,
     // o mais novo, o de mais ruas e o sorteio em web/dev/review/w_pile/REPORT.md
     function pileSort(s, L) {
@@ -3871,8 +3882,8 @@
     function morningList(s) {
       if (!s || s.phase !== 'plan' || (s.day | 0) < ASSIST_DAY) return [];
       // a marca NEW fica entre os dias enquanto o cruzamento segue sem sinal (antes sumia no dia seguinte)
-      var L = newJList();
-      return pileOn(L.length) ? pileSort(s, L) : L;
+      var L = newJList(), LH = pileHelp(L);
+      return pileOn(LH.length) ? pileSort(s, LH).concat(L.filter(function (n) { return LH.indexOf(n) < 0; })) : L;
     }
     // pontos sobrando: alguma ferramenta de cruzamento liberada cabe no orcamento (ou o semaforo gratis)
     function signAffordable(s) {
@@ -3899,12 +3910,12 @@
       if (s.phase === 'plan' && njDay.day !== (s.day | 0)) { njDay.day = s.day | 0; njDay.at = now; njDay.asking = false; njDay.idx = 0; }
       if (s.phase !== 'plan') njDay.asking = false;
       // w_pile: com o aviso aceso o chip diz quantos estavam cheios ontem ('5 new crossings, 2 busy') e o toque vai ao mais cheio
-      var pile = pileOn(ids.length), pBusy = pile ? pileBusy(s, L) : 0;
-      var key = ids.length ? ids.length + (pile ? 'p' + pBusy : '') : '';
+      var LH = pileHelp(L), pile = pileOn(LH.length), pBusy = pile ? pileBusy(s, LH) : 0;
+      var key = ids.length ? ids.length + (pile ? 'p' + LH.length + 'b' + pBusy : '') : '';
       if (key !== njChipKey) {
         njChipKey = key;
-        njChipEl.textContent = !ids.length ? '' : pile ? STR.newJChipPile(ids.length, pBusy) : STR.newJChip(ids.length);
-        njChipEl.setAttribute('aria-label', !ids.length ? '' : pile ? STR.newJChipPileAria(ids.length, pBusy) : STR.newJChipAria(ids.length));
+        njChipEl.textContent = !ids.length ? '' : pile ? STR.newJChipPile(LH.length, pBusy) : STR.newJChip(ids.length);
+        njChipEl.setAttribute('aria-label', !ids.length ? '' : pile ? STR.newJChipPileAria(LH.length, pBusy) : STR.newJChipAria(ids.length));
         njChipEl.classList.toggle('gone', !ids.length);
         layoutDirty = true;
       }
@@ -3928,9 +3939,9 @@
           !holdUntil && !(sayUntil && now < sayUntil)) {
         njDay.pile = s.day | 0; saveNewJ();
         var top = L[0], busyTop = !!top && heatOf(s, top) >= CFG.pile.busyAt;
-        say(busyTop ? STR.pileStripBusy : STR.pileStrip(ids.length), 4000, function () { return game.state.phase === 'plan' && morningList(game.state).length > 0; });
+        say(busyTop ? STR.pileStripBusy : STR.pileStrip(LH.length), 4000, function () { return game.state.phase === 'plan' && morningList(game.state).length > 0; });
         pulseEl(njChipEl); showJunction(top, false);
-        emitUI('newJunctionPile', { id: top.id, count: ids.length, busy: pBusy });
+        emitUI('newJunctionPile', { id: top.id, count: LH.length, busy: pBusy });
       }
     }
     // Play no plano: true = pediu confirmacao (nao comeca). So no Easy, uma vez por dia, com pontos sobrando
@@ -4778,6 +4789,9 @@
     on(playBtn, 'click', function () {
       playTapAt = nowMs();
       if (confirmOpen()) return;   // A3: com a folha aberta o Play (e Enter/espaco nele) nao faz nada
+      // w_fix17 (cego 17, s105): a tool card with Got it (One-way, day 9) closes on the Play tap, and the tap still starts the day
+      var tuG = CRZ.app && CRZ.app.tutorial;
+      if (game.state.phase === 'plan' && tuG && typeof tuG.playTap === 'function') { try { if (tuG.playTap()) emitUI('tipClosedByPlay', {}); } catch (e) { warnOnce('tutorial.playTap', e); } }
       // camada modal aberta e o toque chegou ao Play (o balao do roteiro nao cobre a base): o balao pula e soa a
       // recusa, nunca um toque mudo (w_cam, playtest cego 5)
       if (modal()) { snd('deny'); var tuM = CRZ.app && CRZ.app.tutorial; try { if (tuM && tuM.bump) tuM.bump(); } catch (e) { warnOnce('tutorial.bump', e); } emitUI('playBlocked', { reason: 'modal' }); return; }
@@ -6012,14 +6026,14 @@
       // (4) cruzamentos que o crescimento criou e seguem sem sinal (dia 4+, nao no ultimo dia)
       var njL = (s.day | 0) >= ASSIST_DAY && !lastDayOf(s) ? newJList() : [], nj = njL.length;
       // w_pile: com CFG.pile.warnAt ou mais, a linha diz o que a medida diz e o toque vai ao mais cheio de hoje
-      var pileS = pileOn(nj);
-      if (pileS) njL = pileSort(s, njL);
-      newJEl.textContent = nj ? (pileS ? STR.newJPile(nj) : STR.newJ(nj)) : '';
-      newJEl.setAttribute('aria-label', nj ? (pileS ? STR.newJPileAria(nj) : STR.newJAria(nj)) : '');
+      var njH = pileHelp(njL), pileS = pileOn(njH.length);
+      if (pileS) njL = pileSort(s, njH);
+      newJEl.textContent = nj ? (pileS ? STR.newJPile(njH.length) : STR.newJ(nj)) : '';
+      newJEl.setAttribute('aria-label', nj ? (pileS ? STR.newJPileAria(njH.length) : STR.newJAria(nj)) : '');
       newJEl.classList.toggle('gone', !nj);
       // (A4/A5) um chip de acao so: NEW sem sinal primeiro; senao o cruzamento mais cheio do dia
       todoKind = null; todoNode = null;
-      if (nj) { todoKind = 'newj'; todoNode = njL[0] || null; todoEl.textContent = !pileS ? STR.todoNew(nj) : (todoNode && heatOf(s, todoNode) >= CFG.pile.busyAt ? STR.todoNewBusy : STR.todoNewPile(nj)); }
+      if (nj) { todoKind = 'newj'; todoNode = njL[0] || null; todoEl.textContent = !pileS ? STR.todoNew(nj) : (todoNode && heatOf(s, todoNode) >= CFG.pile.busyAt ? STR.todoNewBusy : STR.todoNewPile(njH.length)); }
       else if (worst && wh >= JAM_SUMMARY && !lastDayOf(s) && !(worst.portal && degOf(worst) < 2)) { todoKind = 'busy'; todoNode = worst; todoEl.textContent = STR.todoBusy; }
       todoEl.classList.toggle('gone', !todoKind);
       var lw = game.world && game.world.stats;
@@ -7377,7 +7391,21 @@
       setSel(arm, true);
       scMsg.textContent = sayEl.textContent || ''; scMsg.classList.toggle('gone', !scMsg.textContent);
     }
-    on(scLeave, 'click', function (e) { if (e && e.stopPropagation) e.stopPropagation(); if (nowMs() - scAt < SC_GHOST_MS) return; choiceClose(); snd('select'); emitUI('choiceLeave', { id: scId }); });
+    on(scLeave, 'click', function (e) {
+      if (e && e.stopPropagation) e.stopPropagation(); if (nowMs() - scAt < SC_GHOST_MS) return;
+      var lid = scId, ln0 = lid !== null && game.world.nodes ? game.world.nodes[lid] : null;
+      // w_fix17 (cego 17, s032/s062): Leave it where the card said no piece does better: the crossing is decided. It leaves the NEW list
+      // (mark, chip, to-do, 'Give each NEW crossing a sign', Play sheet); a crossing where a piece does better stays on it
+      var left = !!ln0 && newJ.ids.hasOwnProperty(lid) && noHelpJ(ln0);
+      if (left) { delete newJ.ids[lid]; saveNewJ(); }
+      // w_fix17 (cego 17, s037): the card opened by the piece in hand ('Your pick'): Leave it puts the piece down too (it stayed armed
+      // and the next tap on its tile disarmed it). The same piece on its own crossing keeps it in hand: that card says 'tap Leave it, then
+      // tap the stop again' to move it
+      var pk = scHelpPick ? scPick : null;
+      choiceClose(); snd('select');
+      if (pk && sel === pk) setSel(null);
+      emitUI('choiceLeave', { id: lid, left: left, drop: pk || null });
+    });
     // o toque que abriu o cartao ainda manda o 'click' para o que ficou embaixo do dedo: nos primeiros ms ele nao age
     on(scEl, 'click', function (e) { if (e && e.target === scEl && nowMs() - scAt >= SC_GHOST_MS) choiceClose(); });
     on(doc, 'keydown', function (e) { if (e && e.key === 'Escape' && choiceOpen()) choiceClose(); });
