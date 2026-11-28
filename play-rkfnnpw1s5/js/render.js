@@ -1185,6 +1185,25 @@
       if (tool === 'stop') return SS.ext(h, ux, uy);   // octogono: apotema h nos eixos e nas diagonais
       return h;
     }
+    // w_sy (CFG.yieldPoint): a pointed Yield is drawn on each road that waits (the same triangle, smaller, at the mouth of that road), none in
+    // the middle: the road without a sign keeps going. YP.at: centre of the sign along the road (x pictogram size); YP.s: its size. game.yieldAxes
+    // is null with the switch off, and then nothing here runs. ypInfo is read once per frame per crossing
+    var YP = { at: 1.05, s: 0.7 }, ypCache = { f: -1, m: {} }, ypFrame = 0;
+    function ypInfo(n) {
+      if (!n || n.tool !== 'yield' || !game || typeof game.yieldAxes !== 'function') return null;
+      if (ypCache.f !== ypFrame) ypCache = { f: ypFrame, m: {} };
+      var c = ypCache.m[n.id];
+      if (c === undefined) { var ax = null; try { ax = game.yieldAxes(n.id); } catch (e) { ax = null; } c = ypCache.m[n.id] = ax ? { wait: ax.wait, main: ax.main } : null; }
+      return c;
+    }
+    function ypDraw(w, n, x, y, ps, info) {
+      for (var i = 0; i < info.wait.length; i++) {
+        var e = w.edges[info.wait[i]]; if (!e) continue;
+        var o = w.nodes[e.a === n.id ? e.b : e.a]; if (!o) continue;
+        var dx = o.x - n.x, dy = o.y - n.y, L = Math.sqrt(dx * dx + dy * dy); if (!(L > 0.01)) continue;
+        drawPicto('yield', x + dx / L * ps * YP.at, y + dy / L * ps * YP.at, ps * YP.s, 0);
+      }
+    }
     var sgUse = true;   // r._signShift(false): so para capturas de comparacao (desliga o recuo no sinal)
     function signShift(s) { var t = (s - (SG.len - SG.R)) / SG.R; return t <= 0 ? 0 : SG.d * (t >= 1 ? 1 : t); }
     function portalJunction(n) { return !!(n && n.portal && n.edges && n.edges.length >= 3); }
@@ -1403,6 +1422,7 @@
 
       if (w !== lastWorld) resetTracking(w, now);
       else track(w, now);
+      ypFrame++;
 
       var nodes = w.nodes, edges = w.edges, k, n, e, a, b, i;
       // escalas
@@ -1804,12 +1824,13 @@
           var sgOn = false, sgK = 1;
           if (sgUse && ea && eb && typeof car.s === 'number') {
             var sgN = car.dir === -1 ? ea : eb;
-            if (sgN.tool && SIGN_Q[sgN.tool] === 1) {
+            var ypI = sgN.tool === 'yield' ? ypInfo(sgN) : null, ypMainE = !!(ypI && ypI.wait.indexOf(e.id) < 0);   // w_sy: the road that keeps going has no sign
+            if (sgN.tool && SIGN_Q[sgN.tool] === 1 && !ypMainE) {
               var sgx = eb.x - ea.x, sgy = eb.y - ea.y, sgl = Math.sqrt(sgx * sgx + sgy * sgy);
               if (sgl > 0.01) {
                 var sgd = car.dir === -1 ? -1 : 1, hx2 = sgx / sgl * sgd, hy2 = sgy / sgl * sgd, elen = e.len || sgl;
                 SG.len = elen;
-                SG.d = Math.min((signExt(sgN.tool, ps, -hx2, -hy2) + SIGN_GAP + hl) / z, elen * 0.6);
+                SG.d = Math.min(((ypI ? ps * YP.at + signExt('yield', ps * YP.s, -hx2, -hy2) : signExt(sgN.tool, ps, -hx2, -hy2)) + SIGN_GAP + hl) / z, elen * 0.6);
                 SG.R = Math.min(elen, SG.d * SIGN_RAMP);
                 if (SG.d > 0 && SG.R > SG.d) {
                   var sgs = car.s < 0 ? 0 : (car.s > elen ? elen : car.s), shv = signShift(sgs);
@@ -2431,7 +2452,7 @@
         }
         if (sc <= 0.02) continue;
         if (dk) { ctx.save(); ctx.globalAlpha = 0.3; drawPicto('light', tx2, ty2, ps * sc, 0); ctx.restore(); }
-        else drawPicto(n.tool, tx2, ty2, ps * sc, n.lightPhase);
+        else { var ypD = n.tool === 'yield' ? ypInfo(n) : null; if (ypD) ypDraw(w, n, tx2, ty2, ps * sc, ypD); else drawPicto(n.tool, tx2, ty2, ps * sc, n.lightPhase); }
       }
 
       // rotulos das marcas de evento: depois dos pictogramas (um Stop nao cobre a frase), com contorno da cor do fundo

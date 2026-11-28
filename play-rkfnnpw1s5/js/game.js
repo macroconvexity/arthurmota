@@ -7,7 +7,8 @@
   var CFG = CRZ.CFG;
 
   var STEP = 1 / 30;            // passo fixo do sim (s simulados)
-  var BRANCHING = false;        // v2x: um ramo do 'e se' (g.whatIf) esta rodando: ele nao guarda manha nem abre ramos
+  var BRANCHING = false;
+  var BR_ARMS = null;           // w_sy: the arms of the replay of today's piece (r.cur.a), read by branchOpen to point a Yield as placeTool will        // v2x: um ramo do 'e se' (g.whatIf) esta rodando: ele nao guarda manha nem abre ramos
   var CLEAR = 26;               // folga minima entre estradas nao ligadas
   var PLACEABLE = { stop: 1, yield: 1, light: 1, round: 1 };   // v2: a faixa de pedestre (cross) saiu
   var HAND_TOOLS = { light: 1, stop: 1, yield: 1, upgrade: 1 };
@@ -454,9 +455,15 @@
       }
       if (st.marks && st.marks.day === st.day) for (i = 0; i < st.marks.list.length; i++) { var mk = st.marks.list[i], yy = yd[mk.id]; mk.now = { w: yy ? yy.w : 0, n: yy ? yy.n : 0 }; }
       st.yday = { day: st.day, nodes: yd };
+      function ypNow(o, nid) {   // w_sy: the main road's longest wait today at a Yield (o.m, whole s)
+        if (!ypOn() || !o || !world.nodes[nid] || world.nodes[nid].tool !== 'yield' || typeof world.armsOf !== 'function') return;
+        var ax = world.yieldAxes(nid), sp = ax ? ypMain(world, nid, world.armsOf(nid), ax.main[0]) : null;
+        if (sp) o.m = sp.main;
+      }
+      if (st.marks && st.marks.day === st.day) for (i = 0; i < st.marks.list.length; i++) ypNow(st.marks.list[i].now, st.marks.list[i].id);
       for (i = 0; i < L.length; i++) {
         var r = rec[L[i].id] || { p: 0, w: 0, n: 0 };
-        L[i].now = { p: r.p, w: r.w, n: r.n };
+        L[i].now = { p: r.p, w: r.w, n: r.n }; ypNow(L[i].now, L[i].id);
         if (watchFixed(L[i])) st.tally.fixed++;
       }
     }
@@ -496,6 +503,7 @@
         var o = { id: e.id, tool: e.tool, p: fin(e.p) ? Math.max(0, Math.min(1, e.p)) : 0, t: fin(e.t) && e.t >= 0 ? e.t : null,
                   w: fin(e.w) && e.w >= 0 ? e.w : null, n: fin(e.n) && e.n >= 0 ? e.n : null, s: traceOk(e.s), dt: fin(e.dt) && e.dt > 0 ? e.dt : TRACE_DT };
         if (isObjL(e.now)) o.now = { p: fin(e.now.p) ? Math.max(0, Math.min(1, e.now.p)) : 0, w: fin(e.now.w) && e.now.w >= 0 ? e.now.w : 0, n: fin(e.now.n) && e.now.n >= 0 ? e.now.n : 0 };
+        if (o.now && fin(e.now.m) && e.now.m >= 0) o.now.m = e.now.m;   // w_sy: the main road's seconds today at a Yield (CFG.yieldPoint) survive a reload
         out.list.push(o);
       }
       return out;
@@ -1086,6 +1094,38 @@
 
     // ----- crescimento da cidade -----
     function degree(n) { return n.edges ? n.edges.length : 0; }
+    // w_sy (CFG.yieldPoint): the Yield the player points. ypOn: the switch. ypAxis: the axis of a road at a crossing (the sim's axisKey rule).
+    // prioDefault: the road that keeps going when a Yield is put down = the first road of the axis that brought the most cars in arms
+    // ([[road, wait, cars]], yesterday's replay); without cars, the axis the sim picks now. ypMain: the longest wait on the main axis and on
+    // the others, from arms and the axis of mainEdge (whole seconds), or null
+    function ypOn() { return !!(CFG.yieldPoint && CFG.yieldPoint.on); }
+    function ypAxis(wd, id, eid) {
+      var e = wd.edges[eid], n = wd.nodes[id]; if (!e || !n) return -1;
+      var o = wd.nodes[e.a === id ? e.b : e.a]; if (!o) return -1;
+      var d = Math.atan2(o.y - n.y, o.x - n.x) * 180 / Math.PI; d = ((d % 180) + 180) % 180;
+      return Math.round(d / 45) % 4;
+    }
+    function prioDefault(wd, id, arms) {
+      var ax = typeof wd.yieldAxes === 'function' ? wd.yieldAxes(id) : null; if (!ax) return null;
+      var tot = {}, best = -1, bc = 0, j, k;
+      for (j = 0; arms && j < arms.length; j++) { k = ypAxis(wd, id, arms[j][0]); if (k >= 0) tot[k] = (tot[k] || 0) + (arms[j][2] || 0); }
+      for (j = 0; j < ax.axes.length; j++) { k = ax.axes[j].length ? ypAxis(wd, id, ax.axes[j][0]) : -1; if (k >= 0 && (tot[k] || 0) > bc) { bc = tot[k]; best = j; } }
+      var pick = best >= 0 ? ax.axes[best] : ax.main;
+      return pick && pick.length ? pick[0] : null;
+    }
+    function ypBusyEdge(wd, id, arms) {   // the first road of the axis with the most cars in arms (null without cars)
+      var tot = {}, first = {}, j, k, best = null, bc = 0;
+      for (j = 0; arms && j < arms.length; j++) { k = ypAxis(wd, id, arms[j][0]); if (k < 0) continue; tot[k] = (tot[k] || 0) + (arms[j][2] || 0); if (first[k] === undefined) first[k] = arms[j][0]; }
+      for (k in tot) if (tot[k] > bc) { bc = tot[k]; best = first[k]; }
+      return best;
+    }
+    function ypMain(wd, id, arms, mainEdge) {
+      if (!arms || mainEdge === null || mainEdge === undefined) return null;
+      var mk = ypAxis(wd, id, mainEdge), m = null, o = null;
+      for (var j = 0; j < arms.length; j++) { var v = arms[j][1] || 0; if (ypAxis(wd, id, arms[j][0]) === mk) { if (m === null || v > m) m = v; } else if (o === null || v > o) o = v; }
+      return m === null || o === null ? null : { main: Math.round(m), side: Math.round(o) };
+    }
+    var ypFlip = { day: -1, m: {} };   // taps that swapped a Yield this morning (after every axis had its turn, the next tap picks it up)
     // so conta portais da cidade (os das ruas do jogador tem rate < 1): sem isso, quem constroi
     // ruas cedo esgota o teto e os ramos que a cidade cria depois ficam sem carro nenhum
     function portalCount() {
@@ -1908,7 +1948,7 @@
         var bw = b.world, nd = bw.nodes[id]; if (!nd) return null;
         bw.armTrack = true;   // w_choice: espera por aproximacao (sim.js armsOf), so neste ramo
         CFG.lightCap = null;
-        if ((nd.tool || null) !== tool) bw.setTool(id, tool);
+        if ((nd.tool || null) !== tool) { bw.setTool(id, tool); if (tool === 'yield' && ypOn() && typeof bw.setPrio === 'function') bw.setPrio(id, prioDefault(bw, id, BR_ARMS)); }
         if (lane !== undefined && lane !== null && typeof bw.setLanes === 'function' && bw.edges[lane]) bw.setLanes(lane, 2);   // w_choice2: Two lanes na rua mais cheia
         // salt: o mesmo dia com outra sorte de chegada (a semente do dia do Sim muda; cidade, pecas e carros/min iguais)
         if (salt) bw.seed = (bw.seed ^ Math.imul(salt, 0x9E3779B1)) >>> 0;
@@ -2079,7 +2119,7 @@
           // w_dawn: a branch opens (load + start of the day, the longest piece of work that cannot be cut) only at the start of a slice
           if (!job.br && now && did) break;
           did = true;
-          if (!job.br) { job.br = branchOpen(save, id, task.t, task.mul, task.s, !!task.bk, task.lane); job.branches++; if (!job.br) { settle(task, null); continue; } }
+          if (!job.br) { BR_ARMS = r.cur && r.cur.a ? r.cur.a : null; job.br = branchOpen(save, id, task.t, task.mul, task.s, !!task.bk, task.lane); BR_ARMS = null; job.branches++; if (!job.br) { settle(task, null); continue; } }
           else if (branchStep(job.br, now ? 45 : Infinity)) {
             if (task.bk && job.br.all) mBase[task.bk] = job.br.all;
             settle(task, job.br.out); job.br = null;
@@ -2367,6 +2407,8 @@
         row.pay = payOf(x);
         row.near = !!(x.lock || x.p >= (K.shape || {}).nearP || (xh && (xh.lock || xh.p >= (K.shape || {}).nearP)));   // w_shape: a repeticao com a peca ficou perto do limite
         row.payer = payerOf(x);
+        // w_sy: Stop and Yield rows say the replay's longest wait on the busy road and on the others (whole s), the Yield pointed as placeTool will
+        if (ypOn() && (t === 'stop' || t === 'yield') && x.a) row.split = ypMain(world, id, x.a, ypBusyEdge(world, id, r.cur && r.cur.a));
         return { repBad: repBad, newLock: newLock };
       }
       for (i = 0; i < CFG.toolOrder.length; i++) {
@@ -2598,6 +2640,10 @@
       var entry = capture();
       if (n.pair !== null && n.pair !== undefined && tool !== 'light') world.unpair(nodeId);
       world.setTool(nodeId, tool);
+      if (tool === 'yield' && ypOn() && typeof world.setPrio === 'function') {
+        var ypC = wiCached(nodeId); world.setPrio(nodeId, prioDefault(world, nodeId, ypC && ypC.cur ? ypC.cur.a : null));
+        if (ypFlip.day !== st.day) ypFlip = { day: st.day, m: {} }; delete ypFlip.m[nodeId];
+      }
       var pairedWith = null;
       autoPair();                                   // v2: par automatico (o vizinho de um semaforo trocado pega outro)
       if (tool === 'light') pairedWith = n.pair;
@@ -2618,6 +2664,25 @@
       return pres;
     };
 
+    // w_sy: tapping a Yield with Yield in hand gives the right of way to the next road (free). After every road had its turn the answer is
+    // { ok: false, reason: 'cycled' } and the UI picks the sign up as before. { ok, id, main: [roads that keep going], last: next tap picks up }
+    g.flipYield = function (nodeId) {
+      if (!needPlan()) return fail('phase');
+      if (!ypOn()) return fail('off');
+      var n = getNode(nodeId); if (!n || n.tool !== 'yield') return fail('notool');
+      var ax = typeof world.yieldAxes === 'function' ? world.yieldAxes(n.id) : null; if (!ax) return fail('axes');
+      if (ypFlip.day !== st.day) ypFlip = { day: st.day, m: {} };
+      var k = (ypFlip.m[n.id] | 0) + 1;
+      if (k >= ax.axes.length) { delete ypFlip.m[n.id]; return fail('cycled'); }
+      var entry = capture(), next = ax.axes[(ax.gm + 1) % ax.axes.length];
+      world.setPrio(n.id, next[0]);
+      ypFlip.m[n.id] = k;
+      undoStack.push(entry);
+      refresh();
+      emit({ type: 'built', x: n.x, y: n.y, kind: 'yield' });
+      return { ok: true, id: n.id, main: next.slice(), last: k + 1 >= ax.axes.length };
+    };
+    g.yieldAxes = function (nodeId) { return ypOn() && typeof world.yieldAxes === 'function' ? world.yieldAxes(+nodeId) : null; };
     g.removeTool = function (nodeId) {
       if (!needPlan()) return fail('phase');
       var n = getNode(nodeId);
@@ -2973,6 +3038,7 @@
       var o = (dieLive() && st.die.effect) || {};
       function mul(v) { return typeof v === 'number' && isFinite(v) && v > 0 ? v : 1; }
       world.resetDay();
+      if (ypOn()) world.armTrack = true;   // w_sy: longest wait per road today (pure, no draw), for the next-day line of a Yield
       world.day = st.day;
       var p = world.params = world.params || {};
       // dado x cartas, a partir de 1 a cada dia (nao acumula de um dia para o outro)
@@ -3786,6 +3852,7 @@
       var o = { id: Math.floor(x.id), tool: x.tool, w: x.w, n: Math.floor(x.n) };
       if (x.fresh === true) o.fresh = true;   // w_bugs13
       if (x.now && typeof x.now === 'object' && fin(x.now.w) && x.now.w >= 0 && fin(x.now.n) && x.now.n >= 0) o.now = { w: x.now.w, n: Math.floor(x.now.n) };
+      if (o.now && fin(x.now && x.now.m) && x.now.m >= 0) o.now.m = x.now.m;   // w_sy: same as the trouble record above
       out.list.push(o);
     }
     return out;

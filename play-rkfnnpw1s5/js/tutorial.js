@@ -55,6 +55,8 @@
     reroll: 'Bad roll? Tap the dice to reroll for {rr}.',
     bigDie: 'New dice today: 1 to {big}, not 1 to {small}. Higher is better.',
     boostJunction: 'You can also boost a crossing: tap it to clear its line (uses \u26a1\ufe0e).',
+    // w_sy (CFG.yieldPoint on): the tool card of the Yield the player points (fillCosts puts it in place of tool.yield)
+    toolYieldPoint: 'Yield, {c}: the road with the sign waits.',
     // cartoes de ferramenta: {c} vira o custo do CFG ("1 build point"); ate 10 palavras ja com o custo
     tool: {
       stop: 'Stop, {c}: cheap. Cars take turns at quiet crossings.',
@@ -118,6 +120,7 @@
   // custo no cartao da ferramenta, lido do CFG (sem CFG: tira o custo e fica so o nome)
   (function fillCosts() {
     var T = CRZ.CFG && CRZ.CFG.tools, id, c;
+    if (CRZ.CFG && CRZ.CFG.yieldPoint && CRZ.CFG.yieldPoint.on && STR.toolYieldPoint) STR.tool.yield = STR.toolYieldPoint;   // w_sy
     for (id in STR.tool) {
       if (!has(STR.tool, id)) continue;
       // w_price: o preco do dia em que a peca chega (o cartao abre nesse dia; a Roundabout chega no capitulo 2)

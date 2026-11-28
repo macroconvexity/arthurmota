@@ -183,6 +183,23 @@
       round: 'Goes on a crossing with 4 or more roads. Replaces the sign there.',
       oneway: 'Tap the arrow to flip it (free), again for two-way. A car with no route waits, then counts as lost.'
     },
+    // w_sy (CFG.yieldPoint, prototype): the Yield the player points. use: the tray tile's line in place of toolUseLine.yield; placed: the strip
+    // after a Yield goes down; swapped / swappedLast: after a tap with Yield in hand swaps the road that waits (last: the next tap picks it up);
+    // sec: the card's Stop and Yield rows, the replay's longest wait on the busy road and on the others (whole s, numbers from the game)
+    yieldPoint: {
+      use: 'Busy road never stops. The road with the sign waits for a gap.',
+      placed: 'Yield placed. The road with the sign waits. Tap it again to swap.',
+      placedBetter: 'Yield placed: better here. The road with the sign waits.',
+      placedSame: 'Yield placed. About the same as before here. The road with the sign waits.',
+      swapped: 'Swapped. The road with the sign waits now.',
+      swappedLast: 'Swapped. Tap it again to pick it up.',
+      // after the verdict strip of a Yield that went down on the first tap (the verdict line has no room for the swap), until he swaps once in the match
+      swapHint: 'Tap it again to swap the road that waits.',
+      sec: function (a, b) { return 'main road ' + a + ' s, side street ' + b + ' s'; },
+      // the two roads within CFG.yieldPoint.sameBelow s of each other: one number, so the line never puts one road above the other
+      secSame: function (n) { return 'main road and side street, about ' + n + ' s each'; },
+      mainNow: function (a, b, m) { return a + ' s \u2192 ' + b + ' s, main road ' + m + ' s.'; }
+    },
     // w_tiles: o que a ferramenta e, em poucas palavras (ladrilho bloqueado: nome + isto + quando chega)
     toolWhat: {
       road: 'joins two spots.', stop: 'cars take turns.', yield: 'the main road keeps going.',
@@ -2012,7 +2029,7 @@
     // line, the summary bar, grouped rings, the first Boost on a crossing, the day-1 road-end hint, the first-piece watch, the
     // first event line, the NEW tip, the chapter dots line) is kept per device and never comes back in a later match
     var PER_RUN = { boostOut: 1, bigDie: 1, day4rule: 1, half6: 1, boosts4: 1, resumed: 1,
-                    strikes6: 1, chapter11: 1, chapter21: 1, mag: 1, guideHint: 1 };
+                    strikes6: 1, chapter11: 1, chapter21: 1, mag: 1, guideHint: 1, ypSwapped: 1 };
     var runTag = '@' + ((game.world && game.world.seed) != null ? game.world.seed : 0);
     (function pruneRunHints() {
       var k, ch = false;
@@ -2807,7 +2824,7 @@
         // 'Works best with Two lanes' so quando Two lanes ja existe
         var wk = STR.toolWorks[t.id];
         if (t.id === 'light' && !toolOpen(CFG, 'upgrade', s.day | 0)) wk = STR.toolWorksLightEarly;
-        var gl = [STR.toolUseLine[t.id], wk];
+        var gl = [useLine(t.id), wk];
         if (t.id === 'light' && CFG.upkeep && CFG.upkeep.perLight > 0) gl.push(STR.guideUpkeep(CFG.upkeep.fromDay, CFG.upkeep.perLight));   // v2
         if (t.id === 'light' && t.cap != null && isFinite(t.cap)) gl.push(STR.guideCap(t.cap, ((CFG.lightCap && CFG.lightCap.byDay) || []).some(function (x) { return x[0] > (s.day | 0); })));   // v2m; w_light: 'more later' so com degrau a frente
         body.appendChild(gRow(toolIcon(t.id), (STR.tools[t.id] || t.id) + ' \u00b7 ' + c + (c === 1 ? ' point' : ' points'), gl));
@@ -2868,8 +2885,11 @@
     function legendText(id) {
       var c; try { c = typeof game.cost === 'function' ? game.cost(id) : undefined; } catch (e) { warnOnce('game.cost', e); }
       if (typeof c !== 'number') c = CFG.tools[id] ? listPrice(id) : 0;
-      return STR.legend(STR.tools[id] || id, c, STR.toolUseLine[id] || '');
+      return STR.legend(STR.tools[id] || id, c, useLine(id) || '');
     }
+    function ypOn() { return !!(CFG.yieldPoint && CFG.yieldPoint.on); }
+    var ypHint = null;   // w_sy2: { id, at } the swap hint that waits for the verdict strip to go
+    function useLine(id) { return id === 'yield' && ypOn() ? STR.yieldPoint.use : STR.toolUseLine[id]; }   // w_sy
     function legendAfford(id) { try { return !game.canAfford || game.canAfford(id) !== false; } catch (e) { return true; } }
     // playtest cego 3 (031): o cartao do tutorial da ferramenta ('tool:stop') e a legenda da mesma ferramenta
     // empilhados com o mesmo texto. A legenda espera o cartao fechar (nao some: volta logo depois do 'Got it')
@@ -4411,6 +4431,7 @@
         pickAsk = null;
         if (same && pa && pa.id === n.id && pa.tool === tool && nowMs() < pa.until) return false;   // ja viu o cartao: pega
         if (same && tool === 'round') return false;   // a recusa de sempre
+        if (same && tool === 'yield' && ypOn()) return false;   // w_sy: the tap swaps the road that waits (no card)
         if (!hasReplay(n)) {
           newCmp = !n.tool && !seen('newNoCmp') && !tutorTalking() && cardsLive() ? n.id : null;
           return false;
@@ -4434,7 +4455,9 @@
           placeNodeTool(n, tool, s);
           if (n.tool === tool) {
             // nada saiu do lugar (sem troca): a faixa do veredito vence a do retorno ('Stop placed here.', a dica do Yield, o mover da mao)
-            sayUntil = 0; say((row.verdict === 'better' ? STR.choice.placedBetter : STR.choice.placedSame)(STR.tools[tool] || tool), 4500);
+            sayUntil = 0; say(tool === 'yield' && ypOn() ? (row.verdict === 'better' ? STR.yieldPoint.placedBetter : STR.yieldPoint.placedSame) : (row.verdict === 'better' ? STR.choice.placedBetter : STR.choice.placedSame)(STR.tools[tool] || tool), 4500);
+            // w_sy2: the verdict line has no room for the swap: the hint follows it, until he has swapped once in this match
+            if (tool === 'yield' && ypOn() && gOn() && !seen('ypSwapped')) ypHint = { id: n.id, at: nowMs() };
             emitUI('placeVerdict', { id: n.id, tool: tool, verdict: row.verdict });
           }
           return true;
@@ -4493,6 +4516,11 @@
           }
         }
         // Stop e Yield: tocar um sinal ja posto pega ele (vai para a mao, de graca); tocar outro cruzamento poe
+        // w_sy (CFG.yieldPoint): with the pointed Yield the tap swaps the road that waits (free); after every road had its turn, it picks it up
+        if (sel === 'yield' && n.tool === 'yield' && ypOn() && typeof game.flipYield === 'function') {
+          var fy = game.flipYield(n.id);
+          if (fy && fy.ok) { ypHint = null; if (!seen('ypSwapped')) markSeen('ypSwapped'); snd('select'); addPulse(n.x, n.y); say(fy.last ? STR.yieldPoint.swappedLast : STR.yieldPoint.swapped, 4000); emitUI('yieldSwapped', { id: n.id, main: fy.main }); return; }
+        }
         if ((sel === 'stop' || sel === 'yield') && n.tool === sel && typeof game.removeTool === 'function') {
           var rp = game.removeTool(n.id);
           if (rp && rp.ok) { snd('select'); addPulse(n.x, n.y); say(handStr('Picked', sel), 4000); emitUI(sel + 'Picked', { id: n.id }); }
@@ -4540,6 +4568,7 @@
           // retorno imediato: anel no no e a frase 'Stop placed here.'
           addPulse(n.x, n.y); say(STR.placed(STR.tools[sel] || TL[sel] || sel), 1800);
         }
+        if (tr && tr.ok && sel === 'yield' && ypOn()) { addPulse(n.x, n.y); say(STR.yieldPoint.placed, 5000); }   // w_sy: what the sign on the map means, and the swap
         if (tr && tr.ok && sel === 'yield') yieldBusyHint(s, n);
         if (tr && tr.ok) fbkPlaced(tr, n, !was && sel !== 'yield');
         // peca da mao: a frase do mover (de graca) ou da peca que foi para a mao vence a do retorno
@@ -7050,7 +7079,8 @@
       num.textContent = nums; mid.appendChild(bar); mid.appendChild(num); body.appendChild(mid);
       var noteTxt = '', payTxt = '', lostTxt = '', ndTxt = '';
       if (mk) { ndTxt = C.nextDoor.note; var nn = el('span', 'crz-scnote'); nn.textContent = ndTxt; body.appendChild(nn); }
-      if (!c.pending && vd === 'better' && r.payer && C.payer[r.payer]) { payTxt = C.payer[r.payer]; var py = el('span', 'crz-scnote crz-scpay'); py.textContent = payTxt; body.appendChild(py); }
+      if (!c.pending && r.split && ypOn()) { payTxt = Math.abs(r.split.main - r.split.side) < ((CFG.yieldPoint && CFG.yieldPoint.sameBelow) || 0) ? STR.yieldPoint.secSame(Math.round((r.split.main + r.split.side) / 2)) : STR.yieldPoint.sec(r.split.main, r.split.side); var ps2 = el('span', 'crz-scnote crz-scpay'); ps2.textContent = payTxt; body.appendChild(ps2); }   // w_sy: who waits, in seconds
+      else if (!c.pending && vd === 'better' && r.payer && C.payer[r.payer]) { payTxt = C.payer[r.payer]; var py = el('span', 'crz-scnote crz-scpay'); py.textContent = payTxt; body.appendChild(py); }
       // w_pick: com quem paga na linha, a consequencia de lado (side/main) diria o mesmo: sai
       if (r.note && r.note !== 'lightsFull' && !nd && !(payTxt && (r.note === 'side' || r.note === 'main')) && !(r.note === 'busy' && r.qual)) noteTxt = typeof C.note[r.note] === 'function' ? C.note[r.note](r.nv) : C.note[r.note];
       var qualTxt = !c.pending && vd === 'better' && r.qual && C.qualNote[r.qual] ? C.qualNote[r.qual] : '';
@@ -7304,7 +7334,7 @@
         if (scFrom && scFrom.node === n.id && scFrom.tool === tool && typeof game.keepPromise === 'function') { try { game.keepPromise(scFrom.from, { day: s.day | 0, tool: 'feed', node: n.id, piece: tool, w0: scFrom.w0, w1: scFrom.w1, v: 'better' }); } catch (e) { warnOnce('game.keepPromise', e); } }
         choiceClose(); setSel(arm, true);   // w_place: a peca que estava na mao segue na mao
         // (o Yield da bandeja diz a dica do cruzamento cheio; pelo cartao a faixa e a promessa)
-        if (!had && (sayEl.textContent === STR.placed(STR.tools[tool] || tool) || (tool === 'yield' && (!sayEl.textContent || /^Busy crossing: /.test(sayEl.textContent))))) { sayUntil = 0; say(STR.choice.placed(STR.tools[tool] || tool), 4500); }
+        if (!had && (sayEl.textContent === STR.placed(STR.tools[tool] || tool) || (tool === 'yield' && (!sayEl.textContent || /^Busy crossing: /.test(sayEl.textContent))))) { sayUntil = 0; say(tool === 'yield' && ypOn() ? STR.yieldPoint.placed : STR.choice.placed(STR.tools[tool] || tool), 4500); }
         return;
       }
       // pergunta pendente (segundo toque da troca para baixo, ou o semaforo que vem de outro lugar): o cartao sai da frente e a
@@ -7380,7 +7410,7 @@
       // a frase da mao unica ('Tap the arrow to flip it.') fica: o aviso do primeiro gasto espera o proximo gasto
       if (sayUntil && /^One-way: /.test(sayEl.textContent)) tutOn = true;
       // w_place: o veredito da peca que entrou direto (ou 'New crossing') fica: o aviso espera o proximo gasto
-      if (sayUntil && (/ placed: better here\. | placed\. About the same as before here\.$/.test(sayEl.textContent) || sayEl.textContent === STR.choice.newCross)) tutOn = true;
+      if (sayUntil && (/ placed: better here\. | placed\. About the same as before here\.$/.test(sayEl.textContent) || sayEl.textContent === STR.choice.newCross || (ypOn() && (sayEl.textContent === STR.yieldPoint.placedBetter || sayEl.textContent === STR.yieldPoint.placedSame || sayEl.textContent === STR.yieldPoint.placed)))) tutOn = true;   // w_sy2: the pointed Yield's lines too (the swap hint is not covered by the first-spend tip)
       if (b < spendBudget && gOn() && !seen('firstSpend') && !tutOn) { markSeen('firstSpend'); say(STR.firstSpend(spendBudget - b, lastDayOf(s))); }
       spendBudget = b;
     }
@@ -7464,6 +7494,12 @@
       // play: laco no plano do dia 1 (enquanto nenhuma ferramenta esta na mao); pulso curto no 1o run
       var want = '';
       // A4: aviso guardado ha mais de 4 s e descartado (fora de contexto)
+      // w_sy2: the swap hint, once the verdict strip is gone; dropped when too late, when the Yield is gone, or after the first swap
+      if (ypHint && !sayUntil && !tutBalloonOn() && !modal()) {
+        var yh = ypHint; ypHint = null;
+        var yn = game.world && game.world.nodes ? game.world.nodes[yh.id] : null;
+        if (nowMs() - yh.at <= 9000 && s.phase === 'plan' && yn && yn.tool === 'yield' && ypOn() && !seen('ypSwapped')) say(STR.yieldPoint.swapHint, 4000, function () { var q = game.world.nodes[yh.id]; return game.state.phase === 'plan' && !!q && q.tool === 'yield'; });
+      }
       if (sayLater && !tutBalloonOn() && !sayUntil) { var sl = sayLater; sayLater = null; if (nowMs() - sl.at <= 4000 && (!sl.v || sl.v())) say(sl.t, sl.ms, sl.v); }
       if (sayUntil && sayValid && !sayValid()) { sayValid = null; sayUntil = 0; sayEl.classList.remove('show'); }
       runHintTick(s, now);
@@ -8149,6 +8185,9 @@
       else if (rv === 'better') r.text = M2.betterThan(T, l.a, l.b);
       else if (pv === 'worse') r.text = M2.noWorse(T, l.a, l.b);
       else { r.text = M2.worseThan(T, l.a, l.b); r.tryIt = true; }
+      // w_sy: a pointed Yield also says the main road's longest wait today, when the line still fits 16 words
+      var ypM = l.tool === 'yield' && ypOn() && l.e && l.e.now ? l.e.now.m : null, ypTail = l.a + ' s \u2192 ' + l.b + ' s.';
+      if (typeof ypM === 'number' && r.text.indexOf(ypTail) >= 0) { var ypT = r.text.replace(ypTail, STR.yieldPoint.mainNow(l.a, l.b, ypM)); if (ypT.split(/\s+/).filter(Boolean).length <= 16) r.text = ypT; }
       // verdade errada: o motivo que o estado mostra (os carros que cruzaram aqui hoje contra ontem), senao nenhum
       var n0 = l.n0, n1 = l.n1;
       if (typeof n0 === 'number' && typeof n1 === 'number') {

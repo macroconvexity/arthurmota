@@ -148,6 +148,13 @@
     // mais). busyAt: pico de ontem (0 a 1) a partir do qual um cruzamento novo sem sinal conta como 'busy' (anel vermelho, 0,6).
     // Numeros e controles em web/dev/review/w_pile/REPORT.md
     pile: { warnAt: 4, busyAt: 0.6 },
+    // w_sy (prototype, owner to approve): the Yield the player points. on: the road that keeps going is the player's (placed on the road that
+    // brought the most cars yesterday; tapping the Yield again with Yield in hand swaps it, after every road had its turn the next tap picks it
+    // up), the map draws the sign on each road that waits (none in the middle), the card's Stop and Yield rows say the seconds per road and
+    // the next-day line adds the main road's seconds when it fits. false = today's game (nothing of this runs)
+    // sideMax: with on, the side street's turn comes after this many s of waiting (minorMaxWait, 12, stays for the game without the switch)
+    // sameBelow: the card's seconds per road show one number when the two are less than this many s apart (never two numbers that rank one road above the other)
+    yieldPoint: { on: true, sideMax: 6, sameBelow: 4 },
 
     // regras de cruzamento (segundos). Dono da implementacao: sim.js
     junction: {

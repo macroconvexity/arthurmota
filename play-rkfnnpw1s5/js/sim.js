@@ -752,6 +752,12 @@
       return best;
     }
 
+    // w_sy (CFG.yieldPoint): a rua que o jogador apontou no Yield (n.prio = id da rua) e a principal; o eixo dela nao para. Sem
+    // n.prio (ou a rua nao entra mais aqui), a regra antiga (mainGroup)
+    function prioGroup(n, ns) {
+      if (n.prio != null) for (var a = 0; a < ns.ap.length; a++) if (ns.ap[a].e.id === n.prio) return ns.ap[a].gi;
+      return mainGroup(ns);
+    }
     // w_tools (J.stop.twoLanes, opcional): no Pare, a entrada de duas faixas que acabou de soltar um carro solta tambem a cabeca
     // parada da outra faixa na mesma vez (a fila longa de um lado anda mais). extra: a vez dura extra x a mais quando os dois saem
     // (0 = o dobro de carros, 1 = como sem a regra). Sem o bloco, como antes
@@ -812,11 +818,13 @@
         // em que a principal nao soltou ninguem. Antes a brecha era medida depois: o carro da principal que
         // acabava de entrar no cruzamento nao contava e as duas cruzavam no mesmo passo.
         if (t < ns.busy) return;
-        var Y = J.yield, gm = mainGroup(ns), forced = false, fg = -1, fw = -1;
+        var Y = J.yield, gm = prioGroup(n, ns), forced = false, fg = -1, fw = -1;
+        // w_sy (CFG.yieldPoint.sideMax): with the pointed Yield on, the side street gets its turn after sideMax s, not minorMaxWait
+        var YP = CFG.yieldPoint, yMax = YP && YP.on && YP.sideMax > 0 ? YP.sideMax : Y.minorMaxWait;
         oneHeadPerApproach();
         for (i = 0; i < candN; i++) {
           var cf = cand[i];
-          if (cf.ls.gi !== gm && cf.wait >= Y.minorMaxWait && cf.wait > fw) { forced = true; fg = cf.ls.gi; fw = cf.wait; }
+          if (cf.ls.gi !== gm && cf.wait >= yMax && cf.wait > fw) { forced = true; fg = cf.ls.gi; fw = cf.wait; }
         }
         var gap = forced || !groupDemand(ns, gm, CFG.speedFree * Y.minorServe), mainWent = false;
         if (!forced) {
@@ -832,7 +840,7 @@
         for (i = 0; i < candN; i++) {
           var cy = cand[i];
           if (cy.done || cy.ls.gi === gm) continue;
-          if (forced && (cy.ls.gi !== fg || cy.wait < Y.minorMaxWait * (Y.batch != null ? Y.batch : 0))) continue;
+          if (forced && (cy.ls.gi !== fg || cy.wait < yMax * (Y.batch != null ? Y.batch : 0))) continue;
           if (tryRelease(n, ns, cy, true)) { went = true; if (!forced) break; }
         }
         if (went) ns.busy = t + (bf ? Y.minorServe / ns.bmul : Y.minorServe);
@@ -1320,6 +1328,7 @@
       if (!n) return null;
       if (tool && !TOOLS[tool]) return null;
       n.tool = tool || null;
+      if (n.tool !== 'yield' && n.prio != null) delete n.prio;
       if (n.tool !== 'light' && n.pair != null) w.unpair(nodeId);
       var ns = NS[nodeId];
       resetServer(ns);
@@ -1328,6 +1337,25 @@
       for (var i = 0; i < q.length; i++) { q[i].next[0] = q[i].next[1] = 0; }
       rebuild();
       return nodeId;
+    };
+    // w_sy: a rua que tem a vez num Yield (null = a regra antiga). So num no com Yield e numa rua dele
+    w.setPrio = function (nodeId, edgeId) {
+      var n = w.nodes[nodeId];
+      if (!n || n.tool !== 'yield') return null;
+      if (edgeId == null) { delete n.prio; return nodeId; }
+      if (n.edges.indexOf(+edgeId) < 0) return null;
+      n.prio = +edgeId;
+      return nodeId;
+    };
+    // w_sy: os eixos de um Yield (leitura pura): { main: [ids das ruas do eixo que nao para], wait: [ids das que esperam], axes: [[ids] por
+    // eixo, na ordem do sim] }. main e o eixo de n.prio ou, sem ele, o do mainGroup de agora. null fora de um no com Yield e 2+ eixos
+    w.yieldAxes = function (nodeId) {
+      var n = w.nodes[nodeId], ns = NS[nodeId];
+      if (!n || n.tool !== 'yield' || !ns || ns.groups < 2) return null;
+      var gm = prioGroup(n, ns), axes = [], main = [], wait = [];
+      for (var g = 0; g < ns.groups; g++) axes.push([]);
+      for (var a = 0; a < ns.ap.length; a++) { var ls = ns.ap[a]; axes[ls.gi].push(ls.e.id); (ls.gi === gm ? main : wait).push(ls.e.id); }
+      return { main: main, wait: wait, axes: axes, gm: gm };
     };
     w.setLanes = function (edgeId, lanes) {
       var e = w.edges[edgeId];
@@ -1692,7 +1720,9 @@
       var nodes = [], edges = [], i;
       for (i = 0; i < nodeList.length; i++) {
         var n = nodeList[i];
-        nodes.push({ id: n.id, x: n.x, y: n.y, tool: n.tool, portal: n.portal, pair: n.pair, rate: n.rate });
+        var jn = { id: n.id, x: n.x, y: n.y, tool: n.tool, portal: n.portal, pair: n.pair, rate: n.rate };
+        if (n.prio != null) jn.prio = n.prio;   // w_sy: so quando o jogador apontou (o resto do JSON igual ao de antes)
+        nodes.push(jn);
       }
       for (i = 0; i < edgeList.length; i++) {
         var e = edgeList[i];
@@ -1719,6 +1749,7 @@
         if (sn.rate > 0 && sn.rate < 1) n.rate = sn.rate;
         n.tool = sn.tool && TOOLS[sn.tool] ? sn.tool : null;
         n.pair = sn.pair == null ? null : sn.pair;
+        if (sn.prio != null && n.tool === 'yield') n.prio = sn.prio;
       }
       for (i = 0; i < snap.edges.length; i++) {
         var se = snap.edges[i];
